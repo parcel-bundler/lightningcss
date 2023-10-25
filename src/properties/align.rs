@@ -120,6 +120,7 @@ enum_property! {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum AlignContent {
   /// Default alignment.
   Normal,
@@ -188,6 +189,7 @@ impl ToCss for AlignContent {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum JustifyContent {
   /// Default justification.
   Normal,
@@ -372,6 +374,7 @@ enum_property! {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum AlignSelf {
   /// Automatic alignment.
   Auto,
@@ -446,6 +449,7 @@ impl ToCss for AlignSelf {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum JustifySelf {
   /// Automatic justification.
   Auto,
@@ -754,6 +758,7 @@ impl ToCss for LegacyJustify {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum JustifyItems {
   /// Default justification.
   Normal,
