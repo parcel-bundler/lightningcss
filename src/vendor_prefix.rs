@@ -18,8 +18,8 @@ bitflags! {
   /// be duplicated for each prefix flag that is enabled. This enables
   /// vendor prefixes to be added without increasing memory usage.
   #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
-#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
-pub struct VendorPrefix: u8 {
+  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+  pub struct VendorPrefix: u8 {
     /// The `-webkit` vendor prefix.
     const WebKit = 0b00000010;
     /// The `-moz` vendor prefix.
