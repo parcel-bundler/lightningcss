@@ -224,6 +224,7 @@ impl IsCompatible for Filter<'_> {
   serde(rename_all = "camelCase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct DropShadow {
   /// The color of the drop shadow.
   pub color: CssColor,
