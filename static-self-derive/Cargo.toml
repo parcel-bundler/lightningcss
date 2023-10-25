@@ -1,6 +1,6 @@
 [package]
 name = "static-self-derive"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Devon Govett <devongovett@gmail.com>","Donny <kdy1997.dev@gmail.com>"]
 description = "Derive macros for static-self"
