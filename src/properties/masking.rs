@@ -112,6 +112,7 @@ impl Default for GeometryBox {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum MaskClip {
   /// A geometry box.
   GeometryBox(GeometryBox),
@@ -221,7 +222,6 @@ impl From<MaskComposite> for WebKitMaskComposite {
 
 define_list_shorthand! {
   /// A value for the [mask](https://www.w3.org/TR/css-masking-1/#the-mask) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct Mask<'i>(VendorPrefix) {
     /// The mask image.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -492,7 +492,6 @@ impl Default for MaskBorderMode {
 define_shorthand! {
   /// A value for the [mask-border](https://www.w3.org/TR/css-masking-1/#the-mask-border) shorthand property.
   #[derive(Default)]
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct MaskBorder<'i> {
     /// The mask image.
     #[cfg_attr(feature = "serde", serde(borrow))]

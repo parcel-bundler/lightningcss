@@ -793,6 +793,7 @@ impl<'i> ToCss for MediaCondition<'i> {
   serde(rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum MediaFeatureComparison {
   /// `=`
   Equal,
@@ -1258,7 +1259,6 @@ macro_rules! define_query_features {
 pub(crate) use define_query_features;
 
 define_query_features! {
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   /// A media query feature identifier.
   pub enum MediaFeatureId {
     /// The [width](https://w3c.github.io/csswg-drafts/mediaqueries-5/#width) media feature.

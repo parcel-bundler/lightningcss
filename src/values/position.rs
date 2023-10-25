@@ -20,6 +20,7 @@ use crate::serialization::ValueWrapper;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct Position {
   /// The x-position.
   pub x: HorizontalPosition,
@@ -291,6 +292,7 @@ impl IsCompatible for Position {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum PositionComponent<S> {
   /// The `center` keyword.
   Center,

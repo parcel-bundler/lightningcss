@@ -57,6 +57,7 @@ impl IsCompatible for LengthPercentage {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum LengthPercentageOrAuto {
   /// The `auto` keyword.
   Auto,
@@ -120,6 +121,7 @@ macro_rules! define_length_units {
     #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "visitor", visit(visit_length, LENGTHS))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(tag = "unit", content = "value", rename_all = "kebab-case"))]
+    #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
     pub enum LengthValue {
       $(
         $(#[$meta])*
@@ -562,6 +564,7 @@ impl LengthValue {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Length {
   /// An explicitly specified length value.
   Value(LengthValue),
@@ -835,6 +838,7 @@ impl_try_from_angle!(Length);
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum LengthOrNumber {
   /// A length.
   Length(Length),

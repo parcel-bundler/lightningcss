@@ -42,6 +42,7 @@ use std::fmt::Write;
   serde(untagged, rename_all = "lowercase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum CssColor {
   /// The [`currentColor`](https://www.w3.org/TR/css-color-4/#currentcolor-color) keyword.
   #[cfg_attr(feature = "serde", serde(with = "CurrentColor"))]
