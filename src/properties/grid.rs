@@ -94,6 +94,7 @@ pub enum TrackListItem<'i> {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum TrackSize {
   /// An explicit track breadth.
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<TrackBreadth>"))]
@@ -136,6 +137,7 @@ pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum TrackBreadth {
   /// An explicit length.
   Length(LengthPercentage),
@@ -184,6 +186,7 @@ pub struct TrackRepeat<'i> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum RepeatCount {
   /// The number of times to repeat.
   Number(CSSInteger),
