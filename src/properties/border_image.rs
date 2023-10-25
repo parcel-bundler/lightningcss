@@ -170,6 +170,7 @@ impl IsCompatible for BorderImageSideWidth {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct BorderImageSlice {
   /// The offsets from the edges of the image.
   pub offsets: Rect<NumberOrPercentage>,
@@ -219,7 +220,6 @@ impl IsCompatible for BorderImageSlice {
 define_shorthand! {
   /// A value for the [border-image](https://www.w3.org/TR/css-backgrounds-3/#border-image) shorthand property.
   #[derive(Default)]
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct BorderImage<'i>(VendorPrefix) {
     /// The border image.
     #[cfg_attr(feature = "serde", serde(borrow))]

@@ -1020,7 +1020,6 @@ impl<'i> ToCss for TextEmphasisStyle<'i> {
 
 define_shorthand! {
   /// A value for the [text-emphasis](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-property) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct TextEmphasis<'i>(VendorPrefix) {
     /// The text emphasis style.
     #[cfg_attr(feature = "serde", serde(borrow))]
