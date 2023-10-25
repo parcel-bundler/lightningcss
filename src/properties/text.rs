@@ -103,6 +103,7 @@ impl ToCss for TextTransformOther {
   serde(rename_all = "camelCase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 struct SerializedTextTransformOther {
   /// Puts all typographic character units in full-width form.
   full_width: bool,
@@ -153,6 +154,7 @@ impl<'a> schemars::JsonSchema for TextTransformOther {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct TextTransform {
   /// How case should be transformed.
   pub case: TextTransformCase,
@@ -393,6 +395,7 @@ impl ToCss for Spacing {
   serde(rename_all = "camelCase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct TextIndent {
   /// The amount to indent.
   pub value: LengthPercentage,
@@ -1115,6 +1118,7 @@ enum_property! {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct TextEmphasisPosition {
   /// The vertical position.
   pub vertical: TextEmphasisPositionVertical,
