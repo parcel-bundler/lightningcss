@@ -84,7 +84,9 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
                 }
               }
             }
-            Fields::Unit => quote! {},
+            Fields::Unit => quote! {
+              #self_name::#name => #self_name::#name,
+            },
           }
         })
         .collect::<proc_macro2::TokenStream>();
