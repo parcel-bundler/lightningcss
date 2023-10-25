@@ -474,6 +474,7 @@ impl ToCss for TextIndent {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum TextSizeAdjust {
   /// Use the default size adjustment when displaying on a small device.
   Auto,
@@ -517,6 +518,7 @@ bitflags! {
   /// Multiple lines may be specified by combining the flags.
   #[cfg_attr(feature = "visitor", derive(Visit))]
   #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedTextDecorationLine", into = "SerializedTextDecorationLine"))]
+  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
   pub struct TextDecorationLine: u8 {
     /// Each line of text is underlined.
@@ -755,6 +757,7 @@ impl Default for TextDecorationStyle {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum TextDecorationThickness {
   /// The UA chooses an appropriate thickness for text decoration lines.
   Auto,
