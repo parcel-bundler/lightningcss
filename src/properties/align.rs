@@ -623,6 +623,7 @@ impl ToCss for PlaceSelf {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum AlignItems {
   /// Default alignment.
   Normal,
@@ -932,6 +933,7 @@ impl ToCss for PlaceItems {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum GapValue {
   /// Equal to `1em` for multi-column containers, and zero otherwise.
   Normal,

@@ -1443,6 +1443,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
   serde(rename_all = "camelCase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct TextShadow {
   /// The color of the text shadow.
   pub color: CssColor,
