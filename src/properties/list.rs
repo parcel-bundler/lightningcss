@@ -124,6 +124,7 @@ macro_rules! counter_styles {
     enum_property! {
       /// A [predefined counter](https://www.w3.org/TR/css-counter-styles-3/#predefined-counters) style.
       #[allow(missing_docs)]
+      #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
       pub enum PredefinedCounterStyle {
         $(
            $(#[$meta])*
