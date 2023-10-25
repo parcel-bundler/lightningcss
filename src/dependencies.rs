@@ -136,6 +136,7 @@ pub struct SourceRange {
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 #[cfg_attr(any(feature = "serde"), derive(serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct Location {
   /// The line number, starting from 1.
   pub line: u32,

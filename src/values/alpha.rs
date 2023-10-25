@@ -16,6 +16,7 @@ use cssparser::*;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct AlphaValue(pub f32);
 
 impl<'i> Parse<'i> for AlphaValue {

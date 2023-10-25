@@ -110,6 +110,7 @@ impl<AttrValue> AttrSelectorOperation<AttrValue> {
   serde(rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum AttrSelectorOperator {
   Equal,
   Includes,
@@ -172,6 +173,7 @@ pub static SELECTOR_WHITESPACE: &[char] = &[' ', '\t', '\n', '\r', '\x0C'];
   serde(rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum ParsedCaseSensitivity {
   // 's' was specified.
   ExplicitCaseSensitive,

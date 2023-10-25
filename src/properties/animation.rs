@@ -98,6 +98,7 @@ pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum AnimationIterationCount {
   /// The animation will repeat the specified number of times.
   Number(CSSNumber),
@@ -192,7 +193,6 @@ impl Default for AnimationFillMode {
 
 define_list_shorthand! {
   /// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct Animation<'i>(VendorPrefix) {
     /// The animation name.
     #[cfg_attr(feature = "serde", serde(borrow))]

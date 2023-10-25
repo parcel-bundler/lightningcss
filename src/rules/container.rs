@@ -75,7 +75,6 @@ pub type ContainerSizeFeature<'i> = QueryFeature<'i, ContainerSizeFeatureId>;
 
 define_query_features! {
   /// A container query size feature identifier.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub enum ContainerSizeFeatureId {
     /// The [width](https://w3c.github.io/csswg-drafts/css-contain-3/#width) size container feature.
     "width": Width = Length,

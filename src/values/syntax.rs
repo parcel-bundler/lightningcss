@@ -19,6 +19,7 @@ use cssparser::*;
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum SyntaxString {
   /// A list of syntax components.
   Components(Vec<SyntaxComponent>),
@@ -34,6 +35,7 @@ pub enum SyntaxString {
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct SyntaxComponent {
   /// The kind of component.
   pub kind: SyntaxComponentKind,
@@ -49,6 +51,7 @@ pub struct SyntaxComponent {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum SyntaxComponentKind {
   /// A `<length>` component.
   Length,
@@ -92,6 +95,7 @@ pub enum SyntaxComponentKind {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Multiplier {
   /// The component may not be repeated.
   None,

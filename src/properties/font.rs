@@ -28,6 +28,7 @@ use cssparser::*;
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontWeight {
   /// An absolute font weight.
   Absolute(AbsoluteFontWeight),
@@ -204,6 +205,7 @@ enum_property! {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontSize {
   /// An explicit size.
   Length(LengthPercentage),
@@ -315,6 +317,7 @@ impl Into<Percentage> for &FontStretchKeyword {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontStretch {
   /// A font stretch keyword.
   Keyword(FontStretchKeyword),
@@ -522,6 +525,7 @@ impl IsCompatible for FontFamily<'_> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontStyle {
   /// Normal font style.
   Normal,
@@ -648,6 +652,7 @@ impl IsCompatible for FontVariantCaps {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum LineHeight {
   /// The UA sets the line height based on the font.
   Normal,
@@ -731,6 +736,7 @@ enum_property! {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum VerticalAlign {
   /// A vertical align keyword.
   Keyword(VerticalAlignKeyword),
@@ -763,7 +769,6 @@ impl ToCss for VerticalAlign {
 
 define_shorthand! {
   /// A value for the [font](https://www.w3.org/TR/css-fonts-4/#font-prop) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct Font<'i> {
     /// The font family.
     #[cfg_attr(feature = "serde", serde(borrow))]

@@ -22,6 +22,7 @@ use cssparser::*;
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Position {
   /// The box is laid in the document flow.
   Static,
@@ -80,6 +81,7 @@ impl ToCss for Position {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum ZIndex {
   /// The `auto` keyword.
   Auto,

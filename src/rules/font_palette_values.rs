@@ -67,6 +67,7 @@ pub enum FontPaletteValuesProperty<'i> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum BasePalette {
   /// A light color palette as defined within the font.
   Light,
@@ -82,6 +83,7 @@ pub enum BasePalette {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct OverrideColors {
   /// The index of the color within the palette to override.
   index: u16,

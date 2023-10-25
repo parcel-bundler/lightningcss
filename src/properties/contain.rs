@@ -119,7 +119,6 @@ impl IsCompatible for ContainerNameList<'_> {
 
 define_shorthand! {
   /// A value for the [container](https://drafts.csswg.org/css-contain-3/#container-shorthand) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct Container<'i> {
     /// The container name.
     #[cfg_attr(feature = "serde", serde(borrow))]

@@ -13,6 +13,7 @@ macro_rules! enum_property {
     #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
     #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+    #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
     $vis enum $name {
       $(
         $(#[$meta])*
@@ -78,6 +79,7 @@ macro_rules! enum_property {
     #[derive(Debug, Clone, Copy, PartialEq)] #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+    #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
     $vis enum $name {
       $(
         $(#[$meta])*
@@ -386,6 +388,7 @@ macro_rules! define_shorthand {
     #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "camelCase"))]
     #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+    #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
     pub struct $name$(<$l>)? {
       $(
         $(#[$meta])*
@@ -613,6 +616,7 @@ macro_rules! define_list_shorthand {
     #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "camelCase"))]
     #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+    #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
     pub struct $name$(<$l>)? {
       $(
         $(#[$meta])*
