@@ -205,6 +205,7 @@ impl std::convert::Into<CSSNumber> for &NumberOrPercentage {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum DimensionPercentage<D> {
   /// An explicit dimension value.
   Dimension(D),

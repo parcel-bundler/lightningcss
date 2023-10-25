@@ -221,7 +221,6 @@ impl From<MaskComposite> for WebKitMaskComposite {
 
 define_list_shorthand! {
   /// A value for the [mask](https://www.w3.org/TR/css-masking-1/#the-mask) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct Mask<'i>(VendorPrefix) {
     /// The mask image.
     #[cfg_attr(feature = "serde", serde(borrow))]

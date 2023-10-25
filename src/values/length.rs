@@ -57,6 +57,7 @@ impl IsCompatible for LengthPercentage {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum LengthPercentageOrAuto {
   /// The `auto` keyword.
   Auto,
