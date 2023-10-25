@@ -25,7 +25,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
             .as_ref()
             .map_or_else(|| Member::Unnamed(index.into()), |ident| Member::Named(ident.clone()));
 
-          let value = into_owned(ty, quote! { self.#name });
+          let value = into_owned(quote! { self.#name });
           if let Some(ident) = ident {
             quote! { #ident: #value }
           } else {
@@ -52,10 +52,6 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
       let variants = variants
         .iter()
         .map(|variant| {
-          if !variant.fields.iter().any(|f| has_lifetime(&f.ty)) {
-            return quote! {};
-          }
-
           let name = &variant.ident;
           let mut field_names = Vec::new();
           let mut static_fields = Vec::new();
@@ -65,7 +61,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
               |ident| ident.clone(),
             );
             field_names.push(name.clone());
-            let value = into_owned(ty, quote! { #name });
+            let value = into_owned(quote! { #name });
             static_fields.push(if let Some(ident) = ident {
               quote! { #ident: #value }
             } else {
@@ -194,31 +190,6 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   into_owned.into()
 }
 
-fn into_owned(ty: &Type, name: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
-  if has_lifetime(ty) {
-    match ty {
-      Type::Path(..) => {
-        quote! { #name.into_owned() }
-      }
-      Type::Reference(_) => panic!("can't derive IntoOwned on a type with references"),
-      _ => quote! { #name.into_owned() },
-    }
-  } else {
-    quote! { #name }
-  }
-}
-
-fn has_lifetime(ty: &Type) -> bool {
-  match ty {
-    Type::Path(path) => path.path.segments.iter().any(|s| match &s.arguments {
-      PathArguments::AngleBracketed(args) => args.args.iter().any(|arg| match arg {
-        GenericArgument::Lifetime(..) => true,
-        GenericArgument::Type(ty) => has_lifetime(ty),
-        _ => false,
-      }),
-      _ => false,
-    }),
-    Type::Array(arr) => has_lifetime(&*arr.elem),
-    _ => false, // TODO
-  }
+fn into_owned(name: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+  quote! { #name.into_owned() }
 }
