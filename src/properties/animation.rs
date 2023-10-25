@@ -137,7 +137,6 @@ impl ToCss for AnimationIterationCount {
 
 enum_property! {
   /// A value for the [animation-direction](https://drafts.csswg.org/css-animations/#animation-direction) property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub enum AnimationDirection {
     /// The animation is played as specified
     "normal": Normal,
