@@ -4,6 +4,8 @@ import { await_promise_sync, createBundleAsync } from './async.mjs';
 let wasm, bundleAsyncInternal;
 
 export default async function init(input) {
+  if (wasm) return;
+
   input = input ?? new URL('lightningcss_node.wasm', import.meta.url);
   if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
     input = fetchOrReadFromFs(input);
