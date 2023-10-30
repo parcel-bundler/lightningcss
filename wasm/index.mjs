@@ -1,24 +1,29 @@
 import { Environment, napi } from 'napi-wasm';
 import { await_promise_sync, createBundleAsync } from './async.mjs';
 
-let wasm, bundleAsyncInternal;
+let wasm, initPromise, bundleAsyncInternal;
 
 export default async function init(input) {
+  if (wasm) return;
+  if (initPromise) {
+    await initPromise;
+    return;
+  }
+
   input = input ?? new URL('lightningcss_node.wasm', import.meta.url);
   if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
     input = fetchOrReadFromFs(input);
   }
 
-  const { instance } = await load(await input, {
-    env: {
-      ...napi,
-      await_promise_sync
-    }
-  });
+  initPromise = input
+    .then(input => load(input, {env: {...napi, await_promise_sync}}))
+    .then(({instance}) => {
+      let env = new Environment(instance);
+      bundleAsyncInternal = createBundleAsync(env);
+      wasm = env.exports;
+    });
 
-  let env = new Environment(instance);
-  wasm = env.exports;
-  bundleAsyncInternal = createBundleAsync(env);
+  await initPromise;
 }
 
 export function transform(options) {
