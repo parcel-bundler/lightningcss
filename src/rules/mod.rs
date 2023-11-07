@@ -697,6 +697,8 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           // we need to split the rule in two so we can insert the extra rules in between the declarations from
           // the main rule and the nested rules.
           let nested_rule = if !style.rules.0.is_empty()
+            // can happen if there are no compatible rules, above.
+            && !style.selectors.0.is_empty()
             && (!logical.is_empty() || !supports.is_empty() || !incompatible_rules.is_empty())
           {
             let mut rules = CssRuleList(vec![]);

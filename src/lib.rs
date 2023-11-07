@@ -22607,6 +22607,36 @@ mod tests {
       })
       .unwrap();
     assert_eq!(res.code, ".foo{color:#00f;& .bar{color:red}}");
+
+    nesting_test_with_targets(
+      r#"
+        .a {
+          &.b,
+          &.c {
+            &.d {
+              color: red;
+            }
+          }
+        }
+      "#,
+      indoc! {r#"
+        .a.b.d {
+          color: red;
+        }
+
+        .a.c.d {
+          color: red;
+        }
+      "#},
+      Targets {
+        browsers: Some(Browsers {
+          safari: Some(13 << 16),
+          ..Browsers::default()
+        }),
+        include: Features::Nesting,
+        exclude: Features::empty(),
+      },
+    );
   }
 
   #[test]
