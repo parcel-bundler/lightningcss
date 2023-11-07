@@ -990,12 +990,12 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 262656 {
+          if version >= 262656 && version <= 1050112 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 327936 {
+          if version >= 327936 && version <= 1050112 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1033,23 +1033,26 @@ impl Feature {
         }
       }
       Feature::PseudoElementBackdrop => {
-        if let Some(version) = browsers.chrome {
-          if version >= 1310720 && version <= 4587520 {
+        if let Some(version) = browsers.android {
+          if version >= 263168 && version <= 263171 {
             prefixes |= VendorPrefix::WebKit;
           }
+        }
+        if let Some(version) = browsers.chrome {
+          if version >= 2097152 && version <= 2359296 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 786432 && version <= 1179648 {
+            prefixes |= VendorPrefix::Ms;
+          }
+        }
+        if browsers.ie.is_some() {
+          prefixes |= VendorPrefix::Ms;
         }
         if let Some(version) = browsers.opera {
-          if version >= 983040 && version <= 4128768 {
-            prefixes |= VendorPrefix::WebKit;
-          }
-        }
-        if let Some(version) = browsers.safari {
-          if version >= 393216 && version <= 983552 {
-            prefixes |= VendorPrefix::WebKit;
-          }
-        }
-        if let Some(version) = browsers.samsung {
-          if version >= 262144 && version <= 590336 {
+          if version >= 1245184 && version <= 1507328 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1841,18 +1844,18 @@ impl Feature {
         }
       }
       Feature::ImageSet => {
-        if let Some(version) = browsers.chrome {
-          if version >= 1376256 {
+        if let Some(version) = browsers.android {
+          if version >= 263168 && version <= 263171 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
-        if let Some(version) = browsers.android {
-          if version >= 263168 {
+        if let Some(version) = browsers.chrome {
+          if version >= 1376256 && version <= 7340032 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 7340032 {
             prefixes |= VendorPrefix::WebKit;
           }
         }

@@ -9838,7 +9838,7 @@ mod tests {
         }
       "#},
       Browsers {
-        safari: Some(14 << 16),
+        chrome: Some(33 << 16),
         ..Browsers::default()
       },
     );

@@ -382,6 +382,12 @@ for (let key in mdn.css.properties['width']) {
   mdnFeatures[feat] = mdn.css.properties['width'][key].__compat.support;
 }
 
+mdnFeatures.FillSize = Object.fromEntries(
+  Object.entries(mdn.css.properties.width.stretch.__compat.support)
+    .filter(([, v]) => v.alternative_name)
+    .map(([k, v]) => [k, {version_added: v.version_added}])
+);
+
 for (let feature in mdnFeatures) {
   let browserMap = {};
   for (let name in mdnFeatures[feature]) {
