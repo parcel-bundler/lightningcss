@@ -53,7 +53,7 @@
     "autoprefixer": "^10.4.16",
     "codemirror": "^6.0.1",
     "cssnano": "^5.0.8",
-    "esbuild": "^0.13.10",
+    "esbuild": "^0.19.8",
     "flowgen": "^1.21.0",
     "jest-diff": "^27.4.2",
     "json-schema-to-typescript": "^11.0.2",
