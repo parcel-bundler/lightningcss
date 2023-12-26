@@ -9,5 +9,8 @@ linker = "arm-linux-gnueabihf-gcc"
 linker = "aarch64-linux-musl-gcc"
 rustflags = ["-C", "target-feature=-crt-static"]
 
+[target.riscv64gc-unknown-linux-gnu]
+linker = "riscv64-linux-gnu-gcc"
+
 [target.wasm32-unknown-unknown]
 rustflags = ["-C", "link-arg=--export-table"]

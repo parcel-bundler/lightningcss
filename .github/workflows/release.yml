@@ -115,6 +115,12 @@ jobs:
           - target: x86_64-unknown-linux-musl
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             strip: strip
+          - target: riscv64gc-unknown-linux-gnu
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            strip: riscv64-linux-gnu-strip
+            setup: |
+              sudo apt-get update
+              sudo apt-get install gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu -y
 
     name: build-${{ matrix.target }}
     runs-on: ubuntu-latest
