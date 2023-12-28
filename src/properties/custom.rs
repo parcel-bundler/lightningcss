@@ -11,7 +11,7 @@ use crate::targets::{should_compile, Targets};
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::angle::Angle;
 use crate::values::color::{
-  parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor, RGBA,
+  parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor, HSL, RGBA,
 };
 use crate::values::ident::{CustomIdent, DashedIdent, DashedIdentReference, Ident};
 use crate::values::length::{serialize_dimension, LengthValue};
@@ -1526,11 +1526,11 @@ impl<'i> UnresolvedColor<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let parser = ComponentParser::new(false);
+    let mut parser = ComponentParser::new(false);
     match_ignore_ascii_case! { &*f,
       "rgb" => {
         input.parse_nested_block(|input| {
-          let (r, g, b, is_legacy) = parse_rgb_components(input, &parser)?;
+          let (r, g, b, is_legacy) = parse_rgb_components(input, &mut parser)?;
           if is_legacy {
             return Err(input.new_custom_error(ParserError::InvalidValue))
           }
@@ -1541,7 +1541,7 @@ impl<'i> UnresolvedColor<'i> {
       },
       "hsl" => {
         input.parse_nested_block(|input| {
-          let (h, s, l, is_legacy) = parse_hsl_hwb_components(input, &parser, false)?;
+          let (h, s, l, is_legacy) = parse_hsl_hwb_components::<HSL>(input, &mut parser, false)?;
           if is_legacy {
             return Err(input.new_custom_error(ParserError::InvalidValue))
           }

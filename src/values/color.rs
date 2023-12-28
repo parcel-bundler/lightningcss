@@ -1040,8 +1040,7 @@ fn parse_hsl_hwb<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
 ) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#the-hsl-notation
   let res = input.parse_nested_block(|input| {
-    parser.parse_relative::<T>(input)?;
-    let (h, a, b, is_legacy) = parse_hsl_hwb_components(input, parser, allows_legacy)?;
+    let (h, a, b, is_legacy) = parse_hsl_hwb_components::<T>(input, parser, allows_legacy)?;
     let alpha = if is_legacy {
       parse_legacy_alpha(input, parser)?
     } else {
@@ -1055,11 +1054,12 @@ fn parse_hsl_hwb<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
 }
 
 #[inline]
-pub(crate) fn parse_hsl_hwb_components<'i, 't>(
+pub(crate) fn parse_hsl_hwb_components<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
   input: &mut Parser<'i, 't>,
-  parser: &ComponentParser,
+  parser: &mut ComponentParser,
   allows_legacy: bool,
 ) -> Result<(f32, f32, f32, bool), ParseError<'i, ParserError<'i>>> {
+  parser.parse_relative::<T>(input)?;
   let h = parse_angle_or_number(input, parser)?;
   let is_legacy_syntax =
     allows_legacy && parser.from.is_none() && !h.is_nan() && input.try_parse(|p| p.expect_comma()).is_ok();
@@ -1081,7 +1081,6 @@ fn parse_rgb<'i, 't>(
 ) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#rgb-functions
   let res = input.parse_nested_block(|input| {
-    parser.parse_relative::<SRGB>(input)?;
     let (r, g, b, is_legacy) = parse_rgb_components(input, parser)?;
     let alpha = if is_legacy {
       parse_legacy_alpha(input, parser)?
@@ -1106,8 +1105,9 @@ fn parse_rgb<'i, 't>(
 #[inline]
 pub(crate) fn parse_rgb_components<'i, 't>(
   input: &mut Parser<'i, 't>,
-  parser: &ComponentParser,
+  parser: &mut ComponentParser,
 ) -> Result<(f32, f32, f32, bool), ParseError<'i, ParserError<'i>>> {
+  parser.parse_relative::<SRGB>(input)?;
   let red = parser.parse_number_or_percentage(input)?;
   let is_legacy_syntax =
     parser.from.is_none() && !red.unit_value().is_nan() && input.try_parse(|p| p.expect_comma()).is_ok();

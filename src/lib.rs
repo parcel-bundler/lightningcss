@@ -16376,6 +16376,7 @@ mod tests {
         --g: rgb(0 var(--x) 0 / var(--alpha));
         --h: rgb(0 0 var(--x) / var(--alpha));
         --i: rgb(none 0 0 / var(--alpha));
+        --j: rgb(from yellow r g b / var(--alpha));
       }
       "#,
       indoc! { r#"
@@ -16389,6 +16390,7 @@ mod tests {
           --g: rgb(0 var(--x) 0 / var(--alpha));
           --h: rgb(0 0 var(--x) / var(--alpha));
           --i: rgb(none 0 0 / var(--alpha));
+          --j: rgba(255, 255, 0, var(--alpha));
         }
       "#},
       Browsers {
@@ -16409,6 +16411,7 @@ mod tests {
         --g: rgb(0 var(--x) 0 / var(--alpha));
         --h: rgb(0 0 var(--x) / var(--alpha));
         --i: rgb(none 0 0 / var(--alpha));
+        --j: rgb(from yellow r g b / var(--alpha));
       }
       "#,
       indoc! { r#"
@@ -16422,6 +16425,7 @@ mod tests {
           --g: rgb(0 var(--x) 0 / var(--alpha));
           --h: rgb(0 0 var(--x) / var(--alpha));
           --i: rgb(none 0 0 / var(--alpha));
+          --j: rgb(255 255 0 / var(--alpha));
         }
       "#},
       Browsers {
@@ -16442,6 +16446,7 @@ mod tests {
         --g: hsl(0 0 var(--x) / var(--alpha));
         --h: hsl(270 100% 50% / calc(var(--alpha) / 2));
         --i: hsl(none 100% 50% / var(--alpha));
+        --j: hsl(from yellow h s l / var(--alpha));
       }
       "#,
       indoc! { r#"
@@ -16455,6 +16460,7 @@ mod tests {
           --g: hsl(0 0 var(--x) / var(--alpha));
           --h: hsla(270, 100%, 50%, calc(var(--alpha) / 2));
           --i: hsl(none 100% 50% / var(--alpha));
+          --j: hsla(60, 100%, 50%, var(--alpha));
         }
       "#},
       Browsers {
