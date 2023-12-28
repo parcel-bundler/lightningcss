@@ -1014,10 +1014,10 @@ struct SerializedGridAutoFlow {
 impl From<GridAutoFlow> for SerializedGridAutoFlow {
   fn from(flow: GridAutoFlow) -> Self {
     Self {
-      direction: if flow.contains(GridAutoFlow::Row) {
-        AutoFlowDirection::Row
-      } else {
+      direction: if flow.contains(GridAutoFlow::Column) {
         AutoFlowDirection::Column
+      } else {
+        AutoFlowDirection::Row
       },
       dense: flow.contains(GridAutoFlow::Dense),
     }
