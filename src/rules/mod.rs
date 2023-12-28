@@ -590,16 +590,27 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             if let Some(idx) = layer_rules.get(name) {
               if let Some(CssRule::LayerBlock(last_rule)) = rules.get_mut(*idx) {
                 last_rule.rules.0.extend(layer.rules.0.drain(..));
-                last_rule.minify(context, parent_is_unused)?;
                 continue;
               }
             }
 
             layer_rules.insert(name.clone(), rules.len());
           }
-          if layer.minify(context, parent_is_unused)? {
-            continue;
+        }
+        CssRule::LayerStatement(layer) => {
+          // Create @layer block rules for each declared layer name,
+          // so we can merge other blocks into it later on.
+          for name in &layer.names {
+            if !layer_rules.contains_key(name) {
+              layer_rules.insert(name.clone(), rules.len());
+              rules.push(CssRule::LayerBlock(LayerBlockRule {
+                name: Some(name.clone()),
+                rules: CssRuleList(vec![]),
+                loc: layer.loc.clone(),
+              }));
+            }
           }
+          continue;
         }
         CssRule::MozDocument(document) => document.minify(context)?,
         CssRule::Style(style) => {
@@ -804,6 +815,62 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
       }
 
       rules.push(rule)
+    }
+
+    // Optimize @layer rules. Combine subsequent empty layer blocks into a single @layer statement
+    // so that layers are declared in the correct order.
+    if !layer_rules.is_empty() {
+      let mut declared_layers = HashSet::new();
+      let mut layer_statement = None;
+      for index in 0..rules.len() {
+        match &mut rules[index] {
+          CssRule::LayerBlock(layer) => {
+            if layer.minify(context, parent_is_unused)? {
+              if let Some(name) = &layer.name {
+                if declared_layers.contains(name) {
+                  // Remove empty layer that has already been declared.
+                  rules[index] = CssRule::Ignored;
+                  continue;
+                }
+
+                let name = name.clone();
+                declared_layers.insert(name.clone());
+
+                if let Some(layer_index) = layer_statement {
+                  if let CssRule::LayerStatement(layer) = &mut rules[layer_index] {
+                    // Add name to previous layer statement rule and remove this one.
+                    layer.names.push(name);
+                    rules[index] = CssRule::Ignored;
+                  }
+                } else {
+                  // Create a new layer statement rule to declare the name.
+                  rules[index] = CssRule::LayerStatement(LayerStatementRule {
+                    names: vec![name],
+                    loc: layer.loc,
+                  });
+                  layer_statement = Some(index);
+                }
+              } else {
+                // Remove empty anonymous layer.
+                rules[index] = CssRule::Ignored;
+              }
+            } else {
+              // Non-empty @layer block. Start a new statement.
+              layer_statement = None;
+            }
+          }
+          CssRule::Import(import) => {
+            if let Some(layer) = &import.layer {
+              // Start a new @layer statement so the import layer is in the right order.
+              layer_statement = None;
+              if let Some(name) = layer {
+                declared_layers.insert(name.clone());
+              }
+            }
+          }
+          _ => {}
+        }
+      }
     }
 
     self.0 = rules;

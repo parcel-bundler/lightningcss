@@ -8642,6 +8642,173 @@ mod tests {
       }
     "#},
     );
+    test(
+      r#"
+      @layer a {}
+      @layer b {}
+
+      @layer b {
+        foo {
+          color: red;
+        }
+      }
+
+      @layer a {
+        bar {
+          color: yellow;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @layer a {
+        bar {
+          color: #ff0;
+        }
+      }
+
+      @layer b {
+        foo {
+          color: red;
+        }
+      }
+    "#},
+    );
+
+    test(
+      r#"
+      @layer a {}
+      @layer b {}
+
+      @layer b {
+        foo {
+          color: red;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @layer a;
+
+      @layer b {
+        foo {
+          color: red;
+        }
+      }
+    "#},
+    );
+
+    test(
+      r#"
+      @layer a;
+      @layer b;
+      @layer c;
+      "#,
+      indoc! {r#"
+      @layer a, b, c;
+    "#},
+    );
+
+    test(
+      r#"
+      @layer a {}
+      @layer b {}
+      @layer c {}
+      "#,
+      indoc! {r#"
+      @layer a, b, c;
+    "#},
+    );
+
+    test(
+      r#"
+      @layer a;
+      @layer b {
+        .foo {
+          color: red;
+        }
+      }
+      @layer c {}
+      "#,
+      indoc! {r#"
+      @layer a;
+
+      @layer b {
+        .foo {
+          color: red;
+        }
+      }
+
+      @layer c;
+    "#},
+    );
+
+    test(
+      r#"
+      @layer a, b;
+      @layer c {}
+
+      @layer d {
+        foo {
+          color: red;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @layer a, b, c;
+
+      @layer d {
+        foo {
+          color: red;
+        }
+      }
+    "#},
+    );
+
+    test(
+      r#"
+      @layer a;
+      @layer b;
+      @import "a.css" layer(x);
+      @layer c;
+
+      @layer d {
+        foo {
+          color: red;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @layer a, b;
+      @import "a.css" layer(x);
+      @layer c;
+
+      @layer d {
+        foo {
+          color: red;
+        }
+      }
+    "#},
+    );
+
+    test(
+      r#"
+      @layer a, b, c;
+
+      @layer a {
+        foo {
+          color: red;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @layer a {
+        foo {
+          color: red;
+        }
+      }
+
+      @layer b, c;
+    "#},
+    );
   }
 
   #[test]
