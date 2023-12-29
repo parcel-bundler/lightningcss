@@ -142,8 +142,13 @@ impl IsCompatible for Size {
       FitContentFunction(l) => {
         Feature::FitContentFunctionSize.is_compatible(browsers) && l.is_compatible(browsers)
       }
-      Stretch(vp) if *vp == VendorPrefix::None => Feature::StretchSize.is_compatible(browsers),
-      Stretch(..) => Feature::FillSize.is_compatible(browsers),
+      Stretch(vp) => match *vp {
+        VendorPrefix::None => Feature::StretchSize,
+        VendorPrefix::WebKit => Feature::WebkitFillAvailableSize,
+        VendorPrefix::Moz => Feature::MozAvailableSize,
+        _ => return false,
+      }
+      .is_compatible(browsers),
       Contain => false, // ??? no data in mdn
       Auto => true,
     }
@@ -271,8 +276,13 @@ impl IsCompatible for MaxSize {
       FitContentFunction(l) => {
         Feature::FitContentFunctionSize.is_compatible(browsers) && l.is_compatible(browsers)
       }
-      Stretch(vp) if *vp == VendorPrefix::None => Feature::StretchSize.is_compatible(browsers),
-      Stretch(..) => Feature::FillSize.is_compatible(browsers),
+      Stretch(vp) => match *vp {
+        VendorPrefix::None => Feature::StretchSize,
+        VendorPrefix::WebKit => Feature::WebkitFillAvailableSize,
+        VendorPrefix::Moz => Feature::MozAvailableSize,
+        _ => return false,
+      }
+      .is_compatible(browsers),
       Contain => false, // ??? no data in mdn
       None => true,
     }

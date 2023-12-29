@@ -62,7 +62,6 @@ pub enum Feature {
   EthiopicNumericListStyleType,
   ExUnit,
   ExtendedSystemFonts,
-  FillSize,
   FirstLetter,
   FirstLine,
   FitContentFunctionSize,
@@ -135,6 +134,7 @@ pub enum Feature {
   MinFunction,
   ModFunction,
   MongolianListStyleType,
+  MozAvailableSize,
   MyanmarListStyleType,
   Namespaces,
   Nesting,
@@ -206,6 +206,7 @@ pub enum Feature {
   VmaxUnit,
   VminUnit,
   VwUnit,
+  WebkitFillAvailableSize,
   XResolutionUnit,
 }
 
@@ -4801,7 +4802,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::FillSize => {
+      Feature::WebkitFillAvailableSize => {
         if let Some(version) = browsers.chrome {
           if version < 1638400 {
             return false;
@@ -4809,11 +4810,6 @@ impl Feature {
         }
         if let Some(version) = browsers.edge {
           if version < 5177344 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.firefox {
-          if version < 262144 {
             return false;
           }
         }
@@ -4842,7 +4838,25 @@ impl Feature {
             return false;
           }
         }
-        if browsers.ie.is_some() {
+        if browsers.firefox.is_some() || browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::MozAvailableSize => {
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
           return false;
         }
       }

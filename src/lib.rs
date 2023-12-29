@@ -3771,6 +3771,32 @@ mod tests {
         &format!(
           r#"
         .foo {{
+          {}: 100vw;
+          {}: -webkit-fill-available;
+        }}
+      "#,
+          in_prop, in_prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: 100vw;
+          {}: -webkit-fill-available;
+        }}
+      "#},
+          out_prop, out_prop
+        ),
+        Browsers {
+          safari: Some(8 << 16),
+          firefox: Some(4 << 16),
+          ..Browsers::default()
+        },
+      );
+
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
           {}: fit-content;
         }}
       "#,
