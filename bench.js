@@ -52,7 +52,16 @@ async function run() {
 
   await sleep(500);
 
-  const postcssMinifyResult = await bench('postcss-preset-env + @csstools/postcss-minify', async () => {
+  const postcssMinifyResult = await bench('@csstools/postcss-minify', async () => {
+    const result = await postcss([
+      postcssMinify,
+    ]).process(opts.code, { from: opts.filename });
+    return result.css.length / opts.code.length * 100;
+  });
+
+  await sleep(500);
+
+  const postcssMinifyWithPresetEnvResult = await bench('postcss-preset-env + @csstools/postcss-minify', async () => {
     const result = await postcss([
       postcssPresetEnv({
         browsers: 'Chrome 80, Firefox 80, Safari 12',
@@ -80,7 +89,7 @@ async function run() {
     return res.code.length / opts.code.length * 100;
   });
 
-  console.table([cssnanoResult, postcssMinifyResult, esbuildResult, lightningcssResult]);
+  console.table([cssnanoResult, postcssMinifyResult, postcssMinifyWithPresetEnvResult, esbuildResult, lightningcssResult]);
 }
 
 run();
