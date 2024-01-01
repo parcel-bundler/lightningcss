@@ -1,0 +1,480 @@
+:root {
+	--order: 1;
+}
+
+.test-custom-property-fallbacks {
+	--firebrick: lab(40% 56.6 39);
+}
+
+.test-custom-properties {
+	order: var(--order);
+}
+
+.test-image-set-function {
+	background-image: image-set(url(img/test.png) 1x, url(img/test-2x.png) 2x);
+	order: 2;
+}
+
+.test-logical-properties-and-values {
+	margin-inline-start: 1px;
+	margin-inline-end: 2px;
+	order: 3;
+	padding-block: 4px;
+}
+
+.test-logical-resize {
+	resize: inline;
+}
+
+.test-logical-viewport-units {
+	width: calc(10vi + 5px);
+}
+
+.test-nesting-rules {
+	order: 4;
+
+	& p {
+		order: 5;
+	}
+
+	order: 6;
+}
+
+.test-nesting-rules,
+#test-is-pseudo {
+	order: 7;
+
+	& + p {
+		order: 8;
+	}
+
+	order: 9;
+}
+
+@custom-media --narrow-window (max-width: 30em);
+
+@media (--narrow-window) {
+	.test-custom-media-queries {
+		order: 10;
+	}
+}
+
+@media (480px <= width < 768px) {
+	.test-media-query-ranges {
+		order: 11;
+	}
+}
+
+@custom-media --dark-mode (prefers-color-scheme: dark);
+
+@media (--dark-mode) {
+	body {
+		background-color: black;
+		color: white;
+	}
+}
+
+@custom-selector :--heading h1, h2, h3, h4, h5, h6, .heading-7;
+
+.test-custom-selectors:--heading {
+	order:12;
+}
+
+.test-case-insensitive-attributes[frame=hsides i] {
+	order: 13;
+}
+
+.test-rebeccapurple-color {
+	color: rebeccapurple;
+	order: 14;
+}
+
+.test-hexadecimal-alpha-notation {
+	background-color: #f3f3f3f3;
+	color: #0003;
+	order: 15;
+}
+
+.test-color-functional-notation {
+	color: rgb(70% 13.5% 13.5% / 50%);
+	order: 16;
+}
+
+.test-lab-function {
+	background-color: lab(40% 56.6 39);
+	color: lch(40% 68.8 34.5 / 50%);
+	order: 17;
+}
+
+.test-system-ui-font-family {
+	font-family: system-ui;
+	order: 18;
+}
+
+.test-font-variant-property {
+	font-variant-caps: small-caps;
+	order: 19;
+}
+
+.test-all-property {
+	all: initial;
+	order: 20;
+}
+
+.test-matches-pseudo-class:matches(:first-child, .special) {
+	order: 21;
+}
+
+.test-not-pseudo-class:not(:first-child, .special) {
+	order: 22;
+}
+
+.test-any-link-pseudo-class:any-link {
+	order: 23;
+}
+
+.test-dir-pseudo-class:dir(rtl) {
+	order: 24;
+}
+
+.test-overflow-wrap-property {
+	order: 25;
+	overflow-wrap: break-word;
+}
+
+.test-focus-visible-pseudo-class:focus-visible {
+	order: 26;
+}
+
+.test-double-position-gradients {
+	background-image: conic-gradient(yellowgreen 40%, gold 0deg 75%, #f06 0deg);
+}
+
+.test-blank-pseudo-class:blank {
+	background-color: yellow;
+}
+
+.test-has-pseudo-class:has(.inner-class) {
+	background-color: yellow;
+}
+
+:is(.a, .b):is(:focus, :hover) {
+	order: 27;
+}
+
+:is(.a > .b) + :is(.c > .d) {
+	order: 28;
+}
+
+.test-hwb-function {
+	background-color: hwb(194 0% 0% / .5);
+}
+
+.test-opacity-percent {
+	opacity: 42%;
+}
+
+.clamp-same-unit {
+	width: clamp(10px, 64px, 80px);
+}
+
+.complex-clamp {
+	width: clamp(calc(100% - 10px), min(10px, 100%), max(40px, 4em));
+}
+
+.clamp-different-units {
+	width: clamp(10%, 2px, 4rem);
+}
+
+.mixed-clamp {
+	grid-template-columns: clamp(22rem, 40%, 32rem) minmax(0, 1fr);
+	margin: clamp(1rem, 2%, 3rem) 4vh;
+}
+
+.calc-clamp {
+	margin: 0 40px 0 calc(-1 * clamp(32px, 16vw, 64px));
+}
+
+.multiple-calc-clamp {
+	margin: calc(-1 * clamp(1px, 2vw, 3px)) calc(-1 * clamp(4px, 5vw, 6px));
+}
+
+.nested-clamp {
+	font-size: clamp(clamp(1rem, 2vw, 3rem), 4vw, 5rem);
+}
+
+@font-face {
+	font-family: 'A';
+	font-style: normal;
+	font-weight: 300;
+	font-display: swap;
+	src: url(a) format(woff2);
+}
+
+.block-flow {
+	display: block flow;
+}
+
+.block-flow-root {
+	display: block flow-root;
+}
+
+.inline-flow {
+	display: inline flow;
+}
+
+.inline-flow-root {
+	display: inline flow-root;
+}
+
+.run-in-flow {
+	display: run-in flow;
+}
+
+.list-item-block-flow {
+	display: list-item block flow;
+}
+
+.inline-flow-list-item {
+	display: inline flow list-item;
+}
+
+.block-flex {
+	display: block flex;
+}
+
+.inline-flex {
+	display: inline flex;
+}
+
+.block-grid {
+	display: block grid;
+}
+
+.inline-grid {
+	display: inline grid;
+}
+
+.inline-ruby {
+	display: inline ruby;
+}
+
+.block-table {
+	display: block table;
+}
+
+.inline-table {
+	display: inline table;
+}
+
+.table-cell-flow {
+	display: table-cell flow;
+}
+
+.table-caption-flow {
+	display: table-caption flow;
+}
+
+.ruby-base-flow {
+	display: ruby-base flow;
+}
+
+.ruby-text-flow {
+	display: ruby-text flow;
+}
+
+.logical-float {
+	float: inline-start;
+}
+
+.color-function {
+	prop-1: color(display-p3 0.00000 0.51872 0.36985);
+	prop-2: 'color(display-p3 0.02472 0.01150 0.00574 / 1)';
+	prop-3: color(display-p3 0.02472 0.01150 0.00574 / 1);
+	prop-4: color(display-p3 0.02472 0.01150 0.00574 / calc(33 / 22));
+	prop-5: color(display-p3 1 1 1 1);
+}
+
+.oklab {
+	color-1: oklab(40% 0.001236 0.0039);
+	color-2: oklab(40% 0.1236 0.0039 / 1);
+	color-3: oklab(40% 0.1236 0.0039 / .5);
+	color-4: oklab(40% 0.1236 0.0039 / 100%);
+	color-5: oklab(40% 0.1236 0.0039 / 50%);
+	color-6: oklab(60% 0.1 0);
+	color-7: oklab(60% 0.1 0 foo);
+	color-8: oklab(40.101% 0.1147 0.0453);
+	color-9: oklab(59.686% 0.1009 0.1192);
+	color-10: oklab(65.125% -0.0320 0.1274);
+	color-11: oklab(66.016% -0.1084 0.1114);
+	color-12: oklab(72.322% -0.0465 -0.1150);
+}
+
+.oklch {
+	color-1: oklch(40% 0.1268735435 34.568626);
+	color-2: oklch(40% 0.1268735435 34.568626 / 1);
+	color-3: oklch(40% 0.1268735435 34.568626 / .5);
+	color-4: oklch(40% 0.1268735435 34.568626 / 100%);
+	color-5: oklch(40% 0.1268735435 34.568626 / 50%);
+	color-6: oklch(60% 0.150 0);
+
+	color-7: oklch(60% 0.1250 180);
+	color-8: oklch(60% 0.1250 180deg);
+	color-9: oklch(60% 0.1250 0.5turn);
+	color-10: oklch(60% 0.1250 200grad);
+	color-11: oklch(60% 0.1250 3.14159rad);
+
+	color-12: oklch(60% 0.1250 45);
+	color-13: oklch(60% 0.1250 45deg);
+	color-14: oklch(60% 0.1250 0.125turn);
+	color-15: oklch(60% 0.1250 50grad);
+	color-16: oklch(60% 0.1250 0.785398rad);
+	color-17: oklch(60% 0.1250 0.785398unknown);
+}
+
+.ic-unit {
+	--value-2ic: initial;
+	text-indent: 2ic;
+	content: var(--value-2ic);
+	left: var(--non-existing, 2ic);
+	width: calc(8ic + 20px);
+	height: 10px;
+	margin: 0.5ic 1ic .2ic;
+	padding: 2    ic;
+}
+
+.unset {
+	clip: unset;
+}
+
+.mod {
+	padding: 8px mod(18px, 5px) 1px calc(mod(15px, 6px) + 50%);
+	transform: rotate(mod(-140deg, -90deg));
+	width: mod(mod(-18px, 5px), 5px);
+}
+
+.rem {
+	padding: 8px rem(18px, 5px) 1px calc(rem(15px, 6px) + 50%);
+	transform: rotate(rem(-140deg, -90deg));
+}
+
+.round {
+	top: round(2.5px, 1px);
+	right: round(nearest, 2.5px, 1px);
+	bottom: round(up, 2.5px, 1px);
+	left: round(down, 2.5px, 1px);
+	padding-left: round(to-zero, 2.5px, 1px);
+}
+
+.trigonometric {
+	left: sin(45deg);
+	left: cos(45deg);
+	left: tan(45deg);
+	left: asin(0.5);
+	left: acos(0.5);
+	left: atan(10);
+	left: atan2(-1, 1);
+	left: asin(sin(pi / 2));
+	left: atan2(infinity, -infinity);
+	left: sin((1deg * 3) + .25turn);
+}
+
+.trigonometric-ignore-not-a-function {
+	left: sin;
+	left: cos;
+	left: tan;
+	left: asin;
+	left: acos;
+	left: atan;
+	left: atan2;
+}
+
+.trigonometric-ignore-no-arguments {
+	left: sin();
+	left: cos();
+	left: tan();
+	left: asin();
+	left: acos();
+	left: atan();
+	left: atan2();
+}
+
+@custom-selector :--view-m [data-view-size=m];
+
+.view {
+	:--view-m & {
+		background: red;
+	}
+}
+
+.nested-calc {
+	order: calc(1 * calc(8 / 3 + calc(5 * 10)));
+}
+
+.text-decoration-shorthand {
+	text-decoration: 3px wavy pink overline;
+}
+
+.stage__container {
+	inset-inline-start: var(--size, 1rem);
+}
+
+:scope {
+	content: "plain :scope";
+}
+
+@scope (.foo) {
+	:scope {
+		content: ":scope in @scope";
+	}
+}
+
+:scope {
+	@scope (.foo) {
+		content: ":scope in @scope, but with nesting";
+	}
+}
+
+@media (min-aspect-ratio: 1.77) {
+	/* media query aspect ratio : <number> */
+}
+
+.color-mix {
+	color-1: color-mix(in srgb, rgb(255 0 0 / 0), blue 65%);
+	color-2: color-mix(in lab, rgb(255 0 0 / 0), blue 65%);
+	color-3: color-mix(in xyz, rgb(255 0 0 / 0), blue 65%);
+	color-4: color-mix(in oklch, rgb(255 0 0 / 0), blue 65%);
+	color-5: color-mix(in lch, rgb(255 0 0 / 0), blue 65%);
+	color-6: color-mix(in hsl, rgb(255 0 0 / 0), blue 65%);
+}
+
+.gradients-interpolation-method {
+	--background-image: linear-gradient(in oklch decreasing hue, hsl(0deg 85% 75%) 0%, hsl(180deg 80% 65%) 100%);
+
+	background-image: radial-gradient(farthest-corner circle at 50% 115% in oklch, oklch(80% .3 34) 0%, oklch(90% .3 200) 100%);
+}
+
+.test-css-color-5-interop {
+	color-1: color(from color(a98-rgb 0.7 0.5 0.3) a98-rgb r g b / alpha);
+	color-2: color(from color(a98-rgb 0.7 0.5 0.3) a98-rgb r g b / none);
+	color-3: color(from color(prophoto-rgb 0.7 0.5 0.3) prophoto-rgb r g b);
+	color-4: color(from color(prophoto-rgb 0.7 0.5 0.3) prophoto-rgb r g none);
+	color-5: hwb(from hwb(50deg 20% 30%) h w b);
+	color-6: lab(from lab(40% 56.6 39) l a b);
+	color-7: lch(from lch(40% 56.6 39) l c h);
+	color-8: oklab(from oklab(40% 0.566 0.39) l a b);
+	color-9: oklch(from oklch(40% 0.566 39deg) l c h);
+}
+
+.test-property-with-var {
+	--opacity: 1;
+	color: rgba(87 107 149 / var(--opacity));
+}
+
+.exponential-functions {
+	width: calc(1px * pow(2, 3));
+}
+
+.out-of-gamut {
+	--color: color(display-p3 0 1 0);
+}
