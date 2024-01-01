@@ -26,7 +26,7 @@ async function bench(label, job) {
     results.push(performance.now() - start);
   }
 
-  results.sort();
+  results.sort((a, b) => a - b);
 
   return {
     label: label,
