@@ -1,3 +1,4 @@
+const esbuild = require('esbuild');
 const exec = require('child_process').execSync;
 const fs = require('fs');
 const pkg = require('../package.json');
@@ -31,6 +32,22 @@ let readme = fs.readFileSync(`${dir}/README.md`, 'utf8');
 readme = readme.replace('# ⚡️ Lightning CSS', '# ⚡️ lightningcss-wasm');
 fs.writeFileSync(`${dir}/wasm/README.md`, readme);
 
+const cjsBuild = {
+  entryPoints: [
+    `${dir}/wasm/wasm-node.mjs`,
+    `${dir}/wasm/index.mjs`,
+  ],
+  bundle: true,
+  format: 'cjs',
+  platform: 'node',
+  packages: 'external',
+  outdir: `${dir}/wasm`,
+  outExtension: { '.js': '.cjs' },
+  inject: [`${dir}/wasm/import.meta.url-polyfill.js`],
+  define: { 'import.meta.url': 'import_meta_url' },
+};
+esbuild.build(cjsBuild).catch(console.error);
+
 let wasmPkg = { ...pkg };
 wasmPkg.name = 'lightningcss-wasm';
 wasmPkg.type = 'module';
@@ -38,12 +55,18 @@ wasmPkg.main = 'index.mjs';
 wasmPkg.module = 'index.mjs';
 wasmPkg.exports = {
   types: './index.d.ts',
-  node: './wasm-node.mjs',
-  default: './index.mjs'
+  node: {
+    import: './wasm-node.mjs',
+    require: './wasm-node.cjs',
+  },
+  default: {
+    import: './index.mjs',
+    require: './index.cjs',
+  }
 };
 wasmPkg.types = 'index.d.ts';
 wasmPkg.sideEffects = false;
-wasmPkg.files = ['*.js', '*.mjs', '*.d.ts', '*.flow', '*.wasm'];
+wasmPkg.files = ['*.js', '*.cjs', '*.mjs', '*.d.ts', '*.flow', '*.wasm'];
 wasmPkg.dependencies = {
   'napi-wasm': pkg.devDependencies['napi-wasm']
 };
