@@ -135,8 +135,40 @@ impl<'i> ToCss for PropertyRule<'i> {
       dest.newline()?;
 
       dest.write_str("initial-value:")?;
-      dest.whitespace()?;
-      initial_value.to_css(dest)?;
+      match initial_value {
+        ParsedComponent::Token(crate::properties::custom::Token::WhiteSpace(value)) => {
+          // Only emit a single whitespace if the value has one or more spaces. This happens in
+          // the scenario where initial-value was defined as:
+          // ```css
+          // @property --foo {
+          //   initial-value: ;
+          // }
+          // ```
+          // or with more spaces
+          // ```css
+          // @property --foo {
+          //   initial-value:      ;
+          // }
+          // ```
+          //
+          // If no spaces were defined at all, then we don't want to emit any whitespace.
+          // ```css
+          // @property --foo {
+          //   initial-value:;
+          // }
+          // ```
+          if value.len() >= 1 {
+            // Not using dest.whitespace() because we _do_ want to emit a single space even when
+            // minifying.
+            dest.write_char(' ')?
+          }
+        }
+        _ => {
+          dest.whitespace()?;
+          initial_value.to_css(dest)?;
+        }
+      }
+
       if !dest.minify {
         dest.write_char(';')?;
       }
