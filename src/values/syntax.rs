@@ -200,7 +200,14 @@ impl<'i> SyntaxString {
   ) -> Result<ParsedComponent<'i>, ParseError<'i, ParserError<'i>>> {
     match self {
       SyntaxString::Universal => Ok(ParsedComponent::Token(crate::properties::custom::Token::from(
-        input.next()?,
+        match input.next_including_whitespace() {
+          Ok(token) => token,
+          Err(BasicParseError {
+            kind: BasicParseErrorKind::EndOfInput,
+            ..
+          }) => &Token::WhiteSpace(""),
+          Err(e) => return Err(e.into()),
+        },
       ))),
       SyntaxString::Components(components) => {
         // Loop through each component, and return the first one that parses successfully.
