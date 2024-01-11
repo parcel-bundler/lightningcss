@@ -80,7 +80,15 @@ impl<'i> PropertyRule<'i> {
         Some(val) => {
           let mut input = ParserInput::new(val);
           let mut parser = Parser::new(&mut input);
-          Some(syntax.parse_value(&mut parser)?)
+
+          if parser.is_exhausted() {
+            Some(ParsedComponent::Token(match parser.next_including_whitespace() {
+              Ok(t) => t.into(),
+              Err(_) => crate::properties::custom::Token::WhiteSpace("".into()),
+            }))
+          } else {
+            Some(syntax.parse_value(&mut parser)?)
+          }
         }
       },
       _ => {
