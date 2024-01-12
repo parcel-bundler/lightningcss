@@ -25903,7 +25903,7 @@ mod tests {
       @property --property-name {
         syntax: "*";
         inherits: false;
-        initial-value:;
+        initial-value: ;
       }
     "#},
     );
@@ -25916,7 +25916,7 @@ mod tests {
         initial-value:;
       }
     "#,
-      "@property --property-name{syntax:\"*\";inherits:false;initial-value:}",
+      "@property --property-name{syntax:\"*\";inherits:false;initial-value: }",
     );
 
     minify_test(

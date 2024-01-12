@@ -82,10 +82,9 @@ impl<'i> PropertyRule<'i> {
           let mut parser = Parser::new(&mut input);
 
           if parser.is_exhausted() {
-            Some(ParsedComponent::Token(match parser.next_including_whitespace() {
-              Ok(t) => t.into(),
-              Err(_) => crate::properties::custom::Token::WhiteSpace("".into()),
-            }))
+            Some(ParsedComponent::Token(crate::properties::custom::Token::WhiteSpace(
+              " ".into(),
+            )))
           } else {
             Some(syntax.parse_value(&mut parser)?)
           }
@@ -144,37 +143,7 @@ impl<'i> ToCss for PropertyRule<'i> {
 
       dest.write_str("initial-value:")?;
       match initial_value {
-        ParsedComponent::Token(crate::properties::custom::Token::WhiteSpace(value)) => {
-          // Only emit a single whitespace character if the value has one or more spaces. This
-          // happens in the scenario where initial-value was defined as:
-          //
-          // ```css
-          // @property --foo {
-          //   initial-value: ;
-          // }
-          // ```
-          //
-          // or with more spaces:
-          //
-          // ```css
-          // @property --foo {
-          //   initial-value:      ;
-          // }
-          // ```
-          //
-          // If no spaces were defined at all, then we don't want to emit any whitespace:
-          //
-          // ```css
-          // @property --foo {
-          //   initial-value:;
-          // }
-          // ```
-          if value.len() >= 1 {
-            // Not using dest.whitespace() because we _do_ want to emit a single space even when
-            // minifying.
-            dest.write_char(' ')?
-          }
-        }
+        ParsedComponent::Token(crate::properties::custom::Token::WhiteSpace(value)) => dest.write_str(value)?,
         _ => {
           dest.whitespace()?;
           initial_value.to_css(dest)?;
