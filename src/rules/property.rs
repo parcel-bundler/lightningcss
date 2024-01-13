@@ -80,7 +80,14 @@ impl<'i> PropertyRule<'i> {
         Some(val) => {
           let mut input = ParserInput::new(val);
           let mut parser = Parser::new(&mut input);
-          Some(syntax.parse_value(&mut parser)?)
+
+          if parser.is_exhausted() {
+            Some(ParsedComponent::Token(crate::properties::custom::Token::WhiteSpace(
+              " ".into(),
+            )))
+          } else {
+            Some(syntax.parse_value(&mut parser)?)
+          }
         }
       },
       _ => {
@@ -135,8 +142,14 @@ impl<'i> ToCss for PropertyRule<'i> {
       dest.newline()?;
 
       dest.write_str("initial-value:")?;
-      dest.whitespace()?;
-      initial_value.to_css(dest)?;
+      match initial_value {
+        ParsedComponent::Token(crate::properties::custom::Token::WhiteSpace(value)) => dest.write_str(value)?,
+        _ => {
+          dest.whitespace()?;
+          initial_value.to_css(dest)?;
+        }
+      }
+
       if !dest.minify {
         dest.write_char(';')?;
       }

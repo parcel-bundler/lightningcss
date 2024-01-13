@@ -25863,6 +25863,62 @@ mod tests {
       "@property --property-name{syntax:\"<color>\";inherits:false;initial-value:#ff0}",
     );
 
+    test(
+      r#"
+      @property --property-name {
+        syntax: '*';
+        inherits: false;
+        initial-value: ;
+      }
+    "#,
+      indoc! {r#"
+      @property --property-name {
+        syntax: "*";
+        inherits: false;
+        initial-value: ;
+      }
+    "#},
+    );
+
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '*';
+        inherits: false;
+        initial-value: ;
+      }
+    "#,
+      "@property --property-name{syntax:\"*\";inherits:false;initial-value: }",
+    );
+
+    test(
+      r#"
+      @property --property-name {
+        syntax: '*';
+        inherits: false;
+        initial-value:;
+      }
+    "#,
+      indoc! {r#"
+      @property --property-name {
+        syntax: "*";
+        inherits: false;
+        initial-value: ;
+      }
+    "#},
+    );
+
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '*';
+        inherits: false;
+        initial-value:;
+      }
+    "#,
+      "@property --property-name{syntax:\"*\";inherits:false;initial-value: }",
+    );
+
     minify_test(
       r#"
       @property --property-name {
