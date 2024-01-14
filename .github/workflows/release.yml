@@ -162,7 +162,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build FreeBSD
-        uses: cross-platform-actions/action@v0.19.0
+        uses: cross-platform-actions/action@v0.22.0
         env:
           DEBUG: napi:*
           RUSTUP_HOME: /usr/local/rustup
@@ -171,6 +171,9 @@ jobs:
         with:
           operating_system: freebsd
           version: '13.2'
+          memory: 13G
+          cpu_count: 3
+          environment_variables: 'DEBUG RUSTUP_IO_THREADS'
           shell: bash
           run: |
             sudo pkg install -y -f curl node libnghttp2 npm yarn
