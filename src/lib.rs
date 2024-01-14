@@ -26105,6 +26105,24 @@ mod tests {
     "#,
       "@property --property-name{syntax:\"<color>+\";inherits:false;initial-value:#ff0 #00f}",
     );
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<color>';
+        inherits: false;
+        initial-value: yellow;
+      }
+      .foo {
+        color: var(--property-name)
+      }
+      @property --property-name {
+        syntax: '<color>';
+        inherits: true;
+        initial-value: blue;
+      }
+    "#,
+      "@property --property-name{syntax:\"<color>\";inherits:true;initial-value:#00f}.foo{color:var(--property-name)}",
+    );
   }
 
   #[test]

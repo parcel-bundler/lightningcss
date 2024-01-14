@@ -498,6 +498,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
   ) -> Result<(), MinifyError> {
     let mut keyframe_rules = HashMap::new();
     let mut layer_rules = HashMap::new();
+    let mut property_rules = HashMap::new();
     let mut style_rules =
       HashMap::with_capacity_and_hasher(self.0.len(), BuildHasherDefault::<PrecomputedHasher>::default());
     let mut rules = Vec::new();
@@ -809,6 +810,13 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
         CssRule::Property(property) => {
           if context.unused_symbols.contains(property.name.0.as_ref()) {
             continue;
+          }
+
+          if let Some(index) = property_rules.get_mut(&property.name) {
+            rules[*index] = rule;
+            continue;
+          } else {
+            property_rules.insert(property.name.clone(), rules.len());
           }
         }
         _ => {}
