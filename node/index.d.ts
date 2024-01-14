@@ -183,6 +183,7 @@ type EnvironmentVariableVisitors = {
 
 export interface Visitor<C extends CustomAtRules> {
   StyleSheet?(stylesheet: StyleSheet): StyleSheet<ReturnedDeclaration, ReturnedMediaQuery> | void;
+  StyleSheetExit?(stylesheet: StyleSheet): StyleSheet<ReturnedDeclaration, ReturnedMediaQuery> | void;
   Rule?: RuleVisitor | RuleVisitors<C>;
   RuleExit?: RuleVisitor | RuleVisitors<C>;
   Declaration?: DeclarationVisitor | DeclarationVisitors;
