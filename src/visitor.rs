@@ -68,6 +68,7 @@ use crate::{
   },
   rules::{supports::SupportsCondition, CssRule, CssRuleList},
   selector::{Selector, SelectorList},
+  stylesheet::StyleSheet,
   values::{
     angle::Angle,
     color::CssColor,
@@ -149,6 +150,12 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule> {
   /// Returns the types of values that this visitor should visit. By default, it returns
   /// `Self::TYPES`, but this can be overridden to change the value at runtime.
   fn visit_types(&self) -> VisitTypes;
+
+  /// Visits a stylesheet.
+  #[inline]
+  fn visit_stylesheet<'o>(&mut self, stylesheet: &mut StyleSheet<'i, 'o, T>) -> Result<(), Self::Error> {
+    stylesheet.visit_children(self)
+  }
 
   /// Visits a rule list.
   #[inline]

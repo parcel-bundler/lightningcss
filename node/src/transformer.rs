@@ -3,7 +3,6 @@ use std::{
   ops::{Index, IndexMut},
 };
 
-use lightningcss::traits::IntoOwned;
 use lightningcss::{
   media_query::MediaFeatureValue,
   properties::{
@@ -20,6 +19,7 @@ use lightningcss::{
   },
   visitor::{Visit, VisitTypes, Visitor},
 };
+use lightningcss::{stylesheet::StyleSheet, traits::IntoOwned};
 use napi::{Env, JsFunction, JsObject, JsUnknown, Ref, ValueType};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -28,6 +28,7 @@ use crate::at_rule_parser::AtRule;
 
 pub struct JsVisitor {
   env: Env,
+  visit_stylesheet: VisitorsRef,
   visit_rule: VisitorsRef,
   rule_map: VisitorsRef,
   property_map: VisitorsRef,
@@ -143,6 +144,7 @@ impl Drop for JsVisitor {
       };
     }
 
+    drop_tuple!(visit_stylesheet);
     drop_tuple!(visit_rule);
     drop_tuple!(rule_map);
     drop_tuple!(visit_declaration);
@@ -199,6 +201,7 @@ impl JsVisitor {
 
     Self {
       env,
+      visit_stylesheet: VisitorsRef::new(get!("StyleSheet", RULES), get!("StyleSheetExit", RULES)),
       visit_rule: VisitorsRef::new(get!("Rule", RULES), get!("RuleExit", RULES)),
       rule_map: VisitorsRef::new(map!("Rule", RULES), get!("RuleExit", RULES)),
       visit_declaration: VisitorsRef::new(get!("Declaration", PROPERTIES), get!("DeclarationExit", PROPERTIES)),
@@ -251,6 +254,26 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
 
   fn visit_types(&self) -> VisitTypes {
     self.types
+  }
+
+  fn visit_stylesheet<'o>(&mut self, stylesheet: &mut StyleSheet<'i, 'o, AtRule<'i>>) -> Result<(), Self::Error> {
+    if self.types.contains(VisitTypes::RULES) {
+      let env = self.env;
+      let visit_stylesheet = self.visit_stylesheet.get::<JsFunction>(&env);
+      if let Some(visit) = visit_stylesheet.for_stage(VisitStage::Enter) {
+        call_visitor(&env, stylesheet, visit)?
+      }
+
+      stylesheet.visit_children(self)?;
+
+      if let Some(visit) = visit_stylesheet.for_stage(VisitStage::Exit) {
+        call_visitor(&env, stylesheet, visit)?
+      }
+
+      Ok(())
+    } else {
+      stylesheet.visit_children(self)
+    }
   }
 
   fn visit_rule_list(
@@ -585,13 +608,23 @@ fn visit<V: Serialize + Deserialize<'static>>(
     .as_ref()
     .and_then(|v| env.get_reference_value_unchecked::<JsFunction>(v).ok())
   {
-    let js_value = env.to_js_value(value)?;
-    let res = visit.call(None, &[js_value])?;
-    let new_value: Option<V> = env.from_js_value(res).map(serde_detach::detach)?;
-    match new_value {
-      Some(new_value) => *value = new_value,
-      None => {}
-    }
+    call_visitor(env, value, &visit)?;
+  }
+
+  Ok(())
+}
+
+fn call_visitor<V: Serialize + Deserialize<'static>>(
+  env: &Env,
+  value: &mut V,
+  visit: &JsFunction,
+) -> napi::Result<()> {
+  let js_value = env.to_js_value(value)?;
+  let res = visit.call(None, &[js_value])?;
+  let new_value: Option<V> = env.from_js_value(res).map(serde_detach::detach)?;
+  match new_value {
+    Some(new_value) => *value = new_value,
+    None => {}
   }
 
   Ok(())

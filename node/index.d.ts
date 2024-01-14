@@ -1,4 +1,4 @@
-import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock, ParsedComponent, Multiplier } from './ast';
+import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock, ParsedComponent, Multiplier, StyleSheet } from './ast';
 import { Targets, Features } from './targets';
 
 export * from './ast';
@@ -182,6 +182,7 @@ type EnvironmentVariableVisitors = {
 };
 
 export interface Visitor<C extends CustomAtRules> {
+  StyleSheet?(stylesheet: StyleSheet): StyleSheet<ReturnedDeclaration, ReturnedMediaQuery> | void;
   Rule?: RuleVisitor | RuleVisitors<C>;
   RuleExit?: RuleVisitor | RuleVisitors<C>;
   Declaration?: DeclarationVisitor | DeclarationVisitors;

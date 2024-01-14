@@ -303,9 +303,13 @@ where
 impl<'i, 'o, T, V> Visit<'i, T, V> for StyleSheet<'i, 'o, T>
 where
   T: Visit<'i, T, V>,
-  V: Visitor<'i, T>,
+  V: ?Sized + Visitor<'i, T>,
 {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
+
+  fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
+    visitor.visit_stylesheet(self)
+  }
 
   fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
     self.rules.visit(visitor)

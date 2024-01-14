@@ -1080,4 +1080,28 @@ test('media query raw', () => {
   assert.equal(res.code.toString(), '.m-1{margin:10px}@media (width>=500px){.sm\\:m-1{margin:10px}}');
 });
 
+test('visit stylesheet', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        width: 32px;
+      }
+
+      .bar {
+        width: 80px;
+      }
+    `),
+    visitor: {
+      StyleSheetExit(stylesheet) {
+        stylesheet.rules.sort((a, b) => a.value.selectors[0][0].name.localeCompare(b.value.selectors[0][0].name));
+        return stylesheet;
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.bar{width:80px}.foo{width:32px}');
+});
+
 test.run();
