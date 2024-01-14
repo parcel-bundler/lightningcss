@@ -108,12 +108,12 @@ jobs:
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
           - target: armv7-unknown-linux-gnueabihf
             strip: llvm-strip
-            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-zig
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust@sha256:c22284b2d79092d3e885f64ede00f6afdeb2ccef7e2b6e78be52e7909091cd57
           - target: aarch64-unknown-linux-musl
-            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust@sha256:78c9ab1f117f8c535b93c4b91a2f19063dda6e4dba48a6187df49810625992c1
             strip: aarch64-linux-musl-strip
           - target: x86_64-unknown-linux-musl
-            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust@sha256:78c9ab1f117f8c535b93c4b91a2f19063dda6e4dba48a6187df49810625992c1
             strip: strip
 
     name: build-${{ matrix.target }}
