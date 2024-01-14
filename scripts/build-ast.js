@@ -40,6 +40,21 @@ compileFromFile('node/ast.json', {
     Program(path) {
       process(path.scope.getBinding('Declaration'));
       process(path.scope.getBinding('MediaQuery'));
+    },
+    TSInterfaceDeclaration(path) {
+      // Dedupe.
+      if (path.node.id.name.startsWith('GenericBorderFor_LineStyleAnd_')) {
+        if (path.node.id.name.endsWith('_0')) {
+          path.node.id.name = 'GenericBorderFor_LineStyle';
+        } else {
+          path.remove();
+        }
+      }
+    },
+    ReferencedIdentifier(path) {
+      if (path.node.name.startsWith('GenericBorderFor_LineStyleAnd_')) {
+        path.node.name = 'GenericBorderFor_LineStyle';
+      }
     }
   });
 

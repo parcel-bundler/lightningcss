@@ -2391,7 +2391,7 @@ export type Declaration =
     }
   | {
       property: "position";
-      value: Position;
+      value: Position2;
     }
   | {
       property: "top";
@@ -2685,7 +2685,7 @@ export type Declaration =
     }
   | {
       property: "outline";
-      value: GenericBorderFor_OutlineStyle;
+      value: GenericBorderFor_OutlineStyleAnd_11;
     }
   | {
       property: "outline-color";
@@ -4528,6 +4528,26 @@ export type OverflowKeyword = "visible" | "hidden" | "clip" | "scroll" | "auto";
  */
 export type TextOverflow = "clip" | "ellipsis";
 /**
+ * A value for the [position](https://www.w3.org/TR/css-position-3/#position-property) property.
+ */
+export type Position2 =
+  | {
+      type: "static";
+    }
+  | {
+      type: "relative";
+    }
+  | {
+      type: "absolute";
+    }
+  | {
+      type: "sticky";
+      value: VendorPrefix;
+    }
+  | {
+      type: "fixed";
+    };
+/**
  * A generic value that represents a value with two components, e.g. a border radius.
  *
  * When serialized, only a single component will be written if both are equal.
@@ -5978,11 +5998,11 @@ export type BasicShape =
     }
   | {
       type: "circle";
-      value: Circle;
+      value: Circle2;
     }
   | {
       type: "ellipse";
-      value: Ellipse;
+      value: Ellipse2;
     }
   | {
       type: "polygon";
@@ -6002,6 +6022,20 @@ export type RectFor_DimensionPercentageFor_LengthValue = [
   DimensionPercentageFor_LengthValue,
   DimensionPercentageFor_LengthValue
 ];
+/**
+ * A [`<shape-radius>`](https://www.w3.org/TR/css-shapes-1/#typedef-shape-radius) value that defines the radius of a `circle()` or `ellipse()` shape.
+ */
+export type ShapeRadius =
+  | {
+      type: "length-percentage";
+      value: DimensionPercentageFor_LengthValue;
+    }
+  | {
+      type: "closest-side";
+    }
+  | {
+      type: "farthest-side";
+    };
 /**
  * A value for the [mask-mode](https://www.w3.org/TR/css-masking-1/#the-mask-mode) property.
  */
@@ -6682,7 +6716,7 @@ export type FontFaceProperty =
     }
   | {
       type: "font-style";
-      value: FontStyle;
+      value: FontStyle2;
     }
   | {
       type: "font-weight";
@@ -6756,6 +6790,29 @@ export type FontTechnology =
   | "variations"
   | "palettes"
   | "incremental";
+/**
+ * A value for the [font-style](https://w3c.github.io/csswg-drafts/css-fonts/#descdef-font-face-font-style) descriptor in an `@font-face` rule.
+ */
+export type FontStyle2 =
+  | {
+      type: "normal";
+    }
+  | {
+      type: "italic";
+    }
+  | {
+      type: "oblique";
+      value: Size2DFor_Angle;
+    };
+/**
+ * A generic value that represents a value with two components, e.g. a border radius.
+ *
+ * When serialized, only a single component will be written if both are equal.
+ *
+ * @minItems 2
+ * @maxItems 2
+ */
+export type Size2DFor_Angle = [Angle, Angle];
 /**
  * A generic value that represents a value with two components, e.g. a border radius.
  *
@@ -7151,7 +7208,7 @@ export interface MediaRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The media query list.
    */
@@ -7162,17 +7219,21 @@ export interface MediaRule<D = Declaration, M = MediaQuery> {
   rules: Rule<D, M>[];
 }
 /**
- * A line and column position within a source file.
+ * A source location.
  */
-export interface Location {
+export interface Location2 {
   /**
-   * The column number, starting from 1.
+   * The column number within a line, starting at 1 for first the character of the line. Column numbers are counted in UTF-16 code units.
    */
   column: number;
   /**
-   * The line number, starting from 1.
+   * The line number, starting at 0.
    */
   line: number;
+  /**
+   * The index of the source file within the source map.
+   */
+  source_index: number;
 }
 /**
  * A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
@@ -7241,6 +7302,19 @@ export interface Url {
   url: String;
 }
 /**
+ * A line and column position within a source file.
+ */
+export interface Location {
+  /**
+   * The column number, starting from 1.
+   */
+  column: number;
+  /**
+   * The line number, starting from 1.
+   */
+  line: number;
+}
+/**
  * A CSS variable reference.
  */
 export interface Variable {
@@ -7294,7 +7368,7 @@ export interface ImportRule<M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * A media query.
    */
@@ -7319,7 +7393,7 @@ export interface StyleRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * Nested rules within the style rule.
    */
@@ -7813,7 +7887,7 @@ export interface GenericBorderFor_LineStyle {
 /**
  * A generic type that represents the `border` and `outline` shorthand properties.
  */
-export interface GenericBorderFor_OutlineStyle {
+export interface GenericBorderFor_OutlineStyleAnd_11 {
   /**
    * The border color.
    */
@@ -8599,6 +8673,36 @@ export interface InsetRect {
   rect: RectFor_DimensionPercentageFor_LengthValue;
 }
 /**
+ * A [`circle()`](https://www.w3.org/TR/css-shapes-1/#funcdef-circle) shape.
+ */
+export interface Circle2 {
+  /**
+   * The position of the center of the circle.
+   */
+  position: Position;
+  /**
+   * The radius of the circle.
+   */
+  radius: ShapeRadius;
+}
+/**
+ * An [`ellipse()`](https://www.w3.org/TR/css-shapes-1/#funcdef-ellipse) shape.
+ */
+export interface Ellipse2 {
+  /**
+   * The position of the center of the ellipse.
+   */
+  position: Position;
+  /**
+   * The x-radius of the ellipse.
+   */
+  radiusX: ShapeRadius;
+  /**
+   * The y-radius of the ellipse.
+   */
+  radiusY: ShapeRadius;
+}
+/**
  * A [`polygon()`](https://www.w3.org/TR/css-shapes-1/#funcdef-polygon) shape.
  */
 export interface Polygon {
@@ -8770,7 +8874,7 @@ export interface KeyframesRule<D = Declaration> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The animation name. <keyframes-name> = <custom-ident> | <string>
    */
@@ -8802,7 +8906,7 @@ export interface FontFaceRule {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * Declarations in the `@font-face` rule.
    */
@@ -8847,7 +8951,7 @@ export interface FontPaletteValuesRule {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The name of the font palette.
    */
@@ -8881,7 +8985,7 @@ export interface PageRule<D = Declaration> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The nested margin rules.
    */
@@ -8902,7 +9006,7 @@ export interface PageMarginRule<D = Declaration> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The margin box identifier for this rule.
    */
@@ -8934,7 +9038,7 @@ export interface SupportsRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The rules within the `@supports` rule.
    */
@@ -8951,7 +9055,7 @@ export interface CounterStyleRule<D = Declaration> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The name of the counter style to declare.
    */
@@ -8964,7 +9068,7 @@ export interface NamespaceRule {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * An optional namespace prefix to declare, or `None` to declare the default namespace.
    */
@@ -8983,7 +9087,7 @@ export interface MozDocumentRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * Nested rules within the `@-moz-document` rule.
    */
@@ -8996,7 +9100,7 @@ export interface NestingRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The style rule that defines the selector and declarations for the `@nest` rule.
    */
@@ -9013,7 +9117,7 @@ export interface ViewportRule<D = Declaration> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The vendor prefix for this rule, e.g. `@-ms-viewport`.
    */
@@ -9026,7 +9130,7 @@ export interface CustomMediaRule<M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The name of the declared media query.
    */
@@ -9045,7 +9149,7 @@ export interface LayerStatementRule {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The layer names to declare.
    */
@@ -9058,7 +9162,7 @@ export interface LayerBlockRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The name of the layer to declare, or `None` to declare an anonymous layer.
    */
@@ -9083,7 +9187,7 @@ export interface PropertyRule {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The name of the custom property to declare.
    */
@@ -9119,7 +9223,7 @@ export interface ContainerRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The name of the container.
    */
@@ -9138,7 +9242,7 @@ export interface ScopeRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * Nested rules within the `@scope` rule.
    */
@@ -9159,7 +9263,7 @@ export interface StartingStyleRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * Nested rules within the `@starting-style` rule.
    */
@@ -9176,7 +9280,7 @@ export interface UnknownAtRule {
   /**
    * The location of the rule in the source file.
    */
-  loc: Location;
+  loc: Location2;
   /**
    * The name of the at-rule (without the @).
    */
