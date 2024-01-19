@@ -355,7 +355,11 @@ impl<'i> ToCss for Keyframe<'i> {
       selector.to_css(dest)?;
     }
 
-    self.declarations.to_css_block(dest)
+    // We can't safely minify declarations of keyframes without doing more analysis
+    dest.minify = false;
+    let result = self.declarations.to_css_block(dest);
+    dest.minify = true;
+    result
   }
 }
 
@@ -387,9 +391,18 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
   ) -> Result<Self::QualifiedRule, ParseError<'i, ParserError<'i>>> {
     // For now there are no options that apply within @keyframes
     let options = ParserOptions::default();
+
+    let mut declaration_block = DeclarationBlock::parse(input, &options)?;
+
+    // Per https://developer.mozilla.org/en-US/docs/Web/CSS/@keyframes#!important_in_a_keyframe
+    // !important is ignored in a declaration block, so we strip it here.
+    declaration_block
+      .declarations
+      .append(&mut declaration_block.important_declarations);
+
     Ok(Keyframe {
       selectors,
-      declarations: DeclarationBlock::parse(input, &options)?,
+      declarations: declaration_block,
     })
   }
 }
