@@ -35,13 +35,18 @@ const triples = [
   },
   {
     name: 'x86_64-unknown-freebsd'
-  }
+  },
+  {
+    name: 'riscv64gc-unknown-linux-gnu',
+    libc: 'glibc',
+  },
 ];
 const cpuToNodeArch = {
   x86_64: 'x64',
   aarch64: 'arm64',
   i686: 'ia32',
   armv7: 'arm',
+  riscv64gc: 'riscv64',
 };
 const sysToNodePlatform = {
   linux: 'linux',
