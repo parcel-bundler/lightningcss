@@ -1,3 +1,5 @@
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
+
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::mem::ManuallyDrop;
