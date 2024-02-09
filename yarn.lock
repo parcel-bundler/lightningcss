@@ -478,10 +478,10 @@
   resolved "https://registry.yarnpkg.com/@lmdb/lmdb-win32-x64/-/lmdb-win32-x64-2.5.2.tgz#28f643fbc0bec30b07fbe95b137879b6b4d1c9c5"
   integrity sha512-zrBczSbXKxEyK2ijtbRdICDygRqWSRPpZMN5dD1T8VMEW5RIhIbwFWw2phDRXuBQdVDpSjalCIUMWMV2h3JaZA==
 
-"@mdn/browser-compat-data@^5.3.29":
-  version "5.3.29"
-  resolved "https://registry.yarnpkg.com/@mdn/browser-compat-data/-/browser-compat-data-5.3.29.tgz#4e2620a36fea61de464a8b59461c6d3bbd064a5b"
-  integrity sha512-ipYCpMxejriKEC5OMHHN+cTTWpTQhaSg9+RGHl/Vly2LhGNml2eiGdx+LCU4XcCsi4YVVVPGcirNI/dF1xj70w==
+"@mdn/browser-compat-data@~5.5.0":
+  version "5.5.10"
+  resolved "https://registry.yarnpkg.com/@mdn/browser-compat-data/-/browser-compat-data-5.5.10.tgz#b7c0454a617b268b7a9ab9ca6c886abd1ec69473"
+  integrity sha512-s2GGND9oLhEuksOFtICYOBZdMWPANBXTMqAXh89q6g1Mi3+OuWEmp9WFzw2v/nmS175vqeewpC1kDJA7taaxyA==
 
 "@mischnic/json-sourcemap@^0.1.0":
   version "0.1.0"
