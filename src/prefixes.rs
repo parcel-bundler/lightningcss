@@ -796,7 +796,7 @@ impl Feature {
           if version >= 786432 && version <= 917504 {
             prefixes |= VendorPrefix::Ms;
           }
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 7798784 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1195,7 +1195,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 && version <= 7929856 {
+          if version >= 263168 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1279,7 +1279,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 && version <= 7929856 {
+          if version >= 263168 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1414,10 +1414,8 @@ impl Feature {
         }
       }
       Feature::TextSizeAdjust => {
-        if let Some(version) = browsers.firefox {
-          if version <= 7995392 {
-            prefixes |= VendorPrefix::Moz;
-          }
+        if browsers.firefox.is_some() {
+          prefixes |= VendorPrefix::Moz;
         }
         if let Some(version) = browsers.edge {
           if version >= 786432 && version <= 1179648 {
@@ -1460,7 +1458,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 7798784 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1524,7 +1522,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 && version <= 7929856 {
+          if version >= 263168 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1926,7 +1924,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 && version <= 7929856 {
+          if version >= 263168 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -2161,7 +2159,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 && version <= 7929856 {
+          if version >= 263168 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
