@@ -50,7 +50,7 @@
     "@codemirror/theme-one-dark": "^6.1.0",
     "@mdn/browser-compat-data": "^5.3.29",
     "@napi-rs/cli": "^2.14.0",
-    "autoprefixer": "^10.4.16",
+    "autoprefixer": "^10.4.17",
     "codemirror": "^6.0.1",
     "cssnano": "^5.0.8",
     "esbuild": "^0.19.8",
