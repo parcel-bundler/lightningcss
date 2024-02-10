@@ -2,11 +2,15 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
+import {webcrypto as crypto} from 'node:crypto';
 
 let transform, composeVisitors;
 if (process.env.TEST_WASM === 'node') {
   ({transform, composeVisitors} = await import('../../wasm/wasm-node.mjs'));
 } else if (process.env.TEST_WASM === 'browser') {
+  // Define crypto globally for old node.
+  // @ts-ignore
+  globalThis.crypto ??= crypto;
   let wasm = await import('../../wasm/index.mjs');
   await wasm.default();
   ({transform, composeVisitors} = wasm);

@@ -1,6 +1,7 @@
 import { Environment, napi } from 'napi-wasm';
 import { await_promise_sync, createBundleAsync } from './async.mjs';
 import fs from 'fs';
+import {webcrypto as crypto} from 'node:crypto';
 
 let wasmBytes = fs.readFileSync(new URL('lightningcss_node.wasm', import.meta.url));
 let wasmModule = new WebAssembly.Module(wasmBytes);
