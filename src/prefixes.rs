@@ -782,13 +782,13 @@ impl Feature {
         }
       }
       Feature::BackgroundClip => {
-        if let Some(version) = browsers.chrome {
-          if version >= 262144 {
+        if let Some(version) = browsers.android {
+          if version >= 262144 && version <= 263171 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
-        if let Some(version) = browsers.android {
-          if version >= 262144 {
+        if let Some(version) = browsers.chrome {
+          if version >= 262144 && version <= 7798784 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -796,7 +796,7 @@ impl Feature {
           if version >= 786432 && version <= 917504 {
             prefixes |= VendorPrefix::Ms;
           }
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 7798784 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1103,18 +1103,18 @@ impl Feature {
         }
       }
       Feature::PseudoClassAutofill => {
-        if let Some(version) = browsers.chrome {
-          if version >= 262144 {
+        if let Some(version) = browsers.android {
+          if version >= 263168 && version <= 263171 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
-        if let Some(version) = browsers.android {
-          if version >= 263168 {
+        if let Some(version) = browsers.chrome {
+          if version >= 262144 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1134,7 +1134,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1310720 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1447,18 +1447,18 @@ impl Feature {
       | Feature::MaskBorderOutset
       | Feature::MaskBorderWidth
       | Feature::MaskBorderSlice => {
-        if let Some(version) = browsers.chrome {
-          if version >= 262144 {
+        if let Some(version) = browsers.android {
+          if version >= 131328 && version <= 263171 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
-        if let Some(version) = browsers.android {
-          if version >= 131328 {
+        if let Some(version) = browsers.chrome {
+          if version >= 262144 && version <= 7798784 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 7798784 {
             prefixes |= VendorPrefix::WebKit;
           }
         }

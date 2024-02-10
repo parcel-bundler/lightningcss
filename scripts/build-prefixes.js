@@ -288,7 +288,7 @@ let mdnFeatures = {
   colorFunction: mdn.css.types.color.color.__compat.support,
   spaceSeparatedColorNotation: mdn.css.types.color.rgb.space_separated_parameters.__compat.support,
   textDecorationThicknessPercent: mdn.css.properties['text-decoration-thickness'].percentage.__compat.support,
-  textDecorationThicknessShorthand: mdn.css.properties['text-decoration']['text-decoration-thickness'].__compat.support,
+  textDecorationThicknessShorthand: mdn.css.properties['text-decoration'].includes_thickness.__compat.support,
   cue: mdn.css.selectors.cue.__compat.support,
   cueFunction: mdn.css.selectors.cue.selector_argument.__compat.support,
   anyPseudo: Object.fromEntries(
