@@ -7,7 +7,11 @@ let wasmModule = new WebAssembly.Module(wasmBytes);
 let instance = new WebAssembly.Instance(wasmModule, {
   env: {
     ...napi,
-    await_promise_sync
+    await_promise_sync,
+    __getrandom_custom: (ptr, len) => {
+      let buf = env.memory.subarray(ptr, ptr + len);
+      crypto.getRandomValues(buf);
+    },
   },
 });
 let env = new Environment(instance);

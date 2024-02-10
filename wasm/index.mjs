@@ -15,10 +15,20 @@ export default async function init(input) {
     input = fetchOrReadFromFs(input);
   }
 
+  let env;
   initPromise = input
-    .then(input => load(input, {env: {...napi, await_promise_sync}}))
+    .then(input => load(input, {
+      env: {
+        ...napi,
+        await_promise_sync,
+        __getrandom_custom: (ptr, len) => {
+          let buf = env.memory.subarray(ptr, ptr + len);
+          crypto.getRandomValues(buf);
+        },
+      }
+    }))
     .then(({instance}) => {
-      let env = new Environment(instance);
+      env = new Environment(instance);
       bundleAsyncInternal = createBundleAsync(env);
       wasm = env.exports;
     });

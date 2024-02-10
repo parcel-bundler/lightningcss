@@ -755,6 +755,7 @@ dependencies = [
  "cssparser-color",
  "dashmap",
  "data-encoding",
+ "getrandom",
  "indoc",
  "itertools 0.10.5",
  "jemallocator",
