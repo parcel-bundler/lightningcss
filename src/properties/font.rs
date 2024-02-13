@@ -948,7 +948,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
 
     macro_rules! flush {
       ($prop: ident, $val: expr) => {{
-        if self.$prop.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
+        if self.$prop.is_some() && self.$prop.as_ref().unwrap() != $val && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
           self.flush(dest, context);
         }
       }};
@@ -971,13 +971,13 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
       FontVariantCaps(val) => property!(variant_caps, val),
       LineHeight(val) => property!(line_height, val),
       Font(val) => {
-        flush!(family, val.family);
-        flush!(size, val.size);
-        flush!(style, val.style);
-        flush!(weight, val.weight);
-        flush!(stretch, val.stretch);
-        flush!(line_height, val.line_height);
-        flush!(variant_caps, val.variant_caps);
+        flush!(family, &val.family);
+        flush!(size, &val.size);
+        flush!(style, &val.style);
+        flush!(weight, &val.weight);
+        flush!(stretch, &val.stretch);
+        flush!(line_height, &val.line_height);
+        flush!(variant_caps, &val.variant_caps);
         self.family = Some(val.family.clone());
         self.size = Some(val.size.clone());
         self.style = Some(val.style.clone());

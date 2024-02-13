@@ -613,7 +613,7 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
           self.flush(dest, context);
         }
 
-        if self.$key.$prop.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
+        if self.$key.$prop.is_some() && self.$key.$prop.as_ref().unwrap() != $val && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
           self.flush(dest, context);
         }
       }};
@@ -647,14 +647,14 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
       BorderBlockStartColor(val) => property!(border_block_start, color, val, Logical),
       BorderBlockEndColor(val) => property!(border_block_end, color, val, Logical),
       BorderBlockColor(val) => {
-        property!(border_block_start, color, val.start, Logical);
-        property!(border_block_end, color, val.end, Logical);
+        property!(border_block_start, color, &val.start, Logical);
+        property!(border_block_end, color, &val.end, Logical);
       }
       BorderInlineStartColor(val) => property!(border_inline_start, color, val, Logical),
       BorderInlineEndColor(val) => property!(border_inline_end, color, val, Logical),
       BorderInlineColor(val) => {
-        property!(border_inline_start, color, val.start, Logical);
-        property!(border_inline_end, color, val.end, Logical);
+        property!(border_inline_start, color, &val.start, Logical);
+        property!(border_inline_end, color, &val.end, Logical);
       }
       BorderTopWidth(val) => property!(border_top, width, val, Physical),
       BorderBottomWidth(val) => property!(border_bottom, width, val, Physical),
@@ -663,14 +663,14 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
       BorderBlockStartWidth(val) => property!(border_block_start, width, val, Logical),
       BorderBlockEndWidth(val) => property!(border_block_end, width, val, Logical),
       BorderBlockWidth(val) => {
-        property!(border_block_start, width, val.start, Logical);
-        property!(border_block_end, width, val.end, Logical);
+        property!(border_block_start, width, &val.start, Logical);
+        property!(border_block_end, width, &val.end, Logical);
       }
       BorderInlineStartWidth(val) => property!(border_inline_start, width, val, Logical),
       BorderInlineEndWidth(val) => property!(border_inline_end, width, val, Logical),
       BorderInlineWidth(val) => {
-        property!(border_inline_start, width, val.start, Logical);
-        property!(border_inline_end, width, val.end, Logical);
+        property!(border_inline_start, width, &val.start, Logical);
+        property!(border_inline_end, width, &val.end, Logical);
       }
       BorderTopStyle(val) => property!(border_top, style, val, Physical),
       BorderBottomStyle(val) => property!(border_bottom, style, val, Physical),
@@ -679,14 +679,14 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
       BorderBlockStartStyle(val) => property!(border_block_start, style, val, Logical),
       BorderBlockEndStyle(val) => property!(border_block_end, style, val, Logical),
       BorderBlockStyle(val) => {
-        property!(border_block_start, style, val.start, Logical);
-        property!(border_block_end, style, val.end, Logical);
+        property!(border_block_start, style, &val.start, Logical);
+        property!(border_block_end, style, &val.end, Logical);
       }
       BorderInlineStartStyle(val) => property!(border_inline_start, style, val, Logical),
       BorderInlineEndStyle(val) => property!(border_inline_end, style, val, Logical),
       BorderInlineStyle(val) => {
-        property!(border_inline_start, style, val.start, Logical);
-        property!(border_inline_end, style, val.end, Logical);
+        property!(border_inline_start, style, &val.start, Logical);
+        property!(border_inline_end, style, &val.end, Logical);
       }
       BorderTop(val) => set_border!(border_top, val, Physical),
       BorderBottom(val) => set_border!(border_bottom, val, Physical),
@@ -705,10 +705,10 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
         set_border!(border_inline_end, val, Logical);
       }
       BorderWidth(val) => {
-        property!(border_top, width, val.top, Physical);
-        property!(border_right, width, val.right, Physical);
-        property!(border_bottom, width, val.bottom, Physical);
-        property!(border_left, width, val.left, Physical);
+        property!(border_top, width, &val.top, Physical);
+        property!(border_right, width, &val.right, Physical);
+        property!(border_bottom, width, &val.bottom, Physical);
+        property!(border_left, width, &val.left, Physical);
         self.border_block_start.width = None;
         self.border_block_end.width = None;
         self.border_inline_start.width = None;
@@ -716,10 +716,10 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
         self.has_any = true;
       }
       BorderStyle(val) => {
-        property!(border_top, style, val.top, Physical);
-        property!(border_right, style, val.right, Physical);
-        property!(border_bottom, style, val.bottom, Physical);
-        property!(border_left, style, val.left, Physical);
+        property!(border_top, style, &val.top, Physical);
+        property!(border_right, style, &val.right, Physical);
+        property!(border_bottom, style, &val.bottom, Physical);
+        property!(border_left, style, &val.left, Physical);
         self.border_block_start.style = None;
         self.border_block_end.style = None;
         self.border_inline_start.style = None;
@@ -727,10 +727,10 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
         self.has_any = true;
       }
       BorderColor(val) => {
-        property!(border_top, color, val.top, Physical);
-        property!(border_right, color, val.right, Physical);
-        property!(border_bottom, color, val.bottom, Physical);
-        property!(border_left, color, val.left, Physical);
+        property!(border_top, color, &val.top, Physical);
+        property!(border_right, color, &val.right, Physical);
+        property!(border_bottom, color, &val.bottom, Physical);
+        property!(border_left, color, &val.left, Physical);
         self.border_block_start.color = None;
         self.border_block_end.color = None;
         self.border_inline_start.color = None;

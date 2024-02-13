@@ -815,7 +815,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
     context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     macro_rules! background_image {
-      ($val: ident) => {
+      ($val: expr) => {
         flush!(images, $val);
 
         // Store prefixed properties. Clear if we hit an unprefixed property and we have
@@ -831,7 +831,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
 
     macro_rules! flush {
       ($key: ident, $val: expr) => {{
-        if self.$key.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
+        if self.$key.is_some() && self.$key.as_ref().unwrap() != $val && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
           self.flush(dest, context);
         }
       }};
@@ -873,9 +873,9 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
       }
       Property::Background(val) => {
         let images: SmallVec<[Image; 1]> = val.iter().map(|b| b.image.clone()).collect();
-        background_image!(images);
+        background_image!(&images);
         let color = val.last().unwrap().color.clone();
-        flush!(color, color);
+        flush!(color, &color);
         let clips = val.iter().map(|b| b.clip.clone()).collect();
         let mut clips_vp = VendorPrefix::None;
         if let Some((cur_clips, cur_clips_vp)) = &mut self.clips {

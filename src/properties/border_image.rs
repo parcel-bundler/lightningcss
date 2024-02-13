@@ -446,7 +446,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
 
     macro_rules! flush {
       ($name: ident, $val: expr) => {{
-        if self.$name.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
+        if self.$name.is_some() && self.$name.as_ref().unwrap() != $val && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
           self.flush(dest, context);
         }
       }};
@@ -459,11 +459,11 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
       BorderImageOutset(val) => property!(outset, val),
       BorderImageRepeat(val) => property!(repeat, val),
       BorderImage(val, vp) => {
-        flush!(source, val.source);
-        flush!(slice, val.slice);
-        flush!(width, val.width);
-        flush!(outset, val.outset);
-        flush!(repeat, val.repeat);
+        flush!(source, &val.source);
+        flush!(slice, &val.slice);
+        flush!(width, &val.width);
+        flush!(outset, &val.outset);
+        flush!(repeat, &val.repeat);
         self.source = Some(val.source.clone());
         self.slice = Some(val.slice.clone());
         self.width = Some(val.width.clone());
