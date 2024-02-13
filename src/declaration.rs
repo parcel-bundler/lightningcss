@@ -1,14 +1,15 @@
 //! CSS declarations.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::ops::Range;
 
-use crate::context::PropertyHandlerContext;
+use crate::context::{DeclarationContext, PropertyHandlerContext};
 use crate::error::{ParserError, PrinterError};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
-use crate::properties::custom::CustomPropertyName;
+use crate::properties::custom::{CustomProperty, CustomPropertyName};
 use crate::properties::masking::MaskHandler;
 use crate::properties::{
   align::AlignHandler,
@@ -30,10 +31,11 @@ use crate::properties::{
   text::TextDecorationHandler,
   transform::TransformHandler,
   transition::TransitionHandler,
-  ui::ColorSchemeHandler
+  ui::ColorSchemeHandler,
 };
 use crate::properties::{Property, PropertyId};
 use crate::traits::{PropertyHandler, ToCss};
+use crate::values::ident::DashedIdent;
 use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -513,6 +515,7 @@ pub(crate) struct DeclarationHandler<'i> {
   color_scheme: ColorSchemeHandler,
   fallback: FallbackHandler,
   prefix: PrefixHandler,
+  custom_properties: HashMap<DashedIdent<'i>, usize>,
   decls: DeclarationList<'i>,
 }
 
@@ -522,12 +525,6 @@ impl<'i> DeclarationHandler<'i> {
     property: &Property<'i>,
     context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
-    if !context.unused_symbols.is_empty()
-      && matches!(property, Property::Custom(custom) if context.unused_symbols.contains(custom.name.as_ref()))
-    {
-      return true;
-    }
-
     self.background.handle_property(property, &mut self.decls, context)
       || self.border.handle_property(property, &mut self.decls, context)
       || self.outline.handle_property(property, &mut self.decls, context)
@@ -555,6 +552,58 @@ impl<'i> DeclarationHandler<'i> {
       || self.color_scheme.handle_property(property, &mut self.decls, context)
       || self.fallback.handle_property(property, &mut self.decls, context)
       || self.prefix.handle_property(property, &mut self.decls, context)
+      || self.handle_custom_property(property, context)
+  }
+
+  fn handle_custom_property(
+    &mut self,
+    property: &Property<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
+  ) -> bool {
+    if let Property::Custom(custom) = property {
+      if context.unused_symbols.contains(custom.name.as_ref()) {
+        return true;
+      }
+
+      if let CustomPropertyName::Custom(name) = &custom.name {
+        if let Some(index) = self.custom_properties.get(name) {
+          if self.decls[*index] == *property {
+            return true;
+          }
+          let mut custom = custom.clone();
+          self.add_conditional_fallbacks(&mut custom, context);
+          self.decls[*index] = Property::Custom(custom);
+        } else {
+          self.custom_properties.insert(name.clone(), self.decls.len());
+          let mut custom = custom.clone();
+          self.add_conditional_fallbacks(&mut custom, context);
+          self.decls.push(Property::Custom(custom));
+        }
+
+        return true;
+      }
+    }
+
+    false
+  }
+
+  fn add_conditional_fallbacks(
+    &self,
+    custom: &mut CustomProperty<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
+  ) {
+    if context.context != DeclarationContext::Keyframes {
+      let fallbacks = custom.value.get_fallbacks(context.targets);
+      for (condition, fallback) in fallbacks {
+        context.add_conditional_property(
+          condition,
+          Property::Custom(CustomProperty {
+            name: custom.name.clone(),
+            value: fallback,
+          }),
+        );
+      }
+    }
   }
 
   pub fn finalize(&mut self, context: &mut PropertyHandlerContext<'i, '_>) {
@@ -585,5 +634,6 @@ impl<'i> DeclarationHandler<'i> {
     self.color_scheme.finalize(&mut self.decls, context);
     self.fallback.finalize(&mut self.decls, context);
     self.prefix.finalize(&mut self.decls, context);
+    self.custom_properties.clear();
   }
 }

@@ -1,9 +1,8 @@
 #![allow(non_snake_case)]
 use super::{Property, PropertyId};
-use crate::context::{DeclarationContext, PropertyHandlerContext};
+use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::prefixes::Feature;
-use crate::properties::custom::CustomProperty;
 use crate::traits::{FallbackValues, IsCompatible, PropertyHandler};
 use crate::vendor_prefix::VendorPrefix;
 
@@ -121,23 +120,6 @@ macro_rules! define_fallbacks {
               }
             }
           )+
-          Property::Custom(custom) => {
-            let mut custom = custom.clone();
-            if context.context != DeclarationContext::Keyframes {
-              let fallbacks = custom.value.get_fallbacks(context.targets);
-              for (condition, fallback) in fallbacks {
-                context.add_conditional_property(
-                  condition,
-                  Property::Custom(CustomProperty {
-                    name: custom.name.clone(),
-                    value: fallback
-                  })
-                );
-              }
-            }
-
-            dest.push(Property::Custom(custom))
-          }
           Property::Unparsed(val) => {
             let (mut unparsed, index) = match val.property_id {
               $(

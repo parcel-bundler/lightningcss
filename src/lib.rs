@@ -8904,6 +8904,22 @@ mod tests {
     test(
       r#"
       .foo {
+        --foo: red;
+        --foo: purple;
+      }
+      .foo {
+        --foo: green;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        --foo: green;
+      }
+    "#},
+    );
+    test(
+      r#"
+      .foo {
         color: red;
       }
 
