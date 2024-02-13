@@ -766,6 +766,10 @@ fn visit_vars<'a, 'b>(
           UnresolvedColor::RGB { alpha, .. } | UnresolvedColor::HSL { alpha, .. } => {
             stack.push(alpha.0.iter_mut());
           }
+          UnresolvedColor::LightDark { light, dark } => {
+            stack.push(light.0.iter_mut());
+            stack.push(dark.0.iter_mut());
+          }
         },
         None => {
           stack.pop();

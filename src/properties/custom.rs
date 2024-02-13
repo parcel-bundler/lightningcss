@@ -509,7 +509,7 @@ fn try_parse_color_token<'i, 't>(
   input: &mut Parser<'i, 't>,
 ) -> Option<CssColor> {
   match_ignore_ascii_case! { &*f,
-    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" => {
+    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" => {
       let s = input.state();
       input.reset(&state);
       if let Ok(color) = CssColor::parse(input) {
@@ -1518,6 +1518,14 @@ pub enum UnresolvedColor<'i> {
     #[cfg_attr(feature = "serde", serde(borrow))]
     alpha: TokenList<'i>,
   },
+  /// The light-dark() function.
+  #[cfg_attr(feature = "serde", serde(rename = "light-dark"))]
+  LightDark {
+    /// The light value.
+    light: TokenList<'i>,
+    /// The dark value.
+    dark: TokenList<'i>,
+  }
 }
 
 impl<'i> UnresolvedColor<'i> {
@@ -1548,6 +1556,16 @@ impl<'i> UnresolvedColor<'i> {
           input.expect_delim('/')?;
           let alpha = TokenList::parse(input, options, 0)?;
           Ok(UnresolvedColor::HSL { h, s, l, alpha })
+        })
+      },
+      "light-dark" => {
+        input.parse_nested_block(|input| {
+          let light = input.parse_until_before(Delimiter::Comma, |input|
+            TokenList::parse(input, options, 0)
+          )?;
+          input.expect_comma()?;
+          let dark = TokenList::parse(input, options, 0)?;
+          Ok(UnresolvedColor::LightDark { light, dark })
         })
       },
       _ => Err(input.new_custom_error(ParserError::InvalidValue))
@@ -1610,6 +1628,25 @@ impl<'i> UnresolvedColor<'i> {
         Percentage(*l).to_css(dest)?;
         dest.delim('/', true)?;
         alpha.to_css(dest, is_custom_property)?;
+        dest.write_char(')')
+      }
+      UnresolvedColor::LightDark { light, dark } => {
+        if !dest.targets.is_compatible(crate::compat::Feature::LightDark) {
+          dest.write_str("var(--lightningcss-light")?;
+          dest.delim(',', false)?;
+          light.to_css(dest, is_custom_property)?;
+          dest.write_char(')')?;
+          dest.whitespace()?;
+          dest.write_str("var(--lightningcss-dark")?;
+          dest.delim(',', false)?;
+          dark.to_css(dest, is_custom_property)?;
+          return dest.write_char(')')
+        }
+
+        dest.write_str("light-dark(")?;
+        light.to_css(dest, is_custom_property)?;
+        dest.delim(',', false)?;
+        dark.to_css(dest, is_custom_property)?;
         dest.write_char(')')
       }
     }

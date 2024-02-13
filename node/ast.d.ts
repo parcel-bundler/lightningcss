@@ -1003,6 +1003,17 @@ export type UnresolvedColor =
        */
       s: number;
       type: "hsl";
+    }
+  | {
+      /**
+       * The dark value.
+       */
+      dark: TokenOrValue[];
+      /**
+       * The light value.
+       */
+      light: TokenOrValue[];
+      type: "light-dark";
     };
 /**
  * Defines where the class names referenced in the `composes` property are located.

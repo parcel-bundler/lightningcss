@@ -27036,5 +27036,17 @@ mod tests {
         ..Browsers::default()
       }
     );
+    prefix_test(
+      ".foo { color: light-dark(var(--light), var(--dark)); }",
+      indoc! { r#"
+      .foo {
+        color: var(--lightningcss-light, var(--light)) var(--lightningcss-dark, var(--dark));
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 }
