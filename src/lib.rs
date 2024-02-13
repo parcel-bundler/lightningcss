@@ -26944,9 +26944,15 @@ mod tests {
     minify_test(".foo { color-scheme: dark light; }", ".foo{color-scheme:light dark}");
     minify_test(".foo { color-scheme: only light; }", ".foo{color-scheme:light only}");
     minify_test(".foo { color-scheme: only dark; }", ".foo{color-scheme:dark only}");
-    minify_test(".foo { color-scheme: dark light only; }", ".foo{color-scheme:light dark only}");
+    minify_test(
+      ".foo { color-scheme: dark light only; }",
+      ".foo{color-scheme:light dark only}",
+    );
     minify_test(".foo { color-scheme: foo bar light; }", ".foo{color-scheme:light}");
-    minify_test(".foo { color-scheme: only foo dark bar; }", ".foo{color-scheme:dark only}");
+    minify_test(
+      ".foo { color-scheme: only foo dark bar; }",
+      ".foo{color-scheme:dark only}",
+    );
     prefix_test(
       ".foo { color-scheme: dark; }",
       indoc! { r#"
@@ -26959,7 +26965,7 @@ mod tests {
       Browsers {
         chrome: Some(90 << 16),
         ..Browsers::default()
-      }
+      },
     );
     prefix_test(
       ".foo { color-scheme: light; }",
@@ -26973,7 +26979,7 @@ mod tests {
       Browsers {
         chrome: Some(90 << 16),
         ..Browsers::default()
-      }
+      },
     );
     prefix_test(
       ".foo { color-scheme: light dark; }",
@@ -26994,7 +27000,7 @@ mod tests {
       Browsers {
         chrome: Some(90 << 16),
         ..Browsers::default()
-      }
+      },
     );
     prefix_test(
       ".foo { color-scheme: light dark; }",
@@ -27006,11 +27012,17 @@ mod tests {
       Browsers {
         firefox: Some(120 << 16),
         ..Browsers::default()
-      }
+      },
     );
 
-    minify_test(".foo { color: light-dark(yellow, red); }", ".foo{color:light-dark(#ff0,red)}");
-    minify_test(".foo { color: light-dark(rgb(0, 0, 255), hsl(120deg, 50%, 50%)); }", ".foo{color:light-dark(#00f,#40bf40)}");
+    minify_test(
+      ".foo { color: light-dark(yellow, red); }",
+      ".foo{color:light-dark(#ff0,red)}",
+    );
+    minify_test(
+      ".foo { color: light-dark(rgb(0, 0, 255), hsl(120deg, 50%, 50%)); }",
+      ".foo{color:light-dark(#00f,#40bf40)}",
+    );
     prefix_test(
       ".foo { color: light-dark(oklch(40% 0.1268735435 34.568626), oklab(59.686% 0.1009 0.1192)); }",
       indoc! { r#"
@@ -27022,7 +27034,7 @@ mod tests {
       Browsers {
         chrome: Some(90 << 16),
         ..Browsers::default()
-      }
+      },
     );
     prefix_test(
       ".foo { color: light-dark(oklch(40% 0.1268735435 34.568626), oklab(59.686% 0.1009 0.1192)); }",
@@ -27034,7 +27046,7 @@ mod tests {
       Browsers {
         firefox: Some(120 << 16),
         ..Browsers::default()
-      }
+      },
     );
     prefix_test(
       ".foo { color: light-dark(var(--light), var(--dark)); }",
@@ -27046,7 +27058,7 @@ mod tests {
       Browsers {
         chrome: Some(90 << 16),
         ..Browsers::default()
-      }
+      },
     );
   }
 }

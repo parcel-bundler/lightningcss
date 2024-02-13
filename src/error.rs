@@ -2,13 +2,13 @@
 
 use crate::properties::custom::Token;
 use crate::rules::Location;
-#[cfg(feature = "into_owned")]
-use static_self::IntoOwned;
 use crate::values::string::CowArcStr;
 use cssparser::{BasicParseErrorKind, ParseError, ParseErrorKind};
 use parcel_selectors::parser::SelectorParseErrorKind;
 #[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::Serialize;
+#[cfg(feature = "into_owned")]
+use static_self::IntoOwned;
 use std::fmt;
 
 /// An error with a source location.

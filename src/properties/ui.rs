@@ -15,9 +15,9 @@ use crate::values::string::CowArcStr;
 use crate::values::url::Url;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use bitflags::bitflags;
 use cssparser::*;
 use smallvec::SmallVec;
-use bitflags::bitflags;
 
 use super::custom::Token;
 use super::{CustomProperty, CustomPropertyName, TokenList, TokenOrValue};
@@ -489,10 +489,11 @@ impl<'i> Parse<'i> for ColorScheme {
 
 impl ToCss for ColorScheme {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-    where
-      W: std::fmt::Write {
+  where
+    W: std::fmt::Write,
+  {
     if self.is_empty() {
-      return dest.write_str("normal")
+      return dest.write_str("normal");
     }
 
     if self.contains(ColorScheme::Light) {
@@ -587,7 +588,7 @@ impl<'i> PropertyHandler<'i> for ColorSchemeHandler {
         dest.push(property.clone());
         true
       }
-      _ => false
+      _ => false,
     }
   }
 
@@ -598,8 +599,6 @@ impl<'i> PropertyHandler<'i> for ColorSchemeHandler {
 fn define_var<'i>(name: &'static str, value: Token<'static>) -> Property<'i> {
   Property::Custom(CustomProperty {
     name: CustomPropertyName::Custom(name.into()),
-    value: TokenList(vec![
-      TokenOrValue::Token(value)
-    ])
+    value: TokenList(vec![TokenOrValue::Token(value)]),
   })
 }

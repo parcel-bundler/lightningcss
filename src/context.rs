@@ -2,7 +2,10 @@ use std::collections::HashSet;
 
 use crate::compat::Feature;
 use crate::declaration::DeclarationBlock;
-use crate::media_query::{MediaCondition, MediaFeatureId, MediaFeatureName, MediaFeatureValue, MediaList, MediaQuery, MediaType, QueryFeature};
+use crate::media_query::{
+  MediaCondition, MediaFeatureId, MediaFeatureName, MediaFeatureValue, MediaList, MediaQuery, MediaType,
+  QueryFeature,
+};
 use crate::properties::custom::UnparsedProperty;
 use crate::properties::Property;
 use crate::rules::media::MediaRule;
@@ -126,31 +129,25 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     if !self.dark.is_empty() {
       dest.push(CssRule::Media(MediaRule {
         query: MediaList {
-          media_queries: vec![
-            MediaQuery {
-              qualifier: None,
-              media_type: MediaType::All,
-              condition: Some(MediaCondition::Feature(
-                QueryFeature::Plain { 
-                  name: MediaFeatureName::Standard(MediaFeatureId::PrefersColorScheme),
-                  value: MediaFeatureValue::Ident(Ident("dark".into()))
-                }
-              ))
-            }
-          ],
+          media_queries: vec![MediaQuery {
+            qualifier: None,
+            media_type: MediaType::All,
+            condition: Some(MediaCondition::Feature(QueryFeature::Plain {
+              name: MediaFeatureName::Standard(MediaFeatureId::PrefersColorScheme),
+              value: MediaFeatureValue::Ident(Ident("dark".into())),
+            })),
+          }],
         },
-        rules: CssRuleList(vec![
-          CssRule::Style(StyleRule {
-            selectors: style_rule.selectors.clone(),
-            vendor_prefix: VendorPrefix::None,
-            declarations: DeclarationBlock {
-              declarations: self.dark.clone(),
-              important_declarations: vec![],
-            },
-            rules: CssRuleList(vec![]),
-            loc: style_rule.loc.clone(),
-          })
-        ]),
+        rules: CssRuleList(vec![CssRule::Style(StyleRule {
+          selectors: style_rule.selectors.clone(),
+          vendor_prefix: VendorPrefix::None,
+          declarations: DeclarationBlock {
+            declarations: self.dark.clone(),
+            important_declarations: vec![],
+          },
+          rules: CssRuleList(vec![]),
+          loc: style_rule.loc.clone(),
+        })]),
         loc: style_rule.loc.clone(),
       }))
     }

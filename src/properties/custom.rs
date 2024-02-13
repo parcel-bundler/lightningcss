@@ -1525,7 +1525,7 @@ pub enum UnresolvedColor<'i> {
     light: TokenList<'i>,
     /// The dark value.
     dark: TokenList<'i>,
-  }
+  },
 }
 
 impl<'i> UnresolvedColor<'i> {
@@ -1640,7 +1640,7 @@ impl<'i> UnresolvedColor<'i> {
           dest.write_str("var(--lightningcss-dark")?;
           dest.delim(',', false)?;
           dark.to_css(dest, is_custom_property)?;
-          return dest.write_char(')')
+          return dest.write_char(')');
         }
 
         dest.write_str("light-dark(")?;

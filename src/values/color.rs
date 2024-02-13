@@ -128,10 +128,7 @@ where
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 enum LightDark {
-  LightDark {
-    light: CssColor,
-    dark: CssColor
-  },
+  LightDark { light: CssColor, dark: CssColor },
 }
 
 #[cfg(feature = "serde")]
@@ -142,7 +139,7 @@ impl<'de> LightDark {
   {
     let wrapper = LightDark::LightDark {
       light: (**light).clone(),
-      dark: (**dark).clone()
+      dark: (**dark).clone(),
     };
     serde::Serialize::serialize(&wrapper, serializer)
   }
@@ -153,9 +150,7 @@ impl<'de> LightDark {
   {
     let v: LightDark = serde::Deserialize::deserialize(deserializer)?;
     match v {
-      LightDark::LightDark { light, dark } => {
-        Ok((Box::new(light), Box::new(dark)))
-      }
+      LightDark::LightDark { light, dark } => Ok((Box::new(light), Box::new(dark))),
     }
   }
 }
@@ -334,24 +329,30 @@ impl CssColor {
   /// Converts the color to RGBA.
   pub fn to_rgb(&self) -> Result<CssColor, ()> {
     match self {
-      CssColor::LightDark(light, dark) => Ok(CssColor::LightDark(Box::new(light.to_rgb()?), Box::new(dark.to_rgb()?))),
-      _ => Ok(RGBA::try_from(self)?.into())
+      CssColor::LightDark(light, dark) => {
+        Ok(CssColor::LightDark(Box::new(light.to_rgb()?), Box::new(dark.to_rgb()?)))
+      }
+      _ => Ok(RGBA::try_from(self)?.into()),
     }
   }
 
   /// Converts the color to the LAB color space.
   pub fn to_lab(&self) -> Result<CssColor, ()> {
     match self {
-      CssColor::LightDark(light, dark) => Ok(CssColor::LightDark(Box::new(light.to_lab()?), Box::new(dark.to_lab()?))),
-      _ => Ok(LAB::try_from(self)?.into())
+      CssColor::LightDark(light, dark) => {
+        Ok(CssColor::LightDark(Box::new(light.to_lab()?), Box::new(dark.to_lab()?)))
+      }
+      _ => Ok(LAB::try_from(self)?.into()),
     }
   }
 
   /// Converts the color to the P3 color space.
   pub fn to_p3(&self) -> Result<CssColor, ()> {
     match self {
-      CssColor::LightDark(light, dark) => Ok(CssColor::LightDark(Box::new(light.to_p3()?), Box::new(dark.to_p3()?))),
-      _ => Ok(P3::try_from(self)?.into())
+      CssColor::LightDark(light, dark) => {
+        Ok(CssColor::LightDark(Box::new(light.to_p3()?), Box::new(dark.to_p3()?)))
+      }
+      _ => Ok(P3::try_from(self)?.into()),
     }
   }
 
@@ -593,7 +594,7 @@ impl ToCss for CssColor {
           dest.write_str("var(--lightningcss-dark")?;
           dest.delim(',', false)?;
           dark.to_css(dest)?;
-          return dest.write_char(')')
+          return dest.write_char(')');
         }
 
         dest.write_str("light-dark(")?;
@@ -3157,7 +3158,7 @@ impl CssColor {
   fn to_light_dark(&self) -> CssColor {
     match self {
       CssColor::LightDark(..) => self.clone(),
-      _ => CssColor::LightDark(Box::new(self.clone()), Box::new(self.clone()))
+      _ => CssColor::LightDark(Box::new(self.clone()), Box::new(self.clone())),
     }
   }
 
@@ -3186,8 +3187,13 @@ impl CssColor {
     }
 
     if matches!(self, CssColor::LightDark(..)) || matches!(other, CssColor::LightDark(..)) {
-      if let (CssColor::LightDark(al, ad), CssColor::LightDark(bl, bd)) = (self.to_light_dark(), other.to_light_dark()) {
-        return Ok(CssColor::LightDark(Box::new(al.interpolate::<T>(p1, &bl, p2, method)?), Box::new(ad.interpolate::<T>(p1, &bd, p2, method)?)))
+      if let (CssColor::LightDark(al, ad), CssColor::LightDark(bl, bd)) =
+        (self.to_light_dark(), other.to_light_dark())
+      {
+        return Ok(CssColor::LightDark(
+          Box::new(al.interpolate::<T>(p1, &bl, p2, method)?),
+          Box::new(ad.interpolate::<T>(p1, &bd, p2, method)?),
+        ));
       }
     }
 
