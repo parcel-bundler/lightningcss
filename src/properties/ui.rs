@@ -1,12 +1,14 @@
 //! CSS properties related to user interface.
 
-use crate::declaration::DeclarationBlock;
+use crate::compat::Feature;
+use crate::context::PropertyHandlerContext;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_shorthand, enum_property, shorthand_property};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::targets::{Browsers, Targets};
-use crate::traits::{FallbackValues, IsCompatible, Parse, Shorthand, ToCss};
+use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::CssColor;
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
@@ -15,6 +17,10 @@ use crate::values::url::Url;
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
+use bitflags::bitflags;
+
+use super::custom::Token;
+use super::{CustomProperty, CustomPropertyName, TokenList, TokenOrValue};
 
 enum_property! {
   /// A value for the [resize](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize) property.
@@ -430,4 +436,170 @@ impl<'a> schemars::JsonSchema for Appearance<'a> {
   fn schema_name() -> String {
     "Appearance".into()
   }
+}
+
+bitflags! {
+  /// A value for the [color-scheme](https://drafts.csswg.org/css-color-adjust/#color-scheme-prop) property.
+  #[cfg_attr(feature = "visitor", derive(Visit))]
+  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedColorScheme", into = "SerializedColorScheme"))]
+  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+  #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
+  pub struct ColorScheme: u8 {
+    /// Indicates that the element supports a light color scheme.
+    const Light    = 0b01;
+    /// Indicates that the element supports a dark color scheme.
+    const Dark     = 0b10;
+    /// Forbids the user agent from overriding the color scheme for the element.
+    const Only     = 0b100;
+  }
+}
+
+impl<'i> Parse<'i> for ColorScheme {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut res = ColorScheme::empty();
+    let ident = input.expect_ident()?;
+    match_ignore_ascii_case! { &ident,
+      "normal" => return Ok(res),
+      "only" => res |= ColorScheme::Only,
+      "light" => res |= ColorScheme::Light,
+      "dark" => res |= ColorScheme::Dark,
+      _ => {}
+    };
+
+    while let Ok(ident) = input.try_parse(|input| input.expect_ident_cloned()) {
+      match_ignore_ascii_case! { &ident,
+        "normal" => return Err(input.new_custom_error(ParserError::InvalidValue)),
+        "only" => {
+          // Only must be at the start or the end, not in the middle.
+          if res.contains(ColorScheme::Only) {
+            return Err(input.new_custom_error(ParserError::InvalidValue));
+          }
+          res |= ColorScheme::Only;
+          return Ok(res);
+        },
+        "light" => res |= ColorScheme::Light,
+        "dark" => res |= ColorScheme::Dark,
+        _ => {}
+      };
+    }
+
+    Ok(res)
+  }
+}
+
+impl ToCss for ColorScheme {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+    where
+      W: std::fmt::Write {
+    if self.is_empty() {
+      return dest.write_str("normal")
+    }
+
+    if self.contains(ColorScheme::Light) {
+      dest.write_str("light")?;
+      if self.contains(ColorScheme::Dark) {
+        dest.write_char(' ')?;
+      }
+    }
+
+    if self.contains(ColorScheme::Dark) {
+      dest.write_str("dark")?;
+    }
+
+    if self.contains(ColorScheme::Only) {
+      dest.write_str(" only")?;
+    }
+
+    Ok(())
+  }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+struct SerializedColorScheme {
+  light: bool,
+  dark: bool,
+  only: bool,
+}
+
+impl From<ColorScheme> for SerializedColorScheme {
+  fn from(color_scheme: ColorScheme) -> Self {
+    Self {
+      light: color_scheme.contains(ColorScheme::Light),
+      dark: color_scheme.contains(ColorScheme::Dark),
+      only: color_scheme.contains(ColorScheme::Only),
+    }
+  }
+}
+
+impl From<SerializedColorScheme> for ColorScheme {
+  fn from(s: SerializedColorScheme) -> ColorScheme {
+    let mut color_scheme = ColorScheme::empty();
+    color_scheme.set(ColorScheme::Light, s.light);
+    color_scheme.set(ColorScheme::Dark, s.dark);
+    color_scheme.set(ColorScheme::Only, s.only);
+    color_scheme
+  }
+}
+
+#[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
+impl<'a> schemars::JsonSchema for ColorScheme {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    SerializedColorScheme::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "ColorScheme".into()
+  }
+}
+
+#[derive(Default)]
+pub(crate) struct ColorSchemeHandler;
+
+impl<'i> PropertyHandler<'i> for ColorSchemeHandler {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
+  ) -> bool {
+    match property {
+      Property::ColorScheme(color_scheme) => {
+        if !context.targets.is_compatible(Feature::LightDark) {
+          if color_scheme.contains(ColorScheme::Light) {
+            dest.push(define_var("--lightningcss-light", Token::Ident("initial".into())));
+            dest.push(define_var("--lightningcss-dark", Token::WhiteSpace(" ".into())));
+
+            if color_scheme.contains(ColorScheme::Dark) {
+              context.add_dark_rule(define_var("--lightningcss-light", Token::WhiteSpace(" ".into())));
+              context.add_dark_rule(define_var("--lightningcss-dark", Token::Ident("initial".into())));
+            }
+          } else if color_scheme.contains(ColorScheme::Dark) {
+            dest.push(define_var("--lightningcss-light", Token::WhiteSpace(" ".into())));
+            dest.push(define_var("--lightningcss-dark", Token::Ident("initial".into())));
+          }
+        }
+        dest.push(property.clone());
+        true
+      }
+      _ => false
+    }
+  }
+
+  fn finalize(&mut self, _: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {}
+}
+
+#[inline]
+fn define_var<'i>(name: &'static str, value: Token<'static>) -> Property<'i> {
+  Property::Custom(CustomProperty {
+    name: CustomPropertyName::Custom(name.into()),
+    value: TokenList(vec![
+      TokenOrValue::Token(value)
+    ])
+  })
 }

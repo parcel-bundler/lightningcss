@@ -60,6 +60,10 @@ pub enum CssColor {
   Predefined(Box<PredefinedColor>),
   /// A floating point representation of an RGB, HSL, or HWB color when it contains `none` components.
   Float(Box<FloatColor>),
+  /// The [`light-dark()`](https://drafts.csswg.org/css-color-5/#light-dark) function.
+  #[cfg_attr(feature = "visitor", skip_type)]
+  #[cfg_attr(feature = "serde", serde(with = "LightDark"))]
+  LightDark(Box<CssColor>, Box<CssColor>),
 }
 
 #[cfg(feature = "serde")]
@@ -115,6 +119,44 @@ where
   use serde::Deserialize;
   match RGBColor::deserialize(deserializer)? {
     RGBColor::RGB(srgb) => Ok(srgb.into()),
+  }
+}
+
+// For AST serialization.
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum LightDark {
+  LightDark {
+    light: CssColor,
+    dark: CssColor
+  },
+}
+
+#[cfg(feature = "serde")]
+impl<'de> LightDark {
+  pub fn serialize<S>(light: &Box<CssColor>, dark: &Box<CssColor>, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    let wrapper = LightDark::LightDark {
+      light: (**light).clone(),
+      dark: (**dark).clone()
+    };
+    serde::Serialize::serialize(&wrapper, serializer)
+  }
+
+  pub fn deserialize<D>(deserializer: D) -> Result<(Box<CssColor>, Box<CssColor>), D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let v: LightDark = serde::Deserialize::deserialize(deserializer)?;
+    match v {
+      LightDark::LightDark { light, dark } => {
+        Ok((Box::new(light), Box::new(dark)))
+      }
+    }
   }
 }
 
@@ -291,17 +333,26 @@ impl CssColor {
 
   /// Converts the color to RGBA.
   pub fn to_rgb(&self) -> Result<CssColor, ()> {
-    Ok(RGBA::try_from(self)?.into())
+    match self {
+      CssColor::LightDark(light, dark) => Ok(CssColor::LightDark(Box::new(light.to_rgb()?), Box::new(dark.to_rgb()?))),
+      _ => Ok(RGBA::try_from(self)?.into())
+    }
   }
 
   /// Converts the color to the LAB color space.
   pub fn to_lab(&self) -> Result<CssColor, ()> {
-    Ok(LAB::try_from(self)?.into())
+    match self {
+      CssColor::LightDark(light, dark) => Ok(CssColor::LightDark(Box::new(light.to_lab()?), Box::new(dark.to_lab()?))),
+      _ => Ok(LAB::try_from(self)?.into())
+    }
   }
 
   /// Converts the color to the P3 color space.
   pub fn to_p3(&self) -> Result<CssColor, ()> {
-    Ok(P3::try_from(self)?.into())
+    match self {
+      CssColor::LightDark(light, dark) => Ok(CssColor::LightDark(Box::new(light.to_p3()?), Box::new(dark.to_p3()?))),
+      _ => Ok(P3::try_from(self)?.into())
+    }
   }
 
   pub(crate) fn get_possible_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
@@ -324,6 +375,9 @@ impl CssColor {
         _ if should_compile!(targets, ColorFunction) => ColorFallbackKind::LAB.and_below(),
         _ => return ColorFallbackKind::empty(),
       },
+      CssColor::LightDark(light, dark) => {
+        return light.get_possible_fallbacks(targets) | dark.get_possible_fallbacks(targets);
+      }
     };
 
     if fallbacks.contains(ColorFallbackKind::OKLAB) {
@@ -399,6 +453,9 @@ impl IsCompatible for CssColor {
         PredefinedColor::DisplayP3(..) => Feature::P3Colors.is_compatible(browsers),
         _ => Feature::ColorFunction.is_compatible(browsers),
       },
+      CssColor::LightDark(light, dark) => {
+        Feature::LightDark.is_compatible(browsers) && light.is_compatible(browsers) && dark.is_compatible(browsers)
+      }
     }
   }
 }
@@ -525,6 +582,25 @@ impl ToCss for CssColor {
         // Serialize as hex.
         let srgb = SRGB::from(**float);
         CssColor::from(srgb).to_css(dest)
+      }
+      CssColor::LightDark(light, dark) => {
+        if !dest.targets.is_compatible(Feature::LightDark) {
+          dest.write_str("var(--lightningcss-light")?;
+          dest.delim(',', false)?;
+          light.to_css(dest)?;
+          dest.write_char(')')?;
+          dest.whitespace()?;
+          dest.write_str("var(--lightningcss-dark")?;
+          dest.delim(',', false)?;
+          dark.to_css(dest)?;
+          return dest.write_char(')')
+        }
+
+        dest.write_str("light-dark(")?;
+        light.to_css(dest)?;
+        dest.delim(',', false)?;
+        dark.to_css(dest)?;
+        dest.write_char(')')
       }
     }
   }
@@ -906,6 +982,14 @@ fn parse_color_function<'i, 't>(
     },
     "color-mix" => {
       input.parse_nested_block(parse_color_mix)
+    },
+    "light-dark" => {
+      input.parse_nested_block(|input| {
+        let light = CssColor::parse(input)?;
+        input.expect_comma()?;
+        let dark = CssColor::parse(input)?;
+        Ok(CssColor::LightDark(Box::new(light), Box::new(dark)))
+      })
     },
     _ => Err(location.new_unexpected_token_error(
       cssparser::Token::Ident(function.clone())
@@ -2725,6 +2809,7 @@ macro_rules! color_space {
           CssColor::Predefined(predefined) => (**predefined).into(),
           CssColor::Float(float) => (**float).into(),
           CssColor::CurrentColor => return Err(()),
+          CssColor::LightDark(..) => return Err(()),
         })
       }
     }
@@ -2738,6 +2823,7 @@ macro_rules! color_space {
           CssColor::Predefined(predefined) => (*predefined).into(),
           CssColor::Float(float) => (*float).into(),
           CssColor::CurrentColor => return Err(()),
+          CssColor::LightDark(..) => return Err(()),
         })
       }
     }
@@ -3068,17 +3154,24 @@ impl CssColor {
     }
   }
 
+  fn to_light_dark(&self) -> CssColor {
+    match self {
+      CssColor::LightDark(..) => self.clone(),
+      _ => CssColor::LightDark(Box::new(self.clone()), Box::new(self.clone()))
+    }
+  }
+
   /// Mixes this color with another color, including the specified amount of each.
   /// Implemented according to the [`color-mix()`](https://www.w3.org/TR/css-color-5/#color-mix) function.
-  pub fn interpolate<'a, T>(
-    &'a self,
+  pub fn interpolate<T>(
+    &self,
     mut p1: f32,
-    other: &'a CssColor,
+    other: &CssColor,
     mut p2: f32,
     method: HueInterpolationMethod,
   ) -> Result<CssColor, ()>
   where
-    T: 'static
+    for<'a> T: 'static
       + TryFrom<&'a CssColor>
       + Interpolate
       + Into<CssColor>
@@ -3090,6 +3183,12 @@ impl CssColor {
   {
     if matches!(self, CssColor::CurrentColor) || matches!(other, CssColor::CurrentColor) {
       return Err(());
+    }
+
+    if matches!(self, CssColor::LightDark(..)) || matches!(other, CssColor::LightDark(..)) {
+      if let (CssColor::LightDark(al, ad), CssColor::LightDark(bl, bd)) = (self.to_light_dark(), other.to_light_dark()) {
+        return Ok(CssColor::LightDark(Box::new(al.interpolate::<T>(p1, &bl, p2, method)?), Box::new(ad.interpolate::<T>(p1, &bd, p2, method)?)))
+      }
     }
 
     let type_id = TypeId::of::<T>();

@@ -685,7 +685,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
 
           // Create additional rules for logical properties, @supports overrides, and incompatible selectors.
           let supports = context.handler_context.get_supports_rules(&style);
-          let logical = context.handler_context.get_logical_rules(&style);
+          let logical = context.handler_context.get_additional_rules(&style);
 
           let incompatible_rules = incompatible
             .into_iter()
@@ -698,7 +698,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
 
               // Also add rules for logical properties and @supports overrides.
               let supports = context.handler_context.get_supports_rules(&clone);
-              let logical = context.handler_context.get_logical_rules(&clone);
+              let logical = context.handler_context.get_additional_rules(&clone);
               (clone, logical, supports)
             })
             .collect::<Vec<_>>();

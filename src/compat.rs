@@ -108,6 +108,7 @@ pub enum Feature {
   LangSelectorList,
   LaoListStyleType,
   LhUnit,
+  LightDark,
   LinearGradient,
   LogicalBorderRadius,
   LogicalBorderShorthand,
@@ -3260,6 +3261,28 @@ impl Feature {
           }
         }
         if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::LightDark => {
+        if let Some(version) = browsers.chrome {
+          if version < 8060928 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 7864320 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.edge.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
           return false;
         }
       }

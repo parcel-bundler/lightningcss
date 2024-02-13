@@ -1586,6 +1586,9 @@ define_properties! {
 
   // https://w3c.github.io/csswg-drafts/css-view-transitions-1/
   "view-transition-name": ViewTransitionName(CustomIdent<'i>),
+
+  // https://drafts.csswg.org/css-color-adjust/
+  "color-scheme": ColorScheme(ColorScheme),
 }
 
 impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
@@ -1600,7 +1603,7 @@ impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
       }
       match input.next() {
         Err(_) => return Ok(values),
-        Ok(&Token::Comma) => continue,
+        Ok(&cssparser::Token::Comma) => continue,
         Ok(_) => unreachable!(),
       }
     }

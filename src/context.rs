@@ -2,12 +2,15 @@ use std::collections::HashSet;
 
 use crate::compat::Feature;
 use crate::declaration::DeclarationBlock;
+use crate::media_query::{MediaCondition, MediaFeatureId, MediaFeatureName, MediaFeatureValue, MediaList, MediaQuery, MediaType, QueryFeature};
 use crate::properties::custom::UnparsedProperty;
 use crate::properties::Property;
+use crate::rules::media::MediaRule;
 use crate::rules::supports::{SupportsCondition, SupportsRule};
 use crate::rules::{style::StyleRule, CssRule, CssRuleList};
 use crate::selector::{Direction, PseudoClass};
 use crate::targets::Targets;
+use crate::values::ident::Ident;
 use crate::vendor_prefix::VendorPrefix;
 use parcel_selectors::parser::Component;
 
@@ -33,6 +36,7 @@ pub(crate) struct PropertyHandlerContext<'i, 'o> {
   supports: Vec<SupportsEntry<'i>>,
   ltr: Vec<Property<'i>>,
   rtl: Vec<Property<'i>>,
+  dark: Vec<Property<'i>>,
   pub context: DeclarationContext,
   pub unused_symbols: &'o HashSet<String>,
 }
@@ -45,6 +49,7 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
       supports: Vec::new(),
       ltr: Vec::new(),
       rtl: Vec::new(),
+      dark: Vec::new(),
       context: DeclarationContext::None,
       unused_symbols,
     }
@@ -57,6 +62,7 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
       supports: Vec::new(),
       ltr: Vec::new(),
       rtl: Vec::new(),
+      dark: Vec::new(),
       context,
       unused_symbols: self.unused_symbols,
     }
@@ -77,7 +83,11 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     self.rtl.push(rtl);
   }
 
-  pub fn get_logical_rules<T>(&self, style_rule: &StyleRule<'i, T>) -> Vec<CssRule<'i, T>> {
+  pub fn add_dark_rule(&mut self, property: Property<'i>) {
+    self.dark.push(property);
+  }
+
+  pub fn get_additional_rules<T>(&self, style_rule: &StyleRule<'i, T>) -> Vec<CssRule<'i, T>> {
     // TODO: :dir/:lang raises the specificity of the selector. Use :where to lower it?
     let mut dest = Vec::new();
 
@@ -111,6 +121,38 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
 
     if !self.rtl.is_empty() {
       rule!(Rtl, rtl);
+    }
+
+    if !self.dark.is_empty() {
+      dest.push(CssRule::Media(MediaRule {
+        query: MediaList {
+          media_queries: vec![
+            MediaQuery {
+              qualifier: None,
+              media_type: MediaType::All,
+              condition: Some(MediaCondition::Feature(
+                QueryFeature::Plain { 
+                  name: MediaFeatureName::Standard(MediaFeatureId::PrefersColorScheme),
+                  value: MediaFeatureValue::Ident(Ident("dark".into()))
+                }
+              ))
+            }
+          ],
+        },
+        rules: CssRuleList(vec![
+          CssRule::Style(StyleRule {
+            selectors: style_rule.selectors.clone(),
+            vendor_prefix: VendorPrefix::None,
+            declarations: DeclarationBlock {
+              declarations: self.dark.clone(),
+              important_declarations: vec![],
+            },
+            rules: CssRuleList(vec![]),
+            loc: style_rule.loc.clone(),
+          })
+        ]),
+        loc: style_rule.loc.clone(),
+      }))
     }
 
     dest
@@ -190,5 +232,6 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     self.supports.clear();
     self.ltr.clear();
     self.rtl.clear();
+    self.dark.clear();
   }
 }

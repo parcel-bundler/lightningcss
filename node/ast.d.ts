@@ -637,7 +637,7 @@ export type Token =
  *
  * Each color space is represented as a struct that implements the `From` and `Into` traits for all other color spaces, so it is possible to convert between color spaces easily. In addition, colors support [interpolation](#method.interpolate) as in the `color-mix()` function.
  */
-export type CssColor = CurrentColor | RGBColor | LABColor | PredefinedColor | FloatColor;
+export type CssColor = CurrentColor | RGBColor | LABColor | PredefinedColor | FloatColor | LightDark;
 export type CurrentColor = {
   type: "currentcolor";
 };
@@ -957,6 +957,11 @@ export type FloatColor =
        */
       w: number;
     };
+export type LightDark = {
+  dark: CssColor;
+  light: CssColor;
+  type: "light-dark";
+};
 /**
  * A color value with an unresolved alpha value (e.g. a variable). These can be converted from the modern slash syntax to older comma syntax. This can only be done when the only unresolved component is the alpha since variables can resolve to multiple tokens.
  */
@@ -2239,6 +2244,9 @@ export type PropertyId =
     }
   | {
       property: "view-transition-name";
+    }
+  | {
+      property: "color-scheme";
     }
   | {
       property: "all";
@@ -3687,6 +3695,10 @@ export type Declaration =
   | {
       property: "view-transition-name";
       value: String;
+    }
+  | {
+      property: "color-scheme";
+      value: ColorScheme;
     }
   | {
       property: "unparsed";
@@ -8829,6 +8841,11 @@ export interface Container {
    * The container name.
    */
   name: ContainerNameList;
+}
+export interface ColorScheme {
+  dark: boolean;
+  light: boolean;
+  only: boolean;
 }
 /**
  * A known property with an unparsed value.

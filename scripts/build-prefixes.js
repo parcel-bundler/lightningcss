@@ -327,6 +327,7 @@ let mdnFeatures = {
   fontStyleObliqueAngle: mdn.css.properties['font-style']['oblique-angle'].__compat.support,
   fontWeightNumber: mdn.css.properties['font-weight'].number.__compat.support,
   fontStretchPercentage: mdn.css.properties['font-stretch'].percentage.__compat.support,
+  lightDark: mdn.css.types.color['light-dark'].__compat.support
 };
 
 for (let key in mdn.css.types.length) {

@@ -30,6 +30,7 @@ use crate::properties::{
   text::TextDecorationHandler,
   transform::TransformHandler,
   transition::TransitionHandler,
+  ui::ColorSchemeHandler
 };
 use crate::properties::{Property, PropertyId};
 use crate::traits::{PropertyHandler, ToCss};
@@ -509,6 +510,7 @@ pub(crate) struct DeclarationHandler<'i> {
   box_shadow: BoxShadowHandler,
   mask: MaskHandler<'i>,
   container: ContainerHandler<'i>,
+  color_scheme: ColorSchemeHandler,
   fallback: FallbackHandler,
   prefix: PrefixHandler,
   decls: DeclarationList<'i>,
@@ -550,6 +552,7 @@ impl<'i> DeclarationHandler<'i> {
       || self.box_shadow.handle_property(property, &mut self.decls, context)
       || self.mask.handle_property(property, &mut self.decls, context)
       || self.container.handle_property(property, &mut self.decls, context)
+      || self.color_scheme.handle_property(property, &mut self.decls, context)
       || self.fallback.handle_property(property, &mut self.decls, context)
       || self.prefix.handle_property(property, &mut self.decls, context)
   }
@@ -579,6 +582,7 @@ impl<'i> DeclarationHandler<'i> {
     self.box_shadow.finalize(&mut self.decls, context);
     self.mask.finalize(&mut self.decls, context);
     self.container.finalize(&mut self.decls, context);
+    self.color_scheme.finalize(&mut self.decls, context);
     self.fallback.finalize(&mut self.decls, context);
     self.prefix.finalize(&mut self.decls, context);
   }
