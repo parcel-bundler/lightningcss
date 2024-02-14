@@ -817,6 +817,17 @@ impl<'i> ColorParser<'i> for RelativeComponentParser {
   }
 }
 
+pub(crate) trait LightDarkColor {
+  fn light_dark(light: Self, dark: Self) -> Self;
+}
+
+impl LightDarkColor for CssColor {
+  #[inline]
+  fn light_dark(light: Self, dark: Self) -> Self {
+    CssColor::LightDark(Box::new(light), Box::new(dark))
+  }
+}
+
 pub(crate) struct ComponentParser {
   pub allow_none: bool,
   from: Option<RelativeComponentParser>,
@@ -827,18 +838,51 @@ impl ComponentParser {
     Self { allow_none, from: None }
   }
 
-  fn parse_relative<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
+  pub fn parse_relative<
+    'i,
+    't,
+    T: TryFrom<CssColor> + ColorSpace,
+    C: LightDarkColor,
+    P: Fn(&mut Parser<'i, 't>, &mut Self) -> Result<C, ParseError<'i, ParserError<'i>>>,
+  >(
     &mut self,
     input: &mut Parser<'i, 't>,
-  ) -> Result<(), ParseError<'i, ParserError<'i>>> {
+    parse: P,
+  ) -> Result<C, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
-      let from = T::try_from(CssColor::parse(input)?)
-        .map_err(|_| input.new_custom_error(ParserError::InvalidValue))?
-        .resolve();
-      self.from = Some(RelativeComponentParser::new(&from));
+      let from = CssColor::parse(input)?;
+      return self.parse_from::<T, C, P>(from, input, &parse);
     }
 
-    Ok(())
+    parse(input, self)
+  }
+
+  fn parse_from<
+    'i,
+    't,
+    T: TryFrom<CssColor> + ColorSpace,
+    C: LightDarkColor,
+    P: Fn(&mut Parser<'i, 't>, &mut Self) -> Result<C, ParseError<'i, ParserError<'i>>>,
+  >(
+    &mut self,
+    from: CssColor,
+    input: &mut Parser<'i, 't>,
+    parse: &P,
+  ) -> Result<C, ParseError<'i, ParserError<'i>>> {
+    if let CssColor::LightDark(light, dark) = from {
+      let state = input.state();
+      let light = self.parse_from::<T, C, P>(*light, input, parse)?;
+      input.reset(&state);
+      let dark = self.parse_from::<T, C, P>(*dark, input, parse)?;
+      return Ok(C::light_dark(light, dark));
+    }
+
+    let from = T::try_from(from)
+      .map_err(|_| input.new_custom_error(ParserError::InvalidValue))?
+      .resolve();
+    self.from = Some(RelativeComponentParser::new(&from));
+
+    parse(input, self)
   }
 }
 
@@ -937,46 +981,48 @@ fn parse_color_function<'i, 't>(
 
   match_ignore_ascii_case! {&*function,
     "lab" => {
-      let (l, a, b, alpha) = parse_lab::<LAB>(input, &mut parser)?;
-      let lab = LABColor::LAB(LAB { l, a, b, alpha });
-      Ok(CssColor::LAB(Box::new(lab)))
+      parse_lab::<LAB, _>(input, &mut parser, |l, a, b, alpha| {
+        LABColor::LAB(LAB { l, a, b, alpha })
+      })
     },
     "oklab" => {
-      let (l, a, b, alpha) = parse_lab::<OKLAB>(input, &mut parser)?;
-      let lab = LABColor::OKLAB(OKLAB { l, a, b, alpha });
-      Ok(CssColor::LAB(Box::new(lab)))
+      parse_lab::<OKLAB, _>(input, &mut parser, |l, a, b, alpha| {
+        LABColor::OKLAB(OKLAB { l, a, b, alpha })
+      })
     },
     "lch" => {
-      let (l, c, h, alpha) = parse_lch::<LCH>(input, &mut parser)?;
-      let lab = LABColor::LCH(LCH { l, c, h, alpha });
-      Ok(CssColor::LAB(Box::new(lab)))
+      parse_lch::<LCH, _>(input, &mut parser, |l, c, h, alpha| {
+        LABColor::LCH(LCH { l, c, h, alpha })
+      })
     },
     "oklch" => {
-      let (l, c, h, alpha) = parse_lch::<OKLCH>(input, &mut parser)?;
-      let lab = LABColor::OKLCH(OKLCH { l, c, h, alpha });
-      Ok(CssColor::LAB(Box::new(lab)))
+      parse_lch::<OKLCH, _>(input, &mut parser, |l, c, h, alpha| {
+        LABColor::OKLCH(OKLCH { l, c, h, alpha })
+      })
     },
     "color" => {
       let predefined = parse_predefined(input, &mut parser)?;
-      Ok(CssColor::Predefined(Box::new(predefined)))
+      Ok(predefined)
     },
     "hsl" | "hsla" => {
-      let (h, s, l, a) = parse_hsl_hwb::<HSL>(input, &mut parser, true)?;
-      let hsl = HSL { h, s, l, alpha: a };
-      if !h.is_nan() && !s.is_nan() && !l.is_nan() && !a.is_nan() {
-        Ok(CssColor::RGBA(hsl.into()))
-      } else {
-        Ok(CssColor::Float(Box::new(FloatColor::HSL(hsl))))
-      }
+      parse_hsl_hwb::<HSL, _>(input, &mut parser, true, |h, s, l, a| {
+        let hsl = HSL { h, s, l, alpha: a };
+        if !h.is_nan() && !s.is_nan() && !l.is_nan() && !a.is_nan() {
+          CssColor::RGBA(hsl.into())
+        } else {
+          CssColor::Float(Box::new(FloatColor::HSL(hsl)))
+        }
+      })
     },
     "hwb" => {
-      let (h, w, b, a) = parse_hsl_hwb::<HWB>(input, &mut parser, false)?;
-      let hwb = HWB { h, w, b, alpha: a };
-      if !h.is_nan() && !w.is_nan() && !b.is_nan() && !a.is_nan() {
-        Ok(CssColor::RGBA(hwb.into()))
-      } else {
-        Ok(CssColor::Float(Box::new(FloatColor::HWB(hwb))))
-      }
+      parse_hsl_hwb::<HWB, _>(input, &mut parser, false, |h, w, b, a| {
+        let hwb = HWB { h, w, b, alpha: a };
+        if !h.is_nan() && !w.is_nan() && !b.is_nan() && !a.is_nan() {
+          CssColor::RGBA(hwb.into())
+        } else {
+          CssColor::Float(Box::new(FloatColor::HWB(hwb)))
+        }
+      })
     },
     "rgb" | "rgba" => {
        parse_rgb(input, &mut parser)
@@ -1000,60 +1046,61 @@ fn parse_color_function<'i, 't>(
 
 /// Parses the lab() and oklab() functions.
 #[inline]
-fn parse_lab<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
+fn parse_lab<'i, 't, T: TryFrom<CssColor> + ColorSpace, F: Fn(f32, f32, f32, f32) -> LABColor>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
-) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  f: F,
+) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lab
-  let res = input.parse_nested_block(|input| {
-    parser.parse_relative::<T>(input)?;
+  input.parse_nested_block(|input| {
+    parser.parse_relative::<T, _, _>(input, |input, parser| {
+      // f32::max() does not propagate NaN, so use clamp for now until f32::maximum() is stable.
+      let l = parser.parse_percentage(input)?.clamp(0.0, f32::MAX);
+      let a = parser.parse_number(input)?;
+      let b = parser.parse_number(input)?;
+      let alpha = parse_alpha(input, parser)?;
+      let lab = f(l, a, b, alpha);
 
-    // f32::max() does not propagate NaN, so use clamp for now until f32::maximum() is stable.
-    let l = parser.parse_percentage(input)?.clamp(0.0, f32::MAX);
-    let a = parser.parse_number(input)?;
-    let b = parser.parse_number(input)?;
-    let alpha = parse_alpha(input, parser)?;
-
-    Ok((l, a, b, alpha))
-  })?;
-
-  Ok(res)
+      Ok(CssColor::LAB(Box::new(lab)))
+    })
+  })
 }
 
 /// Parses the lch() and oklch() functions.
 #[inline]
-fn parse_lch<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
+fn parse_lch<'i, 't, T: TryFrom<CssColor> + ColorSpace, F: Fn(f32, f32, f32, f32) -> LABColor>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
-) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  f: F,
+) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lch
-  let res = input.parse_nested_block(|input| {
-    parser.parse_relative::<T>(input)?;
-    if let Some(from) = &mut parser.from {
-      // Relative angles should be normalized.
-      // https://www.w3.org/TR/css-color-5/#relative-LCH
-      from.components.2 %= 360.0;
-      if from.components.2 < 0.0 {
-        from.components.2 += 360.0;
+  input.parse_nested_block(|input| {
+    parser.parse_relative::<T, _, _>(input, |input, parser| {
+      if let Some(from) = &mut parser.from {
+        // Relative angles should be normalized.
+        // https://www.w3.org/TR/css-color-5/#relative-LCH
+        from.components.2 %= 360.0;
+        if from.components.2 < 0.0 {
+          from.components.2 += 360.0;
+        }
       }
-    }
 
-    let l = parser.parse_percentage(input)?.clamp(0.0, f32::MAX);
-    let c = parser.parse_number(input)?.clamp(0.0, f32::MAX);
-    let h = parse_angle_or_number(input, parser)?;
-    let alpha = parse_alpha(input, parser)?;
+      let l = parser.parse_percentage(input)?.clamp(0.0, f32::MAX);
+      let c = parser.parse_number(input)?.clamp(0.0, f32::MAX);
+      let h = parse_angle_or_number(input, parser)?;
+      let alpha = parse_alpha(input, parser)?;
+      let lab = f(l, c, h, alpha);
 
-    Ok((l, c, h, alpha))
-  })?;
-
-  Ok(res)
+      Ok(CssColor::LAB(Box::new(lab)))
+    })
+  })
 }
 
 #[inline]
 fn parse_predefined<'i, 't>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
-) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
+) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#color-function
   let res = input.parse_nested_block(|input| {
     let from = if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
@@ -1062,80 +1109,99 @@ fn parse_predefined<'i, 't>(
       None
     };
 
-    let location = input.current_source_location();
     let colorspace = input.expect_ident_cloned()?;
 
-    if let Some(from) = &from {
-      let handle_error = |_| input.new_custom_error(ParserError::InvalidValue);
-      parser.from = Some(match_ignore_ascii_case! { &*&colorspace,
-        "srgb" => RelativeComponentParser::new(&SRGB::try_from(from).map_err(handle_error)?.resolve_missing()),
-        "srgb-linear" => RelativeComponentParser::new(&SRGBLinear::try_from(from).map_err(handle_error)?.resolve_missing()),
-        "display-p3" => RelativeComponentParser::new(&P3::try_from(from).map_err(handle_error)?.resolve_missing()),
-        "a98-rgb" => RelativeComponentParser::new(&A98::try_from(from).map_err(handle_error)?.resolve_missing()),
-        "prophoto-rgb" => RelativeComponentParser::new(&ProPhoto::try_from(from).map_err(handle_error)?.resolve_missing()),
-        "rec2020" => RelativeComponentParser::new(&Rec2020::try_from(from).map_err(handle_error)?.resolve_missing()),
-        "xyz-d50" => RelativeComponentParser::new(&XYZd50::try_from(from).map_err(handle_error)?.resolve_missing()),
-        "xyz" | "xyz-d65" => RelativeComponentParser::new(&XYZd65::try_from(from).map_err(handle_error)?.resolve_missing()),
-        _ => return Err(location.new_unexpected_token_error(
-          cssparser::Token::Ident(colorspace.clone())
-        ))
-      });
+    if let Some(CssColor::LightDark(light, dark)) = from {
+      let state = input.state();
+      let light = parse_predefined_relative(input, parser, &colorspace, Some(&*light))?;
+      input.reset(&state);
+      let dark = parse_predefined_relative(input, parser, &colorspace, Some(&*dark))?;
+      return Ok(CssColor::LightDark(Box::new(light), Box::new(dark)));
     }
 
-    // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
-    // The browser will gamut-map the color for the target device that it is rendered on.
-    let a = input
-      .try_parse(|input| parse_number_or_percentage(input, parser))
-      .unwrap_or(0.0);
-    let b = input
-      .try_parse(|input| parse_number_or_percentage(input, parser))
-      .unwrap_or(0.0);
-    let c = input
-      .try_parse(|input| parse_number_or_percentage(input, parser))
-      .unwrap_or(0.0);
-    let alpha = parse_alpha(input, parser)?;
-
-    let res = match_ignore_ascii_case! { &*&colorspace,
-      "srgb" => PredefinedColor::SRGB(SRGB { r: a, g: b, b: c, alpha }),
-      "srgb-linear" => PredefinedColor::SRGBLinear(SRGBLinear { r: a, g: b, b: c, alpha }),
-      "display-p3" => PredefinedColor::DisplayP3(P3 { r: a, g: b, b: c, alpha }),
-      "a98-rgb" => PredefinedColor::A98(A98 { r: a, g: b, b: c, alpha }),
-      "prophoto-rgb" => PredefinedColor::ProPhoto(ProPhoto { r: a, g: b, b: c, alpha }),
-      "rec2020" => PredefinedColor::Rec2020(Rec2020 { r: a, g: b, b: c, alpha }),
-      "xyz-d50" => PredefinedColor::XYZd50(XYZd50 { x: a, y: b, z: c, alpha}),
-      "xyz" | "xyz-d65" => PredefinedColor::XYZd65(XYZd65 { x: a, y: b, z: c, alpha }),
-      _ => return Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(colorspace.clone())
-      ))
-    };
-
-    Ok(res)
+    parse_predefined_relative(input, parser, &colorspace, from.as_ref())
   })?;
 
   Ok(res)
 }
 
+#[inline]
+fn parse_predefined_relative<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  parser: &mut ComponentParser,
+  colorspace: &CowRcStr<'i>,
+  from: Option<&CssColor>,
+) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
+  let location = input.current_source_location();
+  if let Some(from) = from {
+    let handle_error = |_| input.new_custom_error(ParserError::InvalidValue);
+    parser.from = Some(match_ignore_ascii_case! { &*&colorspace,
+      "srgb" => RelativeComponentParser::new(&SRGB::try_from(from).map_err(handle_error)?.resolve_missing()),
+      "srgb-linear" => RelativeComponentParser::new(&SRGBLinear::try_from(from).map_err(handle_error)?.resolve_missing()),
+      "display-p3" => RelativeComponentParser::new(&P3::try_from(from).map_err(handle_error)?.resolve_missing()),
+      "a98-rgb" => RelativeComponentParser::new(&A98::try_from(from).map_err(handle_error)?.resolve_missing()),
+      "prophoto-rgb" => RelativeComponentParser::new(&ProPhoto::try_from(from).map_err(handle_error)?.resolve_missing()),
+      "rec2020" => RelativeComponentParser::new(&Rec2020::try_from(from).map_err(handle_error)?.resolve_missing()),
+      "xyz-d50" => RelativeComponentParser::new(&XYZd50::try_from(from).map_err(handle_error)?.resolve_missing()),
+      "xyz" | "xyz-d65" => RelativeComponentParser::new(&XYZd65::try_from(from).map_err(handle_error)?.resolve_missing()),
+      _ => return Err(location.new_unexpected_token_error(
+        cssparser::Token::Ident(colorspace.clone())
+      ))
+    });
+  }
+
+  // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
+  // The browser will gamut-map the color for the target device that it is rendered on.
+  let a = input
+    .try_parse(|input| parse_number_or_percentage(input, parser))
+    .unwrap_or(0.0);
+  let b = input
+    .try_parse(|input| parse_number_or_percentage(input, parser))
+    .unwrap_or(0.0);
+  let c = input
+    .try_parse(|input| parse_number_or_percentage(input, parser))
+    .unwrap_or(0.0);
+  let alpha = parse_alpha(input, parser)?;
+
+  let res = match_ignore_ascii_case! { &*&colorspace,
+    "srgb" => PredefinedColor::SRGB(SRGB { r: a, g: b, b: c, alpha }),
+    "srgb-linear" => PredefinedColor::SRGBLinear(SRGBLinear { r: a, g: b, b: c, alpha }),
+    "display-p3" => PredefinedColor::DisplayP3(P3 { r: a, g: b, b: c, alpha }),
+    "a98-rgb" => PredefinedColor::A98(A98 { r: a, g: b, b: c, alpha }),
+    "prophoto-rgb" => PredefinedColor::ProPhoto(ProPhoto { r: a, g: b, b: c, alpha }),
+    "rec2020" => PredefinedColor::Rec2020(Rec2020 { r: a, g: b, b: c, alpha }),
+    "xyz-d50" => PredefinedColor::XYZd50(XYZd50 { x: a, y: b, z: c, alpha}),
+    "xyz" | "xyz-d65" => PredefinedColor::XYZd65(XYZd65 { x: a, y: b, z: c, alpha }),
+    _ => return Err(location.new_unexpected_token_error(
+      cssparser::Token::Ident(colorspace.clone())
+    ))
+  };
+
+  Ok(CssColor::Predefined(Box::new(res)))
+}
+
 /// Parses the hsl() and hwb() functions.
 /// The results of this function are stored as floating point if there are any `none` components.
 #[inline]
-fn parse_hsl_hwb<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
+fn parse_hsl_hwb<'i, 't, T: TryFrom<CssColor> + ColorSpace, F: Fn(f32, f32, f32, f32) -> CssColor>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
   allows_legacy: bool,
-) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  f: F,
+) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#the-hsl-notation
-  let res = input.parse_nested_block(|input| {
-    let (h, a, b, is_legacy) = parse_hsl_hwb_components::<T>(input, parser, allows_legacy)?;
-    let alpha = if is_legacy {
-      parse_legacy_alpha(input, parser)?
-    } else {
-      parse_alpha(input, parser)?
-    };
+  input.parse_nested_block(|input| {
+    parser.parse_relative::<T, _, _>(input, |input, parser| {
+      let (h, a, b, is_legacy) = parse_hsl_hwb_components::<T>(input, parser, allows_legacy)?;
+      let alpha = if is_legacy {
+        parse_legacy_alpha(input, parser)?
+      } else {
+        parse_alpha(input, parser)?
+      };
 
-    Ok((h, a, b, alpha))
-  })?;
-
-  Ok(res)
+      Ok(f(h, a, b, alpha))
+    })
+  })
 }
 
 #[inline]
@@ -1144,7 +1210,6 @@ pub(crate) fn parse_hsl_hwb_components<'i, 't, T: TryFrom<CssColor> + ColorSpace
   parser: &mut ComponentParser,
   allows_legacy: bool,
 ) -> Result<(f32, f32, f32, bool), ParseError<'i, ParserError<'i>>> {
-  parser.parse_relative::<T>(input)?;
   let h = parse_angle_or_number(input, parser)?;
   let is_legacy_syntax =
     allows_legacy && parser.from.is_none() && !h.is_nan() && input.try_parse(|p| p.expect_comma()).is_ok();
@@ -1165,26 +1230,26 @@ fn parse_rgb<'i, 't>(
   parser: &mut ComponentParser,
 ) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#rgb-functions
-  let res = input.parse_nested_block(|input| {
-    let (r, g, b, is_legacy) = parse_rgb_components(input, parser)?;
-    let alpha = if is_legacy {
-      parse_legacy_alpha(input, parser)?
-    } else {
-      parse_alpha(input, parser)?
-    };
-
-    if !r.is_nan() && !g.is_nan() && !b.is_nan() && !alpha.is_nan() {
-      if is_legacy {
-        Ok(CssColor::RGBA(RGBA::new(r as u8, g as u8, b as u8, alpha)))
+  input.parse_nested_block(|input| {
+    parser.parse_relative::<SRGB, _, _>(input, |input, parser| {
+      let (r, g, b, is_legacy) = parse_rgb_components(input, parser)?;
+      let alpha = if is_legacy {
+        parse_legacy_alpha(input, parser)?
       } else {
-        Ok(CssColor::RGBA(RGBA::from_floats(r, g, b, alpha)))
-      }
-    } else {
-      Ok(CssColor::Float(Box::new(FloatColor::RGB(SRGB { r, g, b, alpha }))))
-    }
-  })?;
+        parse_alpha(input, parser)?
+      };
 
-  Ok(res)
+      if !r.is_nan() && !g.is_nan() && !b.is_nan() && !alpha.is_nan() {
+        if is_legacy {
+          Ok(CssColor::RGBA(RGBA::new(r as u8, g as u8, b as u8, alpha)))
+        } else {
+          Ok(CssColor::RGBA(RGBA::from_floats(r, g, b, alpha)))
+        }
+      } else {
+        Ok(CssColor::Float(Box::new(FloatColor::RGB(SRGB { r, g, b, alpha }))))
+      }
+    })
+  })
 }
 
 #[inline]
@@ -1192,7 +1257,6 @@ pub(crate) fn parse_rgb_components<'i, 't>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
 ) -> Result<(f32, f32, f32, bool), ParseError<'i, ParserError<'i>>> {
-  parser.parse_relative::<SRGB>(input)?;
   let red = parser.parse_number_or_percentage(input)?;
   let is_legacy_syntax =
     parser.from.is_none() && !red.unit_value().is_nan() && input.try_parse(|p| p.expect_comma()).is_ok();

@@ -27076,5 +27076,54 @@ mod tests {
         ..Browsers::default()
       },
     );
+    prefix_test(
+      ".foo { color: rgb(from light-dark(yellow, red) r g b / 10%); }",
+      indoc! { r#"
+      .foo {
+        color: var(--lightningcss-light, #ffff001a) var(--lightningcss-dark, #ff00001a);
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { color: rgb(from light-dark(yellow, red) r g b / var(--alpha)); }",
+      indoc! { r#"
+      .foo {
+        color: var(--lightningcss-light, rgb(255 255 0 / var(--alpha))) var(--lightningcss-dark, rgb(255 0 0 / var(--alpha)));
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { color: color(from light-dark(yellow, red) srgb r g b / 10%); }",
+      indoc! { r#"
+      .foo {
+        color: var(--lightningcss-light, #ffff001a) var(--lightningcss-dark, #ff00001a);
+        color: var(--lightningcss-light, color(srgb 1 1 0 / .1)) var(--lightningcss-dark, color(srgb 1 0 0 / .1));
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { color: color-mix(in srgb, light-dark(yellow, red), light-dark(red, pink)); }",
+      indoc! { r#"
+      .foo {
+        color: var(--lightningcss-light, #ff8000) var(--lightningcss-dark, #ff6066);
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 }
