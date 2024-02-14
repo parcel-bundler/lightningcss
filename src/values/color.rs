@@ -1032,10 +1032,16 @@ fn parse_color_function<'i, 't>(
     },
     "light-dark" => {
       input.parse_nested_block(|input| {
-        let light = CssColor::parse(input)?;
+        let light = match CssColor::parse(input)? {
+          CssColor::LightDark(light, _) => light,
+          light => Box::new(light)
+        };
         input.expect_comma()?;
-        let dark = CssColor::parse(input)?;
-        Ok(CssColor::LightDark(Box::new(light), Box::new(dark)))
+        let dark = match CssColor::parse(input)? {
+          CssColor::LightDark(_, dark) => dark,
+          dark => Box::new(dark)
+        };
+        Ok(CssColor::LightDark(light, dark))
       })
     },
     _ => Err(location.new_unexpected_token_error(

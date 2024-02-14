@@ -27036,6 +27036,10 @@ mod tests {
       ".foo{color:light-dark(#ff0,red)}",
     );
     minify_test(
+      ".foo { color: light-dark(light-dark(yellow, red), light-dark(yellow, red)); }",
+      ".foo{color:light-dark(#ff0,red)}",
+    );
+    minify_test(
       ".foo { color: light-dark(rgb(0, 0, 255), hsl(120deg, 50%, 50%)); }",
       ".foo{color:light-dark(#00f,#40bf40)}",
     );
