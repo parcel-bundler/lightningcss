@@ -4,13 +4,10 @@ use super::Location;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use crate::{
-  error::{ParserError, PrinterError},
-  printer::Printer,
-  traits::{Parse, ToCss},
-  values::{
+  error::{ParserError, PrinterError}, printer::Printer, properties::custom::TokenList, traits::{Parse, ToCss}, values::{
     ident::DashedIdent,
     syntax::{ParsedComponent, SyntaxString},
-  },
+  }
 };
 use cssparser::*;
 
@@ -82,9 +79,7 @@ impl<'i> PropertyRule<'i> {
           let mut parser = Parser::new(&mut input);
 
           if parser.is_exhausted() {
-            Some(ParsedComponent::Token(crate::properties::custom::Token::WhiteSpace(
-              " ".into(),
-            )))
+            Some(ParsedComponent::TokenList(TokenList(vec![])))
           } else {
             Some(syntax.parse_value(&mut parser)?)
           }
@@ -142,13 +137,8 @@ impl<'i> ToCss for PropertyRule<'i> {
       dest.newline()?;
 
       dest.write_str("initial-value:")?;
-      match initial_value {
-        ParsedComponent::Token(crate::properties::custom::Token::WhiteSpace(value)) => dest.write_str(value)?,
-        _ => {
-          dest.whitespace()?;
-          initial_value.to_css(dest)?;
-        }
-      }
+      dest.whitespace()?;
+      initial_value.to_css(dest)?;
 
       if !dest.minify {
         dest.write_char(';')?;

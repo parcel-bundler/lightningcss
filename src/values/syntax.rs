@@ -4,6 +4,8 @@ use super::ident::Ident;
 use super::number::{CSSInteger, CSSNumber};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
+use crate::properties::custom::TokenList;
+use crate::stylesheet::ParserOptions;
 use crate::traits::{Parse, ToCss};
 use crate::values;
 #[cfg(feature = "visitor")]
@@ -155,8 +157,8 @@ pub enum ParsedComponent<'i> {
     /// A multiplier describing how the components repeat.
     multiplier: Multiplier,
   },
-  /// A raw token.
-  Token(crate::properties::custom::Token<'i>),
+  /// A raw token stream.
+  TokenList(crate::properties::custom::TokenList<'i>),
 }
 
 impl<'i> SyntaxString {
@@ -199,9 +201,7 @@ impl<'i> SyntaxString {
     input: &mut Parser<'i, 't>,
   ) -> Result<ParsedComponent<'i>, ParseError<'i, ParserError<'i>>> {
     match self {
-      SyntaxString::Universal => Ok(ParsedComponent::Token(crate::properties::custom::Token::from(
-        input.next()?,
-      ))),
+      SyntaxString::Universal => Ok(ParsedComponent::TokenList(TokenList::parse(input, &ParserOptions::default(), 0)?)),
       SyntaxString::Components(components) => {
         // Loop through each component, and return the first one that parses successfully.
         for component in components {
@@ -491,7 +491,7 @@ impl<'i> ToCss for ParsedComponent<'i> {
         }
         Ok(())
       }
-      Token(t) => t.to_css(dest),
+      TokenList(t) => t.to_css(dest, false),
     }
   }
 }

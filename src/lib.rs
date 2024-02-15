@@ -25904,7 +25904,7 @@ mod tests {
         initial-value: ;
       }
     "#,
-      "@property --property-name{syntax:\"*\";inherits:false;initial-value: }",
+      "@property --property-name{syntax:\"*\";inherits:false;initial-value:}",
     );
 
     test(
@@ -25932,7 +25932,17 @@ mod tests {
         initial-value:;
       }
     "#,
-      "@property --property-name{syntax:\"*\";inherits:false;initial-value: }",
+      "@property --property-name{syntax:\"*\";inherits:false;initial-value:}",
+    );
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '*';
+        inherits: false;
+        initial-value: foo bar;
+      }
+    "#,
+      "@property --property-name{syntax:\"*\";inherits:false;initial-value:foo bar}",
     );
 
     minify_test(
