@@ -519,10 +519,15 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             };
           }
 
-          // If there is an existing rule with the same name and identical keyframes,
-          // merge the vendor prefixes from this rule into it.
+          // Merge @keyframes rules with the same name.
           if let Some(existing_idx) = keyframe_rules.get(&keyframes.name) {
             if let Some(CssRule::Keyframes(existing)) = &mut rules.get_mut(*existing_idx) {
+              // If the existing rule has the same vendor prefixes, replace it with this rule.
+              if existing.vendor_prefix == keyframes.vendor_prefix {
+                *existing = keyframes.clone();
+                continue;
+              }
+              // Otherwise, if the keyframes are identical, merge the prefixes.
               if existing.keyframes == keyframes.keyframes {
                 existing.vendor_prefix |= keyframes.vendor_prefix;
                 set_prefix!(existing);

@@ -7257,6 +7257,39 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    minify_test(
+      r#"
+      @keyframes test {
+        100% {
+          background: blue
+        }
+      }
+
+      @keyframes test {
+        100% {
+          background: red
+        }
+      }
+    "#,
+      "@keyframes test{to{background:red}}",
+    );
+    minify_test(
+      r#"
+      @keyframes test {
+        100% {
+          background: blue
+        }
+      }
+
+      @-webkit-keyframes test {
+        100% {
+          background: red
+        }
+      }
+    "#,
+      "@keyframes test{to{background:#00f}}@-webkit-keyframes test{to{background:red}}",
+    );
   }
 
   #[test]
