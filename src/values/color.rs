@@ -363,7 +363,9 @@ impl CssColor {
     // below and including the authored color space, and remove the ones that aren't
     // compatible with our browser targets.
     let mut fallbacks = match self {
-      CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::Float(..) | CssColor::System(..) => return ColorFallbackKind::empty(),
+      CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::Float(..) | CssColor::System(..) => {
+        return ColorFallbackKind::empty()
+      }
       CssColor::LAB(lab) => match &**lab {
         LABColor::LAB(..) | LABColor::LCH(..) if should_compile!(targets, LabColors) => {
           ColorFallbackKind::LAB.and_below()
@@ -458,8 +460,8 @@ impl IsCompatible for CssColor {
       },
       CssColor::LightDark(light, dark) => {
         Feature::LightDark.is_compatible(browsers) && light.is_compatible(browsers) && dark.is_compatible(browsers)
-      },
-      CssColor::System(system) => system.is_compatible(browsers)
+      }
+      CssColor::System(system) => system.is_compatible(browsers),
     }
   }
 }
@@ -2890,7 +2892,7 @@ macro_rules! color_space {
           CssColor::Float(float) => (**float).into(),
           CssColor::CurrentColor => return Err(()),
           CssColor::LightDark(..) => return Err(()),
-          CssColor::System(..) => return Err(())
+          CssColor::System(..) => return Err(()),
         })
       }
     }
@@ -2905,7 +2907,7 @@ macro_rules! color_space {
           CssColor::Float(float) => (*float).into(),
           CssColor::CurrentColor => return Err(()),
           CssColor::LightDark(..) => return Err(()),
-          CssColor::System(..) => return Err(())
+          CssColor::System(..) => return Err(()),
         })
       }
     }
@@ -3688,7 +3690,7 @@ impl IsCompatible for SystemColor {
     use SystemColor::*;
     match self {
       AccentColor | AccentColorText => Feature::AccentSystemColor.is_compatible(browsers),
-      _ => true
+      _ => true,
     }
   }
 }

@@ -4,10 +4,14 @@ use super::Location;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use crate::{
-  error::{ParserError, PrinterError}, printer::Printer, properties::custom::TokenList, traits::{Parse, ToCss}, values::{
+  error::{ParserError, PrinterError},
+  printer::Printer,
+  properties::custom::TokenList,
+  traits::{Parse, ToCss},
+  values::{
     ident::DashedIdent,
     syntax::{ParsedComponent, SyntaxString},
-  }
+  },
 };
 use cssparser::*;
 

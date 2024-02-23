@@ -201,7 +201,11 @@ impl<'i> SyntaxString {
     input: &mut Parser<'i, 't>,
   ) -> Result<ParsedComponent<'i>, ParseError<'i, ParserError<'i>>> {
     match self {
-      SyntaxString::Universal => Ok(ParsedComponent::TokenList(TokenList::parse(input, &ParserOptions::default(), 0)?)),
+      SyntaxString::Universal => Ok(ParsedComponent::TokenList(TokenList::parse(
+        input,
+        &ParserOptions::default(),
+        0,
+      )?)),
       SyntaxString::Components(components) => {
         // Loop through each component, and return the first one that parses successfully.
         for component in components {
