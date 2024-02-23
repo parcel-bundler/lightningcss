@@ -6,6 +6,7 @@ use crate::targets::Browsers;
 #[derive(Clone, Copy, PartialEq)]
 pub enum Feature {
   AbsFunction,
+  AccentSystemColor,
   AfarListStyleType,
   AmharicAbegedeListStyleType,
   AmharicListStyleType,
@@ -3281,6 +3282,32 @@ impl Feature {
           || browsers.ios_saf.is_some()
           || browsers.opera.is_some()
           || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::AccentSystemColor => {
+        if let Some(version) = browsers.firefox {
+          if version < 6750208 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 1049856 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1049856 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.ie.is_some()
+          || browsers.opera.is_some()
           || browsers.samsung.is_some()
         {
           return false;

@@ -15919,6 +15919,7 @@ mod tests {
     minify_test(".foo { color: hsla(100 100% 50% / .8) }", ".foo{color:#5f0c}");
     minify_test(".foo { color: transparent }", ".foo{color:#0000}");
     minify_test(".foo { color: currentColor }", ".foo{color:currentColor}");
+    minify_test(".foo { color: ButtonBorder }", ".foo{color:buttonborder}");
     minify_test(".foo { color: hwb(194 0% 0%) }", ".foo{color:#00c4ff}");
     minify_test(".foo { color: hwb(194 0% 0% / 50%) }", ".foo{color:#00c4ff80}");
     minify_test(".foo { color: hwb(194 0% 50%) }", ".foo{color:#006280}");

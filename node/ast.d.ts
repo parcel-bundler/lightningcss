@@ -637,7 +637,7 @@ export type Token =
  *
  * Each color space is represented as a struct that implements the `From` and `Into` traits for all other color spaces, so it is possible to convert between color spaces easily. In addition, colors support [interpolation](#method.interpolate) as in the `color-mix()` function.
  */
-export type CssColor = CurrentColor | RGBColor | LABColor | PredefinedColor | FloatColor | LightDark;
+export type CssColor = CurrentColor | RGBColor | LABColor | PredefinedColor | FloatColor | LightDark | SystemColor;
 export type CurrentColor = {
   type: "currentcolor";
 };
@@ -962,6 +962,52 @@ export type LightDark = {
   light: CssColor;
   type: "light-dark";
 };
+/**
+ * A CSS [system color](https://drafts.csswg.org/css-color/#css-system-colors) keyword.
+ */
+export type SystemColor =
+  | "accentcolor"
+  | "accentcolortext"
+  | "activetext"
+  | "buttonborder"
+  | "buttonface"
+  | "buttontext"
+  | "canvas"
+  | "canvastext"
+  | "field"
+  | "fieldtext"
+  | "graytext"
+  | "highlight"
+  | "highlighttext"
+  | "linktext"
+  | "mark"
+  | "marktext"
+  | "selecteditem"
+  | "selecteditemtext"
+  | "visitedtext"
+  | "activeborder"
+  | "activecaption"
+  | "appworkspace"
+  | "background"
+  | "buttonhighlight"
+  | "buttonshadow"
+  | "captiontext"
+  | "inactiveborder"
+  | "inactivecaption"
+  | "inactivecaptiontext"
+  | "infobackground"
+  | "infotext"
+  | "menu"
+  | "menutext"
+  | "scrollbar"
+  | "threeddarkshadow"
+  | "threedface"
+  | "threedhighlight"
+  | "threedlightshadow"
+  | "threedshadow"
+  | "window"
+  | "windowframe"
+  | "windowtext";
 /**
  * A color value with an unresolved alpha value (e.g. a variable). These can be converted from the modern slash syntax to older comma syntax. This can only be done when the only unresolved component is the alpha since variables can resolve to multiple tokens.
  */

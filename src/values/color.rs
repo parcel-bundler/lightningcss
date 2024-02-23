@@ -64,6 +64,8 @@ pub enum CssColor {
   #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "LightDark"))]
   LightDark(Box<CssColor>, Box<CssColor>),
+  /// A [system color](https://drafts.csswg.org/css-color/#css-system-colors) keyword.
+  System(SystemColor),
 }
 
 #[cfg(feature = "serde")]
@@ -361,7 +363,7 @@ impl CssColor {
     // below and including the authored color space, and remove the ones that aren't
     // compatible with our browser targets.
     let mut fallbacks = match self {
-      CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::Float(..) => return ColorFallbackKind::empty(),
+      CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::Float(..) | CssColor::System(..) => return ColorFallbackKind::empty(),
       CssColor::LAB(lab) => match &**lab {
         LABColor::LAB(..) | LABColor::LCH(..) if should_compile!(targets, LabColors) => {
           ColorFallbackKind::LAB.and_below()
@@ -456,7 +458,8 @@ impl IsCompatible for CssColor {
       },
       CssColor::LightDark(light, dark) => {
         Feature::LightDark.is_compatible(browsers) && light.is_compatible(browsers) && dark.is_compatible(browsers)
-      }
+      },
+      CssColor::System(system) => system.is_compatible(browsers)
     }
   }
 }
@@ -500,8 +503,13 @@ impl<'i> Parse<'i> for CssColor {
         "currentcolor" => CssColor::CurrentColor,
         "transparent" => CssColor::RGBA(RGBA::transparent()),
         _ => {
-          let (r, g, b) = parse_named_color(value).map_err(|_| location.new_unexpected_token_error(token.clone()))?;
-          CssColor::RGBA(RGBA { red: r, green: g, blue: b, alpha: 255 })
+          if let Ok((r, g, b)) = parse_named_color(value) {
+            CssColor::RGBA(RGBA { red: r, green: g, blue: b, alpha: 255 })
+          } else if let Ok(system_color) = SystemColor::parse_string(&value) {
+            CssColor::System(system_color)
+          } else {
+            return Err(location.new_unexpected_token_error(token.clone()))
+          }
         }
       }),
       Token::Function(ref name) => parse_color_function(location, name.clone(), input),
@@ -603,6 +611,7 @@ impl ToCss for CssColor {
         dark.to_css(dest)?;
         dest.write_char(')')
       }
+      CssColor::System(system) => system.to_css(dest),
     }
   }
 }
@@ -2881,6 +2890,7 @@ macro_rules! color_space {
           CssColor::Float(float) => (**float).into(),
           CssColor::CurrentColor => return Err(()),
           CssColor::LightDark(..) => return Err(()),
+          CssColor::System(..) => return Err(())
         })
       }
     }
@@ -2895,6 +2905,7 @@ macro_rules! color_space {
           CssColor::Float(float) => (*float).into(),
           CssColor::CurrentColor => return Err(()),
           CssColor::LightDark(..) => return Err(()),
+          CssColor::System(..) => return Err(())
         })
       }
     }
@@ -3576,5 +3587,108 @@ impl<'i, V: ?Sized + Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for RGB
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
   fn visit_children(&mut self, _: &mut V) -> Result<(), V::Error> {
     Ok(())
+  }
+}
+
+enum_property! {
+  /// A CSS [system color](https://drafts.csswg.org/css-color/#css-system-colors) keyword.
+  pub enum SystemColor {
+    /// Background of accented user interface controls.
+    AccentColor,
+    /// Text of accented user interface controls.
+    AccentColorText,
+    /// Text in active links. For light backgrounds, traditionally red.
+    ActiveText,
+    /// The base border color for push buttons.
+    ButtonBorder,
+    /// The face background color for push buttons.
+    ButtonFace,
+    /// Text on push buttons.
+    ButtonText,
+    /// Background of application content or documents.
+    Canvas,
+    /// Text in application content or documents.
+    CanvasText,
+    /// Background of input fields.
+    Field,
+    /// Text in input fields.
+    FieldText,
+    /// Disabled text. (Often, but not necessarily, gray.)
+    GrayText,
+    /// Background of selected text, for example from ::selection.
+    Highlight,
+    /// Text of selected text.
+    HighlightText,
+    /// Text in non-active, non-visited links. For light backgrounds, traditionally blue.
+    LinkText,
+    /// Background of text that has been specially marked (such as by the HTML mark element).
+    Mark,
+    /// Text that has been specially marked (such as by the HTML mark element).
+    MarkText,
+    /// Background of selected items, for example a selected checkbox.
+    SelectedItem,
+    /// Text of selected items.
+    SelectedItemText,
+    /// Text in visited links. For light backgrounds, traditionally purple.
+    VisitedText,
+
+    // Deprecated colors: https://drafts.csswg.org/css-color/#deprecated-system-colors
+
+    /// Active window border. Same as ButtonBorder.
+    ActiveBorder,
+    /// Active window caption. Same as Canvas.
+    ActiveCaption,
+    /// Background color of multiple document interface. Same as Canvas.
+    AppWorkspace,
+    /// Desktop background. Same as Canvas.
+    Background,
+    /// The color of the border facing the light source for 3-D elements that appear 3-D due to one layer of surrounding border. Same as ButtonFace.
+    ButtonHighlight,
+    /// The color of the border away from the light source for 3-D elements that appear 3-D due to one layer of surrounding border. Same as ButtonFace.
+    ButtonShadow,
+    /// Text in caption, size box, and scrollbar arrow box. Same as CanvasText.
+    CaptionText,
+    /// Inactive window border. Same as ButtonBorder.
+    InactiveBorder,
+    /// Inactive window caption. Same as Canvas.
+    InactiveCaption,
+    /// Color of text in an inactive caption. Same as GrayText.
+    InactiveCaptionText,
+    /// Background color for tooltip controls. Same as Canvas.
+    InfoBackground,
+    /// Text color for tooltip controls. Same as CanvasText.
+    InfoText,
+    /// Menu background. Same as Canvas.
+    Menu,
+    /// Text in menus. Same as CanvasText.
+    MenuText,
+    /// Scroll bar gray area. Same as Canvas.
+    Scrollbar,
+    /// The color of the darker (generally outer) of the two borders away from the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
+    ThreeDDarkShadow,
+    /// The face background color for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonFace.
+    ThreeDFace,
+    /// The color of the lighter (generally outer) of the two borders facing the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
+    ThreeDHighlight,
+    /// The color of the darker (generally inner) of the two borders facing the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
+    ThreeDLightShadow,
+    /// The color of the lighter (generally inner) of the two borders away from the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
+    ThreeDShadow,
+    /// Window background. Same as Canvas.
+    Window,
+    /// Window frame. Same as ButtonBorder.
+    WindowFrame,
+    /// Text in windows. Same as CanvasText.
+    WindowText,
+  }
+}
+
+impl IsCompatible for SystemColor {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    use SystemColor::*;
+    match self {
+      AccentColor | AccentColorText => Feature::AccentSystemColor.is_compatible(browsers),
+      _ => true
+    }
   }
 }
