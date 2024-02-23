@@ -328,6 +328,63 @@ compiles to:
 }
 ```
 
+### light-dark() color function
+
+The [`light-dark()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark) function allows you to specify a light mode and dark mode color in a single declaration, without needing to write a separate media query rule. In addition, it uses the [`color-scheme`](https://developer.mozilla.org/en-US/docs/Web/CSS/color-scheme) property to control which theme to use, which allows you to set it programmatically. The `color-scheme` property also inherits so themes can be nested and the nearest ancestor color scheme applies.
+
+Lightning CSS converts the `light-dark()` function to use CSS variable fallback when your browser targets don't support it natively. For this to work, you must set the `color-scheme` property on an ancestor element. The following example shows how you can support both operating system and programmatic overrides for the color scheme.
+
+```css
+html {
+  color-scheme: light dark;
+}
+
+html[data-theme=light] {
+  color-scheme: light;
+}
+
+html[data-theme=dark] {
+  color-scheme: dark;
+}
+
+button {
+  background: light-dark(#aaa, #444);
+}
+```
+
+compiles to:
+
+```css
+html {
+  --lightningcss-light: initial;
+  --lightningcss-dark: ;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    --lightningcss-light: ;
+    --lightningcss-dark: initial;
+  }
+}
+
+html[data-theme="light"] {
+  --lightningcss-light: initial;
+  --lightningcss-dark: ;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --lightningcss-light: ;
+  --lightningcss-dark: initial;
+  color-scheme: dark;
+}
+
+button {
+  background: var(--lightningcss-light, #aaa) var(--lightningcss-dark, #444);
+}
+```
+
 ### Logical properties
 
 CSS [logical properties](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Logical_Properties) allow you to define values in terms of writing direction, so that UIs mirror in right-to-left languages. Lightning CSS will compile these to use the `:dir()` selector when unsupported. If the `:dir()` selector is unsupported, it is compiled as described [below](#%3Adir()-selector).
