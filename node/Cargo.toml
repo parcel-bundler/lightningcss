@@ -9,17 +9,9 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-serde = { version = "1.0.123", features = ["derive"] }
-serde_bytes = "0.11.5"
-cssparser = "0.33.0"
-lightningcss = { path = "../", features = ["nodejs", "serde", "visitor"] }
-parcel_sourcemap = { version = "2.1.1", features = ["json"] }
-serde-detach = "0.0.1"
-smallvec = { version = "1.7.0", features = ["union"] }
+lightningcss-napi = { version = "0.1.0", path = "../napi", features = ["bundler", "visitor"] }
 napi = {version = "=2.10.3", default-features = false, features = ["napi4", "napi5", "compat-mode", "serde-json"]}
 napi-derive = "2"
-crossbeam-channel = "0.5.6"
-rayon = "1.5.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }

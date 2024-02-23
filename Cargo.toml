@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "node",
+  "napi",
   "selectors",
   "c",
   "derive",
