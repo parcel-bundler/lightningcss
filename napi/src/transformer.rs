@@ -99,7 +99,14 @@ impl Visitors<JsObject> {
   fn named(&self, stage: VisitStage, name: &str) -> Option<JsFunction> {
     self
       .for_stage(stage)
-      .and_then(|m| m.get_named_property::<JsFunction>(name).ok())
+      .and_then(|m| m.get_named_property::<JsUnknown>(name).ok())
+      .and_then(|v| {
+        if let Ok(ValueType::Function) = v.get_type() {
+          v.try_into().ok()
+        } else {
+          None
+        }
+      })
   }
 
   fn custom(&self, stage: VisitStage, obj: &str, name: &str) -> Option<JsFunction> {
@@ -177,7 +184,14 @@ impl JsVisitor {
     let mut types = VisitTypes::empty();
     macro_rules! get {
       ($name: literal, $( $t: ident )|+) => {{
-        let res: Option<JsFunction> = visitor.get_named_property($name).ok();
+        let res: Option<JsFunction> = visitor.get_named_property::<JsUnknown>($name).ok().and_then(|v| {
+          if let Ok(ValueType::Function) = v.get_type() {
+            v.try_into().ok()
+          } else {
+            None
+          }
+        });
+
         if res.is_some() {
           types |= $( VisitTypes::$t )|+;
         }
@@ -190,12 +204,19 @@ impl JsVisitor {
 
     macro_rules! map {
       ($name: literal, $( $t: ident )|+) => {{
-        if let Ok(obj) = visitor.get_named_property::<JsObject>($name) {
+        let obj: Option<JsObject> = visitor.get_named_property::<JsUnknown>($name).ok().and_then(|v| {
+          if let Ok(ValueType::Object) = v.get_type() {
+            v.try_into().ok()
+          } else {
+            None
+          }
+        });
+
+        if obj.is_some() {
           types |= $( VisitTypes::$t )|+;
-          env.create_reference(obj).ok()
-        } else {
-          None
         }
+
+        obj.and_then(|obj| env.create_reference(obj).ok())
       }};
     }
 
