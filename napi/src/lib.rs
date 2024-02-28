@@ -24,6 +24,7 @@ mod at_rule_parser;
 mod threadsafe_function;
 #[cfg(feature = "visitor")]
 mod transformer;
+mod utils;
 
 #[cfg(feature = "visitor")]
 use transformer::JsVisitor;
@@ -33,6 +34,8 @@ struct JsVisitor;
 
 #[cfg(feature = "visitor")]
 use lightningcss::visitor::Visit;
+
+use utils::get_named_property;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,7 +76,7 @@ impl<'i> TransformResult<'i> {
 
 #[cfg(feature = "visitor")]
 fn get_visitor(env: Env, opts: &JsObject) -> Option<JsVisitor> {
-  if let Ok(visitor) = opts.get_named_property::<JsObject>("visitor") {
+  if let Ok(visitor) = get_named_property::<JsObject>(opts, "visitor") {
     Some(JsVisitor::new(env, visitor))
   } else {
     None
@@ -243,7 +246,7 @@ mod bundle {
     // Otherwise, send the result immediately.
     if result.is_promise()? {
       let result: JsObject = result.try_into()?;
-      let then: JsFunction = result.get_named_property("then")?;
+      let then: JsFunction = get_named_property(&result, "then")?;
       let tx2 = tx.clone();
       let cb = env.create_function_from_closure("callback", move |ctx| {
         let res = ctx.get::<JsString>(0)?.into_utf8()?;
@@ -306,9 +309,9 @@ mod bundle {
 
     let config: BundleConfig = ctx.env.from_js_value(&opts)?;
 
-    if let Ok(resolver) = opts.get_named_property::<JsObject>("resolver") {
+    if let Ok(resolver) = get_named_property::<JsObject>(&opts, "resolver") {
       let read = if resolver.has_named_property("read")? {
-        let read = resolver.get_named_property::<JsFunction>("read")?;
+        let read = get_named_property::<JsFunction>(&resolver, "read")?;
         Some(ThreadsafeFunction::create(
           ctx.env.raw(),
           unsafe { read.raw() },
@@ -320,7 +323,7 @@ mod bundle {
       };
 
       let resolve = if resolver.has_named_property("resolve")? {
-        let resolve = resolver.get_named_property::<JsFunction>("resolve")?;
+        let resolve = get_named_property::<JsFunction>(&resolver, "resolve")?;
         Some(ThreadsafeFunction::create(
           ctx.env.raw(),
           unsafe { resolve.raw() },
@@ -427,10 +430,10 @@ mod bundle {
     let opts = ctx.get::<JsObject>(0)?;
     let mut visitor = get_visitor(*ctx.env, &opts);
 
-    let resolver = opts.get_named_property::<JsObject>("resolver")?;
-    let read = resolver.get_named_property::<JsFunction>("read")?;
+    let resolver = get_named_property::<JsObject>(opts, "resolver")?;
+    let read = get_named_property::<JsFunction>(resolver, "read")?;
     let resolve = if resolver.has_named_property("resolve")? {
-      let resolve = resolver.get_named_property::<JsFunction>("resolve")?;
+      let resolve = get_named_property::<JsFunction>(resolver, "resolve")?;
       Some(ctx.env.create_reference(resolve)?)
     } else {
       None

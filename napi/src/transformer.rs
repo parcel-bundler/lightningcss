@@ -24,7 +24,7 @@ use napi::{Env, JsFunction, JsObject, JsUnknown, Ref, ValueType};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::at_rule_parser::AtRule;
+use crate::{at_rule_parser::AtRule, utils::get_named_property};
 
 pub struct JsVisitor {
   env: Env,
@@ -99,14 +99,7 @@ impl Visitors<JsObject> {
   fn named(&self, stage: VisitStage, name: &str) -> Option<JsFunction> {
     self
       .for_stage(stage)
-      .and_then(|m| m.get_named_property::<JsUnknown>(name).ok())
-      .and_then(|v| {
-        if let Ok(ValueType::Function) = v.get_type() {
-          v.try_into().ok()
-        } else {
-          None
-        }
-      })
+      .and_then(|m| get_named_property::<JsFunction>(m, name).ok())
   }
 
   fn custom(&self, stage: VisitStage, obj: &str, name: &str) -> Option<JsFunction> {
@@ -119,7 +112,7 @@ impl Visitors<JsObject> {
           Ok(ValueType::Object) => {
             let o: napi::Result<JsObject> = v.try_into();
             if let Ok(o) = o {
-              return o.get_named_property::<JsFunction>(name).ok();
+              return get_named_property::<JsFunction>(&o, name).ok();
             }
           }
           _ => {}
@@ -184,13 +177,7 @@ impl JsVisitor {
     let mut types = VisitTypes::empty();
     macro_rules! get {
       ($name: literal, $( $t: ident )|+) => {{
-        let res: Option<JsFunction> = visitor.get_named_property::<JsUnknown>($name).ok().and_then(|v| {
-          if let Ok(ValueType::Function) = v.get_type() {
-            v.try_into().ok()
-          } else {
-            None
-          }
-        });
+        let res: Option<JsFunction> = get_named_property(&visitor, $name).ok();
 
         if res.is_some() {
           types |= $( VisitTypes::$t )|+;
@@ -204,13 +191,7 @@ impl JsVisitor {
 
     macro_rules! map {
       ($name: literal, $( $t: ident )|+) => {{
-        let obj: Option<JsObject> = visitor.get_named_property::<JsUnknown>($name).ok().and_then(|v| {
-          if let Ok(ValueType::Object) = v.get_type() {
-            v.try_into().ok()
-          } else {
-            None
-          }
-        });
+        let obj: Option<JsObject> = get_named_property(&visitor, $name).ok();
 
         if obj.is_some() {
           types |= $( VisitTypes::$t )|+;
