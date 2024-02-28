@@ -28,6 +28,7 @@ export default async function init(input) {
       }
     }))
     .then(({instance}) => {
+      instance.exports.register_module();
       env = new Environment(instance);
       bundleAsyncInternal = createBundleAsync(env);
       wasm = env.exports;

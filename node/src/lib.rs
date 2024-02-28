@@ -41,12 +41,16 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
-pub unsafe fn napi_register_wasm_v1(raw_env: napi::sys::napi_env, raw_exports: napi::sys::napi_value) {
-  use napi::{Env, JsObject, NapiValue};
+pub fn register_module() {
+  unsafe fn register(raw_env: napi::sys::napi_env, raw_exports: napi::sys::napi_value) -> napi::Result<()> {
+    use napi::{Env, JsObject, NapiValue};
 
-  let env = Env::from_raw(raw_env);
-  let exports = JsObject::from_raw_unchecked(raw_env, raw_exports);
-  init(exports);
+    let env = Env::from_raw(raw_env);
+    let exports = JsObject::from_raw_unchecked(raw_env, raw_exports);
+    init(exports)
+  }
+
+  napi::bindgen_prelude::register_module_exports(register)
 }
 
 #[cfg(target_arch = "wasm32")]

@@ -430,10 +430,10 @@ mod bundle {
     let opts = ctx.get::<JsObject>(0)?;
     let mut visitor = get_visitor(*ctx.env, &opts);
 
-    let resolver = get_named_property::<JsObject>(opts, "resolver")?;
-    let read = get_named_property::<JsFunction>(resolver, "read")?;
+    let resolver = get_named_property::<JsObject>(&opts, "resolver")?;
+    let read = get_named_property::<JsFunction>(&resolver, "read")?;
     let resolve = if resolver.has_named_property("resolve")? {
-      let resolve = get_named_property::<JsFunction>(resolver, "resolve")?;
+      let resolve = get_named_property::<JsFunction>(&resolver, "resolve")?;
       Some(ctx.env.create_reference(resolve)?)
     } else {
       None
@@ -507,7 +507,7 @@ mod bundle {
         return Err(napi::Error::from(error));
       }
       if result.is_null() {
-        return Err(napi::Error::new(napi::Status::GenericFailure, "No result".into()));
+        return Err(napi::Error::new(napi::Status::GenericFailure, "No result".to_string()));
       }
 
       value = unsafe { JsUnknown::from_raw(env.raw(), result)? };

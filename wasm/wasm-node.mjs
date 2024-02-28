@@ -15,6 +15,7 @@ let instance = new WebAssembly.Instance(wasmModule, {
     },
   },
 });
+instance.exports.register_module();
 let env = new Environment(instance);
 let wasm = env.exports;
 let bundleAsyncInternal = createBundleAsync(env);
