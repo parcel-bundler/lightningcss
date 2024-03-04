@@ -57,6 +57,10 @@ impl ToCss for TransformList {
       return Ok(());
     }
 
+    // TODO: Decouple minification of representation from minifaction of white space.
+    // We don't have access to context here, so we can't tell when to minify this
+    // vs when we shouldn't ( inside a KeyFrame decl ).
+    // Minification in to_css should be restricted to white space,
     if dest.minify {
       // Combine transforms into a single matrix.
       if let Some(matrix) = self.to_matrix() {
