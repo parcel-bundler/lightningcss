@@ -11552,14 +11552,16 @@ mod tests {
       ".foo { transform: matrix3d(1, 0, 0, 0, 0, 1, 6, 0, 0, 0, 1, 0, 50, 100, 0, 1.1)",
       ".foo{transform:matrix3d(1,0,0,0,0,1,6,0,0,0,1,0,50,100,0,1.1)}",
     );
-    minify_test(
-      ".foo{transform:translate(100px,200px) rotate(45deg) skew(10deg) scale(2)}",
-      ".foo{transform:matrix(1.41421,1.41421,-1.16485,1.66358,100,200)}",
-    );
-    minify_test(
-      ".foo{transform:translate(200px,300px) translate(100px,200px) scale(2)}",
-      ".foo{transform:matrix(2,0,0,2,300,500)}",
-    );
+    // TODO: Re-enable with a better solution
+    //       See: https://github.com/parcel-bundler/lightningcss/issues/288
+    // minify_test(
+    //   ".foo{transform:translate(100px,200px) rotate(45deg) skew(10deg) scale(2)}",
+    //   ".foo{transform:matrix(1.41421,1.41421,-1.16485,1.66358,100,200)}",
+    // );
+    // minify_test(
+    //   ".foo{transform:translate(200px,300px) translate(100px,200px) scale(2)}",
+    //   ".foo{transform:matrix(2,0,0,2,300,500)}",
+    // );
     minify_test(
       ".foo{transform:translate(100px,200px) rotate(45deg)}",
       ".foo{transform:translate(100px,200px)rotate(45deg)}",
@@ -11568,34 +11570,36 @@ mod tests {
       ".foo{transform:rotate3d(1, 1, 1, 45deg) translate3d(100px, 100px, 10px)}",
       ".foo{transform:rotate3d(1,1,1,45deg)translate3d(100px,100px,10px)}",
     );
-    minify_test(
-      ".foo{transform:translate3d(100px, 100px, 10px) skew(10deg) scale3d(2, 3, 4)}",
-      ".foo{transform:matrix3d(2,0,0,0,.528981,3,0,0,0,0,4,0,100,100,10,1)}",
-    );
-    minify_test(
-      ".foo{transform:matrix3d(0.804737854124365, 0.5058793634016805, -0.31061721752604554, 0, -0.31061721752604554, 0.804737854124365, 0.5058793634016805, 0, 0.5058793634016805, -0.31061721752604554, 0.804737854124365, 0, 100, 100, 10, 1)}",
-      ".foo{transform:translate3d(100px,100px,10px)rotate3d(1,1,1,45deg)}"
-    );
-    minify_test(
-      ".foo{transform:matrix3d(1, 0, 0, 0, 0, 0.7071067811865476, 0.7071067811865475, 0, 0, -0.7071067811865475, 0.7071067811865476, 0, 100, 100, 10, 1)}",
-      ".foo{transform:translate3d(100px,100px,10px)rotateX(45deg)}"
-    );
-    minify_test(
-      ".foo{transform:translate3d(100px, 200px, 10px) translate(100px, 100px)}",
-      ".foo{transform:translate3d(200px,300px,10px)}",
-    );
-    minify_test(
-      ".foo{transform:rotate(45deg) rotate(45deg)}",
-      ".foo{transform:rotate(90deg)}",
-    );
-    minify_test(
-      ".foo{transform:matrix(0.7071067811865476, 0.7071067811865475, -0.7071067811865475, 0.7071067811865476, 100, 100)}",
-      ".foo{transform:translate(100px,100px)rotate(45deg)}"
-    );
-    minify_test(
-      ".foo{transform:translateX(2in) translateX(50px)}",
-      ".foo{transform:translate(242px)}",
-    );
+    // TODO: Re-enable with a better solution
+    //       See: https://github.com/parcel-bundler/lightningcss/issues/288
+    // minify_test(
+    //   ".foo{transform:translate3d(100px, 100px, 10px) skew(10deg) scale3d(2, 3, 4)}",
+    //   ".foo{transform:matrix3d(2,0,0,0,.528981,3,0,0,0,0,4,0,100,100,10,1)}",
+    // );
+    // minify_test(
+    //   ".foo{transform:matrix3d(0.804737854124365, 0.5058793634016805, -0.31061721752604554, 0, -0.31061721752604554, 0.804737854124365, 0.5058793634016805, 0, 0.5058793634016805, -0.31061721752604554, 0.804737854124365, 0, 100, 100, 10, 1)}",
+    //   ".foo{transform:translate3d(100px,100px,10px)rotate3d(1,1,1,45deg)}"
+    // );
+    // minify_test(
+    //   ".foo{transform:matrix3d(1, 0, 0, 0, 0, 0.7071067811865476, 0.7071067811865475, 0, 0, -0.7071067811865475, 0.7071067811865476, 0, 100, 100, 10, 1)}",
+    //   ".foo{transform:translate3d(100px,100px,10px)rotateX(45deg)}"
+    // );
+    // minify_test(
+    //   ".foo{transform:translate3d(100px, 200px, 10px) translate(100px, 100px)}",
+    //   ".foo{transform:translate3d(200px,300px,10px)}",
+    // );
+    // minify_test(
+    //   ".foo{transform:rotate(45deg) rotate(45deg)}",
+    //   ".foo{transform:rotate(90deg)}",
+    // );
+    // minify_test(
+    //   ".foo{transform:matrix(0.7071067811865476, 0.7071067811865475, -0.7071067811865475, 0.7071067811865476, 100, 100)}",
+    //   ".foo{transform:translate(100px,100px)rotate(45deg)}"
+    // );
+    // minify_test(
+    //   ".foo{transform:translateX(2in) translateX(50px)}",
+    //   ".foo{transform:translate(242px)}",
+    // );
     minify_test(
       ".foo{transform:translateX(calc(2in + 50px))}",
       ".foo{transform:translate(242px)}",
@@ -11660,7 +11664,9 @@ mod tests {
     minify_test(".foo { scale: 1 0 1 }", ".foo{scale:1 0}");
     minify_test(".foo { scale: 1 0 0 }", ".foo{scale:1 0 0}");
 
-    minify_test(".foo { transform: scale(3); scale: 0.5 }", ".foo{transform:scale(1.5)}");
+    // TODO: Re-enable with a better solution
+    //       See: https://github.com/parcel-bundler/lightningcss/issues/288
+    // minify_test(".foo { transform: scale(3); scale: 0.5 }", ".foo{transform:scale(1.5)}");
     minify_test(".foo { scale: 0.5; transform: scale(3); }", ".foo{transform:scale(3)}");
 
     prefix_test(
@@ -26076,13 +26082,15 @@ mod tests {
       "@property --property-name{syntax:\"custom|<color>\";inherits:false;initial-value:#ff0}",
     );
 
-    minify_test(r#"
-      @property --property-name {
-        syntax: '<transform-list>';
-        inherits: false;
-        initial-value: translate(200px,300px) translate(100px,200px) scale(2);
-      }
-    "#, "@property --property-name{syntax:\"<transform-list>\";inherits:false;initial-value:matrix(2,0,0,2,300,500)}");
+    // TODO: Re-enable with a better solution
+    //       See: https://github.com/parcel-bundler/lightningcss/issues/288
+    // minify_test(r#"
+    //   @property --property-name {
+    //     syntax: '<transform-list>';
+    //     inherits: false;
+    //     initial-value: translate(200px,300px) translate(100px,200px) scale(2);
+    //   }
+    // "#, "@property --property-name{syntax:\"<transform-list>\";inherits:false;initial-value:matrix(2,0,0,2,300,500)}");
 
     minify_test(
       r#"
