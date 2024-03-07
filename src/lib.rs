@@ -13123,6 +13123,26 @@ mod tests {
         ..Default::default()
       },
     );
+    prefix_test(
+      r#"
+      @supports ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#,
+      indoc! { r#"
+      @supports ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Default::default()
+      },
+    );
     minify_test(
       r#"
       @supports (width: calc(10px * 2)) {
