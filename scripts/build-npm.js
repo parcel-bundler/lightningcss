@@ -76,6 +76,9 @@ for (let triple of triples) {
   if (abi) {
     t += '-' + abi;
   }
+  if (t.includes('androideabi')) {
+    t = 'android-arm-eabi';
+  }
 
   buildNode(triple.name, cpu, os, libc, t);
   buildCLI(triple.name, cpu, os, libc, t);
