@@ -50,7 +50,7 @@ const cpuToNodeArch = {
   armv7: 'arm',
 };
 const sysToNodePlatform = {
-  android: 'linux',
+  android: 'android',
   linux: 'linux',
   freebsd: 'freebsd',
   darwin: 'darwin',
@@ -62,7 +62,7 @@ let cliOptionalDependencies = {};
 
 try {
   fs.mkdirSync(dir + '/npm');
-} catch (err) {}
+} catch (err) { }
 
 for (let triple of triples) {
   // Add the libc field to package.json to avoid downloading both
@@ -84,7 +84,7 @@ for (let triple of triples) {
 pkg.optionalDependencies = optionalDependencies;
 fs.writeFileSync(`${dir}/package.json`, JSON.stringify(pkg, false, 2) + '\n');
 
-let cliPkg = {...pkg};
+let cliPkg = { ...pkg };
 cliPkg.name += '-cli';
 cliPkg.bin = {
   lightningcss: 'lightningcss',
@@ -111,7 +111,7 @@ fs.copyFileSync(`${dir}/LICENSE`, `${dir}/cli/LICENSE`);
 function buildNode(triple, cpu, os, libc, t) {
   let name = `lightningcss.${t}.node`;
 
-  let pkg2 = {...pkg};
+  let pkg2 = { ...pkg };
   pkg2.name += '-' + t;
   pkg2.os = [os];
   pkg2.cpu = [cpu];
@@ -133,7 +133,7 @@ function buildNode(triple, cpu, os, libc, t) {
 
   try {
     fs.mkdirSync(dir + '/npm/node-' + t);
-  } catch (err) {}
+  } catch (err) { }
   fs.writeFileSync(
     `${dir}/npm/node-${t}/package.json`,
     JSON.stringify(pkg2, false, 2) + '\n',
@@ -151,7 +151,7 @@ function buildNode(triple, cpu, os, libc, t) {
 
 function buildCLI(triple, cpu, os, libc, t) {
   let binary = os === 'win32' ? 'lightningcss.exe' : 'lightningcss';
-  let pkg2 = {...pkg};
+  let pkg2 = { ...pkg };
   pkg2.name += '-cli-' + t;
   pkg2.os = [os];
   pkg2.cpu = [cpu];
@@ -173,7 +173,7 @@ function buildCLI(triple, cpu, os, libc, t) {
 
   try {
     fs.mkdirSync(dir + '/npm/cli-' + t);
-  } catch (err) {}
+  } catch (err) { }
   fs.writeFileSync(
     `${dir}/npm/cli-${t}/package.json`,
     JSON.stringify(pkg2, false, 2) + '\n',
