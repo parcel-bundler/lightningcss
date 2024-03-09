@@ -6,6 +6,12 @@ const dir = `${__dirname}/..`;
 // Add `libc` fields only to platforms that have libc(Standard C library).
 const triples = [
   {
+    name: 'aarch64-linux-android',
+  },
+  {
+    name: 'armv7-linux-androideabi',
+  },
+  {
     name: 'x86_64-apple-darwin',
   },
   {
@@ -34,8 +40,8 @@ const triples = [
     libc: 'musl',
   },
   {
-    name: 'x86_64-unknown-freebsd'
-  }
+    name: 'x86_64-unknown-freebsd',
+  },
 ];
 const cpuToNodeArch = {
   x86_64: 'x64',
@@ -44,6 +50,7 @@ const cpuToNodeArch = {
   armv7: 'arm',
 };
 const sysToNodePlatform = {
+  android: 'linux',
   linux: 'linux',
   freebsd: 'freebsd',
   darwin: 'darwin',
@@ -55,7 +62,7 @@ let cliOptionalDependencies = {};
 
 try {
   fs.mkdirSync(dir + '/npm');
-} catch (err) { }
+} catch (err) {}
 
 for (let triple of triples) {
   // Add the libc field to package.json to avoid downloading both
@@ -77,10 +84,10 @@ for (let triple of triples) {
 pkg.optionalDependencies = optionalDependencies;
 fs.writeFileSync(`${dir}/package.json`, JSON.stringify(pkg, false, 2) + '\n');
 
-let cliPkg = { ...pkg };
+let cliPkg = {...pkg};
 cliPkg.name += '-cli';
 cliPkg.bin = {
-  'lightningcss': 'lightningcss'
+  lightningcss: 'lightningcss',
 };
 delete cliPkg.main;
 delete cliPkg.napi;
@@ -91,17 +98,20 @@ delete cliPkg.types;
 cliPkg.files = ['lightningcss', 'postinstall.js'];
 cliPkg.optionalDependencies = cliOptionalDependencies;
 cliPkg.scripts = {
-  postinstall: 'node postinstall.js'
+  postinstall: 'node postinstall.js',
 };
 
-fs.writeFileSync(`${dir}/cli/package.json`, JSON.stringify(cliPkg, false, 2) + '\n');
+fs.writeFileSync(
+  `${dir}/cli/package.json`,
+  JSON.stringify(cliPkg, false, 2) + '\n',
+);
 fs.copyFileSync(`${dir}/README.md`, `${dir}/cli/README.md`);
 fs.copyFileSync(`${dir}/LICENSE`, `${dir}/cli/LICENSE`);
 
 function buildNode(triple, cpu, os, libc, t) {
   let name = `lightningcss.${t}.node`;
 
-  let pkg2 = { ...pkg };
+  let pkg2 = {...pkg};
   pkg2.name += '-' + t;
   pkg2.os = [os];
   pkg2.cpu = [cpu];
@@ -123,16 +133,25 @@ function buildNode(triple, cpu, os, libc, t) {
 
   try {
     fs.mkdirSync(dir + '/npm/node-' + t);
-  } catch (err) { }
-  fs.writeFileSync(`${dir}/npm/node-${t}/package.json`, JSON.stringify(pkg2, false, 2) + '\n');
-  fs.copyFileSync(`${dir}/artifacts/bindings-${triple}/${name}`, `${dir}/npm/node-${t}/${name}`);
-  fs.writeFileSync(`${dir}/npm/node-${t}/README.md`, `This is the ${triple} build of lightningcss. See https://github.com/parcel-bundler/lightningcss for details.`);
+  } catch (err) {}
+  fs.writeFileSync(
+    `${dir}/npm/node-${t}/package.json`,
+    JSON.stringify(pkg2, false, 2) + '\n',
+  );
+  fs.copyFileSync(
+    `${dir}/artifacts/bindings-${triple}/${name}`,
+    `${dir}/npm/node-${t}/${name}`,
+  );
+  fs.writeFileSync(
+    `${dir}/npm/node-${t}/README.md`,
+    `This is the ${triple} build of lightningcss. See https://github.com/parcel-bundler/lightningcss for details.`,
+  );
   fs.copyFileSync(`${dir}/LICENSE`, `${dir}/npm/node-${t}/LICENSE`);
 }
 
 function buildCLI(triple, cpu, os, libc, t) {
   let binary = os === 'win32' ? 'lightningcss.exe' : 'lightningcss';
-  let pkg2 = { ...pkg };
+  let pkg2 = {...pkg};
   pkg2.name += '-cli-' + t;
   pkg2.os = [os];
   pkg2.cpu = [cpu];
@@ -154,10 +173,19 @@ function buildCLI(triple, cpu, os, libc, t) {
 
   try {
     fs.mkdirSync(dir + '/npm/cli-' + t);
-  } catch (err) { }
-  fs.writeFileSync(`${dir}/npm/cli-${t}/package.json`, JSON.stringify(pkg2, false, 2) + '\n');
-  fs.copyFileSync(`${dir}/artifacts/bindings-${triple}/${binary}`, `${dir}/npm/cli-${t}/${binary}`);
+  } catch (err) {}
+  fs.writeFileSync(
+    `${dir}/npm/cli-${t}/package.json`,
+    JSON.stringify(pkg2, false, 2) + '\n',
+  );
+  fs.copyFileSync(
+    `${dir}/artifacts/bindings-${triple}/${binary}`,
+    `${dir}/npm/cli-${t}/${binary}`,
+  );
   fs.chmodSync(`${dir}/npm/cli-${t}/${binary}`, 0o755); // Ensure execute bit is set.
-  fs.writeFileSync(`${dir}/npm/cli-${t}/README.md`, `This is the ${triple} build of lightningcss-cli. See https://github.com/parcel-bundler/lightningcss for details.`);
+  fs.writeFileSync(
+    `${dir}/npm/cli-${t}/README.md`,
+    `This is the ${triple} build of lightningcss-cli. See https://github.com/parcel-bundler/lightningcss for details.`,
+  );
   fs.copyFileSync(`${dir}/LICENSE`, `${dir}/npm/cli-${t}/LICENSE`);
 }

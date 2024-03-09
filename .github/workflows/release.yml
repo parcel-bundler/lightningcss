@@ -157,6 +157,55 @@ jobs:
             *.node
             lightningcss
 
+  build-android:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-linux-android
+            strip: ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
+          - target: armv7-linux-androideabi
+            strip: ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
+
+    name: build-${{ matrix.target }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Node.JS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup cross compile toolchain
+        if: ${{ matrix.setup }}
+        run: ${{ matrix.setup }}
+
+      - name: Setup rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - uses: bahmutov/npm-install@v1.8.32
+      - name: Build release
+        run: yarn build-release
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+      - name: Build CLI
+        run: |
+          yarn napi build --bin lightningcss --release --features cli --target ${{ matrix.target }}
+          mv target/${{ matrix.target }}/release/lightningcss lightningcss
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        if: ${{ matrix.strip }}
+        run: ${{ matrix.strip }} *.node lightningcss
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: bindings-${{ matrix.target }}
+          path: |
+            *.node
+            lightningcss
+
   build-freebsd:
     runs-on: ubuntu-latest
     steps:
@@ -239,6 +288,7 @@ jobs:
     name: Build and release
     needs:
       - build
+      - build-android
       - build-linux
       - build-apple-silicon
       - build-freebsd
