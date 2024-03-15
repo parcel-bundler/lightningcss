@@ -322,7 +322,7 @@ macro_rules! define_properties {
         }
       }
 
-      fn with_prefix(&self, prefix: VendorPrefix) -> PropertyId<'i> {
+      pub(crate) fn with_prefix(&self, prefix: VendorPrefix) -> PropertyId<'i> {
         use PropertyId::*;
         match self {
           $(
@@ -341,6 +341,26 @@ macro_rules! define_properties {
             },
           )+
           _ => self.clone()
+        }
+      }
+
+      pub(crate) fn add_prefix(&mut self, prefix: VendorPrefix) {
+        use PropertyId::*;
+        match self {
+          $(
+            $(#[$meta])*
+            $property$((vp_name!($vp, p)))? => {
+              macro_rules! get_prefixed {
+                ($v: ty) => {{
+                  *p |= prefix;
+                }};
+                () => {{}};
+              }
+
+              get_prefixed!($($vp)?)
+            },
+          )+
+          _ => {}
         }
       }
 

@@ -13123,6 +13123,68 @@ mod tests {
         ..Default::default()
       },
     );
+    prefix_test(
+      r#"
+      @supports ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+        div {
+          backdrop-filter: blur(10px);
+        }
+      }
+    "#,
+      indoc! { r#"
+      @supports ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+        div {
+          -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+        }
+      }
+    "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Default::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @supports ((-webkit-backdrop-filter: blur(20px)) or (backdrop-filter: blur(10px))) {
+        div {
+          backdrop-filter: blur(10px);
+        }
+      }
+    "#,
+      indoc! { r#"
+      @supports ((-webkit-backdrop-filter: blur(20px))) or ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+        div {
+          -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+        }
+      }
+    "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Default::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @supports ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+        div {
+          backdrop-filter: blur(10px);
+        }
+      }
+    "#,
+      indoc! { r#"
+      @supports (backdrop-filter: blur(10px)) {
+        div {
+          backdrop-filter: blur(10px);
+        }
+      }
+    "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Default::default()
+      },
+    );
     minify_test(
       r#"
       @supports (width: calc(10px * 2)) {

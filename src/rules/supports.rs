@@ -1,5 +1,7 @@
 //! The `@supports` rule.
 
+use std::collections::HashMap;
+
 use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
@@ -159,6 +161,7 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
     let in_parens = Self::parse_in_parens(input)?;
     let mut expected_type = None;
     let mut conditions = Vec::new();
+    let mut seen_declarations = HashMap::new();
 
     loop {
       let condition = input.try_parse(|input| {
@@ -185,12 +188,38 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
 
       if let Ok(condition) = condition {
         if conditions.is_empty() {
-          conditions.push(in_parens.clone())
+          conditions.push(in_parens.clone());
+          if let SupportsCondition::Declaration { property_id, value } = &in_parens {
+            seen_declarations.insert((property_id.with_prefix(VendorPrefix::None), value.clone()), 0);
+          }
         }
-        conditions.push(condition)
+
+        if let SupportsCondition::Declaration { property_id, value } = condition {
+          // Merge multiple declarations with the same property id (minus prefix) and value together.
+          let property_id = property_id.with_prefix(VendorPrefix::None);
+          let key = (property_id.clone(), value.clone());
+          if let Some(index) = seen_declarations.get(&key) {
+            if let SupportsCondition::Declaration {
+              property_id: cur_property,
+              ..
+            } = &mut conditions[*index]
+            {
+              cur_property.add_prefix(property_id.prefix());
+            }
+          } else {
+            seen_declarations.insert(key, conditions.len());
+            conditions.push(SupportsCondition::Declaration { property_id, value });
+          }
+        } else {
+          conditions.push(condition);
+        }
       } else {
         break;
       }
+    }
+
+    if conditions.len() == 1 {
+      return Ok(conditions.pop().unwrap());
     }
 
     match expected_type {
