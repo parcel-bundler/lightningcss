@@ -11645,7 +11645,7 @@ mod tests {
     minify_test(".foo { translate: 1px 0px 0px }", ".foo{translate:1px}");
     minify_test(".foo { translate: 1px 2px 0px }", ".foo{translate:1px 2px}");
     minify_test(".foo { translate: 1px 0px 2px }", ".foo{translate:1px 0 2px}");
-    minify_test(".foo { translate: none }", ".foo{translate:0}");
+    minify_test(".foo { translate: none }", ".foo{translate:none}");
     minify_test(".foo { rotate: 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: z 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: 0 0 1 10deg }", ".foo{rotate:10deg}");
@@ -11659,7 +11659,7 @@ mod tests {
     minify_test(".foo { scale: 1 }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 1 }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 1 1 }", ".foo{scale:1}");
-    minify_test(".foo { scale: none }", ".foo{scale:1}");
+    minify_test(".foo { scale: none }", ".foo{scale:none}");
     minify_test(".foo { scale: 1 0 }", ".foo{scale:1 0}");
     minify_test(".foo { scale: 1 0 1 }", ".foo{scale:1 0}");
     minify_test(".foo { scale: 1 0 0 }", ".foo{scale:1 0 0}");
