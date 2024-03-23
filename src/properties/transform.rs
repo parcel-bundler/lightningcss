@@ -1457,23 +1457,25 @@ impl ToCss for Perspective {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
-pub struct Translate {
-  /// The x translation.
-  pub x: LengthPercentage,
-  /// The y translation.
-  pub y: LengthPercentage,
-  /// The z translation.
-  pub z: Length,
+pub enum Translate {
+  /// The "none" keyword.
+  None,
+
+  /// The x, y, and z translations.
+  XYZ {
+    /// The x translation.
+    x: LengthPercentage,
+    /// The y translation.
+    y: LengthPercentage,
+    /// The z translation.
+    z: Length,
+  },
 }
 
 impl<'i> Parse<'i> for Translate {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
-      return Ok(Translate {
-        x: LengthPercentage::zero(),
-        y: LengthPercentage::zero(),
-        z: Length::zero(),
-      });
+      return Ok(Translate::None);
     }
 
     let x = LengthPercentage::parse(input)?;
@@ -1484,7 +1486,7 @@ impl<'i> Parse<'i> for Translate {
       None
     };
 
-    Ok(Translate {
+    Ok(Translate::XYZ {
       x,
       y: y.unwrap_or(LengthPercentage::zero()),
       z: z.unwrap_or(Length::zero()),
@@ -1497,15 +1499,23 @@ impl ToCss for Translate {
   where
     W: std::fmt::Write,
   {
-    self.x.to_css(dest)?;
-    if !self.y.is_zero() || !self.z.is_zero() {
-      dest.write_char(' ')?;
-      self.y.to_css(dest)?;
-      if !self.z.is_zero() {
-        dest.write_char(' ')?;
-        self.z.to_css(dest)?;
+    match self {
+      Translate::None => {
+        dest.write_str("none")?;
       }
-    }
+      Translate::XYZ { x, y, z } => {
+        x.to_css(dest)?;
+        if !y.is_zero() || !z.is_zero() {
+          dest.write_char(' ')?;
+          y.to_css(dest)?;
+          if !z.is_zero() {
+            dest.write_char(' ')?;
+            z.to_css(dest)?;
+          }
+        }
+      }
+    };
+
     Ok(())
   }
 }
@@ -1513,7 +1523,12 @@ impl ToCss for Translate {
 impl Translate {
   /// Converts the translation to a transform function.
   pub fn to_transform(&self) -> Transform {
-    Transform::Translate3d(self.x.clone(), self.y.clone(), self.z.clone())
+    match self {
+      Translate::None => {
+        Transform::Translate3d(LengthPercentage::zero(), LengthPercentage::zero(), Length::zero())
+      }
+      Translate::XYZ { x, y, z } => Transform::Translate3d(x.clone(), y.clone(), z.clone()),
+    }
   }
 }
 
@@ -1610,23 +1625,25 @@ impl Rotate {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
-pub struct Scale {
-  /// Scale on the x axis.
-  pub x: NumberOrPercentage,
-  /// Scale on the y axis.
-  pub y: NumberOrPercentage,
-  /// Scale on the z axis.
-  pub z: NumberOrPercentage,
+pub enum Scale {
+  /// The "none" keyword.
+  None,
+
+  /// Scale on the x, y, and z axis.
+  XYZ {
+    /// Scale on the x axis.
+    x: NumberOrPercentage,
+    /// Scale on the y axis.
+    y: NumberOrPercentage,
+    /// Scale on the z axis.
+    z: NumberOrPercentage,
+  },
 }
 
 impl<'i> Parse<'i> for Scale {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
-      return Ok(Scale {
-        x: NumberOrPercentage::Number(1.0),
-        y: NumberOrPercentage::Number(1.0),
-        z: NumberOrPercentage::Number(1.0),
-      });
+      return Ok(Scale::None);
     }
 
     let x = NumberOrPercentage::parse(input)?;
@@ -1637,7 +1654,7 @@ impl<'i> Parse<'i> for Scale {
       None
     };
 
-    Ok(Scale {
+    Ok(Scale::XYZ {
       x: x.clone(),
       y: y.unwrap_or(x),
       z: z.unwrap_or(NumberOrPercentage::Number(1.0)),
@@ -1650,14 +1667,21 @@ impl ToCss for Scale {
   where
     W: std::fmt::Write,
   {
-    self.x.to_css(dest)?;
-    let zv: f32 = (&self.z).into();
-    if self.y != self.x || zv != 1.0 {
-      dest.write_char(' ')?;
-      self.y.to_css(dest)?;
-      if zv != 1.0 {
-        dest.write_char(' ')?;
-        self.z.to_css(dest)?;
+    match self {
+      Scale::None => {
+        dest.write_str("none")?;
+      }
+      Scale::XYZ { x, y, z } => {
+        x.to_css(dest)?;
+        let zv: f32 = z.into();
+        if y != x || zv != 1.0 {
+          dest.write_char(' ')?;
+          y.to_css(dest)?;
+          if zv != 1.0 {
+            dest.write_char(' ')?;
+            z.to_css(dest)?;
+          }
+        }
       }
     }
 
@@ -1668,7 +1692,14 @@ impl ToCss for Scale {
 impl Scale {
   /// Converts the scale to a transform function.
   pub fn to_transform(&self) -> Transform {
-    Transform::Scale3d(self.x.clone(), self.y.clone(), self.z.clone())
+    match self {
+      Scale::None => Transform::Scale3d(
+        NumberOrPercentage::Number(1.0),
+        NumberOrPercentage::Number(1.0),
+        NumberOrPercentage::Number(1.0),
+      ),
+      Scale::XYZ { x, y, z } => Transform::Scale3d(x.clone(), y.clone(), z.clone()),
+    }
   }
 }
 
