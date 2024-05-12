@@ -289,38 +289,47 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
 
         css_module.add_local(&ident, &ident, self.loc.source_index);
       } else {
-        serialize_identifier(ident, self)?;
+        serialize_identifier(ident, self)?
       }
     } else {
-      serialize_identifier(ident, self)?;
+      serialize_identifier(ident, self)?
     }
 
     Ok(())
   }
 
-  pub(crate) fn write_dashed_ident(&mut self, ident: &str, is_declaration: bool) -> Result<(), PrinterError> {
+  pub(crate) fn write_dashed_ident(
+    &mut self,
+    ident: &str,
+    is_declaration: bool,
+    handle_css_module: bool,
+  ) -> Result<(), PrinterError> {
     self.write_str("--")?;
 
-    match &mut self.css_module {
-      Some(css_module) if css_module.config.dashed_idents => {
-        let dest = &mut self.dest;
-        css_module.config.pattern.write(
-          &css_module.hashes[self.loc.source_index as usize],
-          &css_module.sources[self.loc.source_index as usize],
-          &ident[2..],
-          |s| {
-            self.col += s.len() as u32;
-            serialize_name(s, dest)
-          },
-        )?;
+    if handle_css_module {
+      match &mut self.css_module {
+        Some(css_module) if css_module.config.dashed_idents => {
+          let dest = &mut self.dest;
+          css_module.config.pattern.write(
+            &css_module.hashes[self.loc.source_index as usize],
+            &css_module.sources[self.loc.source_index as usize],
+            &ident[2..],
+            |s| {
+              self.col += s.len() as u32;
+              serialize_name(s, dest)
+            },
+          )?;
 
-        if is_declaration {
-          css_module.add_dashed(ident, self.loc.source_index);
+          if is_declaration {
+            css_module.add_dashed(ident, self.loc.source_index);
+          }
+        }
+        _ => {
+          serialize_name(&ident[2..], self)?;
         }
       }
-      _ => {
-        serialize_name(&ident[2..], self)?;
-      }
+    } else {
+      serialize_name(&ident[2..], self)?;
     }
 
     Ok(())

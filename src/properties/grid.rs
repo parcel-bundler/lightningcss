@@ -430,19 +430,22 @@ fn write_ident<W>(name: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
 where
   W: std::fmt::Write,
 {
-  let mut css_module_grid_enabled = false;
-  if let Some(css_module) = &mut dest.css_module {
-    css_module_grid_enabled = css_module.config.grid;
-    if let Some(last) = css_module.config.pattern.segments.last() {
-      if !matches!(last, crate::css_modules::Segment::Local) {
-        return Err(Error {
-          kind: PrinterErrorKind::InvalidCssModulesPatternInGrid,
-          loc: Some(ErrorLocation {
-            filename: dest.filename().into(),
-            line: dest.loc.line,
-            column: dest.loc.column,
-          }),
-        });
+  let css_module_grid_enabled = dest.css_module.as_mut().map_or(false, |css_module| css_module.config.grid);
+  if css_module_grid_enabled {
+    if let Some(css_module) = &mut dest.css_module {
+      if css_module_grid_enabled {
+        if let Some(last) = css_module.config.pattern.segments.last() {
+          if !matches!(last, crate::css_modules::Segment::Local) {
+            return Err(Error {
+              kind: PrinterErrorKind::InvalidCssModulesPatternInGrid,
+              loc: Some(ErrorLocation {
+                filename: dest.filename().into(),
+                line: dest.loc.line,
+                column: dest.loc.column,
+              }),
+            });
+          }
+        }
       }
     }
   }

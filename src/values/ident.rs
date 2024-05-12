@@ -89,7 +89,12 @@ impl<'i> ToCss for DashedIdent<'i> {
   where
     W: std::fmt::Write,
   {
-    dest.write_dashed_ident(&self.0, true)
+    let css_module_custom_idents_enabled = dest
+      .css_module
+      .as_mut()
+      .map_or(false, |css_module| css_module.config.custom_idents);
+
+    dest.write_dashed_ident(&self.0, true, css_module_custom_idents_enabled)
   }
 }
 
@@ -156,18 +161,25 @@ impl<'i> ToCss for DashedIdentReference<'i> {
   where
     W: std::fmt::Write,
   {
-    match &mut dest.css_module {
-      Some(css_module) if css_module.config.dashed_idents => {
-        if let Some(name) = css_module.reference_dashed(&self.ident.0, &self.from, dest.loc.source_index) {
-          dest.write_str("--")?;
-          serialize_name(&name, dest)?;
-          return Ok(());
+    let css_module_custom_idents_enabled = dest
+      .css_module
+      .as_mut()
+      .map_or(false, |css_module| css_module.config.custom_idents);
+
+    if css_module_custom_idents_enabled {
+      match &mut dest.css_module {
+        Some(css_module) if css_module.config.dashed_idents => {
+          if let Some(name) = css_module.reference_dashed(&self.ident.0, &self.from, dest.loc.source_index) {
+            dest.write_str("--")?;
+            serialize_name(&name, dest)?;
+            return Ok(());
+          }
         }
+        _ => {}
       }
-      _ => {}
     }
 
-    dest.write_dashed_ident(&self.ident.0, false)
+    dest.write_dashed_ident(&self.ident.0, false, css_module_custom_idents_enabled)
   }
 }
 
