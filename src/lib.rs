@@ -64,6 +64,7 @@ mod tests {
   use crate::vendor_prefix::VendorPrefix;
   use cssparser::SourceLocation;
   use indoc::indoc;
+  use pretty_assertions::assert_eq;
   use std::collections::HashMap;
 
   fn test(source: &str, expected: &str) {
@@ -23051,6 +23052,53 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+    );
+
+    css_modules_test(
+      r#"
+      .foo {
+        color: red;
+      }
+
+      #id {
+        animation: 2s test;
+      }
+
+      @keyframes test {
+        from { color: red }
+        to { color: yellow }
+      }
+    "#,
+      indoc! {r#"
+      .EgL3uq_foo {
+        color: red;
+      }
+
+      #EgL3uq_id {
+        animation: 2s test;
+      }
+
+      @keyframes test {
+        from {
+          color: red;
+        }
+
+        to {
+          color: #ff0;
+        }
+      }
+    "#},
+      map! {
+        "foo" => "EgL3uq_foo",
+        "id" => "EgL3uq_id",
+        "test" => "EgL3uq_test" referenced: true
+      },
+      HashMap::new(),
+      crate::css_modules::Config {
+        animation: false,
+        // custom_idents: false,
+        ..Default::default()
+      },
     );
 
     #[cfg(feature = "grid")]
