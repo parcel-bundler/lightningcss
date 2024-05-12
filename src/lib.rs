@@ -23135,6 +23135,46 @@ mod tests {
       Default::default(),
     );
 
+    #[cfg(feature = "grid")]
+    css_modules_test(
+      r#"
+        .grid {
+          grid-template-areas: "foo";
+        }
+
+        .foo {
+          grid-area: foo;
+        }
+
+        .bar {
+          grid-column-start: foo-start;
+        }
+      "#,
+      indoc! {r#"
+        .EgL3uq_grid {
+          grid-template-areas: "foo";
+        }
+
+        .EgL3uq_foo {
+          grid-area: foo;
+        }
+
+        .EgL3uq_bar {
+          grid-column-start: foo-start;
+        }
+      "#},
+      map! {
+        "foo" => "EgL3uq_foo",
+        "grid" => "EgL3uq_grid",
+        "bar" => "EgL3uq_bar"
+      },
+      HashMap::new(),
+      crate::css_modules::Config {
+        grid: false,
+        ..Default::default()
+      },
+    );
+
     css_modules_test(
       r#"
       test {
