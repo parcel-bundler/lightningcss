@@ -430,7 +430,9 @@ fn write_ident<W>(name: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
 where
   W: std::fmt::Write,
 {
+  let mut css_module_grid_enabled = false;
   if let Some(css_module) = &mut dest.css_module {
+    css_module_grid_enabled = css_module.config.grid;
     if let Some(last) = css_module.config.pattern.segments.last() {
       if !matches!(last, crate::css_modules::Segment::Local) {
         return Err(Error {
@@ -444,7 +446,7 @@ where
       }
     }
   }
-  dest.write_ident(name)?;
+  dest.write_ident(name, css_module_grid_enabled)?;
   Ok(())
 }
 

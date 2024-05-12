@@ -49,7 +49,11 @@ impl<'i> ToCss for CustomIdent<'i> {
   where
     W: std::fmt::Write,
   {
-    dest.write_ident(&self.0)
+    let css_module_custom_idents_enabled = dest
+      .css_module
+      .as_mut()
+      .map_or(false, |css_module| css_module.config.custom_idents);
+    dest.write_ident(&self.0, css_module_custom_idents_enabled)
   }
 }
 

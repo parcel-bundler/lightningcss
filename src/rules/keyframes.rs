@@ -92,9 +92,12 @@ impl<'i> ToCss for KeyframesName<'i> {
   where
     W: std::fmt::Write,
   {
+    let css_module_animation_enabled =
+      dest.css_module.as_mut().map_or(false, |css_module| css_module.config.animation);
+
     match self {
       KeyframesName::Ident(ident) => {
-        dest.write_ident(ident.0.as_ref())?;
+        dest.write_ident(ident.0.as_ref(), css_module_animation_enabled)?;
       }
       KeyframesName::Custom(s) => {
         // CSS-wide keywords and `none` cannot remove quotes.
@@ -103,7 +106,7 @@ impl<'i> ToCss for KeyframesName<'i> {
             serialize_string(&s, dest)?;
           },
           _ => {
-            dest.write_ident(s.as_ref())?;
+            dest.write_ident(s.as_ref(), css_module_animation_enabled)?;
           }
         }
       }

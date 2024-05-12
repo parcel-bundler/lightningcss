@@ -672,7 +672,7 @@ where
 
       if let Some(class) = class {
         dest.write_char('.')?;
-        dest.write_ident(class)
+        dest.write_ident(class, true)
       } else {
         dest.write_str($s)
       }
@@ -1551,11 +1551,11 @@ where
     Component::Nesting => serialize_nesting(dest, context, false),
     Component::Class(ref class) => {
       dest.write_char('.')?;
-      dest.write_ident(&class.0)
+      dest.write_ident(&class.0, true)
     }
     Component::ID(ref id) => {
       dest.write_char('#')?;
-      dest.write_ident(&id.0)
+      dest.write_ident(&id.0, true)
     }
     Component::Host(selector) => {
       dest.write_str(":host")?;

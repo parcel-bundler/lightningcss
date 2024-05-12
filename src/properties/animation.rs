@@ -67,7 +67,9 @@ impl<'i> ToCss for AnimationName<'i> {
         s.to_css(dest)
       }
       AnimationName::String(s) => {
+        let mut css_module_animation_enabled = false;
         if let Some(css_module) = &mut dest.css_module {
+          css_module_animation_enabled = css_module.config.animation;
           css_module.reference(&s, dest.loc.source_index)
         }
 
@@ -78,7 +80,7 @@ impl<'i> ToCss for AnimationName<'i> {
             Ok(())
           },
           _ => {
-            dest.write_ident(s.as_ref())
+            dest.write_ident(s.as_ref(), css_module_animation_enabled)
           }
         }
       }

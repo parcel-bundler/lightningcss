@@ -605,6 +605,9 @@ enum CssModulesOption {
 struct CssModulesConfig {
   pattern: Option<String>,
   dashed_idents: Option<bool>,
+  animation: Option<bool>,
+  grid: Option<bool>,
+  custom_idents: Option<bool>,
 }
 
 #[cfg(feature = "bundler")]
@@ -713,6 +716,9 @@ fn compile<'i>(
                 Default::default()
               },
               dashed_idents: c.dashed_idents.unwrap_or_default(),
+              animation: c.animation.unwrap_or_default(),
+              grid: c.grid.unwrap_or_default(),
+              custom_idents: c.custom_idents.unwrap_or_default(),
             }),
           }
         } else {
@@ -840,6 +846,10 @@ fn compile_bundle<
               Default::default()
             },
             dashed_idents: c.dashed_idents.unwrap_or_default(),
+            animation: c.animation.unwrap_or(true),
+            grid: c.grid.unwrap_or(true),
+            keyframes: c.keyframes.unwrap_or(true),
+            custom_idents: c.custom_idents.unwrap_or(true),
           }),
         }
       } else {

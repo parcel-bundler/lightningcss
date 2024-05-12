@@ -25,13 +25,34 @@ use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 /// Configuration for CSS modules.
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Config<'i> {
   /// The name pattern to use when renaming class names and other identifiers.
   /// Default is `[hash]_[local]`.
   pub pattern: Pattern<'i>,
   /// Whether to rename dashed identifiers, e.g. custom properties.
   pub dashed_idents: bool,
+  /// Whether to scope animation names.
+  /// Default is `true`.
+  pub animation: bool,
+  /// Whether to scope grid names.
+  /// Default is `true`.
+  pub grid: bool,
+  /// Whether to scope custom identifiers
+  /// Default is `true`.
+  pub custom_idents: bool,
+}
+
+impl<'i> Default for Config<'i> {
+  fn default() -> Self {
+    Config {
+      pattern: Default::default(),
+      dashed_idents: Default::default(),
+      animation: true,
+      grid: true,
+      custom_idents: true,
+    }
+  }
 }
 
 /// A CSS modules class name pattern.
