@@ -23101,6 +23101,51 @@ mod tests {
       },
     );
 
+    css_modules_test(
+      r#"
+      @counter-style circles {
+        symbols: Ⓐ Ⓑ Ⓒ;
+      }
+
+      ul {
+        list-style: circles;
+      }
+
+      ol {
+        list-style-type: none;
+      }
+
+      li {
+        list-style-type: disc;
+      }
+    "#,
+      indoc! {r#"
+      @counter-style circles {
+        symbols: Ⓐ Ⓑ Ⓒ;
+      }
+
+      ul {
+        list-style: circles;
+      }
+
+      ol {
+        list-style-type: none;
+      }
+
+      li {
+        list-style-type: disc;
+      }
+    "#},
+      map! {
+        "circles" => "EgL3uq_circles" referenced: true
+      },
+      HashMap::new(),
+      crate::css_modules::Config {
+        custom_idents: false,
+        ..Default::default()
+      },
+    );
+
     #[cfg(feature = "grid")]
     css_modules_test(
       r#"
