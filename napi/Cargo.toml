@@ -13,7 +13,7 @@ visitor = ["lightningcss/visitor"]
 bundler = ["dep:crossbeam-channel", "dep:rayon"]
 
 [dependencies]
-serde = { version = "1.0.123", features = ["derive"] }
+serde = { version = "1.0.201", features = ["derive"] }
 serde_bytes = "0.11.5"
 cssparser = "0.33.0"
 lightningcss = { version = "1.0.0-alpha.54", path = "../", features = ["nodejs", "serde"] }
