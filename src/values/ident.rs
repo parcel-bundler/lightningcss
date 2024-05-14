@@ -49,11 +49,29 @@ impl<'i> ToCss for CustomIdent<'i> {
   where
     W: std::fmt::Write,
   {
-    let css_module_custom_idents_enabled = dest
-      .css_module
-      .as_mut()
-      .map_or(false, |css_module| css_module.config.custom_idents);
-    dest.write_ident(&self.0, css_module_custom_idents_enabled)
+    self.to_css_with_options(dest, true)
+  }
+}
+
+impl<'i> CustomIdent<'i> {
+  /// Write the custom ident to CSS.
+  pub fn to_css_with_options<W>(
+    &self,
+    dest: &mut Printer<W>,
+    enabled_css_modules: bool,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if enabled_css_modules {
+      let css_module_custom_idents_enabled = dest
+        .css_module
+        .as_mut()
+        .map_or(false, |css_module| css_module.config.custom_idents);
+      dest.write_ident(&self.0, css_module_custom_idents_enabled)
+    } else {
+      dest.write_ident(&self.0, false)
+    }
   }
 }
 
