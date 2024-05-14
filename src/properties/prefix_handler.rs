@@ -141,12 +141,6 @@ macro_rules! define_fallbacks {
                   (val, paste::paste! { &mut self.[<$name:snake>] })
                 }
               )+
-              PropertyId::All => {
-                let mut unparsed = val.clone();
-                context.add_unparsed_fallbacks(&mut unparsed);
-                dest.push(Property::Unparsed(unparsed));
-                return true
-              },
               _ => return false
             };
 

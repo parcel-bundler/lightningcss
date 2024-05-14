@@ -123,6 +123,7 @@ pub mod ui;
 use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::{LogicalGroup, PropertyCategory};
+use crate::macros::enum_property;
 use crate::parser::starts_with_ignore_ascii_case;
 use crate::parser::ParserOptions;
 use crate::prefixes::Feature;
@@ -688,6 +689,8 @@ macro_rules! define_properties {
         $(#[$meta])*
         $property($type, $($vp)?),
       )+
+      /// The [all](https://drafts.csswg.org/css-cascade-5/#all-shorthand) shorthand property.
+      All(CSSWideKeyword),
       /// An unparsed property.
       Unparsed(UnparsedProperty<'i>),
       /// A custom or unknown property.
@@ -710,6 +713,7 @@ macro_rules! define_properties {
               }
             },
           )+
+          PropertyId::All => return Ok(Property::All(CSSWideKeyword::parse(input)?)),
           PropertyId::Custom(name) => return Ok(Property::Custom(CustomProperty::parse(name, input, options)?)),
           _ => {}
         };
@@ -731,6 +735,7 @@ macro_rules! define_properties {
             $(#[$meta])*
             $property(_, $(vp_name!($vp, p))?) => PropertyId::$property$((*vp_name!($vp, p)))?,
           )+
+          All(_) => PropertyId::All,
           Unparsed(unparsed) => unparsed.property_id.clone(),
           Custom(custom) => PropertyId::Custom(custom.name.clone())
         }
@@ -779,6 +784,7 @@ macro_rules! define_properties {
               val.to_css(dest)
             }
           )+
+          All(keyword) => keyword.to_css(dest),
           Unparsed(unparsed) => {
             unparsed.value.to_css(dest, false)
           }
@@ -838,6 +844,7 @@ macro_rules! define_properties {
               ($name, get_prefix!($($vp)?))
             },
           )+
+          All(_) => ("all", VendorPrefix::None),
           Unparsed(unparsed) => {
             let mut prefix = unparsed.property_id.prefix();
             if prefix.is_empty() {
@@ -966,7 +973,10 @@ macro_rules! define_properties {
               s.serialize_field("value", value)?;
             }
           )+
-          _ => unreachable!()
+          All(value) => {
+            s.serialize_field("value", value)?;
+          }
+          Unparsed(_) | Custom(_) => unreachable!()
         }
 
         s.end()
@@ -1072,7 +1082,10 @@ macro_rules! define_properties {
               Ok(Property::Custom(value))
             }
           }
-          PropertyId::All => unreachable!()
+          PropertyId::All => {
+            let value = CSSWideKeyword::deserialize(deserializer)?;
+            Ok(Property::All(value))
+          }
         }
       }
     }
@@ -1134,6 +1147,17 @@ macro_rules! define_properties {
                   with_prefix!($($vp)?)
                 },
               )+
+              {
+                property!("all");
+                #[derive(schemars::JsonSchema)]
+                struct T {
+                  #[schemars(rename = "property", schema_with = "property")]
+                  _property: u8,
+                  #[schemars(rename = "value")]
+                  _value: CSSWideKeyword
+                }
+                T::json_schema(gen)
+              },
               {
                 property!("unparsed");
 
@@ -1513,6 +1537,10 @@ define_properties! {
   // https://w3c.github.io/csswg-drafts/css-size-adjust/
   "text-size-adjust": TextSizeAdjust(TextSizeAdjust, VendorPrefix) / WebKit / Moz / Ms,
 
+  // https://drafts.csswg.org/css-writing-modes-3/
+  "direction": Direction(Direction),
+  "unicode-bidi": UnicodeBidi(UnicodeBidi),
+
   // https://www.w3.org/TR/css-break-3/
   "box-decoration-break": BoxDecorationBreak(BoxDecorationBreak, VendorPrefix) / WebKit,
 
@@ -1665,5 +1693,21 @@ impl<T: ToCss> ToCss for Vec<T> {
       }
     }
     Ok(())
+  }
+}
+
+enum_property! {
+  /// A [CSS-wide keyword](https://drafts.csswg.org/css-cascade-5/#defaulting-keywords).
+  pub enum CSSWideKeyword {
+    /// The property's initial value.
+    "initial": Initial,
+    /// The property's computed value on the parent element.
+    "inherit": Inherit,
+    /// Either inherit or initial depending on whether the property is inherited.
+    "unset": Unset,
+    /// Rolls back the cascade to the cascaded value of the earlier origin.
+    "revert": Revert,
+    /// Rolls back the cascade to the value of the previous cascade layer.
+    "revert-layer": RevertLayer,
   }
 }

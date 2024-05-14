@@ -1599,3 +1599,31 @@ impl FallbackValues for SmallVec<[TextShadow; 1]> {
     res
   }
 }
+
+enum_property! {
+  /// A value for the [direction](https://drafts.csswg.org/css-writing-modes-3/#direction) property.
+  pub enum Direction {
+    /// This value sets inline base direction (bidi directionality) to line-left-to-line-right.
+    Ltr,
+    /// This value sets inline base direction (bidi directionality) to line-right-to-line-left.
+    Rtl,
+  }
+}
+
+enum_property! {
+  /// A value for the [unicode-bidi](https://drafts.csswg.org/css-writing-modes-3/#unicode-bidi) property.
+  pub enum UnicodeBidi {
+    /// The box does not open an additional level of embedding.
+    "normal": Normal,
+    /// If the box is inline, this value creates a directional embedding by opening an additional level of embedding.
+    "embed": Embed,
+    /// On an inline box, this bidi-isolates its contents.
+    "isolate": Isolate,
+    /// This value puts the box’s immediate inline content in a directional override.
+    "bidi-override": BidiOverride,
+    /// This combines the isolation behavior of isolate with the directional override behavior of bidi-override.
+    "isolate-override": IsolateOverride,
+    /// This value behaves as isolate except that the base directionality is determined using a heuristic rather than the direction property.
+    "plaintext": Plaintext,
+  }
+}

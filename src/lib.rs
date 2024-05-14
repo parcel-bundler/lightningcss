@@ -21435,26 +21435,26 @@ mod tests {
       indoc! {r#"
       @keyframes foo {
         from {
-          --custom: #ff0;
           opacity: 0;
+          --custom: #ff0;
         }
 
         to {
-          --custom: #ee00be;
           opacity: 1;
+          --custom: #ee00be;
         }
       }
 
       @supports (color: lab(0% 0 0)) {
         @keyframes foo {
           from {
-            --custom: #ff0;
             opacity: 0;
+            --custom: #ff0;
           }
 
           to {
-            --custom: lab(50.998% 125.506 -50.7078);
             opacity: 1;
+            --custom: lab(50.998% 125.506 -50.7078);
           }
         }
       }
@@ -23457,8 +23457,8 @@ mod tests {
       }
 
       .EgL3uq_foo {
-        --foo: red;
         color: var(--foo);
+        --foo: red;
       }
     "#},
       map! {
@@ -23507,10 +23507,10 @@ mod tests {
       }
 
       .EgL3uq_foo {
-        --EgL3uq_foo: red;
-        --EgL3uq_bar: green;
         color: var(--EgL3uq_foo);
         font-palette: --EgL3uq_Cooler;
+        --EgL3uq_foo: red;
+        --EgL3uq_bar: green;
       }
 
       .EgL3uq_bar {
@@ -27242,6 +27242,33 @@ mod tests {
         chrome: Some(90 << 16),
         ..Browsers::default()
       },
+    );
+  }
+
+  #[test]
+  fn test_all() {
+    minify_test(".foo { all: initial; all: initial }", ".foo{all:initial}");
+    minify_test(".foo { all: initial; all: revert }", ".foo{all:revert}");
+    minify_test(".foo { background: red; all: revert-layer }", ".foo{all:revert-layer}");
+    minify_test(
+      ".foo { background: red; all: revert-layer; background: green }",
+      ".foo{all:revert-layer;background:green}",
+    );
+    minify_test(
+      ".foo { --test: red; all: revert-layer }",
+      ".foo{all:revert-layer;--test:red}",
+    );
+    minify_test(
+      ".foo { unicode-bidi: embed; all: revert-layer }",
+      ".foo{all:revert-layer;unicode-bidi:embed}",
+    );
+    minify_test(
+      ".foo { direction: rtl; all: revert-layer }",
+      ".foo{all:revert-layer;direction:rtl}",
+    );
+    minify_test(
+      ".foo { direction: rtl; all: revert-layer; direction: ltr }",
+      ".foo{all:revert-layer;direction:ltr}",
     );
   }
 }

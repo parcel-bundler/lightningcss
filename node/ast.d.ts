@@ -2067,6 +2067,12 @@ export type PropertyId =
       vendorPrefix: VendorPrefix;
     }
   | {
+      property: "direction";
+    }
+  | {
+      property: "unicode-bidi";
+    }
+  | {
       property: "box-decoration-break";
       vendorPrefix: VendorPrefix;
     }
@@ -3446,6 +3452,14 @@ export type Declaration =
       vendorPrefix: VendorPrefix;
     }
   | {
+      property: "direction";
+      value: Direction2;
+    }
+  | {
+      property: "unicode-bidi";
+      value: UnicodeBidi;
+    }
+  | {
       property: "box-decoration-break";
       value: BoxDecorationBreak;
       vendorPrefix: VendorPrefix;
@@ -3756,6 +3770,10 @@ export type Declaration =
   | {
       property: "color-scheme";
       value: ColorScheme;
+    }
+  | {
+      property: "all";
+      value: CSSWideKeyword;
     }
   | {
       property: "unparsed";
@@ -5730,6 +5748,14 @@ export type TextSizeAdjust =
       value: number;
     };
 /**
+ * A value for the [direction](https://drafts.csswg.org/css-writing-modes-3/#direction) property.
+ */
+export type Direction2 = "ltr" | "rtl";
+/**
+ * A value for the [unicode-bidi](https://drafts.csswg.org/css-writing-modes-3/#unicode-bidi) property.
+ */
+export type UnicodeBidi = "normal" | "embed" | "isolate" | "bidi-override" | "isolate-override" | "plaintext";
+/**
  * A value for the [box-decoration-break](https://www.w3.org/TR/css-break-3/#break-decoration) property.
  */
 export type BoxDecorationBreak = "slice" | "clone";
@@ -6234,6 +6260,10 @@ export type ContainerNameList =
       type: "names";
       value: String[];
     };
+/**
+ * A [CSS-wide keyword](https://drafts.csswg.org/css-cascade-5/#defaulting-keywords).
+ */
+export type CSSWideKeyword = "initial" | "inherit" | "unset" | "revert" | "revert-layer";
 /**
  * A CSS custom property name.
  */
@@ -7040,8 +7070,8 @@ export type ParsedComponent =
       };
     }
   | {
-      type: "token";
-      value: Token;
+      type: "token-list";
+      value: TokenOrValue[];
     };
 /**
  * A [multiplier](https://drafts.css-houdini.org/css-properties-values-api/#multipliers) for a [SyntaxComponent](SyntaxComponent). Indicates whether and how the component may be repeated.
