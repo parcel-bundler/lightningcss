@@ -55,6 +55,18 @@ compileFromFile('node/ast.json', {
       if (path.node.name.startsWith('GenericBorderFor_LineStyleAnd_')) {
         path.node.name = 'GenericBorderFor_LineStyle';
       }
+    },
+    TSTypeAliasDeclaration(path) {
+      // Workaround for schemars not supporting untagged variants.
+      // https://github.com/GREsau/schemars/issues/222
+      if (
+        (path.node.id.name === 'Translate' || path.node.id.name === 'Scale') &&
+        path.node.typeAnnotation.type === 'TSUnionType' &&
+        path.node.typeAnnotation.types[1].type === 'TSTypeLiteral' &&
+        path.node.typeAnnotation.types[1].members[0].key.name === 'xyz'
+      ) {
+        path.get('typeAnnotation.types.1').replaceWith(path.node.typeAnnotation.types[1].members[0].typeAnnotation.typeAnnotation);
+      }
     }
   });
 

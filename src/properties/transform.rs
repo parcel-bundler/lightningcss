@@ -1454,7 +1454,7 @@ impl ToCss for Perspective {
 /// A value for the [translate](https://drafts.csswg.org/css-transforms-2/#propdef-translate) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Translate {
@@ -1462,6 +1462,7 @@ pub enum Translate {
   None,
 
   /// The x, y, and z translations.
+  #[cfg_attr(feature = "serde", serde(untagged))]
   XYZ {
     /// The x translation.
     x: LengthPercentage,
@@ -1622,7 +1623,7 @@ impl Rotate {
 /// A value for the [scale](https://drafts.csswg.org/css-transforms-2/#propdef-scale) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Scale {
@@ -1630,6 +1631,7 @@ pub enum Scale {
   None,
 
   /// Scale on the x, y, and z axis.
+  #[cfg_attr(feature = "serde", serde(untagged))]
   XYZ {
     /// Scale on the x axis.
     x: NumberOrPercentage,

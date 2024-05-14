@@ -29,8 +29,8 @@ log = "0.4"
 phf = "0.10"
 precomputed-hash = "0.1"
 smallvec = "1.0"
-serde = { version = "1.0.123", features = ["derive"], optional = true }
-schemars = { version = "0.8.11", features = ["smallvec"], optional = true }
+serde = { version = "1.0.201", features = ["derive"], optional = true }
+schemars = { version = "0.8.19", features = ["smallvec"], optional = true }
 static-self = { version = "0.1.0", path = "../static-self", optional = true }
 
 [build-dependencies]
