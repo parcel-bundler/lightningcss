@@ -1,63 +1,300 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>Lightning CSS</title>
-    <link rel="icon" href="favicon.svg">
-    <link rel="mask-icon" href="favicon.svg" color="#f9bb03">
-    <meta name="description" content="An extremely fast CSS parser, transformer, bundler, and minifier.">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="og.jpeg">
-    <meta name="twitter:site" content="@lightningcss">
-    <meta name="twitter:creator" content="@lightningcss">
-    <meta property="og:type" content="website">
-    <meta property="og:locale" content="en_US">
-    <meta property="og:url" content="https://lightningcss.dev">
-    <meta property="og:title" content="Lightning CSS">
-    <meta property="og:description" content="An extremely fast CSS parser, transformer, bundler, and minifier.">
-    <meta property="og:image" content="og.jpeg">
-    <link rel="preload" as="font" type="font/woff2" crossorigin href="https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3">
-    <link rel="preload" as="image" href="lightspeed.svg">
+    <link rel="icon" href="favicon.svg" />
+    <link rel="mask-icon" href="favicon.svg" color="#f9bb03" />
+    <meta
+      name="description"
+      content="An extremely fast CSS parser, transformer, bundler, and minifier."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="og.jpeg" />
+    <meta name="twitter:site" content="@lightningcss" />
+    <meta name="twitter:creator" content="@lightningcss" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://lightningcss.dev" />
+    <meta property="og:title" content="Lightning CSS" />
+    <meta
+      property="og:description"
+      content="An extremely fast CSS parser, transformer, bundler, and minifier."
+    />
+    <meta property="og:image" content="og.jpeg" />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3"
+    />
+    <link rel="preload" as="image" href="lightspeed.svg" />
   </head>
   <body>
     <header>
       <svg viewBox="495 168 360 654">
-        <path class="outer" d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"/>
-        <path class="inner" d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"/>
+        <path
+          class="outer"
+          d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"
+        />
+        <path
+          class="inner"
+          d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"
+        />
       </svg>
       <h1>Lightning CSS</h1>
       <h2>An extremely fast CSS parser, transformer, bundler, and minifier.</h2>
-      <p><a href="./playground/index.html">Playground</a> • <a href="docs.html">Docs</a> • <a href="https://docs.rs/lightningcss" target="_blank">Rust docs</a> • <a href="https://npmjs.com/lightningcss" target="_blank">npm</a>  • <a href="https://github.com/parcel-bundler/lightningcss" target="_blank">GitHub</a></p>
+      <p>
+        <a href="./playground/index.html">Playground</a> •
+        <a href="docs.html">Docs</a> •
+        <a href="https://docs.rs/lightningcss" target="_blank">Rust docs</a> •
+        <a href="https://npmjs.com/lightningcss" target="_blank">npm</a> •
+        <a href="https://github.com/parcel-bundler/lightningcss" target="_blank"
+          >GitHub</a
+        >
+      </p>
     </header>
     <main>
       <section class="warp">
         <h3>Light speed</h3>
-        <p><strong>Lightning CSS is over 100x faster than comparable JavaScript-based tools.</strong> It can minify over 2.7 million lines of code per second on a single thread.</p>
-        <p style="font-size: 0.85em">Lightning CSS is written in Rust, a native systems programming language. It was built with performance in mind from the start, designed to make efficient use of memory, and limit AST passes.</p>
+        <p>
+          <strong
+            >Lightning CSS is over 100x faster than comparable JavaScript-based
+            tools.</strong
+          >
+          It can minify over 2.7 million lines of code per second on a single
+          thread.
+        </p>
+        <p style="font-size: 0.85em">
+          Lightning CSS is written in Rust, a native systems programming
+          language. It was built with performance in mind from the start,
+          designed to make efficient use of memory, and limit AST passes.
+        </p>
         <p><a href="docs.html">Get started →</a></p>
         <figure>
-          <div class="chart" role="img" aria-label="Build time chart. CSSNano – 544ms, ESBuild – 17.2ms, Lightning CSS – 4.16ms" style="max-width: 800px; margin-top: 40px; position: relative; padding-bottom: 110px; white-space: nowrap">
-            <div style="text-align: center; font-weight: bold; font-size: 15px; margin-left: 90px; margin-bottom: 12px">Build time</div>
-            <div style="position: absolute; left: 90px; right: 15px; height: 110px">
-              <div style="position: absolute; top: 0; left: 0; bottom: 20px; width: 1px; background: white"></div>
-              <div style="position: absolute; left: 0; bottom: 0; transform: translateX(-50%); font-size: 12px">0ms</div>
-              <div class="line" style="position: absolute; top: 0; left: 25%; bottom: 20px; width: 1px; background: white"></div>
-              <div class="line" style="position: absolute; left: 25%; bottom: 0; transform: translateX(-50%); font-size: 12px">150ms</div>
-              <div style="position: absolute; top: 0; left: 50%; bottom: 20px; width: 1px; background: white"></div>
-              <div style="position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); font-size: 12px">300ms</div>
-              <div class="line" style="position: absolute; top: 0; left: 75%; bottom: 20px; width: 1px; background: white"></div>
-              <div class="line" style="position: absolute; left: 75%; bottom: 0; transform: translateX(-50%); font-size: 12px">450ms</div>
-              <div style="position: absolute; top: 0; left: 100%; bottom: 20px; width: 1px; background: white"></div>
-              <div style="position: absolute; left: 100%; bottom: 0; transform: translateX(-50%); font-size: 12px">600ms</div>
-              
-              <div class="bars" style="position: absolute; left: 1px; top: 0; right: 70px; --cssnano: 544.81; --esbuild: 17.2; --lightningcss: 4.16">
-                <div style="position: absolute; top: 5px; left: 0; width: 100%; height: 20px; background: var(--gold)"></div>
-                <div class="label" style="position: absolute; left: calc(100% + 5px); top: 5px; line-height: 20px; font-size: 12px">544.81ms</div>
-                <div style="position: absolute; top: 35px; left: 0; width: calc(1% * var(--esbuild) / var(--cssnano) * 100); height: 20px; background: var(--gold)"></div>
-                <div style="position: absolute; left: calc(1% * var(--esbuild) / var(--cssnano) * 100 + 5px); top: 35px; line-height: 20px; font-size: 12px">17.2ms</div>
-                <div style="position: absolute; top: 65px; left: 0; width: calc(1% * var(--lightningcss) / var(--cssnano) * 100); height: 20px; background: var(--gold)"></div>
-                <div style="position: absolute; left: calc(1% * var(--lightningcss) / var(--cssnano) * 100 + 5px); top: 65px; line-height: 20px; font-size: 12px">4.16ms</div>
+          <div
+            class="chart"
+            role="img"
+            aria-label="Build time chart. CSSNano – 544ms, ESBuild – 17.2ms, Lightning CSS – 4.16ms"
+            style="
+              max-width: 800px;
+              margin-top: 40px;
+              position: relative;
+              padding-bottom: 110px;
+              white-space: nowrap;
+            "
+          >
+            <div
+              style="
+                text-align: center;
+                font-weight: bold;
+                font-size: 15px;
+                margin-left: 90px;
+                margin-bottom: 12px;
+              "
+            >
+              Build time
+            </div>
+            <div
+              style="position: absolute; left: 90px; right: 15px; height: 110px"
+            >
+              <div
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 0;
+                  bottom: 20px;
+                  width: 1px;
+                  background: white;
+                "
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  left: 0;
+                  bottom: 0;
+                  transform: translateX(-50%);
+                  font-size: 12px;
+                "
+              >
+                0ms
+              </div>
+              <div
+                class="line"
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 25%;
+                  bottom: 20px;
+                  width: 1px;
+                  background: white;
+                "
+              ></div>
+              <div
+                class="line"
+                style="
+                  position: absolute;
+                  left: 25%;
+                  bottom: 0;
+                  transform: translateX(-50%);
+                  font-size: 12px;
+                "
+              >
+                150ms
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 50%;
+                  bottom: 20px;
+                  width: 1px;
+                  background: white;
+                "
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  left: 50%;
+                  bottom: 0;
+                  transform: translateX(-50%);
+                  font-size: 12px;
+                "
+              >
+                300ms
+              </div>
+              <div
+                class="line"
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 75%;
+                  bottom: 20px;
+                  width: 1px;
+                  background: white;
+                "
+              ></div>
+              <div
+                class="line"
+                style="
+                  position: absolute;
+                  left: 75%;
+                  bottom: 0;
+                  transform: translateX(-50%);
+                  font-size: 12px;
+                "
+              >
+                450ms
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 100%;
+                  bottom: 20px;
+                  width: 1px;
+                  background: white;
+                "
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  left: 100%;
+                  bottom: 0;
+                  transform: translateX(-50%);
+                  font-size: 12px;
+                "
+              >
+                600ms
+              </div>
+
+              <div
+                class="bars"
+                style="
+                  position: absolute;
+                  left: 1px;
+                  top: 0;
+                  right: 70px;
+                  --cssnano: 544.81;
+                  --esbuild: 17.2;
+                  --lightningcss: 4.16;
+                "
+              >
+                <div
+                  style="
+                    position: absolute;
+                    top: 5px;
+                    left: 0;
+                    width: 100%;
+                    height: 20px;
+                    background: var(--gold);
+                  "
+                ></div>
+                <div
+                  class="label"
+                  style="
+                    position: absolute;
+                    left: calc(100% + 5px);
+                    top: 5px;
+                    line-height: 20px;
+                    font-size: 12px;
+                  "
+                >
+                  544.81ms
+                </div>
+                <div
+                  style="
+                    position: absolute;
+                    top: 35px;
+                    left: 0;
+                    width: calc(1% * var(--esbuild) / var(--cssnano) * 100);
+                    height: 20px;
+                    background: var(--gold);
+                  "
+                ></div>
+                <div
+                  style="
+                    position: absolute;
+                    left: calc(
+                      1% * var(--esbuild) / var(--cssnano) * 100 + 5px
+                    );
+                    top: 35px;
+                    line-height: 20px;
+                    font-size: 12px;
+                  "
+                >
+                  17.2ms
+                </div>
+                <div
+                  style="
+                    position: absolute;
+                    top: 65px;
+                    left: 0;
+                    width: calc(
+                      1% * var(--lightningcss) / var(--cssnano) * 100
+                    );
+                    height: 20px;
+                    background: var(--gold);
+                  "
+                ></div>
+                <div
+                  style="
+                    position: absolute;
+                    left: calc(
+                      1% * var(--lightningcss) / var(--cssnano) * 100 + 5px
+                    );
+                    top: 65px;
+                    line-height: 20px;
+                    font-size: 12px;
+                  "
+                >
+                  4.16ms
+                </div>
               </div>
               <style>
                 @media (width < 700px) {
@@ -73,29 +310,89 @@
                 }
               </style>
 
-              <div style="position: absolute; right: calc(100% + 10px); top: 5px; line-height: 20px; font-size: 13px">CSSNano</div>
-              <div style="position: absolute; right: calc(100% + 10px); top: 35px; line-height: 20px; font-size: 13px">ESBuild</div>
-              <div style="position: absolute; left: -10px; transform: translateX(-100%); top: 65px; line-height: 20px; font-size: 13px">Lightning CSS</div> 
+              <div
+                style="
+                  position: absolute;
+                  right: calc(100% + 10px);
+                  top: 5px;
+                  line-height: 20px;
+                  font-size: 13px;
+                "
+              >
+                CSSNano
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  right: calc(100% + 10px);
+                  top: 35px;
+                  line-height: 20px;
+                  font-size: 13px;
+                "
+              >
+                ESBuild
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  left: -10px;
+                  transform: translateX(-100%);
+                  top: 65px;
+                  line-height: 20px;
+                  font-size: 13px;
+                "
+              >
+                Lightning CSS
+              </div>
             </div>
           </div>
-          <figcaption>Time to minify Bootstrap 4 (~10,000 lines). See the <a href="https://github.com/parcel-bundler/lightningcss#benchmarks" target="_blank">readme</a> for more benchmarks.</figcaption>
+          <figcaption>
+            Time to minify Bootstrap 4 (~10,000 lines). See the
+            <a
+              href="https://github.com/parcel-bundler/lightningcss#benchmarks"
+              target="_blank"
+              >readme</a
+            >
+            for more benchmarks.
+          </figcaption>
         </figure>
       </section>
       <section class="future">
         <div class="inner">
           <h3 class="title">Live in the future</h3>
           <div class="description">
-            <p><strong>Lightning CSS lets you use modern CSS features and future syntax today.</strong> Features such as CSS nesting, custom media queries, high gamut color spaces, logical properties, and new selector features are automatically converted to more compatible syntax based on your browser targets.</p>
-            <p>Lightning CSS also automatically adds vendor prefixes for your browser targets, so you can keep your source code clean and repetition free.</p>
+            <p>
+              <strong
+                >Lightning CSS lets you use modern CSS features and future
+                syntax today.</strong
+              >
+              Features such as CSS nesting, custom media queries, high gamut
+              color spaces, logical properties, and new selector features are
+              automatically converted to more compatible syntax based on your
+              browser targets.
+            </p>
+            <p>
+              Lightning CSS also automatically adds vendor prefixes for your
+              browser targets, so you can keep your source code clean and
+              repetition free.
+            </p>
             <p><a href="transpilation.html">Learn more →</a></p>
           </div>
           <div class="example">
-            <div class="targets"><h4>Target Browsers</h4><code>last 2 versions</code></div>
-            <div class="box input"><h4 class="title">Input</h4><pre>
+            <div class="targets">
+              <h4>Target Browsers</h4>
+              <code>last 2 versions</code>
+            </div>
+            <div class="box input">
+              <h4 class="title">Input</h4>
+              <pre>
 <code><span class="class">.foo</span> {
   <span class="property">color</span>: <span class="keyword">oklab</span>(<span class="number">59.686% 0.1009 0.1192</span>);
-}</code></pre></div>
-            <div class="box"><h4 class="title">Output</h4><pre>
+}</code></pre>
+            </div>
+            <div class="box">
+              <h4 class="title">Output</h4>
+              <pre>
 <code><span class="class">.foo</span> {
   <span class="property">color</span>: <span class="number">#c65d07</span>;
   <span class="property">color</span>: <span class="keyword">color</span>(<span class="keyword">display-p3</span> <span class="number">.724144 .386777 .148795</span>);
@@ -107,46 +404,304 @@
       </section>
       <section class="crush">
         <h3>Crush it!</h3>
-        <p style="font-weight: bold;">Lightning CSS is not only fast when it comes to build time. It produces smaller output, so your website loads faster too.</p>
-        <p style="font-size: 0.85em">The Lightning CSS minifier combines longhand properties into shorthands, removes unnecessary vendor prefixes, merges compatible adjacent rules, removes unnecessary default values, reduces <code>calc()</code> expressions, shortens colors, minifies gradients, and much more.</p>
+        <p style="font-weight: bold">
+          Lightning CSS is not only fast when it comes to build time. It
+          produces smaller output, so your website loads faster too.
+        </p>
+        <p style="font-size: 0.85em">
+          The Lightning CSS minifier combines longhand properties into
+          shorthands, removes unnecessary vendor prefixes, merges compatible
+          adjacent rules, removes unnecessary default values, reduces
+          <code>calc()</code> expressions, shortens colors, minifies gradients,
+          and much more.
+        </p>
         <p><a href="minification.html">Details →</a></p>
         <figure>
-          <div class="chart" role="img" aria-label="Output size chart. CSSNano – 155.89 KB, ESBuild – 156.57 KB, Lightning CSS – 139.74 KB" style="max-width: 800px; margin-top: 40px; position: relative; padding-bottom: 110px; white-space: nowrap">
-            <div style="text-align: center; font-weight: bold; font-size: 15px; margin-left: 90px; margin-bottom: 12px">Output size</div>
-            <div style="position: absolute; left: 90px; right: 15px; height: 110px">
-              <div style="position: absolute; top: 0; left: 0; bottom: 20px; width: 1px; background: black"></div>
-              <div style="position: absolute; left: 0; bottom: 0; transform: translateX(-50%); font-size: 12px">0 KB</div>
-              <div class="line" style="position: absolute; top: 0; left: 25%; bottom: 20px; width: 1px; background: black"></div>
-              <div class="line" style="position: absolute; left: 25%; bottom: 0; transform: translateX(-50%); font-size: 12px">40 KB</div>
-              <div style="position: absolute; top: 0; left: 50%; bottom: 20px; width: 1px; background: black"></div>
-              <div style="position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); font-size: 12px">80 KB</div>
-              <div class="line" style="position: absolute; top: 0; left: 75%; bottom: 20px; width: 1px; background: black"></div>
-              <div class="line" style="position: absolute; left: 75%; bottom: 0; transform: translateX(-50%); font-size: 12px">120 KB</div>
-              <div style="position: absolute; top: 0; left: 100%; bottom: 20px; width: 1px; background: black"></div>
-              <div style="position: absolute; left: 100%; bottom: 0; transform: translateX(-50%); font-size: 12px">160 KB</div>
-              
-              <div style="position: absolute; left: 1px; top: 0; right: 5px; --cssnano: 155.89; --esbuild: 156.57; --lightningcss: 139.74">
-                <div style="position: absolute; top: 5px; left: 0; width: calc(1% * var(--cssnano) / var(--esbuild) * 100); height: 20px; background: rgb(186, 25, 33)"></div>
-                <div style="position: absolute; right: calc(100% + 5px - 1% * var(--cssnano) / var(--esbuild) * 100); top: 5px; line-height: 20px; font-size: 12px; color: white">155.89 KB</div>
-                <div style="position: absolute; top: 35px; left: 0; width: 100%; height: 20px; background: rgb(186, 25, 33)"></div>
-                <div style="position: absolute; right: 5px; top: 35px; line-height: 20px; font-size: 12px; color: white">156.57 KB</div>
-                <div style="position: absolute; top: 65px; left: 0; width: calc(1% * var(--lightningcss) / var(--esbuild) * 100); height: 20px; background: rgb(186, 25, 33)"></div>
-                <div style="position: absolute; right: calc(100% + 5px - 1% * var(--lightningcss) / var(--esbuild) * 100); top: 65px; line-height: 20px; font-size: 12px; color: white">139.74 KB</div>
+          <div
+            class="chart"
+            role="img"
+            aria-label="Output size chart. CSSNano – 155.89 KB, ESBuild – 156.57 KB, Lightning CSS – 139.74 KB"
+            style="
+              max-width: 800px;
+              margin-top: 40px;
+              position: relative;
+              padding-bottom: 110px;
+              white-space: nowrap;
+            "
+          >
+            <div
+              style="
+                text-align: center;
+                font-weight: bold;
+                font-size: 15px;
+                margin-left: 90px;
+                margin-bottom: 12px;
+              "
+            >
+              Output size
+            </div>
+            <div
+              style="position: absolute; left: 90px; right: 15px; height: 110px"
+            >
+              <div
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 0;
+                  bottom: 20px;
+                  width: 1px;
+                  background: black;
+                "
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  left: 0;
+                  bottom: 0;
+                  transform: translateX(-50%);
+                  font-size: 12px;
+                "
+              >
+                0 KB
+              </div>
+              <div
+                class="line"
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 25%;
+                  bottom: 20px;
+                  width: 1px;
+                  background: black;
+                "
+              ></div>
+              <div
+                class="line"
+                style="
+                  position: absolute;
+                  left: 25%;
+                  bottom: 0;
+                  transform: translateX(-50%);
+                  font-size: 12px;
+                "
+              >
+                40 KB
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 50%;
+                  bottom: 20px;
+                  width: 1px;
+                  background: black;
+                "
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  left: 50%;
+                  bottom: 0;
+                  transform: translateX(-50%);
+                  font-size: 12px;
+                "
+              >
+                80 KB
+              </div>
+              <div
+                class="line"
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 75%;
+                  bottom: 20px;
+                  width: 1px;
+                  background: black;
+                "
+              ></div>
+              <div
+                class="line"
+                style="
+                  position: absolute;
+                  left: 75%;
+                  bottom: 0;
+                  transform: translateX(-50%);
+                  font-size: 12px;
+                "
+              >
+                120 KB
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 100%;
+                  bottom: 20px;
+                  width: 1px;
+                  background: black;
+                "
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  left: 100%;
+                  bottom: 0;
+                  transform: translateX(-50%);
+                  font-size: 12px;
+                "
+              >
+                160 KB
               </div>
 
-              <div style="position: absolute; right: calc(100% + 10px); top: 5px; line-height: 20px; font-size: 13px">CSSNano</div>
-              <div style="position: absolute; right: calc(100% + 10px); top: 35px; line-height: 20px; font-size: 13px">ESBuild</div>
-              <div style="position: absolute; left: -10px; transform: translateX(-100%); top: 65px; line-height: 20px; font-size: 13px">Lightning CSS</div> 
+              <div
+                style="
+                  position: absolute;
+                  left: 1px;
+                  top: 0;
+                  right: 5px;
+                  --cssnano: 155.89;
+                  --esbuild: 156.57;
+                  --lightningcss: 139.74;
+                "
+              >
+                <div
+                  style="
+                    position: absolute;
+                    top: 5px;
+                    left: 0;
+                    width: calc(1% * var(--cssnano) / var(--esbuild) * 100);
+                    height: 20px;
+                    background: rgb(186, 25, 33);
+                  "
+                ></div>
+                <div
+                  style="
+                    position: absolute;
+                    right: calc(
+                      100% + 5px - 1% * var(--cssnano) / var(--esbuild) * 100
+                    );
+                    top: 5px;
+                    line-height: 20px;
+                    font-size: 12px;
+                    color: white;
+                  "
+                >
+                  155.89 KB
+                </div>
+                <div
+                  style="
+                    position: absolute;
+                    top: 35px;
+                    left: 0;
+                    width: 100%;
+                    height: 20px;
+                    background: rgb(186, 25, 33);
+                  "
+                ></div>
+                <div
+                  style="
+                    position: absolute;
+                    right: 5px;
+                    top: 35px;
+                    line-height: 20px;
+                    font-size: 12px;
+                    color: white;
+                  "
+                >
+                  156.57 KB
+                </div>
+                <div
+                  style="
+                    position: absolute;
+                    top: 65px;
+                    left: 0;
+                    width: calc(
+                      1% * var(--lightningcss) / var(--esbuild) * 100
+                    );
+                    height: 20px;
+                    background: rgb(186, 25, 33);
+                  "
+                ></div>
+                <div
+                  style="
+                    position: absolute;
+                    right: calc(
+                      100% + 5px - 1% * var(--lightningcss) / var(--esbuild) *
+                        100
+                    );
+                    top: 65px;
+                    line-height: 20px;
+                    font-size: 12px;
+                    color: white;
+                  "
+                >
+                  139.74 KB
+                </div>
+              </div>
+
+              <div
+                style="
+                  position: absolute;
+                  right: calc(100% + 10px);
+                  top: 5px;
+                  line-height: 20px;
+                  font-size: 13px;
+                "
+              >
+                CSSNano
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  right: calc(100% + 10px);
+                  top: 35px;
+                  line-height: 20px;
+                  font-size: 13px;
+                "
+              >
+                ESBuild
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  left: -10px;
+                  transform: translateX(-100%);
+                  top: 65px;
+                  line-height: 20px;
+                  font-size: 13px;
+                "
+              >
+                Lightning CSS
+              </div>
             </div>
           </div>
-          <figcaption>Output size after minifying Bootstrap 4 (~10,000 lines). See the <a href="https://github.com/parcel-bundler/lightningcss#benchmarks" target="_blank">readme</a> for more benchmarks.</figcaption>
+          <figcaption>
+            Output size after minifying Bootstrap 4 (~10,000 lines). See the
+            <a
+              href="https://github.com/parcel-bundler/lightningcss#benchmarks"
+              target="_blank"
+              >readme</a
+            >
+            for more benchmarks.
+          </figcaption>
         </figure>
       </section>
       <section class="modules">
         <div class="compartment main">
           <h3>CSS modules</h3>
-          <p><strong>Lightning CSS supports CSS modules, which locally scope classes, ids, <code>@keyframes</code>, CSS variables, and more.</strong> This ensures that there are no unintended name clashes between different CSS files.</p>
-          <p style="font-size: 0.8em">Lightning CSS generates a mapping of the original names to scoped names, which can be used from your JavaScript. This also enables unused classes and variables to be tree-shaken.</p>
+          <p>
+            <strong
+              >Lightning CSS supports CSS modules, which locally scope classes,
+              ids, <code>@keyframes</code>, CSS variables, and more.</strong
+            >
+            This ensures that there are no unintended name clashes between
+            different CSS files.
+          </p>
+          <p style="font-size: 0.8em">
+            Lightning CSS generates a mapping of the original names to scoped
+            names, which can be used from your JavaScript. This also enables
+            unused classes and variables to be tree-shaken.
+          </p>
           <p><a href="css-modules.html">Documentation →</a></p>
         </div>
         <pre class="compartment input"><code>.heading {
@@ -170,8 +725,29 @@
       <section class="parser">
         <div>
           <h3>Browser grade</h3>
-          <p><strong>Lightning CSS is written in Rust, using the <a href="https://github.com/servo/rust-cssparser" target="_blank">cssparser</a> and <a href="https://github.com/servo/servo/tree/master/components/selectors" target="_blank">selectors</a> crates created by Mozilla and used by Firefox.</strong> These provide a solid CSS-parsing foundation on top of which Lightning CSS implements support for all specific CSS rules and properties.</p>
-          <p style="font-size: 0.85em">Lightning CSS fully parses every CSS rule, property, and value just as a browser would. This reduces duplicate work for transformers, leading to improved performance and minification.</p>
+          <p>
+            <strong
+              >Lightning CSS is written in Rust, using the
+              <a href="https://github.com/servo/rust-cssparser" target="_blank"
+                >cssparser</a
+              >
+              and
+              <a
+                href="https://github.com/servo/servo/tree/master/components/selectors"
+                target="_blank"
+                >selectors</a
+              >
+              crates created by Mozilla and used by Firefox.</strong
+            >
+            These provide a solid CSS-parsing foundation on top of which
+            Lightning CSS implements support for all specific CSS rules and
+            properties.
+          </p>
+          <p style="font-size: 0.85em">
+            Lightning CSS fully parses every CSS rule, property, and value just
+            as a browser would. This reduces duplicate work for transformers,
+            leading to improved performance and minification.
+          </p>
           <p><a href="transforms.html">Custom transforms →</a></p>
         </div>
         <pre><code><span class="ident">Background</span>([<span class="ident">Background</span> {
@@ -195,9 +771,7 @@
 }])</code></pre>
       </section>
     </main>
-    <footer>
-      Copyright © 2022 Devon Govett and Parcel Contributors.
-    </footer>
+    <footer>Copyright © 2022 Devon Govett and Parcel Contributors.</footer>
     <style>
       html {
         color-scheme: dark;
@@ -208,19 +782,35 @@
         font-family: system-ui;
         --gold: lch(80% 82.34 80.104);
         --gold-text: lch(85% 82.34 80.104);
-        --gold-shadow: lch(80% 82.34 80.104 / .7);
+        --gold-shadow: lch(80% 82.34 80.104 / 0.7);
       }
 
       @font-face {
-        font-family:"din-1451-lt-pro-engschrift";
-        src:url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/l?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("woff2"),url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/d?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("woff"),url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/a?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("opentype");
-        font-display:auto;font-style:normal;font-weight:400;font-stretch:normal;
+        font-family: 'din-1451-lt-pro-engschrift';
+        src: url('https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/l?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3')
+            format('woff2'),
+          url('https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/d?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3')
+            format('woff'),
+          url('https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/a?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3')
+            format('opentype');
+        font-display: auto;
+        font-style: normal;
+        font-weight: 400;
+        font-stretch: normal;
       }
 
       @font-face {
-        font-family:"urbane-rounded";
-        src:url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff2"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/d?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/a?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("opentype");
-        font-display:auto;font-style:normal;font-weight:600;font-stretch:normal;
+        font-family: 'urbane-rounded';
+        src: url('https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3')
+            format('woff2'),
+          url('https://use.typekit.net/af/916187/00000000000000007735bfa0/30/d?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3')
+            format('woff'),
+          url('https://use.typekit.net/af/916187/00000000000000007735bfa0/30/a?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3')
+            format('opentype');
+        font-display: auto;
+        font-style: normal;
+        font-weight: 600;
+        font-stretch: normal;
       }
 
       header {
@@ -228,16 +818,22 @@
         margin: 0 auto;
         padding: 100px 0;
         font-size: 16px;
-        background: radial-gradient(closest-side, lch(80% 82.34 80.104 / .3), transparent);
+        background: radial-gradient(
+          closest-side,
+          lch(80% 82.34 80.104 / 0.3),
+          transparent
+        );
         display: grid;
         column-gap: 50px;
-        grid-template-areas: "logo header"
-                             "logo subheader"
-                             ". links";
+        grid-template-areas:
+          'logo header'
+          'logo subheader'
+          '. links';
       }
 
       header svg {
-        filter: drop-shadow(0 0 5px var(--gold-shadow)) drop-shadow(0 0 20px var(--gold-shadow));
+        filter: drop-shadow(0 0 5px var(--gold-shadow))
+          drop-shadow(0 0 20px var(--gold-shadow));
         grid-area: logo;
         place-self: center end;
         width: 100px;
@@ -257,13 +853,14 @@
         font-size: 100px;
         -webkit-text-stroke: 3px var(--gold-text);
         color: transparent;
-        filter: drop-shadow(0 0 3px var(--gold-shadow)) drop-shadow(0 0 15px var(--gold));
+        filter: drop-shadow(0 0 3px var(--gold-shadow))
+          drop-shadow(0 0 15px var(--gold));
         padding: 20px 0;
         margin: 0;
         letter-spacing: -0.02em;
       }
 
-      header h1::selection { 
+      header h1::selection {
         -webkit-text-stroke-color: #fffddd;
         background-color: var(--gold-text);
       }
@@ -284,7 +881,7 @@
         font-family: urbane-rounded;
         font-size: 1.05em;
         color: lch(90% 50.34 80.104);
-        filter: drop-shadow(0 0 8px lch(90% 50.34 80.104 / .7));
+        filter: drop-shadow(0 0 8px lch(90% 50.34 80.104 / 0.7));
         text-decoration-color: lch(90% 50.34 80.104 / 0);
         text-decoration-style: wavy;
         text-decoration-thickness: 2px;
@@ -340,10 +937,11 @@
 
       @media (width < 500px) {
         header {
-          grid-template-areas: "logo"
-                               "header"
-                               "subheader"
-                               "links";
+          grid-template-areas:
+            'logo'
+            'header'
+            'subheader'
+            'links';
           place-items: center;
           text-align: center;
           gap: 8px;
@@ -428,10 +1026,14 @@
       .warp {
         background: black;
         color: white;
-        background-image: radial-gradient(rgb(10 3 34 / .2), rgb(10 3 34 / .7)), url(lightspeed.svg);
+        background-image: radial-gradient(
+            rgb(10 3 34 / 0.2),
+            rgb(10 3 34 / 0.7)
+          ),
+          url(lightspeed.svg);
         background-size: cover;
         background-position: center center;
-        box-shadow: inset 0 0 0 1px rgb(255 255 255 / .15);
+        box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15);
       }
 
       .warp h3 {
@@ -453,7 +1055,13 @@
       }
 
       .crush {
-        background-image: url(crush.svg), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='rgb(0 0 0 / .2)' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E"), linear-gradient(to bottom right, lch(75% 82.34 80.104), lch(68% 82.34 80.104));
+        background-image: url(crush.svg),
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='rgb(0 0 0 / .2)' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E"),
+          linear-gradient(
+            to bottom right,
+            lch(75% 82.34 80.104),
+            lch(68% 82.34 80.104)
+          );
         background-size: 600px auto, auto, auto;
         background-repeat: no-repeat, repeat;
         background-position: bottom right;
@@ -469,7 +1077,7 @@
         text-shadow: 3px 3px 0 black;
         text-transform: uppercase;
         width: fit-content;
-        word-spacing: .1em;
+        word-spacing: 0.1em;
       }
 
       .crush figcaption {
@@ -499,8 +1107,9 @@
       .future {
         background: #215178;
         color: white;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='rgba(255,255,255,0.05)' fill-opacity='1'%3E%3Cpath opacity='.5' d='M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z'/%3E%3Cpath d='M6 5V0H5v5H0v1h5v94h1V6h94V5H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), radial-gradient(#1F4D97, #030B16);
-        box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='rgba(255,255,255,0.05)' fill-opacity='1'%3E%3Cpath opacity='.5' d='M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z'/%3E%3Cpath d='M6 5V0H5v5H0v1h5v94h1V6h94V5H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),
+          radial-gradient(#1f4d97, #030b16);
+        box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
         position: relative;
         --color: lch(85% 58 205);
       }
@@ -510,13 +1119,13 @@
         text-transform: uppercase;
         position: absolute;
         --height: 1.2em;
-        top: calc(var(--height) * -.5);
+        top: calc(var(--height) * -0.5);
         left: calc(var(--height) * 1.5);
         margin-left: -5px;
         background: var(--color);
-        filter: drop-shadow(0 0 8px var( --color));
+        filter: drop-shadow(0 0 8px var(--color));
         width: fit-content;
-        color: #030B16;
+        color: #030b16;
         margin-top: 0;
       }
 
@@ -537,7 +1146,7 @@
         right: 100%;
         width: 0;
         height: 0;
-        border-top: var(--height) solid var( --color);
+        border-top: var(--height) solid var(--color);
         border-left: var(--height) solid transparent;
       }
 
@@ -548,13 +1157,13 @@
         left: 100%;
         width: 0;
         height: 0;
-        border-bottom: var(--height) solid var( --color);
+        border-bottom: var(--height) solid var(--color);
         border-right: var(--height) solid transparent;
       }
 
       .future .inner {
         border: 2px solid var(--color);
-        box-shadow: 0 0 15px var( --color), inset 0 0 15px var( --color);
+        box-shadow: 0 0 15px var(--color), inset 0 0 15px var(--color);
         border-radius: 20px;
         padding: 20px;
         display: flex;
@@ -584,7 +1193,7 @@
       .future .box {
         --color: lch(64% 103 0);
         border: 2px solid var(--color);
-        background: lch(64% 103 0 / .15);
+        background: lch(64% 103 0 / 0.15);
         border-radius: 10px;
         box-shadow: 0 0 20px var(--color), inset 0 0 10px var(--color);
         padding: 15px;
@@ -603,7 +1212,7 @@
       }
 
       .future .box .title {
-        color: white
+        color: white;
       }
 
       .future .box .property {
@@ -629,12 +1238,12 @@
         vertical-align: middle;
         margin: 0;
         margin-right: 10px;
-        color: lch(85% 58 205 / .7);
+        color: lch(85% 58 205 / 0.7);
       }
 
       .future .targets {
-        border: 2px solid lch(85% 58 205 / .5);
-        box-shadow: 0 0 10px lch(85% 58 205 / .5);
+        border: 2px solid lch(85% 58 205 / 0.5);
+        box-shadow: 0 0 10px lch(85% 58 205 / 0.5);
         border-radius: 6px;
         padding: 8px;
         width: fit-content;
@@ -648,7 +1257,7 @@
 
       .future a {
         color: lch(85% 58 205);
-        text-shadow: 0 0 10px lch(85% 58 205 / .6);
+        text-shadow: 0 0 10px lch(85% 58 205 / 0.6);
       }
 
       @media (width < 1200px) {
@@ -656,8 +1265,9 @@
           flex-direction: column;
         }
 
-        .future .box, .future .targets {
-          margin-left: 0
+        .future .box,
+        .future .targets {
+          margin-left: 0;
         }
       }
 
@@ -669,24 +1279,28 @@
         .future .box {
           padding: 10px;
         }
-        
+
         .future .targets h4 {
           display: block;
         }
       }
 
       .parser {
-        background-image: linear-gradient(rgb(0 0 0 / .1), rgb(0 0 0 / .1)), image-set("metal.jpeg?as=webp&width=1200" 1x, "metal.jpeg?as=webp&width=2400" 2x);
+        background-image: linear-gradient(rgb(0 0 0 / 0.1), rgb(0 0 0 / 0.1)),
+          image-set(
+            'metal.jpeg?as=webp&width=1200' 1x,
+            'metal.jpeg?as=webp&width=2400' 2x
+          );
         background-size: cover;
         color: black;
         text-shadow: inset 0 2px 5px black;
         position: relative;
         --inset: 35px;
-        padding: calc(var(--padding) + var(--inset) * .6);
+        padding: calc(var(--padding) + var(--inset) * 0.6);
         display: flex;
         column-gap: 40px;
         row-gap: 20px;
-        box-shadow: inset 0 0 0 1px rgb(255 255 255 / .4);
+        box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.4);
       }
 
       .parser > * {
@@ -697,9 +1311,10 @@
         content: '';
         position: absolute;
         inset: calc(var(--inset) / 2);
-        border-radius: calc(var(--radius) * .8);
-        box-shadow: inset 2px 3px 10px rgb(0 0 0 / .7), 1px 1px 0 rgb(255 255 255 / .4);
-        background: rgb(0 0 0 / .05);
+        border-radius: calc(var(--radius) * 0.8);
+        box-shadow: inset 2px 3px 10px rgb(0 0 0 / 0.7),
+          1px 1px 0 rgb(255 255 255 / 0.4);
+        background: rgb(0 0 0 / 0.05);
         pointer-events: none;
         z-index: 0;
       }
@@ -708,9 +1323,10 @@
         content: '';
         position: absolute;
         inset: var(--inset);
-        border-radius: calc(var(--radius) * .4);
-        box-shadow: inset 1px 1px 0 rgb(255 255 255 / .4), 2px 3px 10px rgb(0 0 0 / .7);
-        background: rgb(255 255 255 / .25);
+        border-radius: calc(var(--radius) * 0.4);
+        box-shadow: inset 1px 1px 0 rgb(255 255 255 / 0.4),
+          2px 3px 10px rgb(0 0 0 / 0.7);
+        background: rgb(255 255 255 / 0.25);
         pointer-events: none;
         z-index: 1;
       }
@@ -719,8 +1335,8 @@
         font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
         letter-spacing: 2px;
         text-transform: uppercase;
-        text-shadow: 3px 3px 2px rgba(255,255,255,0.35);
-        background-color: rgba(0 0 0 / .65);
+        text-shadow: 3px 3px 2px rgba(255, 255, 255, 0.35);
+        background-color: rgba(0 0 0 / 0.65);
         color: transparent;
         -webkit-background-clip: text;
         background-clip: text;
@@ -739,10 +1355,10 @@
         width: fit-content;
         margin: 0;
         margin-right: -40px;
-        font-size: .6em;
+        font-size: 0.6em;
         display: flex;
         align-items: end;
-        text-shadow: 0 1px 0 rgb(255 255 255 / .6);
+        text-shadow: 0 1px 0 rgb(255 255 255 / 0.6);
         font-weight: bold;
         overflow: auto;
         max-width: 100%;
@@ -786,18 +1402,21 @@
           --inset: 25px;
         }
 
-        .parser p, .parser pre {
-          text-shadow: 0 1px 0 rgb(255 255 255 / .6);
+        .parser p,
+        .parser pre {
+          text-shadow: 0 1px 0 rgb(255 255 255 / 0.6);
         }
       }
 
       .modules {
         background: black;
-        box-shadow: 0 0 0 1px rgb(255 255 255 / .2), 2px 2px 5px rgb(255 255 255 / .2);
+        box-shadow: 0 0 0 1px rgb(255 255 255 / 0.2),
+          2px 2px 5px rgb(255 255 255 / 0.2);
         padding: 0;
         display: grid;
-        grid-template-areas: "main input  input"
-                             "main output json";
+        grid-template-areas:
+          'main input  input'
+          'main output json';
       }
 
       .modules .compartment {
@@ -806,7 +1425,9 @@
         border-radius: 40px;
         --shadow-size: 20px;
         --inner-shadow-size: 2px;
-        box-shadow: inset 0 0 0 1px rgb(255 255 255 / .15), inset -1px -1px var(--inner-shadow-size) rgb(255 255 255 / .3), inset 4px 8px var(--shadow-size) rgb(0 0 0 / .9);
+        box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15),
+          inset -1px -1px var(--inner-shadow-size) rgb(255 255 255 / 0.3),
+          inset 4px 8px var(--shadow-size) rgb(0 0 0 / 0.9);
         margin: 0;
         overflow: auto;
         background: #ba1921;
@@ -846,7 +1467,7 @@
         font-family: Georgia, 'Times New Roman', Times, serif;
         font-size: 0.87em;
       }
-      
+
       .modules pre {
         font-size: 14px;
       }
@@ -870,9 +1491,10 @@
 
       @media (width < 1200px) {
         .modules {
-          grid-template-areas: "main main"
-                               "input input"
-                               "output json";
+          grid-template-areas:
+            'main main'
+            'input input'
+            'output json';
         }
 
         .modules .compartment.main {
@@ -895,7 +1517,7 @@
 
       @media (width < 500px) {
         .modules {
-          grid-template-areas: "main" "input" "output" "json";
+          grid-template-areas: 'main' 'input' 'output' 'json';
         }
 
         .modules .compartment {

@@ -4,12 +4,21 @@
     <title>⚡️ Lightning CSS Playground</title>
     <style>
       @font-face {
-        font-family:"urbane-rounded";
-        src:url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff2"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/d?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/a?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("opentype");
-        font-display:auto;font-style:normal;font-weight:600;font-stretch:normal;
+        font-family: 'urbane-rounded';
+        src: url('https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3')
+            format('woff2'),
+          url('https://use.typekit.net/af/916187/00000000000000007735bfa0/30/d?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3')
+            format('woff'),
+          url('https://use.typekit.net/af/916187/00000000000000007735bfa0/30/a?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3')
+            format('opentype');
+        font-display: auto;
+        font-style: normal;
+        font-weight: 600;
+        font-stretch: normal;
       }
 
-      html, body {
+      html,
+      body {
         margin: 0;
         height: 100%;
         box-sizing: border-box;
@@ -77,8 +86,9 @@
 
       main {
         display: grid;
-        grid-template-areas: "sidebar source compiled         compiled"
-                             "sidebar visitor compiledModules compiledDependencies";
+        grid-template-areas:
+          'sidebar source compiled         compiled'
+          'sidebar visitor compiledModules compiledDependencies';
         grid-template-columns: auto 2fr 1fr 1fr;
         grid-template-rows: 1fr 1fr;
         flex: 1;
@@ -101,7 +111,7 @@
         overflow: hidden;
       }
 
-      #source[data-expanded=true] {
+      #source[data-expanded='true'] {
         grid-row: source-start / visitor-end;
       }
 
@@ -110,7 +120,7 @@
         overflow: hidden;
       }
 
-      #compiled[data-expanded=true] {
+      #compiled[data-expanded='true'] {
         grid-row: compiled-start / compiledDependencies-end;
         grid-column: compiled-start / compiledDependencies-end;
       }
@@ -125,8 +135,8 @@
         overflow: hidden;
       }
 
-      #compiledModules[data-expanded=true],
-      #compiledDependencies[data-expanded=true] {
+      #compiledModules[data-expanded='true'],
+      #compiledDependencies[data-expanded='true'] {
         grid-row: compiledModules-start;
         grid-column: compiledModules-start / compiledDependencies-end;
       }
@@ -155,33 +165,67 @@
   <body>
     <header>
       <svg class="logo" aria-hidden="true" viewBox="495 168 360 654">
-        <path class="outer" d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"/>
+        <path
+          class="outer"
+          d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"
+        />
       </svg>
       <h1>Lightning CSS Playground</h1>
-      <a href="https://github.com/parcel-bundler/lightningcss" target="_blank" aria-label="GitHub">
-        <svg class="github" aria-hidden="true" width="30" height="30" viewBox="0 0 20 20"> <title>GitHub</title> <path d="M10 0a10 10 0 0 0-3.16 19.49c.5.1.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.1.39-1.99 1.03-2.69a3.6 3.6 0 0 1 .1-2.64s.84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.3 2.75-1.02 2.75-1.02.55 1.37.2 2.4.1 2.64.64.7 1.03 1.6 1.03 2.69 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .26.18.58.69.48A10 10 0 0 0 10 0"></path> </svg>
+      <a
+        href="https://github.com/parcel-bundler/lightningcss"
+        target="_blank"
+        aria-label="GitHub"
+      >
+        <svg
+          class="github"
+          aria-hidden="true"
+          width="30"
+          height="30"
+          viewBox="0 0 20 20"
+        >
+          <title>GitHub</title>
+          <path
+            d="M10 0a10 10 0 0 0-3.16 19.49c.5.1.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.1.39-1.99 1.03-2.69a3.6 3.6 0 0 1 .1-2.64s.84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.3 2.75-1.02 2.75-1.02.55 1.37.2 2.4.1 2.64.64.7 1.03 1.6 1.03 2.69 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .26.18.58.69.48A10 10 0 0 0 10 0"
+          ></path>
+        </svg>
       </a>
     </header>
     <main>
       <form id="sidebar">
         <h3>Options</h3>
-        <label><input id="minify" type="checkbox" checked> Minify</label>
-        <label><input id="cssModules" type="checkbox"> CSS modules</label>
-        <label><input id="analyzeDependencies" type="checkbox"> Analyze dependencies</label>
-        <label><input id="visitorEnabled" type="checkbox"> Visitor</label>
+        <label><input id="minify" type="checkbox" checked /> Minify</label>
+        <label><input id="cssModules" type="checkbox" /> CSS modules</label>
+        <label
+          ><input id="analyzeDependencies" type="checkbox" /> Analyze
+          dependencies</label
+        >
+        <label><input id="visitorEnabled" type="checkbox" /> Visitor</label>
         <h3>Draft syntax</h3>
-        <label><input id="customMedia" type="checkbox" checked> Custom media queries</label>
+        <label
+          ><input id="customMedia" type="checkbox" checked /> Custom media
+          queries</label
+        >
         <h3>Targets</h3>
         <div class="targets">
-          <label><span>Chrome: </span><input id="chrome" type="number" value="95"></label>
-          <label><span>Firefox: </span><input id="firefox" type="number"></label>
-          <label><span>Safari: </span><input id="safari" type="number"></label>
-          <label><span>Opera: </span><input id="opera" type="number"></label>
-          <label><span>Edge: </span><input id="edge" type="number"></label>
-          <label><span>IE: </span><input id="ie" type="number"></label>
-          <label><span>iOS: </span><input id="ios_saf" type="number"></label>
-          <label><span>Android: </span><input id="android" type="number"></label>
-          <label><span>Samsung: </span><input id="samsung" type="number"></label>
+          <label
+            ><span>Chrome: </span><input id="chrome" type="number" value="95"
+          /></label>
+          <label
+            ><span>Firefox: </span><input id="firefox" type="number"
+          /></label>
+          <label
+            ><span>Safari: </span><input id="safari" type="number"
+          /></label>
+          <label><span>Opera: </span><input id="opera" type="number" /></label>
+          <label><span>Edge: </span><input id="edge" type="number" /></label>
+          <label><span>IE: </span><input id="ie" type="number" /></label>
+          <label><span>iOS: </span><input id="ios_saf" type="number" /></label>
+          <label
+            ><span>Android: </span><input id="android" type="number"
+          /></label>
+          <label
+            ><span>Samsung: </span><input id="samsung" type="number"
+          /></label>
         </div>
         <h3>Features</h3>
         <details>
@@ -194,11 +238,17 @@
         </details>
         <label>
           <h3>Unused symbols</h3>
-          <textarea id="unusedSymbols" rows="4" placeholder="Separate items with newlines"></textarea>
+          <textarea
+            id="unusedSymbols"
+            rows="4"
+            placeholder="Separate items with newlines"
+          ></textarea>
         </label>
         <label>
           <h3>Version</h3>
-          <select id="version"><option value="local">local</option></select>
+          <select id="version">
+            <option value="local">local</option>
+          </select>
         </label>
       </form>
       <div id="source"></div>

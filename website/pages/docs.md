@@ -19,13 +19,13 @@ npm install --save-dev lightningcss
 Once installed, import the module and call one of the Lightning CSS APIs. The `transform` function compiles a CSS stylesheet from a [Node Buffer](https://nodejs.org/api/buffer.html). This example minifies the input CSS, and outputs the compiled code and a source map.
 
 ```js
-import { transform } from 'lightningcss';
+import {transform} from 'lightningcss';
 
-let { code, map } = transform({
+let {code, map} = transform({
   filename: 'style.css',
   code: Buffer.from('.foo { color: red }'),
   minify: true,
-  sourceMap: true
+  sourceMap: true,
 });
 ```
 
@@ -67,7 +67,7 @@ See the [Parcel docs](https://parceljs.org/languages/css) for more details.
 The `lightningcss-wasm` package can be used in Deno or directly in browsers. This uses a WebAssembly build of Lightning CSS. Use `TextEncoder` and `TextDecoder` convert code from a string to a typed array and back.
 
 ```js
-import init, { transform } from 'https://esm.run/lightningcss-wasm';
+import init, {transform} from 'https://esm.run/lightningcss-wasm';
 
 await init();
 
@@ -105,7 +105,7 @@ module.exports = {
       new CssMinimizerPlugin({
         minify: CssMinimizerPlugin.lightningCssMinify,
         minimizerOptions: {
-          targets: lightningcss.browserslistToTargets(browserslist('>= 0.25%'))
+          targets: lightningcss.browserslistToTargets(browserslist('>= 0.25%')),
         },
       }),
     ],
@@ -131,12 +131,12 @@ export default {
   css: {
     transformer: 'lightningcss',
     lightningcss: {
-      targets: browserslistToTargets(browserslist('>= 0.25%'))
-    }
+      targets: browserslistToTargets(browserslist('>= 0.25%')),
+    },
   },
   build: {
-    cssMinify: 'lightningcss'
-  }
+    cssMinify: 'lightningcss',
+  },
 };
 ```
 

@@ -11,11 +11,11 @@ Lightning CSS supports bundling dependencies referenced by CSS `@import` rules i
 This API requires filesystem access, so it does not accept `code` directly via the API. Instead, the `filename` option is used to read the entry file directly.
 
 ```js
-import { bundle } from 'lightningcss';
+import {bundle} from 'lightningcss';
 
-let { code, map } = bundle({
+let {code, map} = bundle({
   filename: 'style.css',
-  minify: true
+  minify: true,
 });
 ```
 
@@ -43,34 +43,46 @@ The `@import` rule can be conditional by appending a media query or `supports()`
 
 ```css
 /* a.css */
-@import "b.css" print;
-@import "c.css" supports(display: grid);
+@import 'b.css' print;
+@import 'c.css' supports(display: grid);
 
-.a { color: red }
+.a {
+  color: red;
+}
 ```
 
 ```css
 /* b.css */
-.b { color: green }
+.b {
+  color: green;
+}
 ```
 
 ```css
 /* c.css */
-.c { display: grid }
+.c {
+  display: grid;
+}
 ```
 
 compiles to:
 
 ```css
 @media print {
-  .b { color: green }
+  .b {
+    color: green;
+  }
 }
 
 @supports (display: grid) {
-  .c { display: grid }
+  .c {
+    display: grid;
+  }
 }
 
-.a { color: red }
+.a {
+  color: red;
+}
 ```
 
 <div class="warning">
@@ -88,33 +100,45 @@ Imported CSS rules can also be placed into a CSS cascade layer, allowing you to 
 
 ```css
 /* a.css */
-@import "b.css" layer(foo);
-.a { color: red }
+@import 'b.css' layer(foo);
+.a {
+  color: red;
+}
 ```
 
 ```css
 /* b.css */
-@import "c.css" layer(bar);
-.b { color: green }
+@import 'c.css' layer(bar);
+.b {
+  color: green;
+}
 ```
 
 ```css
 /* c.css */
-.c { color: green }
+.c {
+  color: green;
+}
 ```
 
 compiles to:
 
 ```css
 @layer foo.bar {
-  .c { color: green }
+  .c {
+    color: green;
+  }
 }
 
 @layer foo {
-  .b { color: green }
+  .b {
+    color: green;
+  }
 }
 
-.a { color: red }
+.a {
+  color: red;
+}
 ```
 
 <div class="warning">
@@ -132,25 +156,31 @@ When `@import` rules are processed in browsers, if the same file appears more th
 
 ```css
 /* index.css */
-@import "a.css";
-@import "b.css";
-@import "a.css";
+@import 'a.css';
+@import 'b.css';
+@import 'a.css';
 ```
 
 ```css
 /* a.css */
-body { background: green }
+body {
+  background: green;
+}
 ```
 
 ```css
 /* b.css */
-body { background: red }
+body {
+  background: red;
+}
 ```
 
 compiles to:
 
 ```css
-body { background: green }
+body {
+  background: green;
+}
 ```
 
 ## Custom resolvers
@@ -158,9 +188,9 @@ body { background: green }
 The `bundleAsync` API is an asynchronous version of `bundle`, which also accepts a custom `resolver` object. This allows you to provide custom JavaScript functions for resolving `@import` specifiers to file paths, and reading files from the file system (or another source). The `read` and `resolve` functions are both optional, and may either return a string synchronously, or a Promise for asynchronous resolution.
 
 ```js
-import { bundleAsync } from 'lightningcss';
+import {bundleAsync} from 'lightningcss';
 
-let { code, map } = await bundleAsync({
+let {code, map} = await bundleAsync({
   filename: 'style.css',
   minify: true,
   resolver: {
@@ -169,8 +199,8 @@ let { code, map } = await bundleAsync({
     },
     resolve(specifier, from) {
       return path.resolve(path.dirname(from), specifier);
-    }
-  }
+    },
+  },
 });
 ```
 

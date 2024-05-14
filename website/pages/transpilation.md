@@ -16,15 +16,15 @@ Targets are defined using an object that specifies the minimum version of each b
 
 ```js
 import browserslist from 'browserslist';
-import { transform, browserslistToTargets } from 'lightningcss';
+import {transform, browserslistToTargets} from 'lightningcss';
 
 // Call this once per build.
 let targets = browserslistToTargets(browserslist('>= 0.25%'));
 
 // Use `targets` for each file you transform.
-let { code, map } = transform({
+let {code, map} = transform({
   // ...
-  targets
+  targets,
 });
 ```
 
@@ -34,7 +34,7 @@ Under the hood, `targets` are represented using an object that maps browser name
 
 ```js
 let targets = {
-  safari: (13 << 16) | (2 << 8)
+  safari: (13 << 16) | (2 << 8),
 };
 ```
 
@@ -76,15 +76,15 @@ The `include` and `exclude` options allow you to explicitly turn on or off certa
 The `include` and `exclude` options are configured using the `Features` enum, which can be imported from `lightningcss`. You can bitwise OR multiple flags together to turn them on or off.
 
 ```js
-import { transform, Features } from 'lightningcss';
+import {transform, Features} from 'lightningcss';
 
-let { code, map } = transform({
+let {code, map} = transform({
   // ...
   targets,
   // Always compile colors and CSS nesting, regardless of browser targets.
   include: Features.Colors | Features.Nesting,
   // Never add any vendor prefixes, regardless of targets.
-  exclude: Features.VendorPrefixes
+  exclude: Features.VendorPrefixes,
 });
 ```
 
@@ -92,35 +92,35 @@ Here is a full list of available flags, described in the sections below:
 
 <div class="features">
 
-* `Nesting`
-* `NotSelectorList`
-* `DirSelector`
-* `LangSelectorList`
-* `IsSelector`
-* `TextDecorationThicknessPercent`
-* `MediaIntervalSyntax`
-* `MediaRangeSyntax`
-* `CustomMediaQueries`
-* `ClampFunction`
-* `ColorFunction`
-* `OklabColors`
-* `LabColors`
-* `P3Colors`
-* `HexAlphaColors`
-* `SpaceSeparatedColorNotation`
-* `FontFamilySystemUi`
-* `DoublePositionGradients`
-* `VendorPrefixes`
-* `LogicalProperties`
-* `Selectors` – shorthand for `Nesting | NotSelectorList | DirSelector | LangSelectorList | IsSelector`
-* `MediaQueries` – shorthand for `MediaIntervalSyntax | MediaRangeSyntax | CustomMediaQueries`
-* `Colors` – shorthand for `ColorFunction | OklabColors | LabColors | P3Colors | HexAlphaColors | SpaceSeparatedColorNotation`
+- `Nesting`
+- `NotSelectorList`
+- `DirSelector`
+- `LangSelectorList`
+- `IsSelector`
+- `TextDecorationThicknessPercent`
+- `MediaIntervalSyntax`
+- `MediaRangeSyntax`
+- `CustomMediaQueries`
+- `ClampFunction`
+- `ColorFunction`
+- `OklabColors`
+- `LabColors`
+- `P3Colors`
+- `HexAlphaColors`
+- `SpaceSeparatedColorNotation`
+- `FontFamilySystemUi`
+- `DoublePositionGradients`
+- `VendorPrefixes`
+- `LogicalProperties`
+- `Selectors` – shorthand for `Nesting | NotSelectorList | DirSelector | LangSelectorList | IsSelector`
+- `MediaQueries` – shorthand for `MediaIntervalSyntax | MediaRangeSyntax | CustomMediaQueries`
+- `Colors` – shorthand for `ColorFunction | OklabColors | LabColors | P3Colors | HexAlphaColors | SpaceSeparatedColorNotation`
 
 </div>
 
 ## Vendor prefixing
 
-Based on your configured browser targets, Lightning CSS automatically adds vendor prefixed fallbacks for many CSS features. For example, when using the [`image-set()`](https://developer.mozilla.org/en-US/docs/Web/CSS/image/image-set()) function, Lightning CSS will output a fallback `-webkit-image-set()` value as well, since Chrome does not yet support the unprefixed value.
+Based on your configured browser targets, Lightning CSS automatically adds vendor prefixed fallbacks for many CSS features. For example, when using the [`image-set()`](<https://developer.mozilla.org/en-US/docs/Web/CSS/image/image-set()>) function, Lightning CSS will output a fallback `-webkit-image-set()` value as well, since Chrome does not yet support the unprefixed value.
 
 ```css
 .logo {
@@ -133,7 +133,7 @@ compiles to:
 ```css
 .logo {
   background: -webkit-image-set(url(logo.png) 2x, url(logo.png) 1x);
-  background: image-set("logo.png" 2x, "logo.png");
+  background: image-set('logo.png' 2x, 'logo.png');
 }
 ```
 
@@ -151,7 +151,7 @@ becomes:
 
 ```css
 .button {
-  transition: background .2s;
+  transition: background 0.2s;
 }
 ```
 
@@ -251,7 +251,7 @@ compiles to:
 
 ### LAB colors
 
-Lightning CSS will convert [`lab()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/lab()), [`lch()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/lch()), [`oklab()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklab), and [`oklch()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklch) colors to fallback values for unsupported browsers when needed. These functions allow you to define colors in higher gamut color spaces, making it possible to use colors that cannot be represented by RGB.
+Lightning CSS will convert [`lab()`](<https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/lab()>), [`lch()`](<https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/lch()>), [`oklab()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklab), and [`oklch()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklch) colors to fallback values for unsupported browsers when needed. These functions allow you to define colors in higher gamut color spaces, making it possible to use colors that cannot be represented by RGB.
 
 ```css
 .foo {
@@ -264,7 +264,7 @@ compiles to:
 ```css
 .foo {
   color: #b32323;
-  color: color(display-p3 .643308 .192455 .167712);
+  color: color(display-p3 0.643308 0.192455 0.167712);
   color: lab(40% 56.6 39);
 }
 ```
@@ -273,7 +273,7 @@ As shown above, a `display-p3` fallback is included in addition to RGB when a ta
 
 ### Color function
 
-Lightning CSS converts the [`color()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/color()) function to RGB when needed for compatibility with older browsers. This allows you to use predefined color spaces such as `display-p3`, `xyz`, and `a98-rgb`.
+Lightning CSS converts the [`color()`](<https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/color()>) function to RGB when needed for compatibility with older browsers. This allows you to use predefined color spaces such as `display-p3`, `xyz`, and `a98-rgb`.
 
 ```css
 .foo {
@@ -286,7 +286,7 @@ compiles to:
 ```css
 .foo {
   background-color: #6a805d;
-  background-color: color(a98-rgb .44091 .49971 .37408);
+  background-color: color(a98-rgb 0.44091 0.49971 0.37408);
 }
 ```
 
@@ -323,7 +323,7 @@ compiles to:
 
 ```css
 .foo {
-  color: rgba(123, 255, 255, .5);
+  color: rgba(123, 255, 255, 0.5);
   background: #7bffff;
 }
 ```
@@ -339,11 +339,11 @@ html {
   color-scheme: light dark;
 }
 
-html[data-theme=light] {
+html[data-theme='light'] {
   color-scheme: light;
 }
 
-html[data-theme=dark] {
+html[data-theme='dark'] {
   color-scheme: dark;
 }
 
@@ -368,13 +368,13 @@ html {
   }
 }
 
-html[data-theme="light"] {
+html[data-theme='light'] {
   --lightningcss-light: initial;
   --lightningcss-dark: ;
   color-scheme: light;
 }
 
-html[data-theme="dark"] {
+html[data-theme='dark'] {
   --lightningcss-light: ;
   --lightningcss-dark: initial;
   color-scheme: dark;
@@ -387,11 +387,11 @@ button {
 
 ### Logical properties
 
-CSS [logical properties](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Logical_Properties) allow you to define values in terms of writing direction, so that UIs mirror in right-to-left languages. Lightning CSS will compile these to use the `:dir()` selector when unsupported. If the `:dir()` selector is unsupported, it is compiled as described [below](#%3Adir()-selector).
+CSS [logical properties](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Logical_Properties) allow you to define values in terms of writing direction, so that UIs mirror in right-to-left languages. Lightning CSS will compile these to use the `:dir()` selector when unsupported. If the `:dir()` selector is unsupported, it is compiled as described [below](<#%3Adir()-selector>).
 
 ```css
 .foo {
-  border-start-start-radius: 20px
+  border-start-start-radius: 20px;
 }
 ```
 
@@ -407,26 +407,45 @@ compiles to:
 }
 ```
 
-
 ### :dir() selector
 
 The [`:dir()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:dir) selector matches elements based on the writing direction. Lightning CSS compiles this to use the `:lang()` selector when unsupported, which approximates this behavior as closely as possible.
 
 ```css
 a:dir(rtl) {
-  color:red
+  color: red;
 }
 ```
 
 compiles to:
 
 ```css
-a:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+a:lang(
+    ae,
+    ar,
+    arc,
+    bcc,
+    bqi,
+    ckb,
+    dv,
+    fa,
+    glk,
+    he,
+    ku,
+    mzn,
+    nqo,
+    pnb,
+    ps,
+    sd,
+    ug,
+    ur,
+    yi
+  ) {
   color: red;
 }
 ```
 
-If multiple arguments to `:lang()` are unsupported, it is compiled as described [below](#%3Alang()-selector).
+If multiple arguments to `:lang()` are unsupported, it is compiled as described [below](<#%3Alang()-selector>).
 
 ### :lang() selector
 
@@ -434,7 +453,7 @@ The [`:lang()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:lang) selector
 
 ```css
 a:lang(en, fr) {
-  color:red
+  color: red;
 }
 ```
 
@@ -446,7 +465,7 @@ a:is(:lang(en), :lang(fr)) {
 }
 ```
 
-When the `:is()` selector is unsupported, it is compiled as described [below](#%3Ais()-selector).
+When the `:is()` selector is unsupported, it is compiled as described [below](<#%3Ais()-selector>).
 
 ### :is() selector
 
@@ -522,7 +541,9 @@ compiles to:
 
 ```css
 @media (480px <= width <= 768px) {
-  .foo { color: red }
+  .foo {
+    color: red;
+  }
 }
 ```
 
@@ -530,7 +551,9 @@ compiles to:
 
 ```css
 @media (min-width: 480px) and (max-width: 768px) {
-  .foo { color: red }
+  .foo {
+    color: red;
+  }
 }
 ```
 
@@ -538,10 +561,10 @@ compiles to:
 
 Lightning CSS compiles the following shorthands to corresponding longhands when the shorthand is not supported in all target browsers:
 
-* Alignment shorthands: [place-items](https://developer.mozilla.org/en-US/docs/Web/CSS/place-items), [place-content](https://developer.mozilla.org/en-US/docs/Web/CSS/place-content), [place-self](https://developer.mozilla.org/en-US/docs/Web/CSS/place-self)
-* [Overflow shorthand](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow) with multiple values (e.g. `overflow: hidden auto`)
-* [text-decoration](https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration) with thickness, style, color, etc.
-* Two value [display](https://developer.mozilla.org/en-US/docs/Web/CSS/display) syntax (e.g. `display: inline flex`)
+- Alignment shorthands: [place-items](https://developer.mozilla.org/en-US/docs/Web/CSS/place-items), [place-content](https://developer.mozilla.org/en-US/docs/Web/CSS/place-content), [place-self](https://developer.mozilla.org/en-US/docs/Web/CSS/place-self)
+- [Overflow shorthand](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow) with multiple values (e.g. `overflow: hidden auto`)
+- [text-decoration](https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration) with thickness, style, color, etc.
+- Two value [display](https://developer.mozilla.org/en-US/docs/Web/CSS/display) syntax (e.g. `display: inline flex`)
 
 ### Double position gradients
 
@@ -575,7 +598,8 @@ compiles to:
 
 ```css
 .foo {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
+    Noto Sans, Ubuntu, Cantarell, Helvetica Neue;
 }
 ```
 
@@ -593,7 +617,9 @@ For example:
 @custom-media --modern (color), (hover);
 
 @media (--modern) and (width > 1024px) {
-  .a { color: green; }
+  .a {
+    color: green;
+  }
 }
 ```
 
@@ -601,18 +627,20 @@ is equivalent to:
 
 ```css
 @media ((color) or (hover)) and (width > 1024px) {
-  .a { color: green; }
+  .a {
+    color: green;
+  }
 }
 ```
 
 Because custom media queries are a draft, they are not enabled by default. To use them, enable the `customMedia` option under `drafts` when calling the Lightning CSS API. When using the CLI, enable the `--custom-media` flag.
 
 ```js
-let { code, map } = transform({
+let {code, map} = transform({
   // ...
   drafts: {
-    customMedia: true
-  }
+    customMedia: true,
+  },
 });
 ```
 
@@ -621,11 +649,11 @@ let { code, map } = transform({
 Lightning CSS supports replacing CSS pseudo classes such as `:focus-visible` with normal CSS classes that can be applied using JavaScript. This makes it possible to polyfill these pseudo classes for older browsers.
 
 ```js
-let { code, map } = transform({
+let {code, map} = transform({
   // ...
   pseudoClasses: {
-    focusVisible: 'focus-visible'
-  }
+    focusVisible: 'focus-visible',
+  },
 });
 ```
 
@@ -633,26 +661,25 @@ The above configuration will result in the `:focus-visible` pseudo class in all 
 
 The following pseudo classes may be configured as shown above:
 
-* `hover` – corresponds to the `:hover` pseudo class
-* `active` – corresponds to the `:active` pseudo class
-* `focus` – corresponds to the `:focus` pseudo class
-* `focusVisible` – corresponds to the `:focus-visible` pseudo class
-* `focusWithin` – corresponds to the `:focus-within` pseudo class
+- `hover` – corresponds to the `:hover` pseudo class
+- `active` – corresponds to the `:active` pseudo class
+- `focus` – corresponds to the `:focus` pseudo class
+- `focusVisible` – corresponds to the `:focus-visible` pseudo class
+- `focusWithin` – corresponds to the `:focus-within` pseudo class
 
 ## Non-standard syntax
 
 For compatibility with other tools, Lightning CSS supports parsing some non-standard CSS syntax. This must be enabled by turning on a flag under the `nonStandard` option.
 
 ```js
-let { code, map } = transform({
+let {code, map} = transform({
   // ...
   nonStandard: {
-    deepSelectorCombinator: true
-  }
+    deepSelectorCombinator: true,
+  },
 });
-
 ```
 
 Currently the following features are supported:
 
-* `deepSelectorCombinator` – enables parsing the Vue/Angular `>>>` and `/deep/` selector combinators.
+- `deepSelectorCombinator` – enables parsing the Vue/Angular `>>>` and `/deep/` selector combinators.

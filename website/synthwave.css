@@ -3,10 +3,10 @@
  * Originally ported for PrismJS by Marc Backes [@themarcba]
  */
 
-pre[class*="language-"] {
+pre[class*='language-'] {
   color: lab(64% 103 0);
-  text-shadow: 0 0 10px lab(64% 103 0 / .5);
-  background: rgb(255 255 255 / .05);
+  text-shadow: 0 0 10px lab(64% 103 0 / 0.5);
+  background: rgb(255 255 255 / 0.05);
   display: block;
   padding: 20px;
   border-radius: 8px;
@@ -30,16 +30,16 @@ pre[class*="language-"] {
 }
 
 /* Code blocks */
-pre[class*="language-"] {
+pre[class*='language-'] {
   padding: 1em;
-  margin: .5em 0;
+  margin: 0.5em 0;
   overflow: auto;
 }
 
 /* Inline code */
-:not(pre) > code[class*="language-"] {
-  padding: .1em;
-  border-radius: .3em;
+:not(pre) > code[class*='language-'] {
+  padding: 0.1em;
+  border-radius: 0.3em;
   white-space: normal;
 }
 
@@ -65,13 +65,13 @@ pre[class*="language-"] {
 .token.deleted,
 .token.function {
   color: lch(65% 85 35);
-  text-shadow: 0 0 10px lch(65% 85 35 / .5);
+  text-shadow: 0 0 10px lch(65% 85 35 / 0.5);
 }
 
 .token.property,
 .token.selector {
   color: lch(85% 58 205);
-  text-shadow: 0 0 10px lch(85% 58 205 / .5);
+  text-shadow: 0 0 10px lch(85% 58 205 / 0.5);
 }
 
 .token.function-name {
@@ -81,12 +81,14 @@ pre[class*="language-"] {
 .token.boolean,
 .token.selector .token.id {
   color: #fdfdfd;
-  text-shadow: 0 0 2px #001716, 0 0 3px #03edf975, 0 0 5px #03edf975, 0 0 8px #03edf975;
+  text-shadow: 0 0 2px #001716, 0 0 3px #03edf975, 0 0 5px #03edf975,
+    0 0 8px #03edf975;
 }
 
 .token.class-name {
   color: #fff5f6;
-  text-shadow: 0 0 2px #000, 0 0 10px #fc1f2c75, 0 0 5px #fc1f2c75, 0 0 25px #fc1f2c75;
+  text-shadow: 0 0 2px #000, 0 0 10px #fc1f2c75, 0 0 5px #fc1f2c75,
+    0 0 25px #fc1f2c75;
 }
 
 .token.constant,
@@ -112,7 +114,7 @@ pre[class*="language-"] {
 .token.variable,
 .token.url {
   color: lch(85% 82.34 80.104);
-  text-shadow: 0 0 10px lch(85% 82.34 80.104 / .5);
+  text-shadow: 0 0 10px lch(85% 82.34 80.104 / 0.5);
 }
 
 .token.operator,
