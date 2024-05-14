@@ -1169,15 +1169,9 @@ fn parse_predefined_relative<'i, 't>(
 
   // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
   // The browser will gamut-map the color for the target device that it is rendered on.
-  let a = input
-    .try_parse(|input| parse_number_or_percentage(input, parser))
-    .unwrap_or(0.0);
-  let b = input
-    .try_parse(|input| parse_number_or_percentage(input, parser))
-    .unwrap_or(0.0);
-  let c = input
-    .try_parse(|input| parse_number_or_percentage(input, parser))
-    .unwrap_or(0.0);
+  let a = input.try_parse(|input| parse_number_or_percentage(input, parser))?;
+  let b = input.try_parse(|input| parse_number_or_percentage(input, parser))?;
+  let c = input.try_parse(|input| parse_number_or_percentage(input, parser))?;
   let alpha = parse_alpha(input, parser)?;
 
   let res = match_ignore_ascii_case! { &*&colorspace,
@@ -1429,18 +1423,12 @@ where
 
   dest.write_str("color(")?;
   dest.write_str(name)?;
-  if !dest.minify || a != 0.0 || b != 0.0 || c != 0.0 {
-    dest.write_char(' ')?;
-    write_component(a, dest)?;
-    if !dest.minify || b != 0.0 || c != 0.0 {
-      dest.write_char(' ')?;
-      write_component(b, dest)?;
-      if !dest.minify || c != 0.0 {
-        dest.write_char(' ')?;
-        write_component(c, dest)?;
-      }
-    }
-  }
+  dest.write_char(' ')?;
+  write_component(a, dest)?;
+  dest.write_char(' ')?;
+  write_component(b, dest)?;
+  dest.write_char(' ')?;
+  write_component(c, dest)?;
 
   if alpha.is_nan() || (alpha - 1.0).abs() > f32::EPSILON {
     dest.delim('/', true)?;

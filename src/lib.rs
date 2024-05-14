@@ -16040,11 +16040,11 @@ mod tests {
     );
     minify_test(
       ".foo { color: color(display-p3 1 0.5 0); }",
-      ".foo{color:color(display-p3 1 .5)}",
+      ".foo{color:color(display-p3 1 .5 0)}",
     );
     minify_test(
       ".foo { color: color(display-p3 100% 50% 0%); }",
-      ".foo{color:color(display-p3 1 .5)}",
+      ".foo{color:color(display-p3 1 .5 0)}",
     );
     minify_test(
       ".foo { color: color(xyz-d50 0.2005 0.14089 0.4472); }",
@@ -16070,24 +16070,27 @@ mod tests {
       ".foo { color: color(xyz 20.05% 14.089% 44.72%); }",
       ".foo{color:color(xyz .2005 .14089 .4472)}",
     );
-    minify_test(".foo { color: color(xyz 0.2005 0 0); }", ".foo{color:color(xyz .2005)}");
-    minify_test(".foo { color: color(xyz 0 0 0); }", ".foo{color:color(xyz)}");
-    minify_test(".foo { color: color(xyz 0 1 0); }", ".foo{color:color(xyz 0 1)}");
-    minify_test(".foo { color: color(xyz 0 1); }", ".foo{color:color(xyz 0 1)}");
-    minify_test(".foo { color: color(xyz 1); }", ".foo{color:color(xyz 1)}");
-    minify_test(".foo { color: color(xyz); }", ".foo{color:color(xyz)}");
+    minify_test(
+      ".foo { color: color(xyz 0.2005 0 0); }",
+      ".foo{color:color(xyz .2005 0 0)}",
+    );
+    minify_test(".foo { color: color(xyz 0 0 0); }", ".foo{color:color(xyz 0 0 0)}");
+    minify_test(".foo { color: color(xyz 0 1 0); }", ".foo{color:color(xyz 0 1 0)}");
     minify_test(
       ".foo { color: color(xyz 0 1 0 / 20%); }",
-      ".foo{color:color(xyz 0 1/.2)}",
+      ".foo{color:color(xyz 0 1 0/.2)}",
     );
-    minify_test(".foo { color: color(xyz / 20%); }", ".foo{color:color(xyz/.2)}");
+    minify_test(
+      ".foo { color: color(xyz 0 0 0 / 20%); }",
+      ".foo{color:color(xyz 0 0 0/.2)}",
+    );
     minify_test(
       ".foo { color: color(display-p3 100% 50% 0 / 20%); }",
-      ".foo{color:color(display-p3 1 .5/.2)}",
+      ".foo{color:color(display-p3 1 .5 0/.2)}",
     );
     minify_test(
-      ".foo { color: color(display-p3 100% / 20%); }",
-      ".foo{color:color(display-p3 1/.2)}",
+      ".foo { color: color(display-p3 100% 0 0 / 20%); }",
+      ".foo{color:color(display-p3 1 0 0/.2)}",
     );
     minify_test(".foo { color: hsl(none none none) }", ".foo{color:#000}");
     minify_test(".foo { color: hwb(none none none) }", ".foo{color:red}");
@@ -20034,7 +20037,7 @@ mod tests {
           ".foo {{ color: color-mix(in {0}, color({0} -2 -3 -4 / -5), color({0} -4 -6 -8 / -10)) }}",
           color_space
         ),
-        &format!(".foo{{color:color({}/0)}}", result_color_space),
+        &format!(".foo{{color:color({} 0 0 0/0)}}", result_color_space),
       );
 
       minify_test(
