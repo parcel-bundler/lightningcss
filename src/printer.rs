@@ -267,30 +267,32 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
   /// Writes a CSS identifier to the underlying destination, escaping it
   /// as appropriate. If the `css_modules` option was enabled, then a hash
   /// is added, and the mapping is added to the CSS module.
-  pub fn write_ident(&mut self, ident: &str) -> Result<(), PrinterError> {
-    if let Some(css_module) = &mut self.css_module {
-      let dest = &mut self.dest;
-      let mut first = true;
-      css_module.config.pattern.write(
-        &css_module.hashes[self.loc.source_index as usize],
-        &css_module.sources[self.loc.source_index as usize],
-        ident,
-        |s| {
-          self.col += s.len() as u32;
-          if first {
-            first = false;
-            serialize_identifier(s, dest)
-          } else {
-            serialize_name(s, dest)
-          }
-        },
-      )?;
+  pub fn write_ident(&mut self, ident: &str, handle_css_module: bool) -> Result<(), PrinterError> {
+    if handle_css_module {
+      if let Some(css_module) = &mut self.css_module {
+        let dest = &mut self.dest;
+        let mut first = true;
+        css_module.config.pattern.write(
+          &css_module.hashes[self.loc.source_index as usize],
+          &css_module.sources[self.loc.source_index as usize],
+          ident,
+          |s| {
+            self.col += s.len() as u32;
+            if first {
+              first = false;
+              serialize_identifier(s, dest)
+            } else {
+              serialize_name(s, dest)
+            }
+          },
+        )?;
 
-      css_module.add_local(&ident, &ident, self.loc.source_index);
-    } else {
-      serialize_identifier(ident, self)?;
+        css_module.add_local(&ident, &ident, self.loc.source_index);
+        return Ok(());
+      }
     }
 
+    serialize_identifier(ident, self)?;
     Ok(())
   }
 

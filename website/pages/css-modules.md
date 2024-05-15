@@ -13,16 +13,16 @@ CSS modules treat the classes defined in each file as unique. Each class name or
 To enable CSS modules, provide the `cssModules` option when calling the Lightning CSS API. When using the CLI, enable the `--css-modules` flag.
 
 ```js
-import { transform } from 'lightningcss';
+import {transform} from 'lightningcss';
 
-let { code, map, exports } = transform({
+let {code, map, exports} = transform({
   // ...
   cssModules: true,
   code: Buffer.from(`
     .logo {
       background: skyblue;
     }
-  `)
+  `),
 });
 ```
 
@@ -89,7 +89,7 @@ You can also reference class names defined in a different CSS file using the `fr
 
 ```css
 .logo {
-  composes: bg-indigo from "./colors.module.css";
+  composes: bg-indigo from './colors.module.css';
 }
 ```
 
@@ -150,10 +150,10 @@ compiles to:
 By default, class names, id selectors, and the names of `@keyframes`, `@counter-style`, and CSS grid lines and areas are scoped to the module they are defined in. Scoping for CSS variables and other [`<dashed-ident>`](https://www.w3.org/TR/css-values-4/#dashed-idents) names can also be enabled using the `dashedIdents` option when calling the Lightning CSS API. When using the CLI, enable the `--css-modules-dashed-idents` flag.
 
 ```js
-let { code, map, exports } = transform({
+let {code, map, exports} = transform({
   // ...
   cssModules: {
-    dashedIdents: true
+    dashedIdents: true,
   },
 });
 ```
@@ -186,7 +186,7 @@ You can also reference variables defined in other files using the `from` keyword
 
 ```css
 .button {
-  background: var(--accent-color from "./vars.module.css");
+  background: var(--accent-color from './vars.module.css');
 }
 ```
 
@@ -207,19 +207,19 @@ By default, Lightning CSS prepends the hash of the filename to each class name a
 A pattern is a string with placeholders that will be filled in by Lightning CSS. This allows you to add custom prefixes or adjust the naming convention for scoped classes.
 
 ```js
-let { code, map, exports } = transform({
+let {code, map, exports} = transform({
   // ...
   cssModules: {
-    pattern: 'my-company-[name]-[hash]-[local]'
-  }
+    pattern: 'my-company-[name]-[hash]-[local]',
+  },
 });
 ```
 
 The following placeholders are currently supported:
 
-* `[name]` - The base name of the file, without the extension.
-* `[hash]` - A hash of the full file path.
-* `[local]` - The original class name or identifier.
+- `[name]` - The base name of the file, without the extension.
+- `[hash]` - A hash of the full file path.
+- `[local]` - The original class name or identifier.
 
 <div class="warning">
 
@@ -231,7 +231,7 @@ The following placeholders are currently supported:
 let { code, map, exports } = transform({
   // ...
   cssModules: {
-    // ❌ [local] must be at the end so that 
+    // ❌ [local] must be at the end so that
     // auto-generated grid line names work
     pattern: '[local]-[hash]'
     // ✅ do this instead
@@ -242,7 +242,7 @@ let { code, map, exports } = transform({
 
 ```css
 .grid {
-  grid-template-areas: "nav main";
+  grid-template-areas: 'nav main';
 }
 
 .nav {
@@ -252,10 +252,25 @@ let { code, map, exports } = transform({
 
 </div>
 
+## Turning off feature scoping
+
+Scoping of grid, animations, and custom identifiers can be turned off. By default all of these are scoped.
+
+```js
+let {code, map, exports} = transform({
+  // ...
+  cssModules: {
+    animation: true,
+    grid: true,
+    customIdents: true,
+  },
+});
+```
+
 ## Unsupported features
 
 Lightning CSS does not currently implement all CSS modules features available in other implementations. Some of these may be added in the future.
 
-* Non-function syntax for the `:local` and `:global` pseudo classes.
-* The `@value` rule – superseded by standard CSS variables.
-* The `:import` and `:export` ICSS rules.
+- Non-function syntax for the `:local` and `:global` pseudo classes.
+- The `@value` rule – superseded by standard CSS variables.
+- The `:import` and `:export` ICSS rules.

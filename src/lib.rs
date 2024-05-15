@@ -64,6 +64,7 @@ mod tests {
   use crate::vendor_prefix::VendorPrefix;
   use cssparser::SourceLocation;
   use indoc::indoc;
+  use pretty_assertions::assert_eq;
   use std::collections::HashMap;
 
   fn test(source: &str, expected: &str) {
@@ -23053,6 +23054,97 @@ mod tests {
       Default::default(),
     );
 
+    css_modules_test(
+      r#"
+      .foo {
+        color: red;
+      }
+
+      #id {
+        animation: 2s test;
+      }
+
+      @keyframes test {
+        from { color: red }
+        to { color: yellow }
+      }
+    "#,
+      indoc! {r#"
+      .EgL3uq_foo {
+        color: red;
+      }
+
+      #EgL3uq_id {
+        animation: 2s test;
+      }
+
+      @keyframes test {
+        from {
+          color: red;
+        }
+
+        to {
+          color: #ff0;
+        }
+      }
+    "#},
+      map! {
+        "foo" => "EgL3uq_foo",
+        "id" => "EgL3uq_id"
+      },
+      HashMap::new(),
+      crate::css_modules::Config {
+        animation: false,
+        // custom_idents: false,
+        ..Default::default()
+      },
+    );
+
+    css_modules_test(
+      r#"
+      @counter-style circles {
+        symbols: Ⓐ Ⓑ Ⓒ;
+      }
+
+      ul {
+        list-style: circles;
+      }
+
+      ol {
+        list-style-type: none;
+      }
+
+      li {
+        list-style-type: disc;
+      }
+    "#,
+      indoc! {r#"
+      @counter-style circles {
+        symbols: Ⓐ Ⓑ Ⓒ;
+      }
+
+      ul {
+        list-style: circles;
+      }
+
+      ol {
+        list-style-type: none;
+      }
+
+      li {
+        list-style-type: disc;
+      }
+    "#},
+      map! {
+        "circles" => "EgL3uq_circles" referenced: true
+      },
+      HashMap::new(),
+      crate::css_modules::Config {
+        custom_idents: false,
+        ..Default::default()
+      },
+    );
+
     #[cfg(feature = "grid")]
     css_modules_test(
       r#"
@@ -23133,6 +23225,46 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+    );
+
+    #[cfg(feature = "grid")]
+    css_modules_test(
+      r#"
+        .grid {
+          grid-template-areas: "foo";
+        }
+
+        .foo {
+          grid-area: foo;
+        }
+
+        .bar {
+          grid-column-start: foo-start;
+        }
+      "#,
+      indoc! {r#"
+        .EgL3uq_grid {
+          grid-template-areas: "foo";
+        }
+
+        .EgL3uq_foo {
+          grid-area: foo;
+        }
+
+        .EgL3uq_bar {
+          grid-column-start: foo-start;
+        }
+      "#},
+      map! {
+        "foo" => "EgL3uq_foo",
+        "grid" => "EgL3uq_grid",
+        "bar" => "EgL3uq_bar"
+      },
+      HashMap::new(),
+      crate::css_modules::Config {
+        grid: false,
+        ..Default::default()
+      },
     );
 
     css_modules_test(
