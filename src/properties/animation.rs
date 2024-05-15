@@ -1,12 +1,14 @@
 //! CSS properties related to keyframe animations.
 
+use std::borrow::Cow;
+
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
-use crate::properties::{Property, PropertyId, VendorPrefix};
+use crate::properties::{Property, PropertyId, TokenOrValue, VendorPrefix};
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
@@ -346,8 +348,6 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
     dest: &mut DeclarationList<'i>,
     context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
-    use Property::*;
-
     macro_rules! maybe_flush {
       ($prop: ident, $val: expr, $vp: ident) => {{
         // If two vendor prefixes for the same property have different
@@ -376,15 +376,15 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
     }
 
     match property {
-      AnimationName(val, vp) => property!(names, val, vp),
-      AnimationDuration(val, vp) => property!(durations, val, vp),
-      AnimationTimingFunction(val, vp) => property!(timing_functions, val, vp),
-      AnimationIterationCount(val, vp) => property!(iteration_counts, val, vp),
-      AnimationDirection(val, vp) => property!(directions, val, vp),
-      AnimationPlayState(val, vp) => property!(play_states, val, vp),
-      AnimationDelay(val, vp) => property!(delays, val, vp),
-      AnimationFillMode(val, vp) => property!(fill_modes, val, vp),
-      Animation(val, vp) => {
+      Property::AnimationName(val, vp) => property!(names, val, vp),
+      Property::AnimationDuration(val, vp) => property!(durations, val, vp),
+      Property::AnimationTimingFunction(val, vp) => property!(timing_functions, val, vp),
+      Property::AnimationIterationCount(val, vp) => property!(iteration_counts, val, vp),
+      Property::AnimationDirection(val, vp) => property!(directions, val, vp),
+      Property::AnimationPlayState(val, vp) => property!(play_states, val, vp),
+      Property::AnimationDelay(val, vp) => property!(delays, val, vp),
+      Property::AnimationFillMode(val, vp) => property!(fill_modes, val, vp),
+      Property::Animation(val, vp) => {
         let names = val.iter().map(|b| b.name.clone()).collect();
         maybe_flush!(names, &names, vp);
 
@@ -418,7 +418,33 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         property!(delays, &delays, vp);
         property!(fill_modes, &fill_modes, vp);
       }
-      Unparsed(val) if is_animation_property(&val.property_id) => {
+      Property::Unparsed(val) if is_animation_property(&val.property_id) => {
+        let mut val = Cow::Borrowed(val);
+        if matches!(val.property_id, PropertyId::Animation(_)) {
+          use crate::properties::custom::Token;
+
+          // Find an identifier that isn't a keyword and replace it with an
+          // AnimationName token so it is scoped in CSS modules.
+          for token in &mut val.to_mut().value.0 {
+            match token {
+              TokenOrValue::Token(Token::Ident(id)) => {
+                if AnimationDirection::parse_string(&id).is_err()
+                  && AnimationPlayState::parse_string(&id).is_err()
+                  && AnimationFillMode::parse_string(&id).is_err()
+                  && !EasingFunction::is_ident(&id)
+                  && id.as_ref() != "infinite"
+                {
+                  *token = TokenOrValue::AnimationName(AnimationName::Ident(CustomIdent(id.clone())));
+                }
+              }
+              TokenOrValue::Token(Token::String(s)) => {
+                *token = TokenOrValue::AnimationName(AnimationName::String(s.clone()));
+              }
+              _ => {}
+            }
+          }
+        }
+
         self.flush(dest, context);
         dest.push(Property::Unparsed(
           val.get_prefixed(context.targets, Feature::Animation),

@@ -23672,6 +23672,99 @@ mod tests {
       },
     );
 
+    css_modules_test(
+      r#"
+      .test {
+        animation: rotate var(--duration) linear infinite;
+      }
+    "#,
+      indoc! {r#"
+      .EgL3uq_test {
+        animation: EgL3uq_rotate var(--duration) linear infinite;
+      }
+    "#},
+      map! {
+        "test" => "EgL3uq_test",
+        "rotate" => "EgL3uq_rotate" referenced: true
+      },
+      HashMap::new(),
+      Default::default(),
+    );
+    css_modules_test(
+      r#"
+      .test {
+        animation: none var(--duration);
+      }
+    "#,
+      indoc! {r#"
+      .EgL3uq_test {
+        animation: none var(--duration);
+      }
+    "#},
+      map! {
+        "test" => "EgL3uq_test"
+      },
+      HashMap::new(),
+      Default::default(),
+    );
+    css_modules_test(
+      r#"
+      .test {
+        animation: var(--animation);
+      }
+    "#,
+      indoc! {r#"
+      .EgL3uq_test {
+        animation: var(--animation);
+      }
+    "#},
+      map! {
+        "test" => "EgL3uq_test"
+      },
+      HashMap::new(),
+      Default::default(),
+    );
+    css_modules_test(
+      r#"
+      .test {
+        animation: rotate var(--duration);
+      }
+    "#,
+      indoc! {r#"
+      .EgL3uq_test {
+        animation: rotate var(--duration);
+      }
+    "#},
+      map! {
+        "test" => "EgL3uq_test"
+      },
+      HashMap::new(),
+      crate::css_modules::Config {
+        animation: false,
+        ..Default::default()
+      }
+    );
+    css_modules_test(
+      r#"
+      .test {
+        animation: "rotate" var(--duration);
+      }
+    "#,
+      indoc! {r#"
+      .EgL3uq_test {
+        animation: EgL3uq_rotate var(--duration);
+      }
+    "#},
+      map! {
+        "test" => "EgL3uq_test",
+        "rotate" => "EgL3uq_rotate" referenced: true
+      },
+      HashMap::new(),
+      crate::css_modules::Config {
+        ..Default::default()
+      }
+    );
+
     // Stable hashes between project roots.
     fn test_project_root(project_root: &str, filename: &str, hash: &str) {
       let stylesheet = StyleSheet::parse(

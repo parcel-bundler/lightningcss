@@ -29,6 +29,7 @@ use cssparser::*;
 
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
+use super::AnimationName;
 
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]
@@ -241,6 +242,8 @@ pub enum TokenOrValue<'i> {
   Resolution(Resolution),
   /// A dashed ident.
   DashedIdent(DashedIdent<'i>),
+  /// An animation name.
+  AnimationName(AnimationName<'i>),
 }
 
 impl<'i> From<Token<'i>> for TokenOrValue<'i> {
@@ -587,6 +590,10 @@ impl<'i> TokenList<'i> {
           false
         }
         TokenOrValue::DashedIdent(v) => {
+          v.to_css(dest)?;
+          false
+        }
+        TokenOrValue::AnimationName(v) => {
           v.to_css(dest)?;
           false
         }
