@@ -93,7 +93,7 @@ impl<'i> ToCss for KeyframesName<'i> {
     W: std::fmt::Write,
   {
     let css_module_animation_enabled =
-      dest.css_module.as_mut().map_or(false, |css_module| css_module.config.animation);
+      dest.css_module.as_ref().map_or(false, |css_module| css_module.config.animation);
 
     match self {
       KeyframesName::Ident(ident) => {

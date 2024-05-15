@@ -23090,8 +23090,7 @@ mod tests {
     "#},
       map! {
         "foo" => "EgL3uq_foo",
-        "id" => "EgL3uq_id",
-        "test" => "EgL3uq_test" referenced: true
+        "id" => "EgL3uq_id"
       },
       HashMap::new(),
       crate::css_modules::Config {

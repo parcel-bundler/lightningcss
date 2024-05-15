@@ -55,7 +55,7 @@ impl<'i> ToCss for CustomIdent<'i> {
 
 impl<'i> CustomIdent<'i> {
   /// Write the custom ident to CSS.
-  pub fn to_css_with_options<W>(
+  pub(crate) fn to_css_with_options<W>(
     &self,
     dest: &mut Printer<W>,
     enabled_css_modules: bool,
@@ -63,15 +63,12 @@ impl<'i> CustomIdent<'i> {
   where
     W: std::fmt::Write,
   {
-    if enabled_css_modules {
-      let css_module_custom_idents_enabled = dest
+    let css_module_custom_idents_enabled = enabled_css_modules
+      && dest
         .css_module
         .as_mut()
         .map_or(false, |css_module| css_module.config.custom_idents);
-      dest.write_ident(&self.0, css_module_custom_idents_enabled)
-    } else {
-      dest.write_ident(&self.0, false)
-    }
+    dest.write_ident(&self.0, css_module_custom_idents_enabled)
   }
 }
 
@@ -107,12 +104,7 @@ impl<'i> ToCss for DashedIdent<'i> {
   where
     W: std::fmt::Write,
   {
-    let css_module_custom_idents_enabled = dest
-      .css_module
-      .as_mut()
-      .map_or(false, |css_module| css_module.config.custom_idents);
-
-    dest.write_dashed_ident(&self.0, true, css_module_custom_idents_enabled)
+    dest.write_dashed_ident(&self.0, true)
   }
 }
 
@@ -179,25 +171,18 @@ impl<'i> ToCss for DashedIdentReference<'i> {
   where
     W: std::fmt::Write,
   {
-    let css_module_custom_idents_enabled = dest
-      .css_module
-      .as_mut()
-      .map_or(false, |css_module| css_module.config.custom_idents);
-
-    if css_module_custom_idents_enabled {
-      match &mut dest.css_module {
-        Some(css_module) if css_module.config.dashed_idents => {
-          if let Some(name) = css_module.reference_dashed(&self.ident.0, &self.from, dest.loc.source_index) {
-            dest.write_str("--")?;
-            serialize_name(&name, dest)?;
-            return Ok(());
-          }
+    match &mut dest.css_module {
+      Some(css_module) if css_module.config.dashed_idents => {
+        if let Some(name) = css_module.reference_dashed(&self.ident.0, &self.from, dest.loc.source_index) {
+          dest.write_str("--")?;
+          serialize_name(&name, dest)?;
+          return Ok(());
         }
-        _ => {}
       }
+      _ => {}
     }
 
-    dest.write_dashed_ident(&self.ident.0, false, css_module_custom_idents_enabled)
+    dest.write_dashed_ident(&self.ident.0, false)
   }
 }
 

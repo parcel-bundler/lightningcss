@@ -59,13 +59,15 @@ impl<'i> ToCss for AnimationName<'i> {
     W: std::fmt::Write,
   {
     let css_module_animation_enabled =
-      dest.css_module.as_mut().map_or(false, |css_module| css_module.config.animation);
+      dest.css_module.as_ref().map_or(false, |css_module| css_module.config.animation);
 
     match self {
       AnimationName::None => dest.write_str("none"),
       AnimationName::Ident(s) => {
-        if let Some(css_module) = &mut dest.css_module {
-          css_module.reference(&s.0, dest.loc.source_index)
+        if css_module_animation_enabled {
+          if let Some(css_module) = &mut dest.css_module {
+            css_module.reference(&s.0, dest.loc.source_index)
+          }
         }
         s.to_css_with_options(dest, css_module_animation_enabled)
       }
