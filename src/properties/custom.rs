@@ -27,9 +27,9 @@ use crate::visitor::Visit;
 use cssparser::color::parse_hash_color;
 use cssparser::*;
 
+use super::AnimationName;
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
-use super::AnimationName;
 
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]

@@ -1491,6 +1491,8 @@ define_properties! {
   "animation-play-state": AnimationPlayState(SmallVec<[AnimationPlayState; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-delay": AnimationDelay(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-fill-mode": AnimationFillMode(SmallVec<[AnimationFillMode; 1]>, VendorPrefix) / WebKit / Moz / O,
+  "animation-composition": AnimationComposition(SmallVec<[AnimationComposition; 1]>),
+  "animation-timeline": AnimationTimeline(SmallVec<[AnimationTimeline<'i>; 1]>),
   "animation": Animation(AnimationList<'i>, VendorPrefix) / WebKit / Moz / O shorthand: true,
 
   // https://drafts.csswg.org/css-transforms-2/

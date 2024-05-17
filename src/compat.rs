@@ -11,6 +11,7 @@ pub enum Feature {
   AmharicAbegedeListStyleType,
   AmharicListStyleType,
   AnchorSizeSize,
+  AnimationTimelineShorthand,
   AnyLink,
   AnyPseudo,
   ArabicIndicListStyleType,
@@ -3410,6 +3411,40 @@ impl Feature {
           || browsers.ie.is_some()
           || browsers.opera.is_some()
           || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::AnimationTimelineShorthand => {
+        if let Some(version) = browsers.chrome {
+          if version < 7536640 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 7536640 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 5046272 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 1507328 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 7536640 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.safari.is_some()
         {
           return false;
         }

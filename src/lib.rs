@@ -11243,6 +11243,46 @@ mod tests {
       ".foo { animation: foo 0s 3s infinite }",
       ".foo{animation:0s 3s infinite foo}",
     );
+    minify_test(".foo { animation: foo 3s --test }", ".foo{animation:3s foo --test}");
+    minify_test(".foo { animation: foo 3s scroll() }", ".foo{animation:3s foo scroll()}");
+    minify_test(
+      ".foo { animation: foo 3s scroll(block) }",
+      ".foo{animation:3s foo scroll()}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s scroll(root inline) }",
+      ".foo{animation:3s foo scroll(root inline)}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s scroll(inline root) }",
+      ".foo{animation:3s foo scroll(root inline)}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s scroll(inline nearest) }",
+      ".foo{animation:3s foo scroll(inline)}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s view(block) }",
+      ".foo{animation:3s foo view()}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s view(inline) }",
+      ".foo{animation:3s foo view(inline)}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s view(inline 10px 10px) }",
+      ".foo{animation:3s foo view(inline 10px)}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s view(inline 10px 12px) }",
+      ".foo{animation:3s foo view(inline 10px 12px)}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s view(inline auto auto) }",
+      ".foo{animation:3s foo view(inline)}",
+    );
+    minify_test(".foo { animation: foo 3s auto }", ".foo{animation:3s foo}");
+    minify_test(".foo { animation-composition: add }", ".foo{animation-composition:add}");
     test(
       r#"
       .foo {
@@ -11254,6 +11294,7 @@ mod tests {
         animation-play-state: running;
         animation-delay: 100ms;
         animation-fill-mode: forwards;
+        animation-timeline: auto;
       }
     "#,
       indoc! {r#"
@@ -11273,6 +11314,7 @@ mod tests {
         animation-play-state: running, paused;
         animation-delay: 100ms, 0s;
         animation-fill-mode: forwards, none;
+        animation-timeline: auto, auto;
       }
     "#,
       indoc! {r#"
@@ -11319,6 +11361,7 @@ mod tests {
         animation-play-state: running;
         animation-delay: 100ms;
         animation-fill-mode: forwards;
+        animation-timeline: auto;
       }
     "#,
       indoc! {r#"
@@ -11331,6 +11374,55 @@ mod tests {
         animation-play-state: running;
         animation-delay: .1s;
         animation-fill-mode: forwards;
+        animation-timeline: auto;
+      }
+    "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-name: foo;
+        animation-duration: 0.09s;
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: 2;
+        animation-direction: alternate;
+        animation-play-state: running;
+        animation-delay: 100ms;
+        animation-fill-mode: forwards;
+        animation-timeline: scroll();
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: 90ms ease-in-out .1s 2 alternate forwards foo scroll();
+      }
+    "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-name: foo;
+        animation-duration: 0.09s;
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: 2;
+        animation-direction: alternate;
+        animation-play-state: running;
+        animation-delay: 100ms;
+        animation-fill-mode: forwards;
+        animation-timeline: scroll(), view();
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation-name: foo;
+        animation-duration: 90ms;
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: 2;
+        animation-direction: alternate;
+        animation-play-state: running;
+        animation-delay: .1s;
+        animation-fill-mode: forwards;
+        animation-timeline: scroll(), view();
       }
     "#},
     );
@@ -11437,6 +11529,58 @@ mod tests {
     "#},
       Browsers {
         firefox: Some(6 << 16),
+        safari: Some(6 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        animation: .2s ease-in-out bar scroll();
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: .2s ease-in-out bar;
+        animation-timeline: scroll();
+      }
+    "#},
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        animation: .2s ease-in-out bar scroll();
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: .2s ease-in-out bar scroll();
+      }
+    "#},
+      Browsers {
+        chrome: Some(120 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        animation: .2s ease-in-out bar scroll();
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        -webkit-animation: .2s ease-in-out bar;
+        animation: .2s ease-in-out bar;
+        animation-timeline: scroll();
+      }
+    "#},
+      Browsers {
         safari: Some(6 << 16),
         ..Browsers::default()
       },
@@ -23742,7 +23886,7 @@ mod tests {
       crate::css_modules::Config {
         animation: false,
         ..Default::default()
-      }
+      },
     );
     css_modules_test(
       r#"
@@ -23760,9 +23904,7 @@ mod tests {
         "rotate" => "EgL3uq_rotate" referenced: true
       },
       HashMap::new(),
-      crate::css_modules::Config {
-        ..Default::default()
-      }
+      crate::css_modules::Config { ..Default::default() },
     );
 
     // Stable hashes between project roots.

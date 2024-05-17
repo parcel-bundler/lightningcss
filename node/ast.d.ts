@@ -504,6 +504,10 @@ export type TokenOrValue =
   | {
       type: "dashed-ident";
       value: String;
+    }
+  | {
+      type: "animation-name";
+      value: AnimationName;
     };
 /**
  * A raw CSS token.
@@ -1113,6 +1117,21 @@ export type Time =
   | {
       type: "milliseconds";
       value: number;
+    };
+/**
+ * A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
+ */
+export type AnimationName =
+  | {
+      type: "none";
+    }
+  | {
+      type: "ident";
+      value: String;
+    }
+  | {
+      type: "string";
+      value: String;
     };
 /**
  * A CSS environment variable name.
@@ -1934,6 +1953,12 @@ export type PropertyId =
   | {
       property: "animation-fill-mode";
       vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation-composition";
+    }
+  | {
+      property: "animation-timeline";
     }
   | {
       property: "animation";
@@ -3282,6 +3307,14 @@ export type Declaration =
       property: "animation-fill-mode";
       value: AnimationFillMode[];
       vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation-composition";
+      value: AnimationComposition[];
+    }
+  | {
+      property: "animation-timeline";
+      value: AnimationTimeline[];
     }
   | {
       property: "animation";
@@ -5443,21 +5476,6 @@ export type StepPosition =
       type: "jump-both";
     };
 /**
- * A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
- */
-export type AnimationName =
-  | {
-      type: "none";
-    }
-  | {
-      type: "ident";
-      value: String;
-    }
-  | {
-      type: "string";
-      value: String;
-    };
-/**
  * A value for the [animation-iteration-count](https://drafts.csswg.org/css-animations/#animation-iteration-count) property.
  */
 export type AnimationIterationCount =
@@ -5480,6 +5498,49 @@ export type AnimationPlayState = "running" | "paused";
  * A value for the [animation-fill-mode](https://drafts.csswg.org/css-animations/#animation-fill-mode) property.
  */
 export type AnimationFillMode = "none" | "forwards" | "backwards" | "both";
+/**
+ * A value for the [animation-composition](https://drafts.csswg.org/css-animations-2/#animation-composition) property.
+ */
+export type AnimationComposition = "replace" | "add" | "accumulate";
+/**
+ * A value for the [animation-timeline](https://drafts.csswg.org/css-animations-2/#animation-timeline) property.
+ */
+export type AnimationTimeline =
+  | {
+      type: "auto";
+    }
+  | {
+      type: "none";
+    }
+  | {
+      type: "dashed-ident";
+      value: String;
+    }
+  | {
+      type: "scroll";
+      value: ScrollTimeline;
+    }
+  | {
+      type: "view";
+      value: ViewTimeline;
+    };
+/**
+ * A scroll axis, used in the `scroll()` function.
+ */
+export type ScrollAxis = "block" | "inline" | "x" | "y";
+/**
+ * A scroller, used in the `scroll()` function.
+ */
+export type Scroller = "root" | "nearest" | "self";
+/**
+ * A generic value that represents a value with two components, e.g. a border radius.
+ *
+ * When serialized, only a single component will be written if both are equal.
+ *
+ * @minItems 2
+ * @maxItems 2
+ */
+export type Size2DFor_LengthPercentageOrAuto = [LengthPercentageOrAuto, LengthPercentageOrAuto];
 /**
  * An individual [transform function](https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#two-d-transform-functions).
  */
@@ -8489,6 +8550,32 @@ export interface Transition {
   timingFunction: EasingFunction;
 }
 /**
+ * The [scroll()](https://drafts.csswg.org/scroll-animations-1/#scroll-notation) function.
+ */
+export interface ScrollTimeline {
+  /**
+   * Specifies which axis of the scroll container to use as the progress for the timeline.
+   */
+  axis: ScrollAxis;
+  /**
+   * Specifies which element to use as the scroll container.
+   */
+  scroller: Scroller;
+}
+/**
+ * The [view()](https://drafts.csswg.org/scroll-animations-1/#view-notation) function.
+ */
+export interface ViewTimeline {
+  /**
+   * Specifies which axis of the scroll container to use as the progress for the timeline.
+   */
+  axis: ScrollAxis;
+  /**
+   * Provides an adjustment of the view progress visibility range.
+   */
+  inset: Size2DFor_LengthPercentageOrAuto;
+}
+/**
  * A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
  */
 export interface Animation {
@@ -8520,6 +8607,10 @@ export interface Animation {
    * The current play state of the animation.
    */
   playState: AnimationPlayState;
+  /**
+   * The animation timeline.
+   */
+  timeline: AnimationTimeline;
   /**
    * The easing function for the animation.
    */
