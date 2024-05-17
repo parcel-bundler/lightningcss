@@ -806,7 +806,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 983040 {
+          if version >= 983040 && version <= 6881280 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1124,7 +1124,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 983040 {
+          if version >= 983040 && version <= 6225920 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1468,7 +1468,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 983040 {
+          if version >= 983040 && version <= 6881280 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1510,7 +1510,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 327680 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1785,7 +1785,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 851968 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1865,7 +1865,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 983040 {
+          if version >= 983040 && version <= 6422528 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1875,7 +1875,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1441792 {
             prefixes |= VendorPrefix::WebKit;
           }
         }

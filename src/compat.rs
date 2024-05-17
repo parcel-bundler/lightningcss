@@ -10,11 +10,13 @@ pub enum Feature {
   AfarListStyleType,
   AmharicAbegedeListStyleType,
   AmharicListStyleType,
+  AnchorSizeSize,
   AnyLink,
   AnyPseudo,
   ArabicIndicListStyleType,
   ArmenianListStyleType,
   AsterisksListStyleType,
+  AutoSize,
   Autofill,
   BengaliListStyleType,
   BinaryListStyleType,
@@ -142,6 +144,7 @@ pub enum Feature {
   MyanmarListStyleType,
   Namespaces,
   Nesting,
+  NoneListStyleType,
   NotSelectorList,
   NthChildOf,
   OctalListStyleType,
@@ -441,7 +444,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -533,7 +536,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -578,7 +581,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -623,7 +626,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -663,7 +666,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -708,7 +711,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -753,7 +756,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -798,7 +801,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -890,7 +893,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -935,7 +938,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1015,7 +1018,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1060,7 +1063,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1150,7 +1153,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1195,7 +1198,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1245,7 +1248,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1332,7 +1335,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1377,7 +1380,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1422,7 +1425,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1462,7 +1465,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1507,7 +1510,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1552,7 +1555,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -1619,7 +1622,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 7929856 {
+          if version < 8126464 {
             return false;
           }
         }
@@ -2868,12 +2871,47 @@ impl Feature {
           return false;
         }
       }
-      Feature::RoundFunction
-      | Feature::RemFunction
-      | Feature::ModFunction
-      | Feature::AbsFunction
-      | Feature::SignFunction
-      | Feature::HypotFunction => {
+      Feature::RoundFunction | Feature::RemFunction | Feature::ModFunction => {
+        if let Some(version) = browsers.chrome {
+          if version < 8192000 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 8192000 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 7733248 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 7274496 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 984064 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 984064 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 8192000 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() || browsers.samsung.is_some() {
+          return false;
+        }
+      }
+      Feature::AbsFunction | Feature::SignFunction => {
         if let Some(version) = browsers.firefox {
           if version < 7733248 {
             return false;
@@ -2896,6 +2934,51 @@ impl Feature {
           || browsers.opera.is_some()
           || browsers.samsung.is_some()
         {
+          return false;
+        }
+      }
+      Feature::HypotFunction => {
+        if let Some(version) = browsers.chrome {
+          if version < 7864320 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 7864320 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 7733248 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 5242880 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 984064 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 984064 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 1638400 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 7864320 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
           return false;
         }
       }
@@ -2986,7 +3069,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 2424832 {
+          if version < 263168 {
             return false;
           }
         }
@@ -3080,7 +3163,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 262144 {
+          if version < 2752512 {
             return false;
           }
         }
@@ -3271,19 +3354,37 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.edge {
+          if version < 8060928 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.firefox {
           if version < 7864320 {
             return false;
           }
         }
-        if browsers.android.is_some()
-          || browsers.edge.is_some()
-          || browsers.ie.is_some()
-          || browsers.ios_saf.is_some()
-          || browsers.opera.is_some()
-          || browsers.safari.is_some()
-          || browsers.samsung.is_some()
-        {
+        if let Some(version) = browsers.opera {
+          if version < 5373952 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 1115392 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1115392 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 8060928 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() || browsers.samsung.is_some() {
           return false;
         }
       }
@@ -3389,12 +3490,17 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.samsung {
+          if version < 1572864 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.android {
           if version < 7667712 {
             return false;
           }
         }
-        if browsers.ie.is_some() || browsers.samsung.is_some() {
+        if browsers.ie.is_some() {
           return false;
         }
       }
@@ -3704,12 +3810,17 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.samsung {
+          if version < 1572864 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.android {
           if version < 7667712 {
             return false;
           }
         }
-        if browsers.firefox.is_some() || browsers.ie.is_some() || browsers.samsung.is_some() {
+        if browsers.firefox.is_some() || browsers.ie.is_some() {
           return false;
         }
       }
@@ -4670,19 +4781,25 @@ impl Feature {
       | Feature::HiraganaListStyleType
       | Feature::HiraganaIrohaListStyleType
       | Feature::KatakanaListStyleType
-      | Feature::KatakanaIrohaListStyleType => {
+      | Feature::KatakanaIrohaListStyleType
+      | Feature::AutoSize => {
         if let Some(version) = browsers.chrome {
           if version < 1179648 {
             return false;
           }
         }
         if let Some(version) = browsers.edge {
-          if version < 5177344 {
+          if version < 786432 {
             return false;
           }
         }
         if let Some(version) = browsers.firefox {
           if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 720896 {
             return false;
           }
         }
@@ -4710,9 +4827,6 @@ impl Feature {
           if version < 263168 {
             return false;
           }
-        }
-        if browsers.ie.is_some() {
-          return false;
         }
       }
       Feature::KoreanHangulFormalListStyleType
@@ -4854,6 +4968,53 @@ impl Feature {
           }
         }
       }
+      Feature::NoneListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+      }
       Feature::SimpChineseFormalListStyleType
       | Feature::SimpChineseInformalListStyleType
       | Feature::TradChineseFormalListStyleType
@@ -4965,6 +5126,36 @@ impl Feature {
           return false;
         }
       }
+      Feature::AnchorSizeSize => {
+        if let Some(version) = browsers.chrome {
+          if version < 8192000 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 8192000 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 7274496 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 8192000 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
       Feature::FitContentSize => {
         if let Some(version) = browsers.chrome {
           if version < 1638400 {
@@ -5059,7 +5250,7 @@ impl Feature {
       }
       Feature::MaxContentSize => {
         if let Some(version) = browsers.chrome {
-          if version < 3014656 {
+          if version < 1638400 {
             return false;
           }
         }
@@ -5089,12 +5280,12 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version < 327680 {
+          if version < 66816 {
             return false;
           }
         }
         if let Some(version) = browsers.android {
-          if version < 3014656 {
+          if version < 263168 {
             return false;
           }
         }

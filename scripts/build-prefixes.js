@@ -282,7 +282,7 @@ let mdnFeatures = {
   logicalPaddingShorthand: mdn.css.properties['padding-inline'].__compat.support,
   logicalInset: mdn.css.properties['inset-inline-start'].__compat.support,
   logicalSize: mdn.css.properties['inline-size'].__compat.support,
-  logicalTextAlign: mdn.css.properties['text-align']['flow_relative_values_start_and_end'].__compat.support,
+  logicalTextAlign: mdn.css.properties['text-align'].start.__compat.support,
   labColors: mdn.css.types.color.lab.__compat.support,
   oklabColors: mdn.css.types.color.oklab.__compat.support,
   colorFunction: mdn.css.types.color.color.__compat.support,
