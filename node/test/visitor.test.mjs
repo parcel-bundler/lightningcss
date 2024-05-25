@@ -116,7 +116,7 @@ test('custom units', () => {
     }
   });
 
-  assert.equal(res.code.toString(), '.foo{font-size:calc(3*var(--step));--step:.25rem}');
+  assert.equal(res.code.toString(), '.foo{--step:.25rem;font-size:calc(3*var(--step))}');
 });
 
 test('design tokens', () => {
@@ -822,7 +822,7 @@ test('dashed idents', () => {
     }
   });
 
-  assert.equal(res.code.toString(), '.foo{color:var(--prefix-foo);--prefix-foo:#ff0}');
+  assert.equal(res.code.toString(), '.foo{--prefix-foo:#ff0;color:var(--prefix-foo)}');
 });
 
 test('custom idents', () => {

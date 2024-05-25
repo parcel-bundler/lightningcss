@@ -21583,26 +21583,26 @@ mod tests {
       indoc! {r#"
       @keyframes foo {
         from {
-          opacity: 0;
           --custom: #ff0;
+          opacity: 0;
         }
 
         to {
-          opacity: 1;
           --custom: #ee00be;
+          opacity: 1;
         }
       }
 
       @supports (color: lab(0% 0 0)) {
         @keyframes foo {
           from {
-            opacity: 0;
             --custom: #ff0;
+            opacity: 0;
           }
 
           to {
-            opacity: 1;
             --custom: lab(50.998% 125.506 -50.7078);
+            opacity: 1;
           }
         }
       }
@@ -23736,8 +23736,8 @@ mod tests {
       }
 
       .EgL3uq_foo {
-        color: var(--foo);
         --foo: red;
+        color: var(--foo);
       }
     "#},
       map! {
@@ -23786,10 +23786,10 @@ mod tests {
       }
 
       .EgL3uq_foo {
-        color: var(--EgL3uq_foo);
-        font-palette: --EgL3uq_Cooler;
         --EgL3uq_foo: red;
         --EgL3uq_bar: green;
+        color: var(--EgL3uq_foo);
+        font-palette: --EgL3uq_Cooler;
       }
 
       .EgL3uq_bar {
@@ -27646,7 +27646,7 @@ mod tests {
     );
     minify_test(
       ".foo { --test: red; all: revert-layer }",
-      ".foo{all:revert-layer;--test:red}",
+      ".foo{--test:red;all:revert-layer}",
     );
     minify_test(
       ".foo { unicode-bidi: embed; all: revert-layer }",
@@ -27659,6 +27659,11 @@ mod tests {
     minify_test(
       ".foo { direction: rtl; all: revert-layer; direction: ltr }",
       ".foo{all:revert-layer;direction:ltr}",
+    );
+    minify_test(".foo { background: var(--foo); all: unset; }", ".foo{all:unset}");
+    minify_test(
+      ".foo { all: unset; background: var(--foo); }",
+      ".foo{all:unset;background:var(--foo)}",
     );
   }
 }

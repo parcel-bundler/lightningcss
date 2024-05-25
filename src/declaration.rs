@@ -1,6 +1,7 @@
 //! CSS declarations.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::ops::Range;
 
 use crate::context::{DeclarationContext, PropertyHandlerContext};
@@ -33,14 +34,13 @@ use crate::properties::{
   transition::TransitionHandler,
   ui::ColorSchemeHandler,
 };
-use crate::properties::{CSSWideKeyword, Property, PropertyId};
+use crate::properties::{Property, PropertyId};
 use crate::traits::{PropertyHandler, ToCss};
 use crate::values::ident::DashedIdent;
 use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
-use indexmap::IndexMap;
 
 /// A CSS declaration block.
 ///
@@ -516,10 +516,9 @@ pub(crate) struct DeclarationHandler<'i> {
   color_scheme: ColorSchemeHandler,
   fallback: FallbackHandler,
   prefix: PrefixHandler,
-  all: Option<CSSWideKeyword>,
   direction: Option<Direction>,
   unicode_bidi: Option<UnicodeBidi>,
-  custom_properties: IndexMap<DashedIdent<'i>, CustomProperty<'i>>,
+  custom_properties: HashMap<DashedIdent<'i>, usize>,
   decls: DeclarationList<'i>,
 }
 
@@ -571,13 +570,18 @@ impl<'i> DeclarationHandler<'i> {
       }
 
       if let CustomPropertyName::Custom(name) = &custom.name {
-        if let Some(prev) = self.custom_properties.get_mut(name) {
-          if prev.value == custom.value {
+        if let Some(index) = self.custom_properties.get(name) {
+          if self.decls[*index] == *property {
             return true;
           }
-          *prev = custom.clone();
+          let mut custom = custom.clone();
+          self.add_conditional_fallbacks(&mut custom, context);
+          self.decls[*index] = Property::Custom(custom);
         } else {
-          self.custom_properties.insert(name.clone(), custom.clone());
+          self.custom_properties.insert(name.clone(), self.decls.len());
+          let mut custom = custom.clone();
+          self.add_conditional_fallbacks(&mut custom, context);
+          self.decls.push(Property::Custom(custom));
         }
 
         return true;
@@ -600,13 +604,17 @@ impl<'i> DeclarationHandler<'i> {
         true
       }
       Property::All(keyword) => {
-        *self = DeclarationHandler {
-          custom_properties: std::mem::take(&mut self.custom_properties),
+        let mut handler = DeclarationHandler {
           unicode_bidi: self.unicode_bidi.clone(),
           direction: self.direction.clone(),
-          all: Some(keyword.clone()),
           ..Default::default()
         };
+        for (key, index) in self.custom_properties.drain() {
+          handler.custom_properties.insert(key, handler.decls.len());
+          handler.decls.push(self.decls[index].clone());
+        }
+        handler.decls.push(Property::All(keyword.clone()));
+        *self = handler;
         true
       }
       _ => false,
@@ -633,19 +641,11 @@ impl<'i> DeclarationHandler<'i> {
   }
 
   pub fn finalize(&mut self, context: &mut PropertyHandlerContext<'i, '_>) {
-    // Always place the `all` property first. Previous properties will have been omitted.
-    if let Some(all) = std::mem::take(&mut self.all) {
-      self.decls.push(Property::All(all));
-    }
     if let Some(direction) = std::mem::take(&mut self.direction) {
       self.decls.push(Property::Direction(direction));
     }
     if let Some(unicode_bidi) = std::mem::take(&mut self.unicode_bidi) {
       self.decls.push(Property::UnicodeBidi(unicode_bidi));
-    }
-    for (_, mut value) in std::mem::take(&mut self.custom_properties) {
-      self.add_conditional_fallbacks(&mut value, context);
-      self.decls.push(Property::Custom(value));
     }
 
     self.background.finalize(&mut self.decls, context);
@@ -675,5 +675,6 @@ impl<'i> DeclarationHandler<'i> {
     self.color_scheme.finalize(&mut self.decls, context);
     self.fallback.finalize(&mut self.decls, context);
     self.prefix.finalize(&mut self.decls, context);
+    self.custom_properties.clear();
   }
 }
