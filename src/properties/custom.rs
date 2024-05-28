@@ -399,6 +399,52 @@ impl<'i> TokenList<'i> {
             tokens.push(TokenOrValue::Url(Url::parse(input)?));
             last_is_delim = false;
             last_is_whitespace = false;
+          } else if f == "calc" {
+            let arguments = input.parse_nested_block(|input| TokenList::parse(input, options, depth + 1))?;
+            if arguments.0.len() == 0 {
+              // this is invalid css
+              tokens.push(TokenOrValue::Function(Function {
+                name: Ident(f),
+                arguments
+              }));
+            } else if arguments.0.len() == 1 {
+              tokens.push(arguments.0.first().unwrap().clone());
+            } else {
+              let mut new_arguments = vec![];
+              let mut n = 0;
+              while n < arguments.0.len() {
+                let argument = &arguments.0[n];
+                match argument {
+                  TokenOrValue::Token(Token::ParenthesisBlock) => {
+                    if n + 2 < arguments.0.len() && arguments.0[n + 2] == TokenOrValue::Token(Token::CloseParenthesis) {
+                      new_arguments.push(arguments.0[n + 1].clone());
+                      n += 2;
+                    } else {
+                      new_arguments.push(argument.clone());
+                    }
+                  }
+                  TokenOrValue::Function(inner_f) => {
+                    if inner_f.name == "calc" {
+                      new_arguments.push(TokenOrValue::Token(Token::ParenthesisBlock));
+                      new_arguments.append(&mut inner_f.arguments.0.to_vec());
+                      new_arguments.push(TokenOrValue::Token(Token::CloseParenthesis));
+                    } else {
+                      new_arguments.push(argument.clone());
+                    }
+                  },
+                  _ => {
+                    new_arguments.push(argument.clone());
+                  }
+                }
+                n += 1;
+              }
+              tokens.push(TokenOrValue::Function(Function {
+                name: Ident(f),
+                arguments: TokenList(new_arguments)
+              }));
+            }
+            last_is_delim = true; // Whitespace is not required after any of these chars.
+            last_is_whitespace = false;
           } else if f == "var" {
             let var = input.parse_nested_block(|input| {
               let var = Variable::parse(input, options, depth + 1)?;
