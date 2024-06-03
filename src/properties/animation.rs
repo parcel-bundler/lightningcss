@@ -12,6 +12,7 @@ use crate::properties::{Property, PropertyId, TokenOrValue, VendorPrefix};
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::ident::DashedIdent;
 use crate::values::number::CSSNumber;
+use crate::values::percentage::Percentage;
 use crate::values::size::Size2D;
 use crate::values::string::CSSString;
 use crate::values::{easing::EasingFunction, ident::CustomIdent, time::Time};
@@ -21,7 +22,7 @@ use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
 
-use super::LengthPercentageOrAuto;
+use super::{LengthPercentage, LengthPercentageOrAuto};
 
 /// A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
 #[derive(Debug, Clone, PartialEq, Parse)]
@@ -375,6 +376,201 @@ impl ToCss for ViewTimeline {
   }
 }
 
+/// A [view progress timeline range](https://drafts.csswg.org/scroll-animations/#view-timelines-ranges)
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum TimelineRangeName {
+  /// Represents the full range of the view progress timeline.
+  Cover,
+  /// Represents the range during which the principal box is either fully contained by,
+  /// or fully covers, its view progress visibility range within the scrollport.
+  Contain,
+  /// Represents the range during which the principal box is entering the view progress visibility range.
+  Entry,
+  /// Represents the range during which the principal box is exiting the view progress visibility range.
+  Exit,
+  /// Represents the range during which the principal box crosses the end border edge.
+  EntryCrossing,
+  /// Represents the range during which the principal box crosses the start border edge.
+  ExitCrossing,
+}
+
+/// A value for the [animation-range-start](https://drafts.csswg.org/scroll-animations/#animation-range-start)
+/// or [animation-range-end](https://drafts.csswg.org/scroll-animations/#animation-range-end) property.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum AnimationAttachmentRange {
+  /// The start of the animation’s attachment range is the start of its associated timeline.
+  Normal,
+  /// The animation attachment range starts at the specified point on the timeline measuring from the start of the timeline.
+  LengthPercentage(LengthPercentage),
+  /// The animation attachment range starts at the specified point on the timeline measuring from the start of the specified named timeline range.
+  TimelineRange {
+    /// The name of the timeline range.
+    name: TimelineRangeName,
+    /// The offset from the start of the named timeline range.
+    offset: LengthPercentage,
+  },
+}
+
+impl<'i> AnimationAttachmentRange {
+  fn parse<'t>(input: &mut Parser<'i, 't>, default: f32) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
+      return Ok(AnimationAttachmentRange::Normal);
+    }
+
+    if let Ok(val) = input.try_parse(LengthPercentage::parse) {
+      return Ok(AnimationAttachmentRange::LengthPercentage(val));
+    }
+
+    let name = TimelineRangeName::parse(input)?;
+    let offset = input
+      .try_parse(LengthPercentage::parse)
+      .unwrap_or(LengthPercentage::Percentage(Percentage(default)));
+    Ok(AnimationAttachmentRange::TimelineRange { name, offset })
+  }
+
+  fn to_css<W>(&self, dest: &mut Printer<W>, default: f32) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      Self::Normal => dest.write_str("normal"),
+      Self::LengthPercentage(val) => val.to_css(dest),
+      Self::TimelineRange { name, offset } => {
+        name.to_css(dest)?;
+        if *offset != LengthPercentage::Percentage(Percentage(default)) {
+          dest.write_char(' ')?;
+          offset.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  }
+}
+
+impl Default for AnimationAttachmentRange {
+  fn default() -> Self {
+    AnimationAttachmentRange::Normal
+  }
+}
+
+/// A value for the [animation-range-start](https://drafts.csswg.org/scroll-animations/#animation-range-start) property.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct AnimationRangeStart(pub AnimationAttachmentRange);
+
+impl<'i> Parse<'i> for AnimationRangeStart {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let range = AnimationAttachmentRange::parse(input, 0.0)?;
+    Ok(Self(range))
+  }
+}
+
+impl ToCss for AnimationRangeStart {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    self.0.to_css(dest, 0.0)
+  }
+}
+
+/// A value for the [animation-range-end](https://drafts.csswg.org/scroll-animations/#animation-range-end) property.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct AnimationRangeEnd(pub AnimationAttachmentRange);
+
+impl<'i> Parse<'i> for AnimationRangeEnd {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let range = AnimationAttachmentRange::parse(input, 1.0)?;
+    Ok(Self(range))
+  }
+}
+
+impl ToCss for AnimationRangeEnd {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    self.0.to_css(dest, 1.0)
+  }
+}
+
+/// A value for the [animation-range](https://drafts.csswg.org/scroll-animations/#animation-range) shorthand property.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct AnimationRange {
+  /// The start of the animation's attachment range.
+  pub start: AnimationRangeStart,
+  /// The end of the animation's attachment range.
+  pub end: AnimationRangeEnd,
+}
+
+impl<'i> Parse<'i> for AnimationRange {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let start = AnimationRangeStart::parse(input)?;
+    let end = input
+      .try_parse(AnimationRangeStart::parse)
+      .map(|r| AnimationRangeEnd(r.0))
+      .unwrap_or_else(|_| {
+        // If <'animation-range-end'> is omitted and <'animation-range-start'> includes a <timeline-range-name> component, then
+        // animation-range-end is set to that same <timeline-range-name> and 100%. Otherwise, any omitted longhand is set to its initial value.
+        match &start.0 {
+          AnimationAttachmentRange::TimelineRange { name, .. } => {
+            AnimationRangeEnd(AnimationAttachmentRange::TimelineRange {
+              name: name.clone(),
+              offset: LengthPercentage::Percentage(Percentage(1.0)),
+            })
+          }
+          _ => AnimationRangeEnd(AnimationAttachmentRange::default()),
+        }
+      });
+    Ok(AnimationRange { start, end })
+  }
+}
+
+impl ToCss for AnimationRange {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    self.start.to_css(dest)?;
+
+    let omit_end = match (&self.start.0, &self.end.0) {
+      (
+        AnimationAttachmentRange::TimelineRange { name: start_name, .. },
+        AnimationAttachmentRange::TimelineRange {
+          name: end_name,
+          offset: end_offset,
+        },
+      ) => start_name == end_name && *end_offset == LengthPercentage::Percentage(Percentage(1.0)),
+      (_, end) => *end == AnimationAttachmentRange::default(),
+    };
+
+    if !omit_end {
+      dest.write_char(' ')?;
+      self.end.to_css(dest)?;
+    }
+    Ok(())
+  }
+}
+
 define_list_shorthand! {
   /// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
   pub struct Animation<'i>(VendorPrefix) {
@@ -524,6 +720,8 @@ pub(crate) struct AnimationHandler<'i> {
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   fill_modes: Option<(SmallVec<[AnimationFillMode; 1]>, VendorPrefix)>,
   timelines: Option<SmallVec<[AnimationTimeline<'i>; 1]>>,
+  range_starts: Option<SmallVec<[AnimationRangeStart; 1]>>,
+  range_ends: Option<SmallVec<[AnimationRangeEnd; 1]>>,
   has_any: bool,
 }
 
@@ -574,6 +772,19 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         self.timelines = Some(val.clone());
         self.has_any = true;
       }
+      Property::AnimationRangeStart(val) => {
+        self.range_starts = Some(val.clone());
+        self.has_any = true;
+      }
+      Property::AnimationRangeEnd(val) => {
+        self.range_ends = Some(val.clone());
+        self.has_any = true;
+      }
+      Property::AnimationRange(val) => {
+        self.range_starts = Some(val.iter().map(|v| v.start.clone()).collect());
+        self.range_ends = Some(val.iter().map(|v| v.end.clone()).collect());
+        self.has_any = true;
+      }
       Property::Animation(val, vp) => {
         let names = val.iter().map(|b| b.name.clone()).collect();
         maybe_flush!(names, &names, vp);
@@ -609,6 +820,11 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         property!(play_states, &play_states, vp);
         property!(delays, &delays, vp);
         property!(fill_modes, &fill_modes, vp);
+
+        // The animation shorthand resets animation-range
+        // https://drafts.csswg.org/scroll-animations/#named-range-animation-declaration
+        self.range_starts = None;
+        self.range_ends = None;
       }
       Property::Unparsed(val) if is_animation_property(&val.property_id) => {
         let mut val = Cow::Borrowed(val);
@@ -636,6 +852,9 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
               _ => {}
             }
           }
+
+          self.range_starts = None;
+          self.range_ends = None;
         }
 
         self.flush(dest, context);
@@ -671,6 +890,8 @@ impl<'i> AnimationHandler<'i> {
     let mut delays = std::mem::take(&mut self.delays);
     let mut fill_modes = std::mem::take(&mut self.fill_modes);
     let mut timelines_value = std::mem::take(&mut self.timelines);
+    let range_starts = std::mem::take(&mut self.range_starts);
+    let range_ends = std::mem::take(&mut self.range_ends);
 
     if let (
       Some((names, names_vp)),
@@ -813,6 +1034,32 @@ impl<'i> AnimationHandler<'i> {
     if let Some(val) = timelines_value {
       dest.push(Property::AnimationTimeline(val));
     }
+
+    match (range_starts, range_ends) {
+      (Some(range_starts), Some(range_ends)) => {
+        if range_starts.len() == range_ends.len() {
+          dest.push(Property::AnimationRange(
+            range_starts
+              .into_iter()
+              .zip(range_ends.into_iter())
+              .map(|(start, end)| AnimationRange { start, end })
+              .collect(),
+          ));
+        } else {
+          dest.push(Property::AnimationRangeStart(range_starts));
+          dest.push(Property::AnimationRangeEnd(range_ends));
+        }
+      }
+      (range_starts, range_ends) => {
+        if let Some(range_starts) = range_starts {
+          dest.push(Property::AnimationRangeStart(range_starts));
+        }
+
+        if let Some(range_ends) = range_ends {
+          dest.push(Property::AnimationRangeEnd(range_ends));
+        }
+      }
+    }
   }
 }
 
@@ -829,6 +1076,9 @@ fn is_animation_property(property_id: &PropertyId) -> bool {
     | PropertyId::AnimationFillMode(_)
     | PropertyId::AnimationComposition
     | PropertyId::AnimationTimeline
+    | PropertyId::AnimationRange
+    | PropertyId::AnimationRangeStart
+    | PropertyId::AnimationRangeEnd
     | PropertyId::Animation(_) => true,
     _ => false,
   }

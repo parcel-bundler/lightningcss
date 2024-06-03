@@ -1961,6 +1961,15 @@ export type PropertyId =
       property: "animation-timeline";
     }
   | {
+      property: "animation-range-start";
+    }
+  | {
+      property: "animation-range-end";
+    }
+  | {
+      property: "animation-range";
+    }
+  | {
       property: "animation";
       vendorPrefix: VendorPrefix;
     }
@@ -3315,6 +3324,18 @@ export type Declaration =
   | {
       property: "animation-timeline";
       value: AnimationTimeline[];
+    }
+  | {
+      property: "animation-range-start";
+      value: AnimationRangeStart[];
+    }
+  | {
+      property: "animation-range-end";
+      value: AnimationRangeEnd[];
+    }
+  | {
+      property: "animation-range";
+      value: AnimationRange[];
     }
   | {
       property: "animation";
@@ -5541,6 +5562,38 @@ export type Scroller = "root" | "nearest" | "self";
  * @maxItems 2
  */
 export type Size2DFor_LengthPercentageOrAuto = [LengthPercentageOrAuto, LengthPercentageOrAuto];
+/**
+ * A value for the [animation-range-start](https://drafts.csswg.org/scroll-animations/#animation-range-start) property.
+ */
+export type AnimationRangeStart = AnimationAttachmentRange;
+/**
+ * A value for the [animation-range-start](https://drafts.csswg.org/scroll-animations/#animation-range-start) or [animation-range-end](https://drafts.csswg.org/scroll-animations/#animation-range-end) property.
+ */
+export type AnimationAttachmentRange =
+  | "Normal"
+  | {
+      LengthPercentage: DimensionPercentageFor_LengthValue;
+    }
+  | {
+      TimelineRange: {
+        /**
+         * The name of the timeline range.
+         */
+        name: TimelineRangeName;
+        /**
+         * The offset from the start of the named timeline range.
+         */
+        offset: DimensionPercentageFor_LengthValue;
+      };
+    };
+/**
+ * A [view progress timeline range](https://drafts.csswg.org/scroll-animations/#view-timelines-ranges)
+ */
+export type TimelineRangeName = "cover" | "contain" | "entry" | "exit" | "entry-crossing" | "exit-crossing";
+/**
+ * A value for the [animation-range-end](https://drafts.csswg.org/scroll-animations/#animation-range-end) property.
+ */
+export type AnimationRangeEnd = AnimationAttachmentRange;
 /**
  * An individual [transform function](https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#two-d-transform-functions).
  */
@@ -8574,6 +8627,19 @@ export interface ViewTimeline {
    * Provides an adjustment of the view progress visibility range.
    */
   inset: Size2DFor_LengthPercentageOrAuto;
+}
+/**
+ * A value for the [animation-range](https://drafts.csswg.org/scroll-animations/#animation-range) shorthand property.
+ */
+export interface AnimationRange {
+  /**
+   * The end of the animation's attachment range.
+   */
+  end: AnimationRangeEnd;
+  /**
+   * The start of the animation's attachment range.
+   */
+  start: AnimationRangeStart;
 }
 /**
  * A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.

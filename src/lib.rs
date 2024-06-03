@@ -11585,6 +11585,249 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    minify_test(
+      ".foo { animation-range-start: entry 10% }",
+      ".foo{animation-range-start:entry 10%}",
+    );
+    minify_test(
+      ".foo { animation-range-start: entry 0% }",
+      ".foo{animation-range-start:entry}",
+    );
+    minify_test(
+      ".foo { animation-range-start: entry }",
+      ".foo{animation-range-start:entry}",
+    );
+    minify_test(".foo { animation-range-start: 50% }", ".foo{animation-range-start:50%}");
+    minify_test(
+      ".foo { animation-range-end: exit 10% }",
+      ".foo{animation-range-end:exit 10%}",
+    );
+    minify_test(
+      ".foo { animation-range-end: exit 100% }",
+      ".foo{animation-range-end:exit}",
+    );
+    minify_test(".foo { animation-range-end: exit }", ".foo{animation-range-end:exit}");
+    minify_test(".foo { animation-range-end: 50% }", ".foo{animation-range-end:50%}");
+    minify_test(
+      ".foo { animation-range: entry 10% exit 90% }",
+      ".foo{animation-range:entry 10% exit 90%}",
+    );
+    minify_test(
+      ".foo { animation-range: entry 0% exit 100% }",
+      ".foo{animation-range:entry exit}",
+    );
+    minify_test(".foo { animation-range: entry }", ".foo{animation-range:entry}");
+    minify_test(
+      ".foo { animation-range: entry 0% entry 100% }",
+      ".foo{animation-range:entry}",
+    );
+    minify_test(".foo { animation-range: 50% normal }", ".foo{animation-range:50%}");
+    minify_test(
+      ".foo { animation-range: normal normal }",
+      ".foo{animation-range:normal}",
+    );
+    test(
+      r#"
+      .foo {
+        animation-range-start: entry 10%;
+        animation-range-end: exit 90%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: entry 10% exit 90%;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range-start: entry 0%;
+        animation-range-end: entry 100%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: entry;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range-start: entry 0%;
+        animation-range-end: exit 100%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: entry exit;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range-start: 10%;
+        animation-range-end: normal;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: 10%;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range-start: 10%;
+        animation-range-end: 90%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: 10% 90%;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range-start: entry 10%;
+        animation-range-end: exit 100%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: entry 10% exit;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range-start: 10%;
+        animation-range-end: exit 90%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: 10% exit 90%;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range-start: entry 10%;
+        animation-range-end: 90%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: entry 10% 90%;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range: entry;
+        animation-range-end: 90%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: entry 90%;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range: entry;
+        animation-range-end: var(--end);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: entry;
+        animation-range-end: var(--end);
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range-start: entry 10%, entry 50%;
+        animation-range-end: exit 90%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range-start: entry 10%, entry 50%;
+        animation-range-end: exit 90%;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range-start: entry 10%, entry 50%;
+        animation-range-end: exit 90%, exit 100%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation-range: entry 10% exit 90%, entry 50% exit;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range: entry;
+        animation-range-end: 90%;
+        animation: spin 100ms;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation: .1s spin;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation: spin 100ms;
+        animation-range: entry;
+        animation-range-end: 90%;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation: .1s spin;
+        animation-range: entry 90%;
+      }
+      "#},
+    );
+    test(
+      r#"
+      .foo {
+        animation-range: entry;
+        animation-range-end: 90%;
+        animation: var(--animation) 100ms;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        animation: var(--animation) .1s;
+      }
+      "#},
+    );
   }
 
   #[test]
