@@ -1329,25 +1329,25 @@ enum_property! {
   /// A UA-defined environment variable name.
   pub enum UAEnvironmentVariable {
     /// The safe area inset from the top of the viewport.
-    "safe-area-inset-top": SafeAreaInsetTop,
+    SafeAreaInsetTop,
     /// The safe area inset from the right of the viewport.
-    "safe-area-inset-right": SafeAreaInsetRight,
+    SafeAreaInsetRight,
     /// The safe area inset from the bottom of the viewport.
-    "safe-area-inset-bottom": SafeAreaInsetBottom,
+    SafeAreaInsetBottom,
     /// The safe area inset from the left of the viewport.
-    "safe-area-inset-left": SafeAreaInsetLeft,
+    SafeAreaInsetLeft,
     /// The viewport segment width.
-    "viewport-segment-width": ViewportSegmentWidth,
+    ViewportSegmentWidth,
     /// The viewport segment height.
-    "viewport-segment-height": ViewportSegmentHeight,
+    ViewportSegmentHeight,
     /// The viewport segment top position.
-    "viewport-segment-top": ViewportSegmentTop,
+    ViewportSegmentTop,
     /// The viewport segment left position.
-    "viewport-segment-left": ViewportSegmentLeft,
+    ViewportSegmentLeft,
     /// The viewport segment bottom position.
-    "viewport-segment-bottom": ViewportSegmentBottom,
+    ViewportSegmentBottom,
     /// The viewport segment right position.
-    "viewport-segment-right": ViewportSegmentRight,
+    ViewportSegmentRight,
   }
 }
 

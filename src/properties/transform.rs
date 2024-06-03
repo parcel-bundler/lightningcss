@@ -1382,8 +1382,8 @@ enum_property! {
   /// A value for the [transform-style](https://drafts.csswg.org/css-transforms-2/#transform-style-property) property.
   #[allow(missing_docs)]
   pub enum TransformStyle {
-    "flat": Flat,
-    "preserve-3d": Preserve3d,
+    Flat,
+    Preserve3d,
   }
 }
 
@@ -1391,15 +1391,15 @@ enum_property! {
   /// A value for the [transform-box](https://drafts.csswg.org/css-transforms-1/#transform-box) property.
   pub enum TransformBox {
     /// Uses the content box as reference box.
-    "content-box": ContentBox,
+    ContentBox,
     /// Uses the border box as reference box.
-    "border-box": BorderBox,
+    BorderBox,
     /// Uses the object bounding box as reference box.
-    "fill-box": FillBox,
+    FillBox,
     /// Uses the stroke bounding box as reference box.
-    "stroke-box": StrokeBox,
+    StrokeBox,
     /// Uses the nearest SVG viewport as reference box.
-    "view-box": ViewBox,
+    ViewBox,
   }
 }
 
@@ -1413,7 +1413,7 @@ enum_property! {
 }
 
 /// A value for the [perspective](https://drafts.csswg.org/css-transforms-2/#perspective-property) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -1427,28 +1427,6 @@ pub enum Perspective {
   None,
   /// Distance to the center of projection.
   Length(Length),
-}
-
-impl<'i> Parse<'i> for Perspective {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(Perspective::None);
-    }
-
-    Ok(Perspective::Length(Length::parse(input)?))
-  }
-}
-
-impl ToCss for Perspective {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      Perspective::None => dest.write_str("none"),
-      Perspective::Length(len) => len.to_css(dest),
-    }
-  }
 }
 
 /// A value for the [translate](https://drafts.csswg.org/css-transforms-2/#propdef-translate) property.

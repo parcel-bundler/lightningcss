@@ -25,11 +25,11 @@ enum_property! {
   pub enum ContainerType {
     /// The element is not a query container for any container size queries,
     /// but remains a query container for container style queries.
-    "normal": Normal,
+    Normal,
     /// Establishes a query container for container size queries on the container’s own inline axis.
-    "inline-size": InlineSize,
+    InlineSize,
     /// Establishes a query container for container size queries on both the inline and block axis.
-    "size": Size,
+    Size,
   }
 }
 

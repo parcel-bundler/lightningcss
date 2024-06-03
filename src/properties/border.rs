@@ -23,7 +23,7 @@ use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [border-width](https://www.w3.org/TR/css-backgrounds-3/#border-width) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -54,37 +54,6 @@ impl IsCompatible for BorderSideWidth {
     match self {
       BorderSideWidth::Length(length) => length.is_compatible(browsers),
       _ => true,
-    }
-  }
-}
-
-impl<'i> Parse<'i> for BorderSideWidth {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(length) = input.try_parse(|i| Length::parse(i)) {
-      return Ok(BorderSideWidth::Length(length));
-    }
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &ident,
-      "thin" => Ok(BorderSideWidth::Thin),
-      "medium" => Ok(BorderSideWidth::Medium),
-      "thick" => Ok(BorderSideWidth::Thick),
-      _ => return Err(location.new_unexpected_token_error(Token::Ident(ident.clone())))
-    }
-  }
-}
-
-impl ToCss for BorderSideWidth {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    use BorderSideWidth::*;
-    match self {
-      Thin => dest.write_str("thin"),
-      Medium => dest.write_str("medium"),
-      Thick => dest.write_str("thick"),
-      Length(length) => length.to_css(dest),
     }
   }
 }

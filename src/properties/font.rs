@@ -20,7 +20,7 @@ use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [font-weight](https://www.w3.org/TR/css-fonts-4/#font-weight-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -44,38 +44,6 @@ impl Default for FontWeight {
   }
 }
 
-impl<'i> Parse<'i> for FontWeight {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(AbsoluteFontWeight::parse) {
-      return Ok(FontWeight::Absolute(val));
-    }
-
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "bolder" => Ok(FontWeight::Bolder),
-      "lighter" => Ok(FontWeight::Lighter),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(ident.clone())
-      ))
-    }
-  }
-}
-
-impl ToCss for FontWeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    use FontWeight::*;
-    match self {
-      Absolute(val) => val.to_css(dest),
-      Bolder => dest.write_str("bolder"),
-      Lighter => dest.write_str("lighter"),
-    }
-  }
-}
-
 impl IsCompatible for FontWeight {
   fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
     match self {
@@ -89,7 +57,7 @@ impl IsCompatible for FontWeight {
 /// as used in the `font-weight` property.
 ///
 /// See [FontWeight](FontWeight).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -109,24 +77,6 @@ pub enum AbsoluteFontWeight {
 impl Default for AbsoluteFontWeight {
   fn default() -> AbsoluteFontWeight {
     AbsoluteFontWeight::Normal
-  }
-}
-
-impl<'i> Parse<'i> for AbsoluteFontWeight {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(CSSNumber::parse) {
-      return Ok(AbsoluteFontWeight::Weight(val));
-    }
-
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "normal" => Ok(AbsoluteFontWeight::Normal),
-      "bold" => Ok(AbsoluteFontWeight::Bold),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(ident.clone())
-      ))
-    }
   }
 }
 
@@ -197,7 +147,7 @@ enum_property! {
 }
 
 /// A value for the [font-size](https://www.w3.org/TR/css-fonts-4/#font-size-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -213,35 +163,6 @@ pub enum FontSize {
   Absolute(AbsoluteFontSize),
   /// A relative font size keyword.
   Relative(RelativeFontSize),
-}
-
-impl<'i> Parse<'i> for FontSize {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(LengthPercentage::parse) {
-      return Ok(FontSize::Length(val));
-    }
-
-    if let Ok(val) = input.try_parse(AbsoluteFontSize::parse) {
-      return Ok(FontSize::Absolute(val));
-    }
-
-    let val = RelativeFontSize::parse(input)?;
-    Ok(FontSize::Relative(val))
-  }
-}
-
-impl ToCss for FontSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    use FontSize::*;
-    match self {
-      Absolute(val) => val.to_css(dest),
-      Length(val) => val.to_css(dest),
-      Relative(val) => val.to_css(dest),
-    }
-  }
 }
 
 impl IsCompatible for FontSize {
@@ -309,7 +230,7 @@ impl Into<Percentage> for &FontStretchKeyword {
 }
 
 /// A value for the [font-stretch](https://www.w3.org/TR/css-fonts-4/#font-stretch-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -328,17 +249,6 @@ pub enum FontStretch {
 impl Default for FontStretch {
   fn default() -> FontStretch {
     FontStretch::Keyword(FontStretchKeyword::default())
-  }
-}
-
-impl<'i> Parse<'i> for FontStretch {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(Percentage::parse) {
-      return Ok(FontStretch::Percentage(val));
-    }
-
-    let keyword = FontStretchKeyword::parse(input)?;
-    Ok(FontStretch::Keyword(keyword))
   }
 }
 
@@ -601,19 +511,19 @@ enum_property! {
   /// A value for the [font-variant-caps](https://www.w3.org/TR/css-fonts-4/#font-variant-caps-prop) property.
   pub enum FontVariantCaps {
     /// No special capitalization features are applied.
-    "normal": Normal,
+    Normal,
     /// The small capitals feature is used for lower case letters.
-    "small-caps": SmallCaps,
+    SmallCaps,
     /// Small capitals are used for both upper and lower case letters.
-    "all-small-caps": AllSmallCaps,
+    AllSmallCaps,
     /// Petite capitals are used.
-    "petite-caps": PetiteCaps,
+    PetiteCaps,
     /// Petite capitals are used for both upper and lower case letters.
-    "all-petite-caps": AllPetiteCaps,
+    AllPetiteCaps,
     /// Enables display of mixture of small capitals for uppercase letters with normal lowercase letters.
-    "unicase": Unicase,
+    Unicase,
     /// Uses titling capitals.
-    "titling-caps": TitlingCaps,
+    TitlingCaps,
   }
 }
 
@@ -644,7 +554,7 @@ impl IsCompatible for FontVariantCaps {
 }
 
 /// A value for the [line-height](https://www.w3.org/TR/2020/WD-css-inline-3-20200827/#propdef-line-height) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -668,33 +578,6 @@ impl Default for LineHeight {
   }
 }
 
-impl<'i> Parse<'i> for LineHeight {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(LineHeight::Normal);
-    }
-
-    if let Ok(val) = input.try_parse(CSSNumber::parse) {
-      return Ok(LineHeight::Number(val));
-    }
-
-    Ok(LineHeight::Length(LengthPercentage::parse(input)?))
-  }
-}
-
-impl ToCss for LineHeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      LineHeight::Normal => dest.write_str("normal"),
-      LineHeight::Number(val) => val.to_css(dest),
-      LineHeight::Length(val) => val.to_css(dest),
-    }
-  }
-}
-
 impl IsCompatible for LineHeight {
   fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
     match self {
@@ -708,27 +591,27 @@ enum_property! {
   /// A keyword for the [vertical align](https://drafts.csswg.org/css2/#propdef-vertical-align) property.
   pub enum VerticalAlignKeyword {
     /// Align the baseline of the box with the baseline of the parent box.
-    "baseline": Baseline,
+    Baseline,
     /// Lower the baseline of the box to the proper position for subscripts of the parent’s box.
-    "sub": Sub,
+    Sub,
     /// Raise the baseline of the box to the proper position for superscripts of the parent’s box.
-    "super": Super,
+    Super,
     /// Align the top of the aligned subtree with the top of the line box.
-    "top": Top,
+    Top,
     /// Align the top of the box with the top of the parent’s content area.
-    "text-top": TextTop,
+    TextTop,
     /// Align the vertical midpoint of the box with the baseline of the parent box plus half the x-height of the parent.
-    "middle": Middle,
+    Middle,
     /// Align the bottom of the aligned subtree with the bottom of the line box.
-    "bottom": Bottom,
+    Bottom,
     /// Align the bottom of the box with the bottom of the parent’s content area.
-    "text-bottom": TextBottom,
+    TextBottom,
   }
 }
 
 /// A value for the [vertical align](https://drafts.csswg.org/css2/#propdef-vertical-align) property.
 // TODO: there is a more extensive spec in CSS3 but it doesn't seem any browser implements it? https://www.w3.org/TR/css-inline-3/#transverse-alignment
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -742,29 +625,6 @@ pub enum VerticalAlign {
   Keyword(VerticalAlignKeyword),
   /// An explicit length.
   Length(LengthPercentage),
-}
-
-impl<'i> Parse<'i> for VerticalAlign {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(len) = input.try_parse(LengthPercentage::parse) {
-      return Ok(VerticalAlign::Length(len));
-    }
-
-    let kw = VerticalAlignKeyword::parse(input)?;
-    Ok(VerticalAlign::Keyword(kw))
-  }
-}
-
-impl ToCss for VerticalAlign {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      VerticalAlign::Keyword(kw) => kw.to_css(dest),
-      VerticalAlign::Length(len) => len.to_css(dest),
-    }
-  }
 }
 
 define_shorthand! {

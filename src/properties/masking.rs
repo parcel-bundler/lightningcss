@@ -37,11 +37,11 @@ enum_property! {
   /// A value for the [mask-mode](https://www.w3.org/TR/css-masking-1/#the-mask-mode) property.
   pub enum MaskMode {
     /// The luminance values of the mask image is used.
-    "luminance": Luminance,
+    Luminance,
     /// The alpha values of the mask image is used.
-    "alpha": Alpha,
+    Alpha,
     /// If an SVG source is used, the value matches the `mask-type` property. Otherwise, the alpha values are used.
-    "match-source": MatchSource,
+    MatchSource,
   }
 }
 
@@ -58,11 +58,11 @@ enum_property! {
   /// See also [MaskMode](MaskMode).
   pub enum WebKitMaskSourceType {
     /// Equivalent to `match-source` in the standard `mask-mode` syntax.
-    "auto": Auto,
+    Auto,
     /// The luminance values of the mask image is used.
-    "luminance": Luminance,
+    Luminance,
     /// The alpha values of the mask image is used.
-    "alpha": Alpha,
+    Alpha,
   }
 }
 
@@ -81,19 +81,19 @@ enum_property! {
   /// as used in the `mask-clip` and `clip-path` properties.
   pub enum GeometryBox {
     /// The painted content is clipped to the content box.
-    "border-box": BorderBox,
+    BorderBox,
     /// The painted content is clipped to the padding box.
-    "padding-box": PaddingBox,
+    PaddingBox,
     /// The painted content is clipped to the border box.
-    "content-box": ContentBox,
+    ContentBox,
     /// The painted content is clipped to the margin box.
-    "margin-box": MarginBox,
+    MarginBox,
     /// The painted content is clipped to the object bounding box.
-    "fill-box": FillBox,
+    FillBox,
     /// The painted content is clipped to the stroke bounding box.
-    "stroke-box": StrokeBox,
+    StrokeBox,
     /// Uses the nearest SVG viewport as reference box.
-    "view-box": ViewBox,
+    ViewBox,
   }
 }
 
@@ -104,7 +104,7 @@ impl Default for GeometryBox {
 }
 
 /// A value for the [mask-clip](https://www.w3.org/TR/css-masking-1/#the-mask-clip) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -118,29 +118,6 @@ pub enum MaskClip {
   GeometryBox(GeometryBox),
   /// The painted content is not clipped.
   NoClip,
-}
-
-impl<'i> Parse<'i> for MaskClip {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(b) = input.try_parse(GeometryBox::parse) {
-      return Ok(MaskClip::GeometryBox(b));
-    }
-
-    input.expect_ident_matching("no-clip")?;
-    Ok(MaskClip::NoClip)
-  }
-}
-
-impl ToCss for MaskClip {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      MaskClip::GeometryBox(b) => b.to_css(dest),
-      MaskClip::NoClip => dest.write_str("no-clip"),
-    }
-  }
 }
 
 impl IsCompatible for MaskClip {
@@ -191,21 +168,21 @@ enum_property! {
   /// See also [MaskComposite](MaskComposite).
   #[allow(missing_docs)]
   pub enum WebKitMaskComposite {
-    "clear": Clear,
-    "copy": Copy,
+    Clear,
+    Copy,
     /// Equivalent to `add` in the standard `mask-composite` syntax.
-    "source-over": SourceOver,
+    SourceOver,
     /// Equivalent to `intersect` in the standard `mask-composite` syntax.
-    "source-in": SourceIn,
+    SourceIn,
     /// Equivalent to `subtract` in the standard `mask-composite` syntax.
-    "source-out": SourceOut,
-    "source-atop": SourceAtop,
-    "destination-over": DestinationOver,
-    "destination-in": DestinationIn,
-    "destination-out": DestinationOut,
-    "destination-atop": DestinationAtop,
+    SourceOut,
+    SourceAtop,
+    DestinationOver,
+    DestinationIn,
+    DestinationOut,
+    DestinationAtop,
     /// Equivalent to `exclude` in the standard `mask-composite` syntax.
-    "xor": Xor,
+    Xor,
   }
 }
 
@@ -477,9 +454,9 @@ enum_property! {
   /// A value for the [mask-border-mode](https://www.w3.org/TR/css-masking-1/#the-mask-border-mode) property.
   pub enum MaskBorderMode {
     /// The luminance values of the mask image is used.
-    "luminance": Luminance,
+    Luminance,
     /// The alpha values of the mask image is used.
-    "alpha": Alpha,
+    Alpha,
   }
 }
 

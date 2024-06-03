@@ -113,13 +113,13 @@ enum_property! {
   /// See [BackgroundRepeat](BackgroundRepeat).
   pub enum BackgroundRepeatKeyword {
     /// The image is repeated in this direction.
-    "repeat": Repeat,
+    Repeat,
     /// The image is repeated so that it fits, and then spaced apart evenly.
-    "space": Space,
+    Space,
     /// The image is scaled so that it repeats an even number of times.
-    "round": Round,
+    Round,
     /// The image is placed once and not repeated in this direction.
-    "no-repeat": NoRepeat,
+    NoRepeat,
   }
 }
 
@@ -214,11 +214,11 @@ enum_property! {
   /// A value for the [background-origin](https://www.w3.org/TR/css-backgrounds-3/#background-origin) property.
   pub enum BackgroundOrigin {
     /// The position is relative to the border box.
-    "border-box": BorderBox,
+    BorderBox,
     /// The position is relative to the padding box.
-    "padding-box": PaddingBox,
+    PaddingBox,
     /// The position is relative to the content box.
-    "content-box": ContentBox,
+    ContentBox,
   }
 }
 
@@ -226,15 +226,15 @@ enum_property! {
   /// A value for the [background-clip](https://drafts.csswg.org/css-backgrounds-4/#background-clip) property.
   pub enum BackgroundClip {
     /// The background is clipped to the border box.
-    "border-box": BorderBox,
+    BorderBox,
     /// The background is clipped to the padding box.
-    "padding-box": PaddingBox,
+    PaddingBox,
     /// The background is clipped to the content box.
-    "content-box": ContentBox,
+    ContentBox,
     /// The background is clipped to the area painted by the border.
-    "border": Border,
+    Border,
     /// The background is clipped to the text content of the element.
-    "text": Text,
+    Text,
   }
 }
 

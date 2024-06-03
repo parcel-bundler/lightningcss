@@ -3581,6 +3581,7 @@ impl<'i, V: ?Sized + Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for RGB
 }
 
 enum_property! {
+  #[css(case = lower)]
   /// A CSS [system color](https://drafts.csswg.org/css-color/#css-system-colors) keyword.
   pub enum SystemColor {
     /// Background of accented user interface controls.

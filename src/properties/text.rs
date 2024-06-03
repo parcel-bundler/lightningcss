@@ -238,13 +238,13 @@ enum_property! {
   /// A value for the [word-break](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#word-break-property) property.
   pub enum WordBreak {
     /// Words break according to their customary rules.
-    "normal": Normal,
+    Normal,
     /// Breaking is forbidden within “words”.
-    "keep-all": KeepAll,
+    KeepAll,
     /// Breaking is allowed within “words”.
-    "break-all": BreakAll,
+    BreakAll,
     /// Breaking is allowed if there is no otherwise acceptable break points in a line.
-    "break-word": BreakWord,
+    BreakWord,
   }
 }
 
@@ -279,12 +279,12 @@ enum_property! {
   /// A value for the [overflow-wrap](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#overflow-wrap-property) property.
   pub enum OverflowWrap {
     /// Lines may break only at allowed break points.
-    "normal": Normal,
+    Normal,
     /// Breaking is allowed if there is no otherwise acceptable break points in a line.
-    "anywhere": Anywhere,
+    Anywhere,
     /// As for anywhere except that soft wrap opportunities introduced by break-word are
     /// not considered when calculating min-content intrinsic sizes.
-    "break-word": BreakWord,
+    BreakWord,
   }
 }
 
@@ -292,21 +292,21 @@ enum_property! {
   /// A value for the [text-align](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-align-property) property.
   pub enum TextAlign {
     /// Inline-level content is aligned to the start edge of the line box.
-    "start": Start,
+    Start,
     /// Inline-level content is aligned to the end edge of the line box.
-    "end": End,
+    End,
     /// Inline-level content is aligned to the line-left edge of the line box.
-    "left": Left,
+    Left,
     /// Inline-level content is aligned to the line-right edge of the line box.
-    "right": Right,
+    Right,
     /// Inline-level content is centered within the line box.
-    "center": Center,
+    Center,
     /// Text is justified according to the method specified by the text-justify property.
-    "justify": Justify,
+    Justify,
     /// Matches the parent element.
-    "match-parent": MatchParent,
+    MatchParent,
     /// Same as justify, but also justifies the last line.
-    "justify-all": JustifyAll,
+    JustifyAll,
   }
 }
 
@@ -314,21 +314,21 @@ enum_property! {
   /// A value for the [text-align-last](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-align-last-property) property.
   pub enum TextAlignLast {
     /// Content on the affected line is aligned per `text-align-all` unless set to `justify`, in which case it is start-aligned.
-    "auto": Auto,
+    Auto,
     /// Inline-level content is aligned to the start edge of the line box.
-    "start": Start,
+    Start,
     /// Inline-level content is aligned to the end edge of the line box.
-    "end": End,
+    End,
     /// Inline-level content is aligned to the line-left edge of the line box.
-    "left": Left,
+    Left,
     /// Inline-level content is aligned to the line-right edge of the line box.
-    "right": Right,
+    Right,
     /// Inline-level content is centered within the line box.
-    "center": Center,
+    Center,
     /// Text is justified according to the method specified by the text-justify property.
-    "justify": Justify,
+    Justify,
     /// Matches the parent element.
-    "match-parent": MatchParent,
+    MatchParent,
   }
 }
 
@@ -336,19 +336,19 @@ enum_property! {
   /// A value for the [text-justify](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-justify-property) property.
   pub enum TextJustify {
     /// The UA determines the justification algorithm to follow.
-    "auto": Auto,
+    Auto,
     /// Justification is disabled.
-    "none": None,
+    None,
     /// Justification adjusts spacing at word separators only.
-    "inter-word": InterWord,
+    InterWord,
     /// Justification adjusts spacing between each character.
-    "inter-character": InterCharacter,
+    InterCharacter,
   }
 }
 
 /// A value for the [word-spacing](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#word-spacing-property)
 /// and [letter-spacing](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#letter-spacing-property) properties.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -362,29 +362,6 @@ pub enum Spacing {
   Normal,
   /// Additional spacing between each word or letter.
   Length(Length),
-}
-
-impl<'i> Parse<'i> for Spacing {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(Spacing::Normal);
-    }
-
-    let length = Length::parse(input)?;
-    Ok(Spacing::Length(length))
-  }
-}
-
-impl ToCss for Spacing {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      Spacing::Normal => dest.write_str("normal"),
-      Spacing::Length(len) => len.to_css(dest),
-    }
-  }
 }
 
 /// A value for the [text-indent](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-indent-property) property.
@@ -466,7 +443,7 @@ impl ToCss for TextIndent {
 }
 
 /// A value for the [text-size-adjust](https://w3c.github.io/csswg-drafts/css-size-adjust/#adjustment-control) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -482,34 +459,6 @@ pub enum TextSizeAdjust {
   None,
   /// When displaying on a small device, the font size is multiplied by this percentage.
   Percentage(Percentage),
-}
-
-impl<'i> Parse<'i> for TextSizeAdjust {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(p) = input.try_parse(Percentage::parse) {
-      return Ok(TextSizeAdjust::Percentage(p));
-    }
-
-    let ident = input.expect_ident_cloned()?;
-    match_ignore_ascii_case! {&*ident,
-      "auto" => Ok(TextSizeAdjust::Auto),
-      "none" => Ok(TextSizeAdjust::None),
-      _ => Err(input.new_unexpected_token_error(Token::Ident(ident.clone())))
-    }
-  }
-}
-
-impl ToCss for TextSizeAdjust {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      TextSizeAdjust::Auto => dest.write_str("auto"),
-      TextSizeAdjust::None => dest.write_str("none"),
-      TextSizeAdjust::Percentage(p) => p.to_css(dest),
-    }
-  }
 }
 
 bitflags! {
@@ -749,7 +698,7 @@ impl Default for TextDecorationStyle {
 }
 
 /// A value for the [text-decoration-thickness](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-width-property) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -770,34 +719,6 @@ pub enum TextDecorationThickness {
 impl Default for TextDecorationThickness {
   fn default() -> TextDecorationThickness {
     TextDecorationThickness::Auto
-  }
-}
-
-impl<'i> Parse<'i> for TextDecorationThickness {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
-      return Ok(TextDecorationThickness::Auto);
-    }
-
-    if input.try_parse(|input| input.expect_ident_matching("from-font")).is_ok() {
-      return Ok(TextDecorationThickness::FromFont);
-    }
-
-    let lp = LengthPercentage::parse(input)?;
-    Ok(TextDecorationThickness::LengthPercentage(lp))
-  }
-}
-
-impl ToCss for TextDecorationThickness {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      TextDecorationThickness::Auto => dest.write_str("auto"),
-      TextDecorationThickness::FromFont => dest.write_str("from-font"),
-      TextDecorationThickness::LengthPercentage(lp) => lp.to_css(dest),
-    }
   }
 }
 
@@ -927,15 +848,15 @@ enum_property! {
   /// See [TextEmphasisStyle](TextEmphasisStyle).
   pub enum TextEmphasisShape {
     /// Display small circles as marks.
-    "dot": Dot,
+    Dot,
     /// Display large circles as marks.
-    "circle": Circle,
+    Circle,
     /// Display double circles as marks.
-    "double-circle": DoubleCircle,
+    DoubleCircle,
     /// Display triangles as marks.
-    "triangle": Triangle,
+    Triangle,
     /// Display sesames as marks.
-    "sesame": Sesame,
+    Sesame,
   }
 }
 
@@ -1614,16 +1535,16 @@ enum_property! {
   /// A value for the [unicode-bidi](https://drafts.csswg.org/css-writing-modes-3/#unicode-bidi) property.
   pub enum UnicodeBidi {
     /// The box does not open an additional level of embedding.
-    "normal": Normal,
+    Normal,
     /// If the box is inline, this value creates a directional embedding by opening an additional level of embedding.
-    "embed": Embed,
+    Embed,
     /// On an inline box, this bidi-isolates its contents.
-    "isolate": Isolate,
+    Isolate,
     /// This value puts the box’s immediate inline content in a directional override.
-    "bidi-override": BidiOverride,
+    BidiOverride,
     /// This combines the isolation behavior of isolate with the directional override behavior of bidi-override.
-    "isolate-override": IsolateOverride,
+    IsolateOverride,
     /// This value behaves as isolate except that the base directionality is determined using a heuristic rather than the direction property.
-    "plaintext": Plaintext,
+    Plaintext,
   }
 }

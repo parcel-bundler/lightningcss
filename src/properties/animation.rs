@@ -13,7 +13,7 @@ use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::ident::DashedIdent;
 use crate::values::number::CSSNumber;
 use crate::values::size::Size2D;
-use crate::values::string::CowArcStr;
+use crate::values::string::CSSString;
 use crate::values::{easing::EasingFunction, ident::CustomIdent, time::Time};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -24,7 +24,7 @@ use smallvec::SmallVec;
 use super::LengthPercentageOrAuto;
 
 /// A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
@@ -41,22 +41,7 @@ pub enum AnimationName<'i> {
   Ident(CustomIdent<'i>),
   /// A `<string>` name of a `@keyframes` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  String(CowArcStr<'i>),
-}
-
-impl<'i> Parse<'i> for AnimationName<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(AnimationName::None);
-    }
-
-    if let Ok(s) = input.try_parse(|input| input.expect_string_cloned()) {
-      return Ok(AnimationName::String(s.into()));
-    }
-
-    let ident = CustomIdent::parse(input)?;
-    Ok(AnimationName::Ident(ident))
-  }
+  String(CSSString<'i>),
 }
 
 impl<'i> ToCss for AnimationName<'i> {
@@ -103,7 +88,7 @@ impl<'i> ToCss for AnimationName<'i> {
 pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 
 /// A value for the [animation-iteration-count](https://drafts.csswg.org/css-animations/#animation-iteration-count) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -125,40 +110,17 @@ impl Default for AnimationIterationCount {
   }
 }
 
-impl<'i> Parse<'i> for AnimationIterationCount {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("infinite")).is_ok() {
-      return Ok(AnimationIterationCount::Infinite);
-    }
-
-    let number = CSSNumber::parse(input)?;
-    return Ok(AnimationIterationCount::Number(number));
-  }
-}
-
-impl ToCss for AnimationIterationCount {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      AnimationIterationCount::Number(val) => val.to_css(dest),
-      AnimationIterationCount::Infinite => dest.write_str("infinite"),
-    }
-  }
-}
-
 enum_property! {
   /// A value for the [animation-direction](https://drafts.csswg.org/css-animations/#animation-direction) property.
   pub enum AnimationDirection {
     /// The animation is played as specified
-    "normal": Normal,
+    Normal,
     /// The animation is played in reverse.
-    "reverse": Reverse,
+    Reverse,
     /// The animation iterations alternate between forward and reverse.
-    "alternate": Alternate,
+    Alternate,
     /// The animation iterations alternate between forward and reverse, with reverse occurring first.
-    "alternate-reverse": AlternateReverse,
+    AlternateReverse,
   }
 }
 
@@ -217,7 +179,7 @@ enum_property! {
 }
 
 /// A value for the [animation-timeline](https://drafts.csswg.org/css-animations-2/#animation-timeline) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -261,25 +223,28 @@ pub struct ScrollTimeline {
 
 impl<'i> Parse<'i> for ScrollTimeline {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let mut scroller = None;
-    let mut axis = None;
-    loop {
-      if scroller.is_none() {
-        scroller = input.try_parse(Scroller::parse).ok();
-      }
-
-      if axis.is_none() {
-        axis = input.try_parse(ScrollAxis::parse).ok();
-        if axis.is_some() {
-          continue;
+    input.expect_function_matching("scroll")?;
+    input.parse_nested_block(|input| {
+      let mut scroller = None;
+      let mut axis = None;
+      loop {
+        if scroller.is_none() {
+          scroller = input.try_parse(Scroller::parse).ok();
         }
-      }
-      break;
-    }
 
-    Ok(ScrollTimeline {
-      scroller: scroller.unwrap_or_default(),
-      axis: axis.unwrap_or_default(),
+        if axis.is_none() {
+          axis = input.try_parse(ScrollAxis::parse).ok();
+          if axis.is_some() {
+            continue;
+          }
+        }
+        break;
+      }
+
+      Ok(ScrollTimeline {
+        scroller: scroller.unwrap_or_default(),
+        axis: axis.unwrap_or_default(),
+      })
     })
   }
 }
@@ -289,6 +254,8 @@ impl ToCss for ScrollTimeline {
   where
     W: std::fmt::Write,
   {
+    dest.write_str("scroll(")?;
+
     let mut needs_space = false;
     if self.scroller != Scroller::default() {
       self.scroller.to_css(dest)?;
@@ -302,7 +269,7 @@ impl ToCss for ScrollTimeline {
       self.axis.to_css(dest)?;
     }
 
-    Ok(())
+    dest.write_char(')')
   }
 }
 
@@ -359,25 +326,28 @@ pub struct ViewTimeline {
 
 impl<'i> Parse<'i> for ViewTimeline {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let mut axis = None;
-    let mut inset = None;
-    loop {
-      if axis.is_none() {
-        axis = input.try_parse(ScrollAxis::parse).ok();
-      }
-
-      if inset.is_none() {
-        inset = input.try_parse(Size2D::parse).ok();
-        if inset.is_some() {
-          continue;
+    input.expect_function_matching("view")?;
+    input.parse_nested_block(|input| {
+      let mut axis = None;
+      let mut inset = None;
+      loop {
+        if axis.is_none() {
+          axis = input.try_parse(ScrollAxis::parse).ok();
         }
-      }
-      break;
-    }
 
-    Ok(ViewTimeline {
-      axis: axis.unwrap_or_default(),
-      inset: inset.unwrap_or(Size2D(LengthPercentageOrAuto::Auto, LengthPercentageOrAuto::Auto)),
+        if inset.is_none() {
+          inset = input.try_parse(Size2D::parse).ok();
+          if inset.is_some() {
+            continue;
+          }
+        }
+        break;
+      }
+
+      Ok(ViewTimeline {
+        axis: axis.unwrap_or_default(),
+        inset: inset.unwrap_or(Size2D(LengthPercentageOrAuto::Auto, LengthPercentageOrAuto::Auto)),
+      })
     })
   }
 }
@@ -387,6 +357,7 @@ impl ToCss for ViewTimeline {
   where
     W: std::fmt::Write,
   {
+    dest.write_str("view(")?;
     let mut needs_space = false;
     if self.axis != ScrollAxis::default() {
       self.axis.to_css(dest)?;
@@ -400,56 +371,7 @@ impl ToCss for ViewTimeline {
       self.inset.to_css(dest)?;
     }
 
-    Ok(())
-  }
-}
-
-impl<'i> Parse<'i> for AnimationTimeline<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
-      return Ok(AnimationTimeline::Auto);
-    }
-
-    if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
-      return Ok(AnimationTimeline::None);
-    }
-
-    if let Ok(name) = input.try_parse(DashedIdent::parse) {
-      return Ok(AnimationTimeline::DashedIdent(name));
-    }
-
-    let location = input.current_source_location();
-    let f = input.expect_function()?.clone();
-    input.parse_nested_block(move |input| {
-      match_ignore_ascii_case! { &f,
-        "scroll" => ScrollTimeline::parse(input).map(AnimationTimeline::Scroll),
-        "view" => ViewTimeline::parse(input).map(AnimationTimeline::View),
-        _ => Err(location.new_custom_error(ParserError::UnexpectedToken(crate::properties::custom::Token::Function(f.into()))))
-      }
-    })
-  }
-}
-
-impl<'i> ToCss for AnimationTimeline<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      AnimationTimeline::Auto => dest.write_str("auto"),
-      AnimationTimeline::None => dest.write_str("none"),
-      AnimationTimeline::DashedIdent(name) => name.to_css(dest),
-      AnimationTimeline::Scroll(scroll) => {
-        dest.write_str("scroll(")?;
-        scroll.to_css(dest)?;
-        dest.write_char(')')
-      }
-      AnimationTimeline::View(view) => {
-        dest.write_str("view(")?;
-        view.to_css(dest)?;
-        dest.write_char(')')
-      }
-    }
+    dest.write_char(')')
   }
 }
 
@@ -535,7 +457,7 @@ impl<'i> ToCss for Animation<'i> {
   {
     match &self.name {
       AnimationName::None => {}
-      AnimationName::Ident(CustomIdent(name)) | AnimationName::String(name) => {
+      AnimationName::Ident(CustomIdent(name)) | AnimationName::String(CSSString(name)) => {
         if !self.duration.is_zero() || !self.delay.is_zero() {
           self.duration.to_css(dest)?;
           dest.write_char(' ')?;
@@ -709,7 +631,7 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
                 }
               }
               TokenOrValue::Token(Token::String(s)) => {
-                *token = TokenOrValue::AnimationName(AnimationName::String(s.clone()));
+                *token = TokenOrValue::AnimationName(AnimationName::String(CSSString(s.clone())));
               }
               _ => {}
             }

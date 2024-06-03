@@ -25,13 +25,13 @@ enum_property! {
   /// A value for the [flex-direction](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction) property.
   pub enum FlexDirection {
     /// Flex items are laid out in a row.
-    "row": Row,
+    Row,
     /// Flex items are laid out in a row, and reversed.
-    "row-reverse": RowReverse,
+    RowReverse,
     /// Flex items are laid out in a column.
-    "column": Column,
+    Column,
     /// Flex items are laid out in a column, and reversed.
-    "column-reverse": ColumnReverse,
+    ColumnReverse,
   }
 }
 
@@ -233,13 +233,13 @@ enum_property! {
   /// Partially equivalent to `flex-direction` in the standard syntax.
   pub enum BoxOrient {
     /// Items are laid out horizontally.
-    "horizontal": Horizontal,
+    Horizontal,
     /// Items are laid out vertically.
-    "vertical": Vertical,
+    Vertical,
     /// Items are laid out along the inline axis, according to the writing direction.
-    "inline-axis": InlineAxis,
+    InlineAxis,
     /// Items are laid out along the block axis, according to the writing direction.
-    "block-axis": BlockAxis,
+    BlockAxis,
   }
 }
 

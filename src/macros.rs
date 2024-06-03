@@ -8,44 +8,17 @@ macro_rules! enum_property {
       )+
     }
   ) => {
-    $(#[$outer])*
-    #[derive(Debug, Clone, Copy, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
     #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
     #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+    $(#[$outer])*
     $vis enum $name {
       $(
         $(#[$meta])*
         $x,
       )+
-    }
-
-    impl<'i> Parse<'i> for $name {
-      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-        let location = input.current_source_location();
-        let ident = input.expect_ident()?;
-        match &ident[..] {
-          $(
-            s if s.eq_ignore_ascii_case(stringify!($x)) => Ok($name::$x),
-          )+
-          _ => Err(location.new_unexpected_token_error(
-            cssparser::Token::Ident(ident.clone())
-          ))
-        }
-      }
-
-      fn parse_string(input: &'i str) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-        match input {
-          $(
-            s if s.eq_ignore_ascii_case(stringify!($x)) => Ok($name::$x),
-          )+
-          _ => return Err(ParseError {
-            kind: ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(cssparser::Token::Ident(input.into()))),
-            location: cssparser::SourceLocation { line: 0, column: 1 }
-          })
-        }
-      }
     }
 
     impl $name {
@@ -54,15 +27,9 @@ macro_rules! enum_property {
         use $name::*;
         match self {
           $(
-            $x => const_str::convert_ascii_case!(lower, stringify!($x)),
+            $x => const_str::convert_ascii_case!(kebab, stringify!($x)),
           )+
         }
-      }
-    }
-
-    impl ToCss for $name {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-        dest.write_str(self.as_str())
       }
     }
   };
@@ -92,25 +59,13 @@ macro_rules! enum_property {
       fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let location = input.current_source_location();
         let ident = input.expect_ident()?;
-        match &ident[..] {
+        cssparser::match_ignore_ascii_case! { &*ident,
           $(
-            s if s.eq_ignore_ascii_case($str) => Ok($name::$id),
+            $str => Ok($name::$id),
           )+
           _ => Err(location.new_unexpected_token_error(
             cssparser::Token::Ident(ident.clone())
-          ))
-        }
-      }
-
-      fn parse_string(input: &'i str) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-        match input {
-          $(
-            s if s.eq_ignore_ascii_case($str) => Ok($name::$id),
-          )+
-          _ => return Err(ParseError {
-            kind: ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(cssparser::Token::Ident(input.into()))),
-            location: cssparser::SourceLocation { line: 0, column: 1 }
-          })
+          )),
         }
       }
     }

@@ -92,13 +92,13 @@ enum_property! {
   /// as used in the `round()` function.
   pub enum RoundingStrategy {
     /// Round to the nearest integer.
-    "nearest": Nearest,
+    Nearest,
     /// Round up (ceil).
-    "up": Up,
+    Up,
     /// Round down (floor).
-    "down": Down,
+    Down,
     /// Round toward zero (truncate).
-    "to-zero": ToZero,
+    ToZero,
   }
 }
 

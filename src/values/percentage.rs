@@ -144,7 +144,7 @@ impl_op!(Percentage, std::ops::Add, add);
 impl_try_from_angle!(Percentage);
 
 /// Either a `<number>` or `<percentage>`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -154,36 +154,10 @@ impl_try_from_angle!(Percentage);
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum NumberOrPercentage {
-  /// A percentage.
-  Percentage(Percentage),
   /// A number.
   Number(CSSNumber),
-}
-
-impl<'i> Parse<'i> for NumberOrPercentage {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(number) = input.try_parse(CSSNumber::parse) {
-      return Ok(NumberOrPercentage::Number(number));
-    }
-
-    if let Ok(percent) = input.try_parse(|input| Percentage::parse(input)) {
-      return Ok(NumberOrPercentage::Percentage(percent));
-    }
-
-    Err(input.new_error_for_next_token())
-  }
-}
-
-impl ToCss for NumberOrPercentage {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      NumberOrPercentage::Percentage(percent) => percent.to_css(dest),
-      NumberOrPercentage::Number(number) => number.to_css(dest),
-    }
-  }
+  /// A percentage.
+  Percentage(Percentage),
 }
 
 impl std::convert::Into<CSSNumber> for &NumberOrPercentage {

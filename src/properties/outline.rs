@@ -15,7 +15,7 @@ use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [outline-style](https://drafts.csswg.org/css-ui/#outline-style) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -29,29 +29,6 @@ pub enum OutlineStyle {
   Auto,
   /// A value equivalent to the `border-style` property.
   LineStyle(LineStyle),
-}
-
-impl<'i> Parse<'i> for OutlineStyle {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(border_style) = input.try_parse(LineStyle::parse) {
-      return Ok(OutlineStyle::LineStyle(border_style));
-    }
-
-    input.expect_ident_matching("auto")?;
-    Ok(OutlineStyle::Auto)
-  }
-}
-
-impl ToCss for OutlineStyle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      OutlineStyle::Auto => dest.write_str("auto"),
-      OutlineStyle::LineStyle(border_style) => border_style.to_css(dest),
-    }
-  }
 }
 
 impl Default for OutlineStyle {

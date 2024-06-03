@@ -267,7 +267,7 @@ impl<'i> ToCss for KeyframesRule<'i> {
 
 /// A [keyframe selector](https://drafts.csswg.org/css-animations/#typedef-keyframe-selector)
 /// within an `@keyframes` rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Parse)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -283,24 +283,6 @@ pub enum KeyframeSelector {
   From,
   /// The `to` keyword. Equivalent to 100%.
   To,
-}
-
-impl<'i> Parse<'i> for KeyframeSelector {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(Percentage::parse) {
-      return Ok(KeyframeSelector::Percentage(val));
-    }
-
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "from" => Ok(KeyframeSelector::From),
-      "to" => Ok(KeyframeSelector::To),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(ident.clone())
-      ))
-    }
-  }
 }
 
 impl ToCss for KeyframeSelector {

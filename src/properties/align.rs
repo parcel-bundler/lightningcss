@@ -73,13 +73,13 @@ enum_property! {
   /// A [`<content-distribution>`](https://www.w3.org/TR/css-align-3/#typedef-content-distribution) value.
   pub enum ContentDistribution {
     /// Items are spaced evenly, with the first and last items against the edge of the container.
-    "space-between": SpaceBetween,
+    SpaceBetween,
     /// Items are spaced evenly, with half-size spaces at the start and end.
-    "space-around": SpaceAround,
+    SpaceAround,
     /// Items are spaced evenly, with full-size spaces at the start and end.
-    "space-evenly": SpaceEvenly,
+    SpaceEvenly,
     /// Items are stretched evenly to fill free space.
-    "stretch": Stretch,
+    Stretch,
   }
 }
 
@@ -99,20 +99,20 @@ enum_property! {
   /// A [`<content-position>`](https://www.w3.org/TR/css-align-3/#typedef-content-position) value.
   pub enum ContentPosition {
     /// Content is centered within the container.
-    "center": Center,
+    Center,
     /// Content is aligned to the start of the container.
-    "start": Start,
+    Start,
     /// Content is aligned to the end of the container.
-    "end": End,
+    End,
     /// Same as `start` when within a flexbox container.
-    "flex-start": FlexStart,
+    FlexStart,
     /// Same as `end` when within a flexbox container.
-    "flex-end": FlexEnd,
+    FlexEnd,
   }
 }
 
 /// A value for the [align-content](https://www.w3.org/TR/css-align-3/#propdef-align-content) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -132,52 +132,11 @@ pub enum AlignContent {
   ContentDistribution(ContentDistribution),
   /// A content position keyword.
   ContentPosition {
-    /// A content position keyword.
-    value: ContentPosition,
     /// An overflow alignment mode.
     overflow: Option<OverflowPosition>,
+    /// A content position keyword.
+    value: ContentPosition,
   },
-}
-
-impl<'i> Parse<'i> for AlignContent {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(AlignContent::Normal);
-    }
-
-    if let Ok(val) = input.try_parse(BaselinePosition::parse) {
-      return Ok(AlignContent::BaselinePosition(val));
-    }
-
-    if let Ok(val) = input.try_parse(ContentDistribution::parse) {
-      return Ok(AlignContent::ContentDistribution(val));
-    }
-
-    let overflow = input.try_parse(OverflowPosition::parse).ok();
-    let value = ContentPosition::parse(input)?;
-    Ok(AlignContent::ContentPosition { overflow, value })
-  }
-}
-
-impl ToCss for AlignContent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      AlignContent::Normal => dest.write_str("normal"),
-      AlignContent::BaselinePosition(val) => val.to_css(dest),
-      AlignContent::ContentDistribution(val) => val.to_css(dest),
-      AlignContent::ContentPosition { overflow, value } => {
-        if let Some(overflow) = overflow {
-          overflow.to_css(dest)?;
-          dest.write_str(" ")?;
-        }
-
-        value.to_css(dest)
-      }
-    }
-  }
 }
 
 /// A value for the [justify-content](https://www.w3.org/TR/css-align-3/#propdef-justify-content) property.
@@ -349,24 +308,24 @@ enum_property! {
   /// A [`<self-position>`](https://www.w3.org/TR/css-align-3/#typedef-self-position) value.
   pub enum SelfPosition {
     /// Item is centered within the container.
-    "center": Center,
+    Center,
     /// Item is aligned to the start of the container.
-    "start": Start,
+    Start,
     /// Item is aligned to the end of the container.
-    "end": End,
+    End,
     /// Item is aligned to the edge of the container corresponding to the start side of the item.
-    "self-start": SelfStart,
+    SelfStart,
     /// Item is aligned to the edge of the container corresponding to the end side of the item.
-    "self-end": SelfEnd,
+    SelfEnd,
     /// Item  is aligned to the start of the container, within flexbox layouts.
-    "flex-start": FlexStart,
+    FlexStart,
     /// Item  is aligned to the end of the container, within flexbox layouts.
-    "flex-end": FlexEnd,
+    FlexEnd,
   }
 }
 
 /// A value for the [align-self](https://www.w3.org/TR/css-align-3/#align-self-property) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -387,57 +346,11 @@ pub enum AlignSelf {
   BaselinePosition(BaselinePosition),
   /// A self position keyword.
   SelfPosition {
-    /// A self position keyword.
-    value: SelfPosition,
     /// An overflow alignment mode.
     overflow: Option<OverflowPosition>,
+    /// A self position keyword.
+    value: SelfPosition,
   },
-}
-
-impl<'i> Parse<'i> for AlignSelf {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
-      return Ok(AlignSelf::Auto);
-    }
-
-    if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(AlignSelf::Normal);
-    }
-
-    if input.try_parse(|input| input.expect_ident_matching("stretch")).is_ok() {
-      return Ok(AlignSelf::Stretch);
-    }
-
-    if let Ok(val) = input.try_parse(BaselinePosition::parse) {
-      return Ok(AlignSelf::BaselinePosition(val));
-    }
-
-    let overflow = input.try_parse(OverflowPosition::parse).ok();
-    let value = SelfPosition::parse(input)?;
-    Ok(AlignSelf::SelfPosition { overflow, value })
-  }
-}
-
-impl ToCss for AlignSelf {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      AlignSelf::Auto => dest.write_str("auto"),
-      AlignSelf::Normal => dest.write_str("normal"),
-      AlignSelf::Stretch => dest.write_str("stretch"),
-      AlignSelf::BaselinePosition(val) => val.to_css(dest),
-      AlignSelf::SelfPosition { overflow, value } => {
-        if let Some(overflow) = overflow {
-          overflow.to_css(dest)?;
-          dest.write_str(" ")?;
-        }
-
-        value.to_css(dest)
-      }
-    }
-  }
 }
 
 /// A value for the [justify-self](https://www.w3.org/TR/css-align-3/#justify-self-property) property.
@@ -615,7 +528,7 @@ impl ToCss for PlaceSelf {
 }
 
 /// A value for the [align-items](https://www.w3.org/TR/css-align-3/#align-items-property) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -634,52 +547,11 @@ pub enum AlignItems {
   BaselinePosition(BaselinePosition),
   /// A self position keyword.
   SelfPosition {
-    /// A self position keyword.
-    value: SelfPosition,
     /// An overflow alignment mode.
     overflow: Option<OverflowPosition>,
+    /// A self position keyword.
+    value: SelfPosition,
   },
-}
-
-impl<'i> Parse<'i> for AlignItems {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(AlignItems::Normal);
-    }
-
-    if input.try_parse(|input| input.expect_ident_matching("stretch")).is_ok() {
-      return Ok(AlignItems::Stretch);
-    }
-
-    if let Ok(val) = input.try_parse(BaselinePosition::parse) {
-      return Ok(AlignItems::BaselinePosition(val));
-    }
-
-    let overflow = input.try_parse(OverflowPosition::parse).ok();
-    let value = SelfPosition::parse(input)?;
-    Ok(AlignItems::SelfPosition { overflow, value })
-  }
-}
-
-impl ToCss for AlignItems {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      AlignItems::Normal => dest.write_str("normal"),
-      AlignItems::Stretch => dest.write_str("stretch"),
-      AlignItems::BaselinePosition(val) => val.to_css(dest),
-      AlignItems::SelfPosition { overflow, value } => {
-        if let Some(overflow) = overflow {
-          overflow.to_css(dest)?;
-          dest.write_str(" ")?;
-        }
-
-        value.to_css(dest)
-      }
-    }
-  }
 }
 
 /// A legacy justification keyword, as used in the `justify-items` property.
@@ -925,7 +797,7 @@ impl ToCss for PlaceItems {
 
 /// A [gap](https://www.w3.org/TR/css-align-3/#column-row-gap) value, as used in the
 /// `column-gap` and `row-gap` properties.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -939,29 +811,6 @@ pub enum GapValue {
   Normal,
   /// An explicit length.
   LengthPercentage(LengthPercentage),
-}
-
-impl<'i> Parse<'i> for GapValue {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(GapValue::Normal);
-    }
-
-    let val = LengthPercentage::parse(input)?;
-    Ok(GapValue::LengthPercentage(val))
-  }
-}
-
-impl ToCss for GapValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      GapValue::Normal => dest.write_str("normal"),
-      GapValue::LengthPercentage(lp) => lp.to_css(dest),
-    }
-  }
 }
 
 define_shorthand! {

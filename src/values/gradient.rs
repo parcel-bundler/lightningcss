@@ -533,7 +533,7 @@ impl LineDirection {
 /// A `radial-gradient()` [ending shape](https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape).
 ///
 /// See [RadialGradient](RadialGradient).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -542,42 +542,16 @@ impl LineDirection {
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum EndingShape {
-  /// A circle.
-  Circle(Circle),
+  // Note: Ellipse::parse MUST run before Circle::parse for this to be correct.
   /// An ellipse.
   Ellipse(Ellipse),
+  /// A circle.
+  Circle(Circle),
 }
 
 impl Default for EndingShape {
   fn default() -> EndingShape {
     EndingShape::Ellipse(Ellipse::Extent(ShapeExtent::FarthestCorner))
-  }
-}
-
-impl<'i> Parse<'i> for EndingShape {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    // Note: Ellipse::parse MUST run before Circle::parse for this to be correct.
-    if let Ok(ellipse) = input.try_parse(Ellipse::parse) {
-      return Ok(EndingShape::Ellipse(ellipse));
-    }
-
-    if let Ok(circle) = input.try_parse(Circle::parse) {
-      return Ok(EndingShape::Circle(circle));
-    }
-
-    return Err(input.new_error_for_next_token());
-  }
-}
-
-impl ToCss for EndingShape {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      EndingShape::Circle(circle) => circle.to_css(dest),
-      EndingShape::Ellipse(ellipse) => ellipse.to_css(dest),
-    }
   }
 }
 
@@ -734,13 +708,13 @@ enum_property! {
   /// See [RadialGradient](RadialGradient).
   pub enum ShapeExtent {
     /// The closest side of the box to the gradient's center.
-    "closest-side": ClosestSide,
+    ClosestSide,
     /// The farthest side of the box from the gradient's center.
-    "farthest-side": FarthestSide,
+    FarthestSide,
     /// The closest cornder of the box to the gradient's center.
-    "closest-corner": ClosestCorner,
+    ClosestCorner,
     /// The farthest corner of the box from the gradient's center.
-    "farthest-corner": FarthestCorner,
+    FarthestCorner,
   }
 }
 

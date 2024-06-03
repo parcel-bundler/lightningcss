@@ -15,7 +15,7 @@ use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [list-style-type](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
@@ -37,34 +37,6 @@ pub enum ListStyleType<'i> {
 impl Default for ListStyleType<'_> {
   fn default() -> Self {
     ListStyleType::CounterStyle(CounterStyle::Predefined(PredefinedCounterStyle::Disc))
-  }
-}
-
-impl<'i> Parse<'i> for ListStyleType<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(ListStyleType::None);
-    }
-
-    if let Ok(val) = input.try_parse(CounterStyle::parse) {
-      return Ok(ListStyleType::CounterStyle(val));
-    }
-
-    let s = CSSString::parse(input)?;
-    Ok(ListStyleType::String(s))
-  }
-}
-
-impl ToCss for ListStyleType<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      ListStyleType::None => dest.write_str("none"),
-      ListStyleType::CounterStyle(style) => style.to_css(dest),
-      ListStyleType::String(s) => s.to_css(dest),
-    }
   }
 }
 
@@ -117,7 +89,7 @@ macro_rules! counter_styles {
     $vis:vis enum $name:ident {
       $(
         $(#[$meta: meta])*
-        $str: literal: $id: ident,
+        $id: ident,
       )+
     }
   ) => {
@@ -127,7 +99,7 @@ macro_rules! counter_styles {
       pub enum PredefinedCounterStyle {
         $(
            $(#[$meta])*
-           $str: $id,
+           $id,
         )+
       }
     }
@@ -151,68 +123,68 @@ counter_styles! {
   #[allow(missing_docs)]
   pub enum PredefinedCounterStyle {
     // https://www.w3.org/TR/css-counter-styles-3/#simple-numeric
-    "decimal": Decimal,
-    "decimal-leading-zero": DecimalLeadingZero,
-    "arabic-indic": ArabicIndic,
-    "armenian": Armenian,
-    "upper-armenian": UpperArmenian,
-    "lower-armenian": LowerArmenian,
-    "bengali": Bengali,
-    "cambodian": Cambodian,
-    "khmer": Khmer,
-    "cjk-decimal": CjkDecimal,
-    "devanagari": Devanagari,
-    "georgian": Georgian,
-    "gujarati": Gujarati,
-    "gurmukhi": Gurmukhi,
-    "hebrew": Hebrew,
-    "kannada": Kannada,
-    "lao": Lao,
-    "malayalam": Malayalam,
-    "mongolian": Mongolian,
-    "myanmar": Myanmar,
-    "oriya": Oriya,
-    "persian": Persian,
-    "lower-roman": LowerRoman,
-    "upper-roman": UpperRoman,
-    "tamil": Tamil,
-    "telugu": Telugu,
-    "thai": Thai,
-    "tibetan": Tibetan,
+    Decimal,
+    DecimalLeadingZero,
+    ArabicIndic,
+    Armenian,
+    UpperArmenian,
+    LowerArmenian,
+    Bengali,
+    Cambodian,
+    Khmer,
+    CjkDecimal,
+    Devanagari,
+    Georgian,
+    Gujarati,
+    Gurmukhi,
+    Hebrew,
+    Kannada,
+    Lao,
+    Malayalam,
+    Mongolian,
+    Myanmar,
+    Oriya,
+    Persian,
+    LowerRoman,
+    UpperRoman,
+    Tamil,
+    Telugu,
+    Thai,
+    Tibetan,
 
     // https://www.w3.org/TR/css-counter-styles-3/#simple-alphabetic
-    "lower-alpha": LowerAlpha,
-    "lower-latin": LowerLatin,
-    "upper-alpha": UpperAlpha,
-    "upper-latin": UpperLatin,
-    "lower-greek": LowerGreek,
-    "hiragana": Hiragana,
-    "hiragana-iroha": HiraganaIroha,
-    "katakana": Katakana,
-    "katakana-iroha": KatakanaIroha,
+    LowerAlpha,
+    LowerLatin,
+    UpperAlpha,
+    UpperLatin,
+    LowerGreek,
+    Hiragana,
+    HiraganaIroha,
+    Katakana,
+    KatakanaIroha,
 
     // https://www.w3.org/TR/css-counter-styles-3/#simple-symbolic
-    "disc": Disc,
-    "circle": Circle,
-    "square": Square,
-    "disclosure-open": DisclosureOpen,
-    "disclosure-closed": DisclosureClosed,
+    Disc,
+    Circle,
+    Square,
+    DisclosureOpen,
+    DisclosureClosed,
 
     // https://www.w3.org/TR/css-counter-styles-3/#simple-fixed
-    "cjk-earthly-branch": CjkEarthlyBranch,
-    "cjk-heavenly-stem": CjkHeavenlyStem,
+    CjkEarthlyBranch,
+    CjkHeavenlyStem,
 
     // https://www.w3.org/TR/css-counter-styles-3/#complex-cjk
-    "japanese-informal": JapaneseInformal,
-    "japanese-formal": JapaneseFormal,
-    "korean-hangul-formal": KoreanHangulFormal,
-    "korean-hanja-informal": KoreanHanjaInformal,
-    "korean-hanja-formal": KoreanHanjaFormal,
-    "simp-chinese-informal": SimpChineseInformal,
-    "simp-chinese-formal": SimpChineseFormal,
-    "trad-chinese-informal": TradChineseInformal,
-    "trad-chinese-formal": TradChineseFormal,
-    "ethiopic-numeric": EthiopicNumeric,
+    JapaneseInformal,
+    JapaneseFormal,
+    KoreanHangulFormal,
+    KoreanHanjaInformal,
+    KoreanHanjaFormal,
+    SimpChineseInformal,
+    SimpChineseFormal,
+    TradChineseInformal,
+    TradChineseFormal,
+    EthiopicNumeric,
   }
 }
 
@@ -309,7 +281,7 @@ impl Default for SymbolsType {
 /// `symbols()` function.
 ///
 /// See [CounterStyle](CounterStyle).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
@@ -324,29 +296,6 @@ pub enum Symbol<'i> {
   String(CSSString<'i>),
   /// An image.
   Image(Image<'i>),
-}
-
-impl<'i> Parse<'i> for Symbol<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(img) = input.try_parse(Image::parse) {
-      return Ok(Symbol::Image(img));
-    }
-
-    let s = CSSString::parse(input)?;
-    Ok(Symbol::String(s.into()))
-  }
-}
-
-impl<'i> ToCss for Symbol<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      Symbol::String(s) => s.to_css(dest),
-      Symbol::Image(img) => img.to_css(dest),
-    }
-  }
 }
 
 enum_property! {
@@ -375,8 +324,8 @@ enum_property! {
   /// A value for the [marker-side](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#marker-side) property.
   #[allow(missing_docs)]
   pub enum MarkerSide {
-    "match-self": MatchSelf,
-    "match-parent": MatchParent,
+    MatchSelf,
+    MatchParent,
   }
 }
 

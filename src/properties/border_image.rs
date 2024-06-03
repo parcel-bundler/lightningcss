@@ -102,7 +102,7 @@ impl IsCompatible for BorderImageRepeat {
 }
 
 /// A value for the [border-image-width](https://www.w3.org/TR/css-backgrounds-3/#border-image-width) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -123,38 +123,6 @@ pub enum BorderImageSideWidth {
 impl Default for BorderImageSideWidth {
   fn default() -> BorderImageSideWidth {
     BorderImageSideWidth::Number(1.0)
-  }
-}
-
-impl<'i> Parse<'i> for BorderImageSideWidth {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
-      return Ok(BorderImageSideWidth::Auto);
-    }
-
-    if let Ok(number) = input.try_parse(CSSNumber::parse) {
-      return Ok(BorderImageSideWidth::Number(number));
-    }
-
-    if let Ok(percent) = input.try_parse(|input| LengthPercentage::parse(input)) {
-      return Ok(BorderImageSideWidth::LengthPercentage(percent));
-    }
-
-    Err(input.new_error_for_next_token())
-  }
-}
-
-impl ToCss for BorderImageSideWidth {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    use BorderImageSideWidth::*;
-    match self {
-      Auto => dest.write_str("auto"),
-      LengthPercentage(l) => l.to_css(dest),
-      Number(n) => n.to_css(dest),
-    }
   }
 }
 

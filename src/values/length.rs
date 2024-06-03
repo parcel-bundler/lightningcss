@@ -49,7 +49,7 @@ impl IsCompatible for LengthPercentage {
 }
 
 /// Either a [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage), or the `auto` keyword.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -63,33 +63,6 @@ pub enum LengthPercentageOrAuto {
   Auto,
   /// A [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage).
   LengthPercentage(LengthPercentage),
-}
-
-impl<'i> Parse<'i> for LengthPercentageOrAuto {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
-      return Ok(LengthPercentageOrAuto::Auto);
-    }
-
-    if let Ok(percent) = input.try_parse(|input| LengthPercentage::parse(input)) {
-      return Ok(LengthPercentageOrAuto::LengthPercentage(percent));
-    }
-
-    Err(input.new_error_for_next_token())
-  }
-}
-
-impl ToCss for LengthPercentageOrAuto {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    use LengthPercentageOrAuto::*;
-    match self {
-      Auto => dest.write_str("auto"),
-      LengthPercentage(l) => l.to_css(dest),
-    }
-  }
 }
 
 impl IsCompatible for LengthPercentageOrAuto {
@@ -830,7 +803,7 @@ impl TrySign for Length {
 impl_try_from_angle!(Length);
 
 /// Either a [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) or a [`<number>`](https://www.w3.org/TR/css-values-4/#numbers).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -840,10 +813,10 @@ impl_try_from_angle!(Length);
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum LengthOrNumber {
-  /// A length.
-  Length(Length),
   /// A number.
   Number(CSSNumber),
+  /// A length.
+  Length(Length),
 }
 
 impl Default for LengthOrNumber {
@@ -861,33 +834,6 @@ impl Zero for LengthOrNumber {
     match self {
       LengthOrNumber::Length(l) => l.is_zero(),
       LengthOrNumber::Number(v) => v.is_zero(),
-    }
-  }
-}
-
-impl<'i> Parse<'i> for LengthOrNumber {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    // Parse number first so unitless numbers are not parsed as lengths.
-    if let Ok(number) = input.try_parse(CSSNumber::parse) {
-      return Ok(LengthOrNumber::Number(number));
-    }
-
-    if let Ok(length) = Length::parse(input) {
-      return Ok(LengthOrNumber::Length(length));
-    }
-
-    Err(input.new_error_for_next_token())
-  }
-}
-
-impl ToCss for LengthOrNumber {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      LengthOrNumber::Length(length) => length.to_css(dest),
-      LengthOrNumber::Number(number) => number.to_css(dest),
     }
   }
 }

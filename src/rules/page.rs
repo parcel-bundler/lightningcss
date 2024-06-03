@@ -81,41 +81,41 @@ enum_property! {
   /// A [page margin box](https://www.w3.org/TR/css-page-3/#margin-boxes).
   pub enum PageMarginBox {
     /// A fixed-size box defined by the intersection of the top and left margins of the page box.
-    "top-left-corner": TopLeftCorner,
+    TopLeftCorner,
     /// A variable-width box filling the top page margin between the top-left-corner and top-center page-margin boxes.
-    "top-left": TopLeft,
+    TopLeft,
     /// A variable-width box centered horizontally between the page’s left and right border edges and filling the
     /// page top margin between the top-left and top-right page-margin boxes.
-    "top-center": TopCenter,
+    TopCenter,
     /// A variable-width box filling the top page margin between the top-center and top-right-corner page-margin boxes.
-    "top-right": TopRight,
+    TopRight,
     /// A fixed-size box defined by the intersection of the top and right margins of the page box.
-    "top-right-corner": TopRightCorner,
+    TopRightCorner,
     /// A variable-height box filling the left page margin between the top-left-corner and left-middle page-margin boxes.
-    "left-top": LeftTop,
+    LeftTop,
     /// A variable-height box centered vertically between the page’s top and bottom border edges and filling the
     /// left page margin between the left-top and left-bottom page-margin boxes.
-    "left-middle": LeftMiddle,
+    LeftMiddle,
     /// A variable-height box filling the left page margin between the left-middle and bottom-left-corner page-margin boxes.
-    "left-bottom": LeftBottom,
+    LeftBottom,
     /// A variable-height box filling the right page margin between the top-right-corner and right-middle page-margin boxes.
-    "right-top": RightTop,
+    RightTop,
     /// A variable-height box centered vertically between the page’s top and bottom border edges and filling the right
     /// page margin between the right-top and right-bottom page-margin boxes.
-    "right-middle": RightMiddle,
+    RightMiddle,
     /// A variable-height box filling the right page margin between the right-middle and bottom-right-corner page-margin boxes.
-    "right-bottom": RightBottom,
+    RightBottom,
     /// A fixed-size box defined by the intersection of the bottom and left margins of the page box.
-    "bottom-left-corner": BottomLeftCorner,
+    BottomLeftCorner,
     /// A variable-width box filling the bottom page margin between the bottom-left-corner and bottom-center page-margin boxes.
-    "bottom-left": BottomLeft,
+    BottomLeft,
     /// A variable-width box centered horizontally between the page’s left and right border edges and filling the bottom
     /// page margin between the bottom-left and bottom-right page-margin boxes.
-    "bottom-center": BottomCenter,
+    BottomCenter,
     /// A variable-width box filling the bottom page margin between the bottom-center and bottom-right-corner page-margin boxes.
-    "bottom-right": BottomRight,
+    BottomRight,
     /// A fixed-size box defined by the intersection of the bottom and right margins of the page box.
-    "bottom-right-corner": BottomRightCorner,
+    BottomRightCorner,
   }
 }
 

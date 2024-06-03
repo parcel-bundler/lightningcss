@@ -300,9 +300,9 @@ enum_property! {
   /// A value for the [box-sizing](https://drafts.csswg.org/css-sizing-3/#box-sizing) property.
   pub enum BoxSizing {
     /// Exclude the margin/border/padding from the width and height.
-    "content-box": ContentBox,
+    ContentBox,
     /// Include the padding and border (but not the margin) in the width and height.
-    "border-box": BorderBox,
+    BorderBox,
   }
 }
 

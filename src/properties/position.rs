@@ -73,7 +73,7 @@ impl ToCss for Position {
 }
 
 /// A value for the [z-index](https://drafts.csswg.org/css2/#z-index) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -87,29 +87,6 @@ pub enum ZIndex {
   Auto,
   /// An integer value.
   Integer(CSSInteger),
-}
-
-impl<'i> Parse<'i> for ZIndex {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(value) = input.expect_integer() {
-      return Ok(ZIndex::Integer(value));
-    }
-
-    input.expect_ident_matching("auto")?;
-    Ok(ZIndex::Auto)
-  }
-}
-
-impl ToCss for ZIndex {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      ZIndex::Auto => dest.write_str("auto"),
-      ZIndex::Integer(value) => value.to_css(dest),
-    }
-  }
 }
 
 #[derive(Default)]

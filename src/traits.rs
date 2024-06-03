@@ -30,6 +30,20 @@ pub trait Parse<'i>: Sized {
   }
 }
 
+pub(crate) use lightningcss_derive::Parse;
+
+impl<'i, T: Parse<'i>> Parse<'i> for Option<T> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Ok(input.try_parse(T::parse).ok())
+  }
+}
+
+impl<'i, T: Parse<'i>> Parse<'i> for Box<T> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Ok(Box::new(T::parse(input)?))
+  }
+}
+
 /// Trait for things that can be parsed from CSS syntax and require ParserOptions.
 pub trait ParseWithOptions<'i>: Sized {
   /// Parse a value of this type with the given options.
@@ -78,6 +92,8 @@ pub trait ToCss {
   }
 }
 
+pub(crate) use lightningcss_derive::ToCss;
+
 impl<'a, T> ToCss for &'a T
 where
   T: ToCss + ?Sized,
@@ -87,6 +103,27 @@ where
     W: std::fmt::Write,
   {
     (*self).to_css(dest)
+  }
+}
+
+impl<T: ToCss> ToCss for Box<T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    (**self).to_css(dest)
+  }
+}
+
+impl<T: ToCss> ToCss for Option<T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if let Some(v) = self {
+      v.to_css(dest)?;
+    }
+    Ok(())
   }
 }
 

@@ -24,7 +24,7 @@ use crate::serialization::ValueWrapper;
 
 /// A [track sizing](https://drafts.csswg.org/css-grid-2/#track-sizing) value
 /// for the `grid-template-rows` and `grid-template-columns` properties.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
@@ -178,7 +178,7 @@ pub struct TrackRepeat<'i> {
 /// used in the `repeat()` function.
 ///
 /// See [TrackRepeat](TrackRepeat).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -365,37 +365,6 @@ impl<'i> ToCss for TrackRepeat<'i> {
   }
 }
 
-impl<'i> Parse<'i> for RepeatCount {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(num) = input.try_parse(CSSInteger::parse) {
-      return Ok(RepeatCount::Number(num));
-    }
-
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "auto-fill" => Ok(RepeatCount::AutoFill),
-      "auto-fit" => Ok(RepeatCount::AutoFit),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(ident.clone())
-      ))
-    }
-  }
-}
-
-impl ToCss for RepeatCount {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      RepeatCount::AutoFill => dest.write_str("auto-fill"),
-      RepeatCount::AutoFit => dest.write_str("auto-fit"),
-      RepeatCount::Number(num) => num.to_css(dest),
-    }
-  }
-}
-
 fn parse_line_names<'i, 't>(
   input: &mut Parser<'i, 't>,
 ) -> Result<CustomIdentList<'i>, ParseError<'i, ParserError<'i>>> {
@@ -516,29 +485,6 @@ impl<'i> ToCss for TrackList<'i> {
 impl<'i> TrackList<'i> {
   fn is_explicit(&self) -> bool {
     self.items.iter().all(|item| matches!(item, TrackListItem::TrackSize(_)))
-  }
-}
-
-impl<'i> Parse<'i> for TrackSizing<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(TrackSizing::None);
-    }
-
-    let track_list = TrackList::parse(input)?;
-    Ok(TrackSizing::TrackList(track_list))
-  }
-}
-
-impl<'i> ToCss for TrackSizing<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      TrackSizing::None => dest.write_str("none"),
-      TrackSizing::TrackList(list) => list.to_css(dest),
-    }
   }
 }
 

@@ -19,7 +19,7 @@ use cssparser::*;
 use smallvec::SmallVec;
 
 /// A CSS [`<image>`](https://www.w3.org/TR/css-images-3/#image-values) value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "visitor", visit(visit_image, IMAGES))]
@@ -306,42 +306,6 @@ impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
     }
 
     res
-  }
-}
-
-impl<'i> Parse<'i> for Image<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
-      return Ok(Image::None);
-    }
-
-    if let Ok(url) = input.try_parse(Url::parse) {
-      return Ok(Image::Url(url));
-    }
-
-    if let Ok(grad) = input.try_parse(Gradient::parse) {
-      return Ok(Image::Gradient(Box::new(grad)));
-    }
-
-    if let Ok(image_set) = input.try_parse(ImageSet::parse) {
-      return Ok(Image::ImageSet(image_set));
-    }
-
-    Err(input.new_error_for_next_token())
-  }
-}
-
-impl<'i> ToCss for Image<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      Image::None => dest.write_str("none"),
-      Image::Url(url) => url.to_css(dest),
-      Image::Gradient(grad) => grad.to_css(dest),
-      Image::ImageSet(image_set) => image_set.to_css(dest),
-    }
   }
 }
 

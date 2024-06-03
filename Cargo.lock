@@ -804,6 +804,7 @@ dependencies = [
 name = "lightningcss-derive"
 version = "1.0.0-alpha.42"
 dependencies = [
+ "convert_case",
  "proc-macro2",
  "quote",
  "syn 1.0.109",

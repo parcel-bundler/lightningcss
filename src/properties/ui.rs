@@ -94,42 +94,42 @@ enum_property! {
   /// See [Cursor](Cursor).
   #[allow(missing_docs)]
   pub enum CursorKeyword {
-    "auto": Auto,
-    "default": Default,
-    "none": None,
-    "context-menu": ContextMenu,
-    "help": Help,
-    "pointer": Pointer,
-    "progress": Progress,
-    "wait": Wait,
-    "cell": Cell,
-    "crosshair": Crosshair,
-    "text": Text,
-    "vertical-text": VerticalText,
-    "alias": Alias,
-    "copy": Copy,
-    "move": Move,
-    "no-drop": NoDrop,
-    "not-allowed": NotAllowed,
-    "grab": Grab,
-    "grabbing": Grabbing,
-    "e-resize": EResize,
-    "n-resize": NResize,
-    "ne-resize": NeResize,
-    "nw-resize": NwResize,
-    "s-resize": SResize,
-    "se-resize": SeResize,
-    "sw-resize": SwResize,
-    "w-resize": WResize,
-    "ew-resize": EwResize,
-    "ns-resize": NsResize,
-    "nesw-resize": NeswResize,
-    "nwse-resize": NwseResize,
-    "col-resize": ColResize,
-    "row-resize": RowResize,
-    "all-scroll": AllScroll,
-    "zoom-in": ZoomIn,
-    "zoom-out": ZoomOut,
+    Auto,
+    Default,
+    None,
+    ContextMenu,
+    Help,
+    Pointer,
+    Progress,
+    Wait,
+    Cell,
+    Crosshair,
+    Text,
+    VerticalText,
+    Alias,
+    Copy,
+    Move,
+    NoDrop,
+    NotAllowed,
+    Grab,
+    Grabbing,
+    EResize,
+    NResize,
+    NeResize,
+    NwResize,
+    SResize,
+    SeResize,
+    SwResize,
+    WResize,
+    EwResize,
+    NsResize,
+    NeswResize,
+    NwseResize,
+    ColResize,
+    RowResize,
+    AllScroll,
+    ZoomIn,
+    ZoomOut,
   }
 }
 
@@ -179,7 +179,7 @@ impl<'i> ToCss for Cursor<'i> {
 }
 
 /// A value for the [caret-color](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-color) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -198,29 +198,6 @@ pub enum ColorOrAuto {
 impl Default for ColorOrAuto {
   fn default() -> ColorOrAuto {
     ColorOrAuto::Auto
-  }
-}
-
-impl<'i> Parse<'i> for ColorOrAuto {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
-      return Ok(ColorOrAuto::Auto);
-    }
-
-    let color = CssColor::parse(input)?;
-    Ok(ColorOrAuto::Color(color))
-  }
-}
-
-impl ToCss for ColorOrAuto {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      ColorOrAuto::Auto => dest.write_str("auto"),
-      ColorOrAuto::Color(color) => color.to_css(dest),
-    }
   }
 }
 
