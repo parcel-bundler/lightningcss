@@ -48,7 +48,7 @@ impl Browsers {
   ) -> Result<Option<Browsers>, browserslist::Error> {
     use browserslist::{resolve, Opts};
 
-    Self::from_distribs(resolve(query, &Opts::new())?)
+    Self::from_distribs(resolve(query, &Opts::default())?)
   }
 
   /// Finds browserslist configuration, selects queries by environment and loads the resulting queries into LightningCSS targets.
@@ -75,7 +75,7 @@ impl Browsers {
   pub fn load_browserslist() -> Result<Option<Browsers>, browserslist::Error> {
     use browserslist::{execute, Opts};
 
-    Self::from_distribs(execute(&Opts::new())?)
+    Self::from_distribs(execute(&Opts::default())?)
   }
 
   fn from_distribs(distribs: Vec<browserslist::Distrib>) -> Result<Option<Browsers>, browserslist::Error> {
