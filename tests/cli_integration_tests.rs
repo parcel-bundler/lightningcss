@@ -764,7 +764,6 @@ fn browserslist_environment_from_browserslist_env() -> Result<(), Box<dyn std::e
 fn css_modules_pseudo_classes() -> Result<(), Box<dyn std::error::Error>> {
   let dir = assert_fs::TempDir::new()?;
   let infile = dir.child("test.css");
-  let outfile = assert_fs::NamedTempFile::new("test.out")?;
   infile.write_str(
     r#"
       .blue {
@@ -790,7 +789,6 @@ fn css_modules_pseudo_classes() -> Result<(), Box<dyn std::error::Error>> {
   cmd.env_clear();
   cmd.arg(infile.path());
   cmd.arg("--css-modules");
-  cmd.arg("-o").arg(outfile.path());
   cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
     .blue {
         background: blue;
