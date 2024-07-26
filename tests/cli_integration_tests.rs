@@ -764,6 +764,8 @@ fn browserslist_environment_from_browserslist_env() -> Result<(), Box<dyn std::e
 fn css_modules_pseudo_classes() -> Result<(), Box<dyn std::error::Error>> {
   let dir = assert_fs::TempDir::new()?;
   let infile = dir.child("test.css");
+  let outfile = assert_fs::NamedTempFile::new("out.css")?;
+  let modules_file = assert_fs::NamedTempFile::new("module.json")?;
   infile.write_str(
     r#"
       .blue {
@@ -788,24 +790,27 @@ fn css_modules_pseudo_classes() -> Result<(), Box<dyn std::error::Error>> {
   cmd.current_dir(dir.path());
   cmd.env_clear();
   cmd.arg(infile.path());
-  cmd.arg("--css-modules");
-  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
-    .blue {
-        background: blue;
+  cmd.arg("-o").arg(outfile.path());
+  cmd.arg("--css-modules").arg(modules_file.path());
+  cmd.assert().success();
 
-        :global {
-          .red {
-            background: red;
-          }
-        }
+  outfile.assert(predicate::str::contains(indoc! {r#"
+  .blue {
+      background: blue;
 
-        &:global {
-          &.green {
-            background: green;
-          }
+      :global {
+        .red {
+          background: red;
         }
       }
-  "#}));
+
+      &:global {
+        &.green {
+          background: green;
+        }
+      }
+    }
+"#}));
 
   Ok(())
 }
