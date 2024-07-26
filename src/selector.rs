@@ -190,6 +190,9 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "corner-present" => WebKitScrollbar(WebKitScrollbarPseudoClass::CornerPresent),
       "window-inactive" => WebKitScrollbar(WebKitScrollbarPseudoClass::WindowInactive),
 
+      "local" if self.options.css_modules.is_some() => LocalNoSelector,
+      "global" if self.options.css_modules.is_some() => GlobalNoSelector,
+
       _ => {
         if !name.starts_with('-') {
           self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
@@ -515,6 +518,11 @@ pub enum PseudoClass<'i> {
     selector: Box<Selector<'i>>,
   },
 
+  /// The CSS modules :local selector.
+  LocalNoSelector,
+  /// The CSS modules :global selector.
+  GlobalNoSelector,
+
   /// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo class.
   // https://webkit.org/blog/363/styling-scrollbars/
   #[cfg_attr(
@@ -763,6 +771,23 @@ where
     Global { selector } => {
       let css_module = std::mem::take(&mut dest.css_module);
       serialize_selector(selector, dest, context, false)?;
+      dest.css_module = css_module;
+      Ok(())
+    }
+    LocalNoSelector => serialize_selector(
+      &context.expect("to_css() does not support :local nor :global").selectors.0[0],
+      dest,
+      context,
+      false,
+    ),
+    GlobalNoSelector => {
+      let css_module = std::mem::take(&mut dest.css_module);
+      serialize_selector(
+        &context.expect("to_css() does not support :local nor :global").selectors.0[0],
+        dest,
+        context,
+        false,
+      )?;
       dest.css_module = css_module;
       Ok(())
     }
