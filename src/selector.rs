@@ -80,7 +80,8 @@ impl<'i> SelectorImpl<'i> for Selectors {
 
   fn to_css<W: fmt::Write>(selectors: &SelectorList<'i>, dest: &mut W) -> std::fmt::Result {
     let mut printer = Printer::new(dest, PrinterOptions::default());
-    serialize_selector_list(selectors.0.iter(), &mut printer, None, false).map_err(|_| std::fmt::Error)
+    serialize_selector_list(selectors.0.iter(), &mut printer, None, false, selectors.0.first())
+      .map_err(|_| std::fmt::Error)
   }
 }
 
@@ -619,7 +620,7 @@ impl<'i> cssparser::ToCss for PseudoClass<'i> {
     W: fmt::Write,
   {
     let mut s = String::new();
-    serialize_pseudo_class(self, &mut Printer::new(&mut s, Default::default()), None)
+    serialize_pseudo_class(self, &mut Printer::new(&mut s, Default::default()), None, None)
       .map_err(|_| std::fmt::Error)?;
     write!(dest, "{}", s)
   }
@@ -629,6 +630,7 @@ fn serialize_pseudo_class<'a, 'i, W>(
   pseudo_class: &PseudoClass<'i>,
   dest: &mut Printer<W>,
   context: Option<&StyleContext>,
+  nesting: Option<&Selector<'i>>,
 ) -> Result<(), PrinterError>
 where
   W: fmt::Write,
@@ -767,26 +769,28 @@ where
     // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
     Autofill(prefix) => write_prefixed!(prefix, "autofill"),
 
-    Local { selector } => serialize_selector(selector, dest, context, false),
+    Local { selector } => serialize_selector(selector, dest, context, false, nesting),
     Global { selector } => {
       let css_module = std::mem::take(&mut dest.css_module);
-      serialize_selector(selector, dest, context, false)?;
+      serialize_selector(selector, dest, context, false, nesting)?;
       dest.css_module = css_module;
       Ok(())
     }
     LocalNoSelector => serialize_selector(
-      &context.expect("to_css() does not support :local nor :global").selectors.0[0],
+      &nesting.expect("to_css() does not support :local nor :global"),
       dest,
       context,
       false,
+      nesting,
     ),
     GlobalNoSelector => {
       let css_module = std::mem::take(&mut dest.css_module);
       serialize_selector(
-        &context.expect("to_css() does not support :local nor :global").selectors.0[0],
+        &nesting.expect("to_css() does not support :local nor :global"),
         dest,
         context,
         false,
+        nesting,
       )?;
       dest.css_module = css_module;
       Ok(())
@@ -1068,16 +1072,17 @@ impl<'i> cssparser::ToCss for PseudoElement<'i> {
     W: fmt::Write,
   {
     let mut s = String::new();
-    serialize_pseudo_element(self, &mut Printer::new(&mut s, Default::default()), None)
+    serialize_pseudo_element(self, &mut Printer::new(&mut s, Default::default()), None, None)
       .map_err(|_| std::fmt::Error)?;
     write!(dest, "{}", s)
   }
 }
 
 fn serialize_pseudo_element<'a, 'i, W>(
-  pseudo_element: &PseudoElement,
+  pseudo_element: &PseudoElement<'i>,
   dest: &mut Printer<W>,
   context: Option<&StyleContext>,
+  css_modules_nesting: Option<&Selector<'i>>,
 ) -> Result<(), PrinterError>
 where
   W: fmt::Write,
@@ -1119,12 +1124,12 @@ where
     CueRegion => dest.write_str("::cue-region"),
     CueFunction { selector } => {
       dest.write_str("::cue(")?;
-      serialize_selector(selector, dest, context, false)?;
+      serialize_selector(selector, dest, context, false, css_modules_nesting)?;
       dest.write_char(')')
     }
     CueRegionFunction { selector } => {
       dest.write_str("::cue-region(")?;
-      serialize_selector(selector, dest, context, false)?;
+      serialize_selector(selector, dest, context, false, css_modules_nesting)?;
       dest.write_char(')')
     }
     Placeholder(prefix) => {
@@ -1278,7 +1283,7 @@ impl<'a, 'i> ToCss for SelectorList<'i> {
   where
     W: fmt::Write,
   {
-    serialize_selector_list(self.0.iter(), dest, dest.context(), false)
+    serialize_selector_list(self.0.iter(), dest, dest.context(), false, self.0.first())
   }
 }
 
@@ -1309,7 +1314,7 @@ impl<'a, 'i> ToCss for Selector<'i> {
   where
     W: fmt::Write,
   {
-    serialize_selector(self, dest, dest.context(), false)
+    serialize_selector(self, dest, dest.context(), false, None)
   }
 }
 
@@ -1318,6 +1323,7 @@ fn serialize_selector<'a, 'i, W>(
   dest: &mut Printer<W>,
   context: Option<&StyleContext>,
   mut is_relative: bool,
+  css_modules_nesting: Option<&Selector<'i>>,
 ) -> Result<(), PrinterError>
 where
   W: fmt::Write,
@@ -1402,7 +1408,7 @@ where
           }
 
           for simple in iter {
-            serialize_component(simple, dest, context)?;
+            serialize_component(simple, dest, context, css_modules_nesting)?;
           }
 
           if swap_nesting {
@@ -1432,15 +1438,15 @@ where
         // This ensures that the compiled selector is valid. e.g. (div.foo is valid, .foodiv is not).
         let nesting = iter.next().unwrap();
         let local = iter.next().unwrap();
-        serialize_component(local, dest, context)?;
+        serialize_component(local, dest, context, css_modules_nesting)?;
 
         // Also check the next item in case of namespaces.
         if first_non_namespace > first_index {
           let local = iter.next().unwrap();
-          serialize_component(local, dest, context)?;
+          serialize_component(local, dest, context, css_modules_nesting)?;
         }
 
-        serialize_component(nesting, dest, context)?;
+        serialize_component(nesting, dest, context, css_modules_nesting)?;
       } else if has_leading_nesting && should_compile_nesting {
         // Nesting selector may serialize differently if it is leading, due to type selectors.
         iter.next();
@@ -1457,7 +1463,7 @@ where
             continue;
           }
         }
-        serialize_component(simple, dest, context)?;
+        serialize_component(simple, dest, context, css_modules_nesting)?;
       }
     }
 
@@ -1482,9 +1488,10 @@ where
 }
 
 fn serialize_component<'a, 'i, W>(
-  component: &Component,
+  component: &Component<'i>,
   dest: &mut Printer<W>,
   context: Option<&StyleContext>,
+  css_modules_nesting: Option<&Selector<'i>>,
 ) -> Result<(), PrinterError>
 where
   W: fmt::Write,
@@ -1535,7 +1542,7 @@ where
         Component::Is(ref selectors) => {
           // If there's only one simple selector, serialize it directly.
           if should_unwrap_is(selectors) {
-            serialize_selector(selectors.first().unwrap(), dest, context, false)?;
+            serialize_selector(selectors.first().unwrap(), dest, context, false, css_modules_nesting)?;
             return Ok(());
           }
 
@@ -1563,16 +1570,16 @@ where
         }
         _ => unreachable!(),
       }
-      serialize_selector_list(list.iter(), dest, context, false)?;
+      serialize_selector_list(list.iter(), dest, context, false, css_modules_nesting)?;
       dest.write_str(")")
     }
     Component::Has(ref list) => {
       dest.write_str(":has(")?;
-      serialize_selector_list(list.iter(), dest, context, true)?;
+      serialize_selector_list(list.iter(), dest, context, true, css_modules_nesting)?;
       dest.write_str(")")
     }
-    Component::NonTSPseudoClass(pseudo) => serialize_pseudo_class(pseudo, dest, context),
-    Component::PseudoElement(pseudo) => serialize_pseudo_element(pseudo, dest, context),
+    Component::NonTSPseudoClass(pseudo) => serialize_pseudo_class(pseudo, dest, context, css_modules_nesting),
+    Component::PseudoElement(pseudo) => serialize_pseudo_element(pseudo, dest, context, css_modules_nesting),
     Component::Nesting => serialize_nesting(dest, context, false),
     Component::Class(ref class) => {
       dest.write_char('.')?;
@@ -1630,10 +1637,10 @@ where
     if ctx.selectors.0.len() == 1
       && (first || (!has_type_selector(&ctx.selectors.0[0]) && is_simple(&ctx.selectors.0[0])))
     {
-      serialize_selector(ctx.selectors.0.first().unwrap(), dest, ctx.parent, false)
+      serialize_selector(ctx.selectors.0.first().unwrap(), dest, ctx.parent, false, None)
     } else {
       dest.write_str(":is(")?;
-      serialize_selector_list(ctx.selectors.0.iter(), dest, ctx.parent, false)?;
+      serialize_selector_list(ctx.selectors.0.iter(), dest, ctx.parent, false, ctx.selectors.0.first())?;
       dest.write_char(')')
     }
   } else {
@@ -1687,6 +1694,7 @@ fn serialize_selector_list<'a, 'i: 'a, I, W>(
   dest: &mut Printer<W>,
   context: Option<&StyleContext>,
   is_relative: bool,
+  nesting: Option<&Selector<'i>>,
 ) -> Result<(), PrinterError>
 where
   I: Iterator<Item = &'a Selector<'i>>,
@@ -1698,7 +1706,7 @@ where
       dest.delim(',', false)?;
     }
     first = false;
-    serialize_selector(selector, dest, context, is_relative)?;
+    serialize_selector(selector, dest, context, is_relative, nesting)?;
   }
   Ok(())
 }
