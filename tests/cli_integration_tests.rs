@@ -788,6 +788,8 @@ fn css_modules_pseudo_classes() -> Result<(), Box<dyn std::error::Error>> {
 
   let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.current_dir(dir.path());
+  cmd.arg("--targets=defaults");
+  cmd.arg("--nesting");
   cmd.arg(infile.path());
   cmd.arg("-o").arg(outfile.path());
   cmd.arg("--css-modules").arg(modules_file.path());
