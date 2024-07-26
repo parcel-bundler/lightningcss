@@ -775,9 +775,7 @@ where
       Ok(())
     }
     LocalNoSelector => serialize_selector(
-      context
-        .and_then(|v| v.nesting)
-        .expect("to_css() does not support :local nor :global"),
+      &context.expect("to_css() does not support :local nor :global").selectors.0[0],
       dest,
       context,
       false,
@@ -785,9 +783,7 @@ where
     GlobalNoSelector => {
       let css_module = std::mem::take(&mut dest.css_module);
       serialize_selector(
-        context
-          .and_then(|v| v.nesting)
-          .expect("to_css() does not support :local nor :global"),
+        &context.expect("to_css() does not support :local nor :global").selectors.0[0],
         dest,
         context,
         false,

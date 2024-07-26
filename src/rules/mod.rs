@@ -102,7 +102,6 @@ use viewport::ViewportRule;
 #[derive(Clone)]
 pub(crate) struct StyleContext<'a, 'i> {
   pub selectors: &'a SelectorList<'i>,
-  pub nesting: Option<&'a Selector<'i>>,
   pub parent: Option<&'a StyleContext<'a, 'i>>,
 }
 
