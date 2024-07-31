@@ -759,3 +759,26 @@ fn browserslist_environment_from_browserslist_env() -> Result<(), Box<dyn std::e
 
   Ok(())
 }
+
+#[test]
+fn next_66191() -> Result<(), Box<dyn std::error::Error>> {
+  let infile = assert_fs::NamedTempFile::new("test.css")?;
+  infile.write_str(
+    r#"
+      .cb:is(input:checked) {
+        margin: 3rem;
+      }
+    "#,
+  )?;
+  let outfile = assert_fs::NamedTempFile::new("test.out")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(infile.path());
+  cmd.arg("--output-file").arg(outfile.path());
+  cmd.assert().success();
+  outfile.assert(predicate::str::contains(indoc! {r#"
+        .cb:is(input:checked) {
+          margin: 3rem;
+      }"#}));
+
+  Ok(())
+}
