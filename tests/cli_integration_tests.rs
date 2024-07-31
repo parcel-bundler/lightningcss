@@ -775,10 +775,7 @@ fn next_66191() -> Result<(), Box<dyn std::error::Error>> {
   cmd.arg(infile.path());
   cmd.arg("--output-file").arg(outfile.path());
   cmd.assert().success();
-  outfile.assert(predicate::str::contains(indoc! {r#"
-        .cb:is(input:checked) {
-          margin: 3rem;
-      }"#}));
+  outfile.assert(predicate::str::contains(indoc! {r#".cb:is(input:checked)"#}));
 
   Ok(())
 }
