@@ -1624,8 +1624,13 @@ where
 
 #[inline]
 fn has_type_selector(selector: &Selector) -> bool {
-  let mut iter = selector.iter_raw_parse_order_from(0);
+  // For input:checked the component vector is
+  // [input, :checked] so we have to check it using matching order.
+  //
+  // This both happens for input:checked and is(input:checked)
+  let mut iter = selector.iter_raw_match_order();
   let first = iter.next();
+
   if is_namespace(first) {
     is_type_selector(iter.next())
   } else {
