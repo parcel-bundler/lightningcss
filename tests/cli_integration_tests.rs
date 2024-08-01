@@ -6,7 +6,7 @@ use lightningcss::css_modules::CssModuleExport;
 use predicates::prelude::*;
 use std::collections::HashMap;
 use std::fs;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 fn test_file() -> Result<assert_fs::NamedTempFile, FixtureError> {
   let file = assert_fs::NamedTempFile::new("test.css")?;
@@ -385,6 +385,37 @@ fn css_modules_pattern() -> Result<(), Box<dyn std::error::Error>> {
   cmd.arg("--css-modules");
   cmd.arg("--css-modules-pattern").arg("[name]-[hash]-[local]");
   cmd.assert().success().stdout(predicate::str::contains("test-EgL3uq-foo"));
+
+  Ok(())
+}
+
+#[test]
+fn css_modules_next_64299() -> Result<(), Box<dyn std::error::Error>> {
+  let file = assert_fs::NamedTempFile::new("test.css")?;
+  file.write_str(
+    "
+  .blue {
+    background: blue;
+
+    :global {
+      .red {
+        background: red;
+      }
+    }
+
+    &:global {
+      &.green {
+        background: green;
+      }
+    }
+  }
+  ",
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(file.path());
+  cmd.stdout(Stdio::inherit()).stderr(Stdio::inherit());
+  cmd.assert().success();
 
   Ok(())
 }
