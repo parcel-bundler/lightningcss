@@ -191,7 +191,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "window-inactive" => WebKitScrollbar(WebKitScrollbarPseudoClass::WindowInactive),
 
       "local" | "global" => {
-        return Err(loc.new_custom_error(SelectorParseErrorKind::AmbiguosCssModuleClass(name.clone())))
+        return Err(loc.new_custom_error(SelectorParseErrorKind::AmbiguousCssModuleClass(name.clone())))
       },
 
       _ => {
