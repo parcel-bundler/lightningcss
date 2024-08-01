@@ -6,7 +6,7 @@ use lightningcss::css_modules::CssModuleExport;
 use predicates::prelude::*;
 use std::collections::HashMap;
 use std::fs;
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 fn test_file() -> Result<assert_fs::NamedTempFile, FixtureError> {
   let file = assert_fs::NamedTempFile::new("test.css")?;

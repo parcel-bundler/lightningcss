@@ -198,6 +198,7 @@ pub enum SelectorParseErrorKind<'i> {
   UnexpectedTokenInAttributeSelector(Token<'i>),
   PseudoElementExpectedIdent(Token<'i>),
   UnsupportedPseudoClassOrElement(CowRcStr<'i>),
+  AmbiguosCssModuleClass(CowRcStr<'i>),
   UnexpectedIdent(CowRcStr<'i>),
   ExpectedNamespace(CowRcStr<'i>),
   ExpectedBarInAttr(Token<'i>),
