@@ -414,7 +414,6 @@ fn css_modules_next_64299() -> Result<(), Box<dyn std::error::Error>> {
 
   let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(file.path());
-  cmd.stdout(Stdio::inherit()).stderr(Stdio::inherit());
   cmd.assert().failure();
 
   Ok(())
