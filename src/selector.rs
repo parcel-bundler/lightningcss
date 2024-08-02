@@ -190,7 +190,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "corner-present" => WebKitScrollbar(WebKitScrollbarPseudoClass::CornerPresent),
       "window-inactive" => WebKitScrollbar(WebKitScrollbarPseudoClass::WindowInactive),
 
-      "local" | "global" => {
+      "local" | "global" if self.options.css_modules.is_some() => {
         return Err(loc.new_custom_error(SelectorParseErrorKind::AmbiguousCssModuleClass(name.clone())))
       },
 
