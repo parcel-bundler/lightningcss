@@ -260,7 +260,7 @@ impl<'i> fmt::Display for SelectorError<'i> {
       UnexpectedIdent(name) => write!(f, "Unexpected identifier: {}", name),
       UnexpectedTokenInAttributeSelector(token) => write!(f, "Unexpected token in attribute selector: {:?}", token),
       UnsupportedPseudoClassOrElement(name) => write!(f, "Unsupported pseudo class or element: {}", name),
-      AmbiguousCssModuleClass(_) => write!(f, "Ambiguous CSS module class not supoorted"),
+      AmbiguousCssModuleClass(_) => write!(f, "Ambiguous CSS module class not supported"),
     }
   }
 }
