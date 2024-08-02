@@ -285,8 +285,8 @@ pub struct TimelineRangePercentage {
 
 impl<'i> Parse<'i> for TimelineRangePercentage {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let timeline_range_name = input.try_parse(TimelineRangeName::parse)?;
-    let percentage = input.try_parse(Percentage::parse)?;
+    let timeline_range_name = TimelineRangeName::parse(input)?;
+    let percentage = Percentage::parse(input)?;
     Ok(TimelineRangePercentage {
       timeline_range_name,
       percentage
