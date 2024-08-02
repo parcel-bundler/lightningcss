@@ -390,6 +390,37 @@ fn css_modules_pattern() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn css_modules_next_64299() -> Result<(), Box<dyn std::error::Error>> {
+  let file = assert_fs::NamedTempFile::new("test.css")?;
+  file.write_str(
+    "
+  .blue {
+    background: blue;
+
+    :global {
+      .red {
+        background: red;
+      }
+    }
+
+    &:global {
+      &.green {
+        background: green;
+      }
+    }
+  }
+  ",
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(file.path());
+  cmd.arg("--css-modules");
+  cmd.assert().failure();
+
+  Ok(())
+}
+
+#[test]
 fn sourcemap() -> Result<(), Box<dyn std::error::Error>> {
   let (input, _, _) = css_module_test_vals();
   let infile = assert_fs::NamedTempFile::new("test.css")?;

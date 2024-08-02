@@ -232,6 +232,9 @@ pub enum SelectorError<'i> {
   ),
   /// An unsupported pseudo class or pseudo element was encountered.
   UnsupportedPseudoClassOrElement(CowArcStr<'i>),
+
+  /// Ambiguous CSS module class.
+  AmbiguousCssModuleClass(CowArcStr<'i>),
 }
 
 impl<'i> fmt::Display for SelectorError<'i> {
@@ -257,6 +260,7 @@ impl<'i> fmt::Display for SelectorError<'i> {
       UnexpectedIdent(name) => write!(f, "Unexpected identifier: {}", name),
       UnexpectedTokenInAttributeSelector(token) => write!(f, "Unexpected token in attribute selector: {:?}", token),
       UnsupportedPseudoClassOrElement(name) => write!(f, "Unsupported pseudo class or element: {}", name),
+      AmbiguousCssModuleClass(_) => write!(f, "Ambiguous CSS module class not supported"),
     }
   }
 }
@@ -297,6 +301,7 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
         SelectorError::ExplicitNamespaceUnexpectedToken(t.into())
       }
       SelectorParseErrorKind::ClassNeedsIdent(t) => SelectorError::ClassNeedsIdent(t.into()),
+      SelectorParseErrorKind::AmbiguousCssModuleClass(name) => SelectorError::AmbiguousCssModuleClass(name.into()),
     }
   }
 }
