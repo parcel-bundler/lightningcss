@@ -342,6 +342,7 @@ impl ToCss for KeyframeSelector {
         percentage
       }) => {
         timeline_range_name.to_css(dest)?;
+        dest.write_char(' ')?;
         percentage.to_css(dest)
       }
     }
