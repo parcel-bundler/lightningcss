@@ -6925,6 +6925,21 @@ mod tests {
       "@keyframes test{to{background:#00f}}",
     );
 
+    // named animation range percentages
+    minify_test(
+      r#"
+      @keyframes test {
+        entry 0% {
+          background: blue
+        }
+        exit 100% {
+          background: green
+        }
+      }
+    "#,
+      "@keyframes test{entry 0%{background:#00f}exit 100%{background:green}}",
+    );
+
     // CSS-wide keywords and `none` cannot remove quotes.
     minify_test(
       r#"
@@ -6946,6 +6961,18 @@ mod tests {
       }
     "#,
       "@keyframes \"none\"{0%{background:green}}",
+    );
+
+    // named animation ranges cannot be used with to or from
+    minify_test(
+      r#"
+      @keyframes test {
+        entry to {
+          background: blue
+        }
+      }
+    "#,
+      "@keyframes test{}",
     );
 
     // CSS-wide keywords without quotes throws an error.

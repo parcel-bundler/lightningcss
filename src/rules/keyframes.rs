@@ -8,6 +8,7 @@ use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
+use crate::properties::animation::TimelineRangeName;
 use crate::properties::custom::{CustomProperty, UnparsedProperty};
 use crate::properties::Property;
 use crate::targets::Targets;
@@ -265,6 +266,34 @@ impl<'i> ToCss for KeyframesRule<'i> {
   }
 }
 
+/// A percentage of a given timeline range
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct TimelineRangePercentage {
+  /// A named timeline range
+  timeline_range_name: TimelineRangeName,
+  /// The percentage progress between the start and end of the rage
+  percentage: Percentage
+}
+
+impl<'i> Parse<'i> for TimelineRangePercentage {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let timeline_range_name = TimelineRangeName::parse(input)?;
+    let percentage = Percentage::parse(input)?;
+    Ok(TimelineRangePercentage {
+      timeline_range_name,
+      percentage
+    })
+  }
+}
+
 /// A [keyframe selector](https://drafts.csswg.org/css-animations/#typedef-keyframe-selector)
 /// within an `@keyframes` rule.
 #[derive(Debug, PartialEq, Clone, Parse)]
@@ -283,6 +312,8 @@ pub enum KeyframeSelector {
   From,
   /// The `to` keyword. Equivalent to 100%.
   To,
+  /// A [named timeline range selector](https://drafts.csswg.org/scroll-animations-1/#named-range-keyframes)
+  TimelineRangePercentage(TimelineRangePercentage)
 }
 
 impl ToCss for KeyframeSelector {
@@ -306,6 +337,14 @@ impl ToCss for KeyframeSelector {
         }
       }
       KeyframeSelector::To => dest.write_str("to"),
+      KeyframeSelector::TimelineRangePercentage(TimelineRangePercentage {
+        timeline_range_name,
+        percentage
+      }) => {
+        timeline_range_name.to_css(dest)?;
+        dest.write_char(' ')?;
+        percentage.to_css(dest)
+      }
     }
   }
 }
