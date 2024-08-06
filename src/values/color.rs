@@ -3580,98 +3580,104 @@ impl<'i, V: ?Sized + Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for RGB
   }
 }
 
-enum_property! {
-  #[css(case = lower)]
-  /// A CSS [system color](https://drafts.csswg.org/css-color/#css-system-colors) keyword.
-  pub enum SystemColor {
-    /// Background of accented user interface controls.
-    AccentColor,
-    /// Text of accented user interface controls.
-    AccentColorText,
-    /// Text in active links. For light backgrounds, traditionally red.
-    ActiveText,
-    /// The base border color for push buttons.
-    ButtonBorder,
-    /// The face background color for push buttons.
-    ButtonFace,
-    /// Text on push buttons.
-    ButtonText,
-    /// Background of application content or documents.
-    Canvas,
-    /// Text in application content or documents.
-    CanvasText,
-    /// Background of input fields.
-    Field,
-    /// Text in input fields.
-    FieldText,
-    /// Disabled text. (Often, but not necessarily, gray.)
-    GrayText,
-    /// Background of selected text, for example from ::selection.
-    Highlight,
-    /// Text of selected text.
-    HighlightText,
-    /// Text in non-active, non-visited links. For light backgrounds, traditionally blue.
-    LinkText,
-    /// Background of text that has been specially marked (such as by the HTML mark element).
-    Mark,
-    /// Text that has been specially marked (such as by the HTML mark element).
-    MarkText,
-    /// Background of selected items, for example a selected checkbox.
-    SelectedItem,
-    /// Text of selected items.
-    SelectedItemText,
-    /// Text in visited links. For light backgrounds, traditionally purple.
-    VisitedText,
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[css(case = lower)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+/// A CSS [system color](https://drafts.csswg.org/css-color/#css-system-colors) keyword.
+pub enum SystemColor {
+  /// Background of accented user interface controls.
+  AccentColor,
+  /// Text of accented user interface controls.
+  AccentColorText,
+  /// Text in active links. For light backgrounds, traditionally red.
+  ActiveText,
+  /// The base border color for push buttons.
+  ButtonBorder,
+  /// The face background color for push buttons.
+  ButtonFace,
+  /// Text on push buttons.
+  ButtonText,
+  /// Background of application content or documents.
+  Canvas,
+  /// Text in application content or documents.
+  CanvasText,
+  /// Background of input fields.
+  Field,
+  /// Text in input fields.
+  FieldText,
+  /// Disabled text. (Often, but not necessarily, gray.)
+  GrayText,
+  /// Background of selected text, for example from ::selection.
+  Highlight,
+  /// Text of selected text.
+  HighlightText,
+  /// Text in non-active, non-visited links. For light backgrounds, traditionally blue.
+  LinkText,
+  /// Background of text that has been specially marked (such as by the HTML mark element).
+  Mark,
+  /// Text that has been specially marked (such as by the HTML mark element).
+  MarkText,
+  /// Background of selected items, for example a selected checkbox.
+  SelectedItem,
+  /// Text of selected items.
+  SelectedItemText,
+  /// Text in visited links. For light backgrounds, traditionally purple.
+  VisitedText,
 
-    // Deprecated colors: https://drafts.csswg.org/css-color/#deprecated-system-colors
-
-    /// Active window border. Same as ButtonBorder.
-    ActiveBorder,
-    /// Active window caption. Same as Canvas.
-    ActiveCaption,
-    /// Background color of multiple document interface. Same as Canvas.
-    AppWorkspace,
-    /// Desktop background. Same as Canvas.
-    Background,
-    /// The color of the border facing the light source for 3-D elements that appear 3-D due to one layer of surrounding border. Same as ButtonFace.
-    ButtonHighlight,
-    /// The color of the border away from the light source for 3-D elements that appear 3-D due to one layer of surrounding border. Same as ButtonFace.
-    ButtonShadow,
-    /// Text in caption, size box, and scrollbar arrow box. Same as CanvasText.
-    CaptionText,
-    /// Inactive window border. Same as ButtonBorder.
-    InactiveBorder,
-    /// Inactive window caption. Same as Canvas.
-    InactiveCaption,
-    /// Color of text in an inactive caption. Same as GrayText.
-    InactiveCaptionText,
-    /// Background color for tooltip controls. Same as Canvas.
-    InfoBackground,
-    /// Text color for tooltip controls. Same as CanvasText.
-    InfoText,
-    /// Menu background. Same as Canvas.
-    Menu,
-    /// Text in menus. Same as CanvasText.
-    MenuText,
-    /// Scroll bar gray area. Same as Canvas.
-    Scrollbar,
-    /// The color of the darker (generally outer) of the two borders away from the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
-    ThreeDDarkShadow,
-    /// The face background color for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonFace.
-    ThreeDFace,
-    /// The color of the lighter (generally outer) of the two borders facing the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
-    ThreeDHighlight,
-    /// The color of the darker (generally inner) of the two borders facing the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
-    ThreeDLightShadow,
-    /// The color of the lighter (generally inner) of the two borders away from the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
-    ThreeDShadow,
-    /// Window background. Same as Canvas.
-    Window,
-    /// Window frame. Same as ButtonBorder.
-    WindowFrame,
-    /// Text in windows. Same as CanvasText.
-    WindowText,
-  }
+  // Deprecated colors: https://drafts.csswg.org/css-color/#deprecated-system-colors
+  /// Active window border. Same as ButtonBorder.
+  ActiveBorder,
+  /// Active window caption. Same as Canvas.
+  ActiveCaption,
+  /// Background color of multiple document interface. Same as Canvas.
+  AppWorkspace,
+  /// Desktop background. Same as Canvas.
+  Background,
+  /// The color of the border facing the light source for 3-D elements that appear 3-D due to one layer of surrounding border. Same as ButtonFace.
+  ButtonHighlight,
+  /// The color of the border away from the light source for 3-D elements that appear 3-D due to one layer of surrounding border. Same as ButtonFace.
+  ButtonShadow,
+  /// Text in caption, size box, and scrollbar arrow box. Same as CanvasText.
+  CaptionText,
+  /// Inactive window border. Same as ButtonBorder.
+  InactiveBorder,
+  /// Inactive window caption. Same as Canvas.
+  InactiveCaption,
+  /// Color of text in an inactive caption. Same as GrayText.
+  InactiveCaptionText,
+  /// Background color for tooltip controls. Same as Canvas.
+  InfoBackground,
+  /// Text color for tooltip controls. Same as CanvasText.
+  InfoText,
+  /// Menu background. Same as Canvas.
+  Menu,
+  /// Text in menus. Same as CanvasText.
+  MenuText,
+  /// Scroll bar gray area. Same as Canvas.
+  Scrollbar,
+  /// The color of the darker (generally outer) of the two borders away from the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
+  ThreeDDarkShadow,
+  /// The face background color for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonFace.
+  ThreeDFace,
+  /// The color of the lighter (generally outer) of the two borders facing the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
+  ThreeDHighlight,
+  /// The color of the darker (generally inner) of the two borders facing the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
+  ThreeDLightShadow,
+  /// The color of the lighter (generally inner) of the two borders away from the light source for 3-D elements that appear 3-D due to two concentric layers of surrounding border. Same as ButtonBorder.
+  ThreeDShadow,
+  /// Window background. Same as Canvas.
+  Window,
+  /// Window frame. Same as ButtonBorder.
+  WindowFrame,
+  /// Text in windows. Same as CanvasText.
+  WindowText,
 }
 
 impl IsCompatible for SystemColor {

@@ -66,6 +66,15 @@ compileFromFile('node/ast.json', {
         path.node.typeAnnotation.types[1].members[0].key.name === 'xyz'
       ) {
         path.get('typeAnnotation.types.1').replaceWith(path.node.typeAnnotation.types[1].members[0].typeAnnotation.typeAnnotation);
+      } else if (path.node.id.name === 'AnimationAttachmentRange' && path.node.typeAnnotation.type === 'TSUnionType') {
+        let types = path.node.typeAnnotation.types;
+        if (types[1].type === 'TSTypeLiteral' && types[1].members[0].key.name === 'lengthpercentage') {
+          path.get('typeAnnotation.types.1').replaceWith(path.node.typeAnnotation.types[1].members[0].typeAnnotation.typeAnnotation);
+        }
+
+        if (types[2].type === 'TSTypeLiteral' && types[2].members[0].key.name === 'timelinerange') {
+          path.get('typeAnnotation.types.2').replaceWith(path.node.typeAnnotation.types[2].members[0].typeAnnotation.typeAnnotation);
+        }
       }
     }
   });

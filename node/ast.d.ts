@@ -4231,33 +4231,13 @@ export type PositionComponentFor_VerticalPositionKeyword =
  */
 export type EndingShape =
   | {
-      type: "circle";
-      value: Circle;
-    }
-  | {
       type: "ellipse";
       value: Ellipse;
-    };
-/**
- * A circle ending shape for a `radial-gradient()`.
- *
- * See [RadialGradient](RadialGradient).
- */
-export type Circle =
-  | {
-      type: "radius";
-      value: Length;
     }
   | {
-      type: "extent";
-      value: ShapeExtent;
+      type: "circle";
+      value: Circle;
     };
-/**
- * A shape extent for a `radial-gradient()`.
- *
- * See [RadialGradient](RadialGradient).
- */
-export type ShapeExtent = "closest-side" | "farthest-side" | "closest-corner" | "farthest-corner";
 /**
  * An ellipse ending shape for a `radial-gradient()`.
  *
@@ -4274,6 +4254,26 @@ export type Ellipse =
        * The y-radius of the ellipse.
        */
       y: DimensionPercentageFor_LengthValue;
+    }
+  | {
+      type: "extent";
+      value: ShapeExtent;
+    };
+/**
+ * A shape extent for a `radial-gradient()`.
+ *
+ * See [RadialGradient](RadialGradient).
+ */
+export type ShapeExtent = "closest-side" | "farthest-side" | "closest-corner" | "farthest-corner";
+/**
+ * A circle ending shape for a `radial-gradient()`.
+ *
+ * See [RadialGradient](RadialGradient).
+ */
+export type Circle =
+  | {
+      type: "radius";
+      value: Length;
     }
   | {
       type: "extent";
@@ -4438,11 +4438,11 @@ export type WebKitGradientPointComponentFor_HorizontalPositionKeyword =
  */
 export type NumberOrPercentage =
   | {
-      type: "percentage";
+      type: "number";
       value: number;
     }
   | {
-      type: "number";
+      type: "percentage";
       value: number;
     };
 /**
@@ -4754,12 +4754,12 @@ export type RectFor_LengthOrNumber = [LengthOrNumber, LengthOrNumber, LengthOrNu
  */
 export type LengthOrNumber =
   | {
-      type: "length";
-      value: Length;
-    }
-  | {
       type: "number";
       value: number;
+    }
+  | {
+      type: "length";
+      value: Length;
     };
 /**
  * A single [border-image-repeat](https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat) keyword.
@@ -5570,22 +5570,16 @@ export type AnimationRangeStart = AnimationAttachmentRange;
  * A value for the [animation-range-start](https://drafts.csswg.org/scroll-animations/#animation-range-start) or [animation-range-end](https://drafts.csswg.org/scroll-animations/#animation-range-end) property.
  */
 export type AnimationAttachmentRange =
-  | "Normal"
-  | {
-      LengthPercentage: DimensionPercentageFor_LengthValue;
-    }
-  | {
-      TimelineRange: {
-        /**
-         * The name of the timeline range.
-         */
-        name: TimelineRangeName;
-        /**
-         * The offset from the start of the named timeline range.
-         */
-        offset: DimensionPercentageFor_LengthValue;
-      };
-    };
+  "normal" | DimensionPercentageFor_LengthValue | {
+    /**
+     * The name of the timeline range.
+     */
+    name: TimelineRangeName;
+    /**
+     * The offset from the start of the named timeline range.
+     */
+    offset: DimensionPercentageFor_LengthValue;
+  };
 /**
  * A [view progress timeline range](https://drafts.csswg.org/scroll-animations/#view-timelines-ranges)
  */
@@ -5709,7 +5703,7 @@ export type Transform =
 /**
  * A value for the [transform-style](https://drafts.csswg.org/css-transforms-2/#transform-style-property) property.
  */
-export type TransformStyle = "flat" | "preserve-3d";
+export type TransformStyle = "flat" | "preserve3d";
 /**
  * A value for the [transform-box](https://drafts.csswg.org/css-transforms-1/#transform-box) property.
  */
@@ -6106,9 +6100,6 @@ export type MarkerSide = "match-self" | "match-parent";
  */
 export type SVGPaint =
   | {
-      type: "none";
-    }
-  | {
       /**
        * A fallback to be used used in case the paint server cannot be resolved.
        */
@@ -6128,6 +6119,9 @@ export type SVGPaint =
     }
   | {
       type: "context-stroke";
+    }
+  | {
+      type: "none";
     };
 /**
  * A fallback for an SVG paint in case a paint server `url()` cannot be resolved.
@@ -6938,6 +6932,10 @@ export type KeyframeSelector =
     }
   | {
       type: "to";
+    }
+  | {
+      type: "timeline-range-percentage";
+      value: TimelineRangePercentage;
     };
 /**
  * KeyframesName
@@ -9163,6 +9161,19 @@ export interface Keyframe<D = Declaration> {
    * A list of keyframe selectors to associate with the declarations in this keyframe.
    */
   selectors: KeyframeSelector[];
+}
+/**
+ * A percentage of a given timeline range
+ */
+export interface TimelineRangePercentage {
+  /**
+   * The name of the timeline range.
+   */
+  name: TimelineRangeName;
+  /**
+   * The percentage progress between the start and end of the range.
+   */
+  percentage: number;
 }
 /**
  * A [@font-face](https://drafts.csswg.org/css-fonts/#font-face-rule) rule.

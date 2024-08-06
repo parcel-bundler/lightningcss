@@ -209,66 +209,101 @@ pub enum Marker<'i> {
   Url(Url<'i>),
 }
 
-enum_property! {
-  /// A value for the [color-interpolation](https://www.w3.org/TR/SVG2/painting.html#ColorInterpolation) property.
-  pub enum ColorInterpolation {
-    /// The UA can choose between sRGB or linearRGB.
-    Auto,
-    /// Color interpolation occurs in the sRGB color space.
-    SRGB,
-    /// Color interpolation occurs in the linearized RGB color space
-    LinearRGB,
-  }
+/// A value for the [color-interpolation](https://www.w3.org/TR/SVG2/painting.html#ColorInterpolation) property.
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ColorInterpolation {
+  /// The UA can choose between sRGB or linearRGB.
+  Auto,
+  /// Color interpolation occurs in the sRGB color space.
+  SRGB,
+  /// Color interpolation occurs in the linearized RGB color space
+  LinearRGB,
 }
 
-enum_property! {
-  /// A value for the [color-rendering](https://www.w3.org/TR/SVG2/painting.html#ColorRendering) property.
-  pub enum ColorRendering {
-    /// The UA can choose a tradeoff between speed and quality.
-    Auto,
-    /// The UA shall optimize speed over quality.
-    OptimizeSpeed,
-    /// The UA shall optimize quality over speed.
-    OptimizeQuality,
-  }
+/// A value for the [color-rendering](https://www.w3.org/TR/SVG2/painting.html#ColorRendering) property.
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ColorRendering {
+  /// The UA can choose a tradeoff between speed and quality.
+  Auto,
+  /// The UA shall optimize speed over quality.
+  OptimizeSpeed,
+  /// The UA shall optimize quality over speed.
+  OptimizeQuality,
 }
 
-enum_property! {
-  /// A value for the [shape-rendering](https://www.w3.org/TR/SVG2/painting.html#ShapeRendering) property.
-  pub enum ShapeRendering {
-    /// The UA can choose an appropriate tradeoff.
-    Auto,
-    /// The UA shall optimize speed.
-    OptimizeSpeed,
-    /// The UA shall optimize crisp edges.
-    CrispEdges,
-    /// The UA shall optimize geometric precision.
-    GeometricPrecision,
-  }
+/// A value for the [shape-rendering](https://www.w3.org/TR/SVG2/painting.html#ShapeRendering) property.
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ShapeRendering {
+  /// The UA can choose an appropriate tradeoff.
+  Auto,
+  /// The UA shall optimize speed.
+  OptimizeSpeed,
+  /// The UA shall optimize crisp edges.
+  CrispEdges,
+  /// The UA shall optimize geometric precision.
+  GeometricPrecision,
 }
 
-enum_property! {
-  /// A value for the [text-rendering](https://www.w3.org/TR/SVG2/painting.html#TextRendering) property.
-  pub enum TextRendering {
-    /// The UA can choose an appropriate tradeoff.
-    Auto,
-    /// The UA shall optimize speed.
-    OptimizeSpeed,
-    /// The UA shall optimize legibility.
-    OptimizeLegibility,
-    /// The UA shall optimize geometric precision.
-    GeometricPrecision,
-  }
+/// A value for the [text-rendering](https://www.w3.org/TR/SVG2/painting.html#TextRendering) property.
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum TextRendering {
+  /// The UA can choose an appropriate tradeoff.
+  Auto,
+  /// The UA shall optimize speed.
+  OptimizeSpeed,
+  /// The UA shall optimize legibility.
+  OptimizeLegibility,
+  /// The UA shall optimize geometric precision.
+  GeometricPrecision,
 }
 
-enum_property! {
-  /// A value for the [image-rendering](https://www.w3.org/TR/SVG2/painting.html#ImageRendering) property.
-  pub enum ImageRendering {
-    /// The UA can choose a tradeoff between speed and quality.
-    Auto,
-    /// The UA shall optimize speed over quality.
-    OptimizeSpeed,
-    /// The UA shall optimize quality over speed.
-    OptimizeQuality,
-  }
+/// A value for the [image-rendering](https://www.w3.org/TR/SVG2/painting.html#ImageRendering) property.
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ImageRendering {
+  /// The UA can choose a tradeoff between speed and quality.
+  Auto,
+  /// The UA shall optimize speed over quality.
+  OptimizeSpeed,
+  /// The UA shall optimize quality over speed.
+  OptimizeQuality,
 }

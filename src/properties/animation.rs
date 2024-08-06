@@ -379,7 +379,11 @@ impl ToCss for ViewTimeline {
 /// A [view progress timeline range](https://drafts.csswg.org/scroll-animations/#view-timelines-ranges)
 #[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum TimelineRangeName {
@@ -402,15 +406,17 @@ pub enum TimelineRangeName {
 /// or [animation-range-end](https://drafts.csswg.org/scroll-animations/#animation-range-end) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum AnimationAttachmentRange {
   /// The start of the animation’s attachment range is the start of its associated timeline.
   Normal,
   /// The animation attachment range starts at the specified point on the timeline measuring from the start of the timeline.
+  #[cfg_attr(feature = "serde", serde(untagged))]
   LengthPercentage(LengthPercentage),
   /// The animation attachment range starts at the specified point on the timeline measuring from the start of the specified named timeline range.
+  #[cfg_attr(feature = "serde", serde(untagged))]
   TimelineRange {
     /// The name of the timeline range.
     name: TimelineRangeName,

@@ -10,7 +10,7 @@ macro_rules! enum_property {
   ) => {
     #[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
     #[cfg_attr(feature = "visitor", derive(Visit))]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "kebab-case"))]
     #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
     $(#[$outer])*
