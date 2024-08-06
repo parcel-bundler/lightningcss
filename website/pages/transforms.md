@@ -17,7 +17,7 @@ Custom transforms are implemented by passing a `visitor` object to the Lightning
 Visitors can return a new value to update it. Each visitor accepts a different type of value, and usually expects the same type in return. This example multiplies all lengths by 2:
 
 ```js
-import { transform } from 'lightningcss';
+import {transform} from 'lightningcss';
 
 let res = transform({
   filename: 'test.css',
@@ -31,10 +31,10 @@ let res = transform({
     Length(length) {
       return {
         unit: length.unit,
-        value: length.value * 2
-      }
-    }
-  }
+        value: length.value * 2,
+      };
+    },
+  },
 });
 
 assert.equal(res.code.toString(), '.foo{width:24px}');
@@ -56,25 +56,33 @@ let res = transform({
   visitor: {
     Property: {
       overflow(property) {
-        return [{
-          property: 'custom',
-          value: {
-            name: '-webkit-overflow-scrolling',
-            value: [{
-              type: 'token',
-              value: {
-                type: 'ident',
-                value: 'touch'
-              }
-            }]
-          }
-        }, property];
+        return [
+          {
+            property: 'custom',
+            value: {
+              name: '-webkit-overflow-scrolling',
+              value: [
+                {
+                  type: 'token',
+                  value: {
+                    type: 'ident',
+                    value: 'touch',
+                  },
+                },
+              ],
+            },
+          },
+          property,
+        ];
       },
-    }
-  }
+    },
+  },
 });
 
-assert.equal(res.code.toString(), '.foo{-webkit-overflow-scrolling:touch;overflow:auto}');
+assert.equal(
+  res.code.toString(),
+  '.foo{-webkit-overflow-scrolling:touch;overflow:auto}',
+);
 ```
 
 ## Value types
@@ -97,9 +105,9 @@ transform({
         } else {
           // Handle parsed value, e.g. `12px`
         }
-      }
-    }
-  }
+      },
+    },
+  },
 });
 ```
 
@@ -121,18 +129,18 @@ let res = transform({
           if (property.value[0].type === 'length') {
             let value = {
               type: 'length-percentage',
-              value: { type: 'dimension', value: property.value[0].value }
+              value: {type: 'dimension', value: property.value[0].value},
             };
 
             return [
-              { property: 'width', value },
-              { property: 'height', value }
+              {property: 'width', value},
+              {property: 'height', value},
             ];
           }
-        }
-      }
-    }
-  }
+        },
+      },
+    },
+  },
 });
 
 assert.equal(res.code.toString(), '.foo{width:12px;height:12px}');
@@ -155,10 +163,10 @@ let res = transform({
   visitor: {
     Function: {
       color() {
-        return { raw: 'rgb(255, 0, 0)' };
-      }
-    }
-  }
+        return {raw: 'rgb(255, 0, 0)'};
+      },
+    },
+  },
 });
 
 assert.equal(res.code.toString(), '.foo{color:red}');
@@ -188,11 +196,11 @@ let res = transform({
             type: 'length',
             value: {
               unit: f.arguments[0].value.unit,
-              value: f.arguments[0].value.value * 2
-            }
+              value: f.arguments[0].value.value * 2,
+            },
           };
         }
-      }
+      },
     },
     EnvironmentVariable: {
       // This will run before the FunctionExit visitor, above.
@@ -200,11 +208,11 @@ let res = transform({
         type: 'length',
         value: {
           unit: 'px',
-          value: 20
-        }
-      })
-    }
-  }
+          value: 20,
+        },
+      }),
+    },
+  },
 });
 
 assert.equal(res.code.toString(), '.foo{padding:40px}');
@@ -215,7 +223,7 @@ assert.equal(res.code.toString(), '.foo{padding:40px}');
 Multiple visitors can be combined into one using the `composeVisitors` function. This lets you reuse visitors between projects by publishing them as plugins. The AST is visited in a single pass, running the functions from each visitor object as if they were written together.
 
 ```js
-import { transform, composeVisitors } from 'lightningcss';
+import {transform, composeVisitors} from 'lightningcss';
 
 let environmentVisitor = {
   EnvironmentVariable: {
@@ -223,10 +231,10 @@ let environmentVisitor = {
       type: 'length',
       value: {
         unit: 'px',
-        value: 20
-      }
-    })
-  }
+        value: 20,
+      },
+    }),
+  },
 };
 
 let doubleFunctionVisitor = {
@@ -237,12 +245,12 @@ let doubleFunctionVisitor = {
           type: 'length',
           value: {
             unit: f.arguments[0].value.unit,
-            value: f.arguments[0].value.value * 2
-          }
+            value: f.arguments[0].value.value * 2,
+          },
         };
       }
-    }
-  }
+    },
+  },
 };
 
 let res = transform({
@@ -253,7 +261,7 @@ let res = transform({
       padding: double(env(--branding-padding));
     }
   `),
-  visitor: composeVisitors([environmentVisitor, doubleFunctionVisitor])
+  visitor: composeVisitors([environmentVisitor, doubleFunctionVisitor]),
 });
 
 assert.equal(res.code.toString(), '.foo{padding:40px}');
@@ -282,14 +290,14 @@ let res = transform({
       unknown(rule) {
         declared.set(rule.name, rule.prelude);
         return [];
-      }
+      },
     },
     Token: {
       'at-keyword'(token) {
         return declared.get(token.value);
-      }
-    }
-  }
+      },
+    },
+  },
 });
 
 assert.equal(res.code.toString(), '.menu_link{background:#056ef0}');
@@ -301,9 +309,9 @@ Raw tokens as stored in unknown at-rules are fine for simple cases, but in more 
 
 The syntax of the at-rule prelude can be defined with a [CSS syntax string](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings), which Lightning CSS will interpret and use to validate the input CSS. This uses the same syntax as the [@property](https://developer.mozilla.org/en-US/docs/Web/CSS/@property) rule. The body syntax is defined using one of the following options:
 
-* `"declaration-list"` – A list of CSS declarations (property value pairs), as in a style rule or other at-rules like `@font-face`.
-* `"rule-list"` – A list of nested CSS rules, including style rules and at rules. Directly nested declarations with CSS nesting are not allowed. This matches how rules like `@keyframes` are parsed.
-* `"style-block"` – A list of CSS declarations and/or nested rules. This matches the behavior of rules like `@media` and `@supports` which support directly nested declarations when inside a style rule. Note that the [nesting](transpilation.html#nesting) and [targets](transpilation.html#browser-targets) options must be defined for nesting to be compiled.
+- `"declaration-list"` – A list of CSS declarations (property value pairs), as in a style rule or other at-rules like `@font-face`.
+- `"rule-list"` – A list of nested CSS rules, including style rules and at rules. Directly nested declarations with CSS nesting are not allowed. This matches how rules like `@keyframes` are parsed.
+- `"style-block"` – A list of CSS declarations and/or nested rules. This matches the behavior of rules like `@media` and `@supports` which support directly nested declarations when inside a style rule. Note that the [nesting](transpilation.html#nesting) and [targets](transpilation.html#browser-targets) options must be defined for nesting to be compiled.
 
 This example defines two custom at-rules. `@mixin` defines a reusable style block, supporting both directly nested declarations and nested rules. A visitor function registers the mixin in a map and removes the custom rule. `@apply` looks up the requested mixin in the map and returns the nested rules, which are inlined into the parent.
 
@@ -312,7 +320,7 @@ let mixins = new Map();
 let res = transform({
   filename: 'test.css',
   minify: true,
-  targets: { chrome: 100 << 16 },
+  targets: {chrome: 100 << 16},
   code: Buffer.from(`
     @mixin color {
       color: red;
@@ -329,11 +337,11 @@ let res = transform({
   customAtRules: {
     mixin: {
       prelude: '<custom-ident>',
-      body: 'style-block'
+      body: 'style-block',
     },
     apply: {
-      prelude: '<custom-ident>'
-    }
+      prelude: '<custom-ident>',
+    },
   },
   visitor: {
     Rule: {
@@ -344,10 +352,10 @@ let res = transform({
         },
         apply(rule) {
           return mixins.get(rule.prelude.value);
-        }
-      }
-    }
-  }
+        },
+      },
+    },
+  },
 });
 
 assert.equal(res.code.toString(), '.foo{color:red}.foo.bar{color:#ff0}');
@@ -367,8 +375,8 @@ export default {
   FunctionExit: {
     double(f) {
       // ...
-    }
-  }
+    },
+  },
 };
 ```
 
@@ -379,7 +387,7 @@ Plugins can also export a function in order to accept options.
 export default (values) => ({
   EnvironmentVariable(env) {
     return values[env.name];
-  }
+  },
 });
 ```
 
@@ -398,7 +406,7 @@ Plugin package names should start with `lightningcss-plugin-` and be descriptive
 To use a published visitor plugin, install the package from npm, import it, and use the `composeVisitors` function as described above.
 
 ```js
-import { transform, composeVisitors } from 'lightningcss';
+import {transform, composeVisitors} from 'lightningcss';
 import environmentVisitor from 'lightningcss-plugin-environment';
 import doubleFunctionVisitor from 'lightningcss-plugin-double-function';
 
@@ -416,12 +424,12 @@ let res = transform({
         type: 'length',
         value: {
           unit: 'px',
-          value: 20
-        }
-      }
+          value: 20,
+        },
+      },
     }),
-    doubleFunctionVisitor
-  ])
+    doubleFunctionVisitor,
+  ]),
 });
 
 assert.equal(res.code.toString(), '.foo{padding:40px}');

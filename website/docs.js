@@ -8,7 +8,7 @@ for (let link of tocLinks) {
 }
 
 let intersectingHeaders = new Set();
-let observer = new IntersectionObserver(entries => {
+let observer = new IntersectionObserver((entries) => {
   for (let entry of entries) {
     if (entry.isIntersecting) {
       intersectingHeaders.add(entry.target);

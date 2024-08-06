@@ -9,11 +9,11 @@
 Lightning CSS can optimize your CSS to make it smaller, which can help improve the loading performance of your website. When using the Lightning CSS API, enable the `minify` option, or when using the CLI, use the `--minify` flag.
 
 ```js
-import { transform } from 'lightningcss';
+import {transform} from 'lightningcss';
 
-let { code, map } = transform({
+let {code, map} = transform({
   // ...
-  minify: true
+  minify: true,
 });
 ```
 
@@ -37,7 +37,9 @@ Lightning CSS will combine longhand properties into shorthands when all of the c
 minifies to:
 
 ```css
-.foo{padding:1px 4px 3px 2px}
+.foo {
+  padding: 1px 4px 3px 2px;
+}
 ```
 
 This is supported across most shorthand properties defined in the CSS spec.
@@ -67,7 +69,14 @@ Lightning CSS will merge adjacent style rules with the same selectors or declara
 becomes:
 
 ```css
-.a,.b{color:red}.c{color:green;padding:10px}
+.a,
+.b {
+  color: red;
+}
+.c {
+  color: green;
+  padding: 10px;
+}
 ```
 
 In addition to style rules, Lightning CSS will also merge adjacent `@media`, `@supports`, and `@container` rules with identical queries, and adjacent `@layer` rules with the same layer name.
@@ -91,7 +100,9 @@ For example, when compiling for modern browsers, prefixed versions of the `trans
 becomes:
 
 ```css
-.button{transition:background .2s}
+.button {
+  transition: background 0.2s;
+}
 ```
 
 See [Transpilation](transpilation.html) for more on how to configure browser targets.
@@ -110,7 +121,10 @@ Lightning CSS will reduce `calc()` and other math expressions to constant values
 minifies to:
 
 ```css
-.foo{width:200px;height:calc(75.37% - 763.5px)}
+.foo {
+  width: 200px;
+  height: calc(75.37% - 763.5px);
+}
 ```
 
 Note that `calc()` expressions with variables are currently left unmodified by Lightning CSS.
@@ -121,14 +135,16 @@ Lightning CSS will minify colors to the smallest format possible without changin
 
 ```css
 .foo {
-  color: rgba(255, 255, 0, 0.8)
+  color: rgba(255, 255, 0, 0.8);
 }
 ```
 
 minifies to:
 
 ```css
-.foo{color:#ff0c}
+.foo {
+  color: #ff0c;
+}
 ```
 
 Note that only colors in the RGB gamut (including HSL and HWB) are converted to hex. Colors in other color spaces such as LAB or P3 are preserved.
@@ -145,7 +161,10 @@ In addition to static colors, Lightning CSS also supports many color functions s
 minifies to:
 
 ```css
-.foo{color:#669;background:#545c3d}
+.foo {
+  color: #669;
+  background: #545c3d;
+}
 ```
 
 Note that these conversions cannot be performed when any of the components include CSS variables.
@@ -163,7 +182,9 @@ Lightning CSS parses all properties and values according to the CSS specificatio
 minifies to:
 
 ```css
-.foo{background:red}
+.foo {
+  background: red;
+}
 ```
 
 In addition to removing defaults, Lightning CSS also omits quotes, whitespace, and optional delimiters where possible. It also converts values to shorter equivalents where possible.
@@ -172,14 +193,18 @@ In addition to removing defaults, Lightning CSS also omits quotes, whitespace, a
 .foo {
   font-weight: bold;
   background-position: center center;
-  background-image: url("logo.png");
+  background-image: url('logo.png');
 }
 ```
 
 minifies to:
 
 ```css
-.foo{background-image:url(logo.png);background-position:50%;font-weight:700}
+.foo {
+  background-image: url(logo.png);
+  background-position: 50%;
+  font-weight: 700;
+}
 ```
 
 ### CSS grid templates
@@ -188,16 +213,19 @@ Lightning CSS will minify the `grid-template-areas` property to remove unnecessa
 
 ```css
 .foo {
-  grid-template-areas: "head head"
-                       "nav  main"
-                       "foot ....";
+  grid-template-areas:
+    'head head'
+    'nav  main'
+    'foot ....';
 }
 ```
 
 minifies to:
 
 ```css
-.foo{grid-template-areas:"head head""nav main""foot."}
+.foo {
+  grid-template-areas: 'head head' 'nav main' 'foot.';
+}
 ```
 
 ### Reduce transforms
@@ -213,21 +241,42 @@ Lightning CSS will reduce CSS transform functions to shorter equivalents where p
 minifies to:
 
 ```css
-.foo{transform:translateY(50px)}
+.foo {
+  transform: translateY(50px);
+}
 ```
 
 In addition, the `matrix()` and `matrix3d()` functions are converted to their equivalent transforms when shorter:
 
 ```css
 .foo {
-  transform: matrix3d(1, 0, 0, 0, 0, 0.707106, 0.707106, 0, 0, -0.707106, 0.707106, 0, 100, 100, 10, 1);
+  transform: matrix3d(
+    1,
+    0,
+    0,
+    0,
+    0,
+    0.707106,
+    0.707106,
+    0,
+    0,
+    -0.707106,
+    0.707106,
+    0,
+    100,
+    100,
+    10,
+    1
+  );
 }
 ```
 
 minifies to:
 
 ```css
-.foo{transform:translate3d(100px,100px,10px)rotateX(45deg)}
+.foo {
+  transform: translate3d(100px, 100px, 10px) rotateX(45deg);
+}
 ```
 
 When a matrix would be shorter, individual transform functions are converted to a single matrix instead:
@@ -241,7 +290,9 @@ When a matrix would be shorter, individual transform functions are converted to 
 minifies to:
 
 ```css
-.foo{transform:matrix(1.41421,1.41421,-1.16485,1.66358,100,200)}
+.foo {
+  transform: matrix(1.41421, 1.41421, -1.16485, 1.66358, 100, 200);
+}
 ```
 
 ## Unused symbols
@@ -249,10 +300,10 @@ minifies to:
 If you know that certain class names, ids, `@keyframes` rules, CSS variables, or other CSS identifiers are unused (for example as part of a larger full project analysis), you can use the `unusedSymbols` option to remove them.
 
 ```js
-let { code, map } = transform({
+let {code, map} = transform({
   // ...
   minify: true,
-  unusedSymbols: ['foo', 'fade-in', '--color']
+  unusedSymbols: ['foo', 'fade-in', '--color'],
 });
 ```
 
@@ -268,8 +319,12 @@ With this configuration, the following CSS:
 }
 
 @keyframes fade-in {
-  from { opacity: 0 }
-  to { opacity: 1 }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .bar {
@@ -280,5 +335,7 @@ With this configuration, the following CSS:
 minifies to:
 
 ```css
-.bar{color:green}
+.bar {
+  color: green;
+}
 ```
