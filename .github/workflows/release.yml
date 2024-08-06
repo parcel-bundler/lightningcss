@@ -162,7 +162,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build FreeBSD
-        uses: cross-platform-actions/action@v0.23.0
+        uses: cross-platform-actions/action@v0.25.0
         env:
           DEBUG: napi:*
           RUSTUP_HOME: /usr/local/rustup
@@ -170,7 +170,7 @@ jobs:
           RUSTUP_IO_THREADS: 1
         with:
           operating_system: freebsd
-          version: '13.2'
+          version: '14.0'
           memory: 13G
           cpu_count: 3
           environment_variables: 'DEBUG RUSTUP_IO_THREADS'
