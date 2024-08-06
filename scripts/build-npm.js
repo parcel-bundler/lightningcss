@@ -16,6 +16,9 @@ const triples = [
     name: 'x86_64-pc-windows-msvc',
   },
   {
+    name: 'aarch64-pc-windows-msvc'
+  },
+  {
     name: 'aarch64-apple-darwin',
   },
   {
