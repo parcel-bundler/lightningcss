@@ -550,12 +550,12 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 589824 {
+          if version >= 589824 && version <= 1115648 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 589824 {
+          if version >= 589824 && version <= 1115648 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -816,7 +816,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1572864 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1231,11 +1231,6 @@ impl Feature {
         }
       }
       Feature::FitContent => {
-        if let Some(version) = browsers.firefox {
-          if version >= 196608 {
-            prefixes |= VendorPrefix::Moz;
-          }
-        }
         if let Some(version) = browsers.android {
           if version >= 263168 && version <= 263171 {
             prefixes |= VendorPrefix::WebKit;
@@ -1244,6 +1239,11 @@ impl Feature {
         if let Some(version) = browsers.chrome {
           if version >= 1441792 && version <= 2949120 {
             prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 196608 && version <= 6094848 {
+            prefixes |= VendorPrefix::Moz;
           }
         }
         if let Some(version) = browsers.ios_saf {
@@ -1478,7 +1478,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1572864 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
