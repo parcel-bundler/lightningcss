@@ -65,13 +65,10 @@ wasmPkg.exports = {
       require: './index.cjs'
     }
   },
-  // Allow esbuild to import the wasm file 
+  // Allow esbuild to import the wasm file
   // without copying it in the src directory.
   // Simplifies loading it in the browser when used in a library.
-  './lightningcss_node.wasm': {
-    import: './lightningcss_node.wasm',
-    require: './lightningcss_node.wasm'
-  }
+  './lightningcss_node.wasm': './lightningcss_node.wasm'
 };
 wasmPkg.types = 'index.d.ts';
 wasmPkg.sideEffects = false;

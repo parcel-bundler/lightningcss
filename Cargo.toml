@@ -12,7 +12,7 @@ members = [
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
 name = "lightningcss"
-version = "1.0.0-alpha.57"
+version = "1.0.0-alpha.58"
 description = "A CSS parser, transformer, and minifier"
 license = "MPL-2.0"
 edition = "2021"
@@ -51,7 +51,7 @@ substitute_variables = ["visitor", "into_owned"]
 serde = { version = "1.0.201", features = ["derive"], optional = true }
 cssparser = "0.33.0"
 cssparser-color = "0.1.0"
-parcel_selectors = { version = "0.26.5", path = "./selectors" }
+parcel_selectors = { version = "0.26.6", path = "./selectors" }
 itertools = "0.10.1"
 smallvec = { version = "1.7.0", features = ["union"] }
 bitflags = "2.2.1"
@@ -69,7 +69,7 @@ browserslist-rs = { version = "0.16.0", optional = true }
 rayon = { version = "1.5.1", optional = true }
 dashmap = { version = "5.0.0", optional = true }
 serde_json = { version = "1.0.78", optional = true }
-lightningcss-derive = { version = "=1.0.0-alpha.42", path = "./derive" }
+lightningcss-derive = { version = "=1.0.0-alpha.43", path = "./derive" }
 schemars = { version = "0.8.19", features = ["smallvec"], optional = true }
 static-self = { version = "0.1.0", path = "static-self", optional = true }
 

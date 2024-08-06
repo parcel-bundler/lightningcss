@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.57"
+version = "1.0.0-alpha.58"
 dependencies = [
  "ahash 0.8.7",
  "assert_cmd",
@@ -792,7 +792,7 @@ dependencies = [
 
 [[package]]
 name = "lightningcss-derive"
-version = "1.0.0-alpha.42"
+version = "1.0.0-alpha.43"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -802,7 +802,7 @@ dependencies = [
 
 [[package]]
 name = "lightningcss-napi"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "crossbeam-channel",
  "cssparser",
@@ -990,7 +990,7 @@ checksum = "7f222829ae9293e33a9f5e9f440c6760a3d450a64affe1846486b140db81c1f4"
 
 [[package]]
 name = "parcel_selectors"
-version = "0.26.5"
+version = "0.26.6"
 dependencies = [
  "bitflags 2.4.1",
  "cssparser",
