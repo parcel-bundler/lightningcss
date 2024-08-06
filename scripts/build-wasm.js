@@ -54,14 +54,23 @@ wasmPkg.type = 'module';
 wasmPkg.main = 'index.mjs';
 wasmPkg.module = 'index.mjs';
 wasmPkg.exports = {
-  types: './index.d.ts',
-  node: {
-    import: './wasm-node.mjs',
-    require: './wasm-node.cjs',
+  '.': {
+    types: './index.d.ts',
+    node: {
+      import: './wasm-node.mjs',
+      require: './wasm-node.cjs'
+    },
+    default: {
+      import: './index.mjs',
+      require: './index.cjs'
+    }
   },
-  default: {
-    import: './index.mjs',
-    require: './index.cjs',
+  // Allow esbuild to import the wasm file 
+  // without copying it in the src directory.
+  // Simplifies loading it in the browser when used in a library.
+  './lightningcss_node.wasm': {
+    import: './lightningcss_node.wasm',
+    require: './lightningcss_node.wasm'
   }
 };
 wasmPkg.types = 'index.d.ts';
