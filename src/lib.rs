@@ -217,6 +217,14 @@ mod tests {
     }
   }
 
+  fn error_test_with_options<'i, 'o>(source: &'i str, error: ParserError, options: ParserOptions<'o, 'i>) {
+    let res = StyleSheet::parse(&source, options);
+    match res {
+      Ok(_) => unreachable!(),
+      Err(e) => assert_eq!(e.kind, error),
+    }
+  }
+
   macro_rules! map(
     { $($key:expr => $name:literal $(referenced: $referenced: literal)? $($value:literal $(global: $global: literal)? $(from $from:literal)?)*),* } => {
       {
@@ -6891,9 +6899,15 @@ mod tests {
       ParserError::SelectorError(SelectorError::DanglingCombinator),
     );
 
+    let css_module_options = ParserOptions {
+      css_modules: Some(crate::css_modules::Config::default()),
+      ..ParserOptions::default()
+    };
+
     error_test_with_options(
       "div {width: 20px}",
       ParserError::SelectorError(SelectorError::PureCssModuleClass),
+      css_module_options.clone(),
     );
 
     minify_test_with_options(
