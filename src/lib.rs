@@ -6890,6 +6890,12 @@ mod tests {
       ".foo /deep/ .bar {width: 20px}",
       ParserError::SelectorError(SelectorError::DanglingCombinator),
     );
+
+    error_test_with_options(
+      "div {width: 20px}",
+      ParserError::SelectorError(SelectorError::PureCssModuleClass),
+    );
+
     minify_test_with_options(
       ".foo >>> .bar {width: 20px}",
       ".foo>>>.bar{width:20px}",

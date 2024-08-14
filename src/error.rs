@@ -240,6 +240,9 @@ pub enum SelectorError<'i> {
   UnexpectedSelectorAfterPseudoElement(
     #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
   ),
+
+  /// CSS module selector without any class or ID selector.
+  PureCssModuleClass,
 }
 
 impl<'i> fmt::Display for SelectorError<'i> {
@@ -272,6 +275,7 @@ impl<'i> fmt::Display for SelectorError<'i> {
           "Pseudo-elements like '::before' or '::after' can't be followed by selectors like '{token:?}'"
         )
       },
+      PureCssModuleClass => write!(f, "A selector in CSS modules should contain at least one class or ID selector"),
     }
   }
 }
