@@ -356,6 +356,10 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
   fn deep_combinator_enabled(&self) -> bool {
     self.options.flags.contains(ParserFlags::DEEP_SELECTOR_COMBINATOR)
   }
+
+  fn check_for_pure_css_modules(&self) -> bool {
+    self.options.css_modules.as_ref().map_or(false, |v| v.pure)
+  }
 }
 
 enum_property! {

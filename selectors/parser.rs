@@ -207,6 +207,7 @@ pub enum SelectorParseErrorKind<'i> {
   ExplicitNamespaceUnexpectedToken(Token<'i>),
   ClassNeedsIdent(Token<'i>),
   UnexpectedSelectorAfterPseudoElement(Token<'i>),
+  PureCssModuleClass,
 }
 
 macro_rules! with_all_bounds {
@@ -357,6 +358,10 @@ pub trait Parser<'i> {
   fn deep_combinator_enabled(&self) -> bool {
     false
   }
+
+  fn check_for_pure_css_modules(&self) -> bool {
+    false
+  }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -449,6 +454,8 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
   {
     let original_state = *state;
     let mut values = SmallVec::new();
+    let mut had_class_or_id = false;
+    let need_to_check_for_purity = parser.check_for_pure_css_modules();
     loop {
       let selector = input.parse_until_before(Delimiter::Comma, |input| {
         let mut selector_state = original_state;
@@ -461,11 +468,26 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
 
       let was_ok = selector.is_ok();
       match selector {
-        Ok(selector) => values.push(selector),
+        Ok(selector) => {
+          if need_to_check_for_purity
+            && had_class_or_id
+            && selector
+              .iter()
+              .all(|component| matches!(component, Component::Class(..) | Component::ID(..)))
+          {
+            had_class_or_id = true;
+          }
+
+          values.push(selector)
+        }
         Err(err) => match recovery {
           ParseErrorRecovery::DiscardList => return Err(err),
           ParseErrorRecovery::IgnoreInvalidSelector => {}
         },
+      }
+
+      if need_to_check_for_purity && !had_class_or_id {
+        return Err(input.new_custom_error(SelectorParseErrorKind::PureCssModuleClass));
       }
 
       loop {

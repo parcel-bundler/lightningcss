@@ -320,6 +320,7 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
       SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElement(t) => {
         SelectorError::UnexpectedSelectorAfterPseudoElement(t.into())
       }
+      SelectorParseErrorKind::PureCssModuleClass => SelectorError::PureCssModuleClass,
     }
   }
 }

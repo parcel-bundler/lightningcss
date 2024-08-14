@@ -6899,15 +6899,18 @@ mod tests {
       ParserError::SelectorError(SelectorError::DanglingCombinator),
     );
 
-    let css_module_options = ParserOptions {
-      css_modules: Some(crate::css_modules::Config::default()),
+    let pure_css_module_options = ParserOptions {
+      css_modules: Some(crate::css_modules::Config {
+        pure: true,
+        ..Default::default()
+      }),
       ..ParserOptions::default()
     };
 
     error_test_with_options(
       "div {width: 20px}",
       ParserError::SelectorError(SelectorError::PureCssModuleClass),
-      css_module_options.clone(),
+      pure_css_module_options.clone(),
     );
 
     minify_test_with_options(
