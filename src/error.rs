@@ -269,7 +269,7 @@ impl<'i> fmt::Display for SelectorError<'i> {
       UnexpectedSelectorAfterPseudoElements(token) => {
         write!(
           f,
-          "Pseudo-elements like '::before' or '::after' can't be followed by selecrors like {token:?}"
+          "Pseudo-elements like '::before' or '::after' can't be followed by selectors like {token:?}"
         )
       },
     }
