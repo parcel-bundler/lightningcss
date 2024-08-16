@@ -71,6 +71,7 @@ mod tests {
     test_with_options(source, expected, ParserOptions::default())
   }
 
+  #[track_caller]
   fn test_with_options<'i, 'o>(source: &'i str, expected: &'i str, options: ParserOptions<'o, 'i>) {
     let mut stylesheet = StyleSheet::parse(&source, options).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
@@ -6912,17 +6913,17 @@ mod tests {
       ParserError::SelectorError(SelectorError::PureCssModuleClass),
       pure_css_module_options.clone(),
     );
-    minify_test_with_options(
+    test_with_options(
       "div.my-class {color: red;}",
-      "div.my-class{color:red}",
+      "div.my-class {color: red}",
       pure_css_module_options.clone(),
     );
-    minify_test_with_options(
+    test_with_options(
       "a .my-class{color: red;}",
       "a .my-class{color:red}",
       pure_css_module_options.clone(),
     );
-    minify_test_with_options(
+    test_with_options(
       ".my-class a {color: red;}",
       ".my-class a{color:red}",
       pure_css_module_options.clone(),
