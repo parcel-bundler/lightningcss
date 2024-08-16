@@ -206,7 +206,7 @@ pub enum SelectorParseErrorKind<'i> {
   InvalidQualNameInAttr(Token<'i>),
   ExplicitNamespaceUnexpectedToken(Token<'i>),
   ClassNeedsIdent(Token<'i>),
-  UnexpectedTokenAfterPseudoElements(Token<'i>),
+  UnexpectedSelectorAfterPseudoElements(Token<'i>),
 }
 
 macro_rules! with_all_bounds {
@@ -3077,7 +3077,7 @@ where
         // Use better error message
         if let Ok(token @ Token::Ident(..) | token @ Token::IDHash(..)) = token {
           return Err(source_location.new_custom_error(
-            SelectorParseErrorKind::UnexpectedTokenAfterPseudoElements(token.clone()),
+            SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElements(token.clone()),
           ));
         }
 

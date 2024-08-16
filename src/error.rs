@@ -104,12 +104,6 @@ pub enum ParserError<'i> {
   UnexpectedToken(#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// Maximum nesting depth was reached.
   MaximumNestingDepth,
-  /// Pseudo-elements like "::before" can't be followed by tokens like "h1".
-  ///
-  /// `(token)`
-  UnexpectedTokenAfterPseudoElements(
-    #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
-  ),
 }
 
 impl<'i> fmt::Display for ParserError<'i> {
@@ -138,12 +132,6 @@ impl<'i> fmt::Display for ParserError<'i> {
       ),
       UnexpectedToken(token) => write!(f, "Unexpected token {:?}", token),
       MaximumNestingDepth => write!(f, "Overflowed the maximum nesting depth"),
-      UnexpectedTokenAfterPseudoElements(token) => {
-        write!(
-          f,
-          "Pseudo-elements like '::before' or '::after' can't be followed by tokens like {token:?}"
-        )
-      }
     }
   }
 }
@@ -249,7 +237,7 @@ pub enum SelectorError<'i> {
   AmbiguousCssModuleClass(CowArcStr<'i>),
 
   /// An unexpected token was encountered after a pseudo element.
-  UnexpectedTokenAfterPseudoElements(
+  UnexpectedSelectorAfterPseudoElements(
     #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
   ),
 }
@@ -278,7 +266,12 @@ impl<'i> fmt::Display for SelectorError<'i> {
       UnexpectedTokenInAttributeSelector(token) => write!(f, "Unexpected token in attribute selector: {:?}", token),
       UnsupportedPseudoClassOrElement(name) => write!(f, "Unsupported pseudo class or element: {}", name),
       AmbiguousCssModuleClass(_) => write!(f, "Ambiguous CSS module class not supported"),
-      UnexpectedTokenAfterPseudoElements(token) => write!(f, "Unexpected token after pseudo element: {:?}", token),
+      UnexpectedSelectorAfterPseudoElements(token) => {
+        write!(
+          f,
+          "Pseudo-elements like '::before' or '::after' can't be followed by selecrors like {token:?}"
+        )
+      },
     }
   }
 }
@@ -320,8 +313,8 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
       }
       SelectorParseErrorKind::ClassNeedsIdent(t) => SelectorError::ClassNeedsIdent(t.into()),
       SelectorParseErrorKind::AmbiguousCssModuleClass(name) => SelectorError::AmbiguousCssModuleClass(name.into()),
-      SelectorParseErrorKind::UnexpectedTokenAfterPseudoElements(t) => {
-        SelectorError::UnexpectedTokenAfterPseudoElements(t.into())
+      SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElements(t) => {
+        SelectorError::UnexpectedSelectorAfterPseudoElements(t.into())
       }
     }
   }
