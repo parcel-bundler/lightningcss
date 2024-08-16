@@ -206,6 +206,7 @@ pub enum SelectorParseErrorKind<'i> {
   InvalidQualNameInAttr(Token<'i>),
   ExplicitNamespaceUnexpectedToken(Token<'i>),
   ClassNeedsIdent(Token<'i>),
+  UnexpectedTokenAfterPseudoElements(Token<'i>),
 }
 
 macro_rules! with_all_bounds {
@@ -2636,6 +2637,8 @@ fn parse_attribute_flags<'i, 't>(input: &mut CssParser<'i, 't>) -> Result<Attrib
     }
   };
 
+  dbg!(token);
+
   let ident = match *token {
     Token::Ident(ref i) => i,
     ref other => return Err(location.new_basic_unexpected_token_error(other.clone())),
@@ -2707,6 +2710,9 @@ where
   }
 
   loop {
+    if state.intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT) {
+      dbg!(&input.current_line());
+    }
     let result = match parse_one_simple_selector(parser, input, state)? {
       None => break,
       Some(result) => result,
@@ -2963,6 +2969,7 @@ where
       return Ok(None);
     }
   };
+  dbg!(&token);
 
   Ok(Some(match token {
     Token::IDHash(id) => {
@@ -3059,6 +3066,26 @@ where
       SimpleSelectorParseResult::SimpleSelector(Component::Nesting)
     }
     _ => {
+      if state.intersects(SelectorParsingState::AFTER_PSEUDO) {
+        let source_location = input.current_source_location();
+        // Handle the case where the token is a whitespace token
+        let token = match token {
+          Token::WhiteSpace(..) => input.next(),
+          _ => Ok(&token),
+        };
+
+        // Use better error message
+        if let Ok(token @ Token::Ident(..) | token @ Token::IDHash(..)) = token {
+          return Err(source_location.new_custom_error(
+            SelectorParseErrorKind::UnexpectedTokenAfterPseudoElements(token.clone()),
+          ));
+        }
+
+        input.reset(&start);
+        return Ok(None);
+      }
+
+      dbg!(&token);
       input.reset(&start);
       return Ok(None);
     }

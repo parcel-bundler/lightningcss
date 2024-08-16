@@ -106,9 +106,8 @@ pub enum ParserError<'i> {
   MaximumNestingDepth,
   /// Pseudo-elements like "::before" can't be followed by tokens like "h1".
   ///
-  /// `(pseudo_element_selector, token)`
+  /// `(token)`
   UnexpectedTokenAfterPseudoElements(
-    #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
     #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
   ),
 }
@@ -139,10 +138,10 @@ impl<'i> fmt::Display for ParserError<'i> {
       ),
       UnexpectedToken(token) => write!(f, "Unexpected token {:?}", token),
       MaximumNestingDepth => write!(f, "Overflowed the maximum nesting depth"),
-      UnexpectedTokenAfterPseudoElements(selector, token) => {
+      UnexpectedTokenAfterPseudoElements(token) => {
         write!(
           f,
-          "Pseudo-elements like '{selector:?}' can't be followed by tokens like {token:?}"
+          "Pseudo-elements like '::before' or '::after' can't be followed by tokens like {token:?}"
         )
       }
     }
@@ -154,7 +153,7 @@ impl<'i> Error<ParserError<'i>> {
   pub fn from(err: ParseError<'i, ParserError<'i>>, filename: String) -> Error<ParserError<'i>> {
     let kind = match err.kind {
       ParseErrorKind::Basic(b) => match &b {
-        BasicParseErrorKind::UnexpectedToken(t) => ParserError::UnexpectedToken(t.into()),
+        BasicParseErrorKind::UnexpectedToken(t) => ParserError::UnexpectedToken(dbg!(t).into()),
         BasicParseErrorKind::EndOfInput => ParserError::EndOfInput,
         BasicParseErrorKind::AtRuleInvalid(a) => ParserError::AtRuleInvalid(a.into()),
         BasicParseErrorKind::AtRuleBodyInvalid => ParserError::AtRuleBodyInvalid,
@@ -248,6 +247,11 @@ pub enum SelectorError<'i> {
 
   /// Ambiguous CSS module class.
   AmbiguousCssModuleClass(CowArcStr<'i>),
+
+  /// An unexpected token was encountered after a pseudo element.
+  UnexpectedTokenAfterPseudoElements(
+    #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
+  ),
 }
 
 impl<'i> fmt::Display for SelectorError<'i> {
@@ -274,6 +278,7 @@ impl<'i> fmt::Display for SelectorError<'i> {
       UnexpectedTokenInAttributeSelector(token) => write!(f, "Unexpected token in attribute selector: {:?}", token),
       UnsupportedPseudoClassOrElement(name) => write!(f, "Unsupported pseudo class or element: {}", name),
       AmbiguousCssModuleClass(_) => write!(f, "Ambiguous CSS module class not supported"),
+      UnexpectedTokenAfterPseudoElements(token) => write!(f, "Unexpected token after pseudo element: {:?}", token),
     }
   }
 }
@@ -315,6 +320,9 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
       }
       SelectorParseErrorKind::ClassNeedsIdent(t) => SelectorError::ClassNeedsIdent(t.into()),
       SelectorParseErrorKind::AmbiguousCssModuleClass(name) => SelectorError::AmbiguousCssModuleClass(name.into()),
+      SelectorParseErrorKind::UnexpectedTokenAfterPseudoElements(t) => {
+        SelectorError::UnexpectedTokenAfterPseudoElements(t.into())
+      }
     }
   }
 }

@@ -6903,7 +6903,7 @@ mod tests {
 
     error_test(
       "input.defaultCheckbox::before h1 {width: 20px}",
-      ParserError::UnexpectedTokenAfterPseudoElements(Token::Ident("before".into()), Token::Ident("h1".into())),
+      ParserError::UnexpectedTokenAfterPseudoElements(Token::Ident("h1".into())),
     );
   }
 
