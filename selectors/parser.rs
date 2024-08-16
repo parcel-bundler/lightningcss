@@ -472,7 +472,7 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
           if need_to_check_for_purity
             && !had_class_or_id
             && selector
-              .iter()
+              .iter_raw_match_order()
               .any(|component| matches!(component, Component::Class(..) | Component::ID(..)))
           {
             had_class_or_id = true;
