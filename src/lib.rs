@@ -6900,6 +6900,11 @@ mod tests {
       ".foo /deep/ .bar{width:20px}",
       deep_options.clone(),
     );
+
+    error_test(
+      "input.defaultCheckbox::before h1 {width: 20px}",
+      ParserError::UnexpectedTokenAfterPseudoElements(Token::Ident("before".into()), Token::Ident("h1".into())),
+    );
   }
 
   #[test]

@@ -104,6 +104,13 @@ pub enum ParserError<'i> {
   UnexpectedToken(#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// Maximum nesting depth was reached.
   MaximumNestingDepth,
+  /// Pseudo-elements like "::before" can't be followed by tokens like "h1".
+  ///
+  /// `(pseudo_element_selector, token)`
+  UnexpectedTokenAfterPseudoElements(
+    #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
+    #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
+  ),
 }
 
 impl<'i> fmt::Display for ParserError<'i> {
@@ -132,6 +139,12 @@ impl<'i> fmt::Display for ParserError<'i> {
       ),
       UnexpectedToken(token) => write!(f, "Unexpected token {:?}", token),
       MaximumNestingDepth => write!(f, "Overflowed the maximum nesting depth"),
+      UnexpectedTokenAfterPseudoElements(selector, token) => {
+        write!(
+          f,
+          "Pseudo-elements like '{selector:?}' can't be followed by tokens like {token:?}"
+        )
+      }
     }
   }
 }
