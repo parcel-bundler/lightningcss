@@ -3069,7 +3069,7 @@ where
         };
 
         // Use better error message
-        if let Ok(token @ Token::Ident(..) | token @ Token::IDHash(..)) = token {
+        if let Ok(token @ Token::Ident(..) | token @ Token::IDHash(..) | token @ Token::Delim('.')) = token {
           return Err(source_location.new_custom_error(
             SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElements(token.clone()),
           ));
