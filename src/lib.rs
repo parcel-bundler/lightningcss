@@ -6912,6 +6912,21 @@ mod tests {
       ParserError::SelectorError(SelectorError::PureCssModuleClass),
       pure_css_module_options.clone(),
     );
+    minify_test_with_options(
+      "div.my-class {color: red;}",
+      "div.my-class{color:red}",
+      pure_css_module_options.clone(),
+    );
+    minify_test_with_options(
+      "a .my-class{color: red;}",
+      "a .my-class{color:red}",
+      pure_css_module_options.clone(),
+    );
+    minify_test_with_options(
+      ".my-class a {color: red;}",
+      ".my-class a{color:red}",
+      pure_css_module_options.clone(),
+    );
 
     minify_test_with_options(
       ".foo >>> .bar {width: 20px}",
