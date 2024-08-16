@@ -473,7 +473,7 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
             && !had_class_or_id
             && selector
               .iter()
-              .all(|component| matches!(component, Component::Class(..) | Component::ID(..)))
+              .any(|component| matches!(component, Component::Class(..) | Component::ID(..)))
           {
             had_class_or_id = true;
           }
