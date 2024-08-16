@@ -141,7 +141,7 @@ impl<'i> Error<ParserError<'i>> {
   pub fn from(err: ParseError<'i, ParserError<'i>>, filename: String) -> Error<ParserError<'i>> {
     let kind = match err.kind {
       ParseErrorKind::Basic(b) => match &b {
-        BasicParseErrorKind::UnexpectedToken(t) => ParserError::UnexpectedToken(dbg!(t).into()),
+        BasicParseErrorKind::UnexpectedToken(t) => ParserError::UnexpectedToken(t.into()),
         BasicParseErrorKind::EndOfInput => ParserError::EndOfInput,
         BasicParseErrorKind::AtRuleInvalid(a) => ParserError::AtRuleInvalid(a.into()),
         BasicParseErrorKind::AtRuleBodyInvalid => ParserError::AtRuleBodyInvalid,

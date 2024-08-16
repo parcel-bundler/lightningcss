@@ -346,9 +346,7 @@ impl<'i> TokenList<'i> {
         }
         Ok(token) if token.is_parse_error() => {
           return Err(ParseError {
-            kind: dbg!(ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(
-              token.clone()
-            ))),
+            kind: ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(token.clone())),
             location: state.source_location(),
           })
         }
@@ -482,9 +480,7 @@ impl<'i> TokenList<'i> {
         }
         Ok(token) if token.is_parse_error() => {
           return Err(ParseError {
-            kind: dbg!(ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(
-              token.clone()
-            ))),
+            kind: ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(token.clone())),
             location: state.source_location(),
           })
         }
