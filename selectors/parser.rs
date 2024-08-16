@@ -470,7 +470,7 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
       match selector {
         Ok(selector) => {
           if need_to_check_for_purity
-            && had_class_or_id
+            && !had_class_or_id
             && selector
               .iter()
               .all(|component| matches!(component, Component::Class(..) | Component::ID(..)))
