@@ -6907,6 +6907,18 @@ mod tests {
         "h1".into(),
       ))),
     );
+
+    error_test(
+      "input.defaultCheckbox::before .my-class {width: 20px}",
+      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElements(Token::Delim('.'))),
+    );
+
+    error_test(
+      "input.defaultCheckbox::before #id {width: 20px}",
+      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElements(Token::IDHash(
+        "id".into(),
+      ))),
+    );
   }
 
   #[test]
