@@ -125,6 +125,7 @@ Then, set `'lightningcss'` as CSS [transformer](https://vitejs.dev/config/shared
 
 ```js
 // vite.config.ts
+import browserslist from 'browserslist';
 import {browserslistToTargets} from 'lightningcss';
 
 export default {
