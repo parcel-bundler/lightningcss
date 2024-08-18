@@ -851,6 +851,7 @@ fn compile_bundle<
             animation: c.animation.unwrap_or(true),
             grid: c.grid.unwrap_or(true),
             custom_idents: c.custom_idents.unwrap_or(true),
+            pure: c.pure.unwrap_or_default(),
           }),
         }
       } else {
