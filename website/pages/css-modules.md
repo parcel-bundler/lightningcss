@@ -253,6 +253,26 @@ let { code, map, exports } = transform({
 
 </div>
 
+
+### Pure mode
+
+Just like the `pure` option of the `css-loader` for webpack, Lightning CSS also has a `pure` option that enforces usage of one or more id or class selectors for each rule. 
+
+
+```js
+let {code, map, exports} = transform({
+  // ...
+  cssModules: {
+    pure: true,
+  },
+});
+```
+
+If you enable this option, Lightning CSS will throw an error for CSS rules that don't have at least one id or class selector, like `div`.
+This is useful because selectors like `div` are not scoped and affects all elements on the page.
+
+
+
 ## Turning off feature scoping
 
 Scoping of grid, animations, and custom identifiers can be turned off. By default all of these are scoped.
