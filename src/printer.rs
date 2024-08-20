@@ -276,6 +276,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
           &css_module.hashes[self.loc.source_index as usize],
           &css_module.sources[self.loc.source_index as usize],
           ident,
+          &css_module.content_hash,
           |s| {
             self.col += s.len() as u32;
             if first {
@@ -306,6 +307,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
           &css_module.hashes[self.loc.source_index as usize],
           &css_module.sources[self.loc.source_index as usize],
           &ident[2..],
+          &css_module.content_hash,
           |s| {
             self.col += s.len() as u32;
             serialize_name(s, dest)
