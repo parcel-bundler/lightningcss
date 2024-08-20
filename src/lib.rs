@@ -27841,6 +27841,25 @@ mod tests {
         ..Browsers::default()
       },
     );
+    prefix_test(
+      r#"
+      .foo {
+        box-shadow:
+            oklch(100% 0 0deg / 50%) 0 0.63rem 0.94rem -0.19rem,
+            currentColor 0 0.44rem 0.8rem -0.58rem;
+      }
+    "#,
+      indoc! { r#"
+      .foo {
+        box-shadow: 0 .63rem .94rem -.19rem color(display-p3 1 1 1 / .5), 0 .44rem .8rem -.58rem;
+        box-shadow: 0 .63rem .94rem -.19rem lab(100% 0 0 / .5), 0 .44rem .8rem -.58rem;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
 
     prefix_test(
       ".foo { color: light-dark(var(--light), var(--dark)); }",
