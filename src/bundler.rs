@@ -293,6 +293,23 @@ where
       .flat_map(|s| s.stylesheet.as_ref().unwrap().license_comments.iter().cloned())
       .collect();
 
+    if let Some(config) = &self.options.css_modules {
+      if config.pattern.has_content_hash() {
+        stylesheet.content_hashes = Some(
+          self
+            .stylesheets
+            .get_mut()
+            .unwrap()
+            .iter()
+            .flat_map(|s| {
+              let s = s.stylesheet.as_ref().unwrap();
+              s.content_hashes.as_ref().unwrap().iter().cloned()
+            })
+            .collect(),
+        );
+      }
+    }
+
     Ok(stylesheet)
   }
 
@@ -867,12 +884,22 @@ mod tests {
     entry: &str,
     project_root: Option<&str>,
   ) -> (String, CssModuleExports) {
+    bundle_css_module_with_pattern(fs, entry, project_root, "[hash]_[local]")
+  }
+
+  fn bundle_css_module_with_pattern<P: SourceProvider>(
+    fs: P,
+    entry: &str,
+    project_root: Option<&str>,
+    pattern: &'static str,
+  ) -> (String, CssModuleExports) {
     let mut bundler = Bundler::new(
       &fs,
       None,
       ParserOptions {
         css_modules: Some(css_modules::Config {
           dashed_idents: true,
+          pattern: css_modules::Pattern::parse(pattern).unwrap(),
           ..Default::default()
         }),
         ..ParserOptions::default()
@@ -1978,6 +2005,35 @@ mod tests {
       Some("/x/y/z"),
     );
     assert_eq!(code, expected);
+
+    let (code, _) = bundle_css_module_with_pattern(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css";
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .a { color: green }
+        "#
+        },
+      },
+      "/a.css",
+      None,
+      "[content-hash]-[local]",
+    );
+    assert_eq!(
+      code,
+      indoc! { r#"
+      .do5n2W-a {
+        color: green;
+      }
+
+      .pP97eq-a {
+        color: red;
+      }
+    "#}
+    );
   }
 
   #[test]

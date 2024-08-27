@@ -24177,6 +24177,28 @@ mod tests {
       crate::css_modules::Config { ..Default::default() },
     );
 
+    css_modules_test(
+      r#"
+      .test {
+        composes: foo bar from "foo.css";
+        background: white;
+      }
+    "#,
+      indoc! {r#"
+      ._5h2kwG-test {
+        background: #fff;
+      }
+    "#},
+      map! {
+        "test" => "_5h2kwG-test" "foo" from "foo.css" "bar" from "foo.css"
+      },
+      HashMap::new(),
+      crate::css_modules::Config {
+        pattern: crate::css_modules::Pattern::parse("[content-hash]-[local]").unwrap(),
+        ..Default::default()
+      },
+    );
+
     // Stable hashes between project roots.
     fn test_project_root(project_root: &str, filename: &str, hash: &str) {
       let stylesheet = StyleSheet::parse(

@@ -219,6 +219,7 @@ The following placeholders are currently supported:
 
 - `[name]` - The base name of the file, without the extension.
 - `[hash]` - A hash of the full file path.
+- `[content-hash]` - A hash of the file contents.
 - `[local]` - The original class name or identifier.
 
 <div class="warning">
