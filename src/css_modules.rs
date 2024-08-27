@@ -127,8 +127,20 @@ impl<'i> Pattern<'i> {
     Ok(Pattern { segments })
   }
 
+  /// Whether the pattern contains any `[content-hash]` segments.
+  pub fn has_content_hash(&self) -> bool {
+    self.segments.iter().any(|s| matches!(s, Segment::ContentHash))
+  }
+
   /// Write the substituted pattern to a destination.
-  pub fn write<W, E>(&self, hash: &str, path: &Path, local: &str, content_hash: &str, mut write: W) -> Result<(), E>
+  pub fn write<W, E>(
+    &self,
+    hash: &str,
+    path: &Path,
+    local: &str,
+    content_hash: &str,
+    mut write: W,
+  ) -> Result<(), E>
   where
     W: FnMut(&str) -> Result<(), E>,
   {
@@ -186,7 +198,7 @@ pub enum Segment<'i> {
   Local,
   /// A hash of the file name.
   Hash,
-  /// A hash of the style contents.
+  /// A hash of the file contents.
   ContentHash,
 }
 
@@ -252,9 +264,9 @@ pub(crate) struct CssModule<'a, 'b, 'c> {
   pub config: &'a Config<'b>,
   pub sources: Vec<&'c Path>,
   pub hashes: Vec<String>,
+  pub content_hashes: &'a Option<Vec<String>>,
   pub exports_by_source_index: Vec<CssModuleExports>,
   pub references: &'a mut HashMap<String, CssModuleReference>,
-  pub content_hash: &'c str,
 }
 
 impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
@@ -263,7 +275,7 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
     sources: &'c Vec<String>,
     project_root: Option<&'c str>,
     references: &'a mut HashMap<String, CssModuleReference>,
-    content_hash: &'c str,
+    content_hashes: &'a Option<Vec<String>>,
   ) -> Self {
     let project_root = project_root.map(|p| Path::new(p));
     let sources: Vec<&Path> = sources.iter().map(|filename| Path::new(filename)).collect();
@@ -288,8 +300,8 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
       exports_by_source_index: sources.iter().map(|_| HashMap::new()).collect(),
       sources,
       hashes,
+      content_hashes,
       references,
-      content_hash,
     }
   }
 
@@ -305,7 +317,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
             &self.hashes[source_index as usize],
             &self.sources[source_index as usize],
             local,
-            self.content_hash,
+            if let Some(content_hashes) = &self.content_hashes {
+              &content_hashes[source_index as usize]
+            } else {
+              ""
+            },
           )
           .unwrap(),
         composes: vec![],
@@ -325,7 +341,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
             &self.hashes[source_index as usize],
             &self.sources[source_index as usize],
             &local[2..],
-            self.content_hash,
+            if let Some(content_hashes) = &self.content_hashes {
+              &content_hashes[source_index as usize]
+            } else {
+              ""
+            },
           )
           .unwrap(),
         composes: vec![],
@@ -348,7 +368,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
               &self.hashes[source_index as usize],
               &self.sources[source_index as usize],
               name,
-              self.content_hash,
+              if let Some(content_hashes) = &self.content_hashes {
+                &content_hashes[source_index as usize]
+              } else {
+                ""
+              },
             )
             .unwrap(),
           composes: vec![],
@@ -378,7 +402,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
               &self.hashes[*source_index as usize],
               &self.sources[*source_index as usize],
               &name[2..],
-              self.content_hash,
+              if let Some(content_hashes) = &self.content_hashes {
+                &content_hashes[*source_index as usize]
+              } else {
+                ""
+              },
             )
             .unwrap(),
         )
@@ -399,7 +427,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
                   &self.hashes[source_index as usize],
                   &self.sources[source_index as usize],
                   &name[2..],
-                  self.content_hash,
+                  if let Some(content_hashes) = &self.content_hashes {
+                    &content_hashes[source_index as usize]
+                  } else {
+                    ""
+                  },
                 )
                 .unwrap(),
               composes: vec![],
@@ -442,7 +474,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
                       &self.hashes[source_index as usize],
                       &self.sources[source_index as usize],
                       name.0.as_ref(),
-                      self.content_hash,
+                      if let Some(content_hashes) = &self.content_hashes {
+                        &content_hashes[source_index as usize]
+                      } else {
+                        ""
+                      },
                     )
                     .unwrap(),
                 },

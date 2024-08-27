@@ -281,6 +281,7 @@ pub extern "C" fn lightningcss_stylesheet_parse(
       Some(lightningcss::css_modules::Config {
         pattern,
         dashed_idents: options.css_modules_dashed_idents,
+        ..Default::default()
       })
     } else {
       None

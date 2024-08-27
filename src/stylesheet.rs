@@ -4,7 +4,7 @@
 //! A [StyleAttribute](StyleAttribute) represents an inline `style` attribute in HTML.
 
 use crate::context::{DeclarationContext, PropertyHandlerContext};
-use crate::css_modules::{CssModule, CssModuleExports, CssModuleReferences, hash};
+use crate::css_modules::{hash, CssModule, CssModuleExports, CssModuleReferences};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterError, PrinterErrorKind};
@@ -81,8 +81,10 @@ pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
   pub(crate) source_map_urls: Vec<Option<String>>,
   /// The license comments that appeared at the start of the file.
   pub license_comments: Vec<CowArcStr<'i>>,
-  /// A hash of the contents of the style sheet
-  pub content_hash: String,
+  /// A list of content hashes for all source files included within the style sheet.
+  /// This is only set if CSS modules are enabled and the pattern includes [content-hash].
+  #[cfg_attr(feature = "serde", serde(skip))]
+  pub(crate) content_hashes: Option<Vec<String>>,
   #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
   options: ParserOptions<'o, 'i>,
@@ -137,8 +139,8 @@ where
       sources,
       source_map_urls: Vec::new(),
       license_comments: Vec::new(),
+      content_hashes: None,
       rules,
-      content_hash: "".to_string(),
       options,
     }
   }
@@ -152,7 +154,16 @@ where
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let mut license_comments = Vec::new();
-    let content_hash = hash(&code, false);
+
+    let mut content_hashes = None;
+    if let Some(config) = &options.css_modules {
+      if config.pattern.has_content_hash() {
+        content_hashes = Some(vec![hash(
+          &code,
+          matches!(config.pattern.segments[0], crate::css_modules::Segment::ContentHash),
+        )]);
+      }
+    }
 
     let mut state = parser.state();
     while let Ok(token) = parser.next_including_whitespace_and_comments() {
@@ -189,9 +200,9 @@ where
     Ok(StyleSheet {
       sources: vec![options.filename.clone()],
       source_map_urls: vec![parser.current_source_map_url().map(|s| s.to_owned())],
+      content_hashes,
       rules,
       license_comments,
-      content_hash,
       options,
     })
   }
@@ -276,7 +287,13 @@ where
 
     if let Some(config) = &self.options.css_modules {
       let mut references = HashMap::new();
-      printer.css_module = Some(CssModule::new(config, &self.sources, project_root, &mut references, &self.content_hash));
+      printer.css_module = Some(CssModule::new(
+        config,
+        &self.sources,
+        project_root,
+        &mut references,
+        &self.content_hashes,
+      ));
 
       self.rules.to_css(&mut printer)?;
       printer.newline()?;
