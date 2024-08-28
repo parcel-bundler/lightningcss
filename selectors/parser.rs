@@ -137,6 +137,9 @@ bitflags! {
         const AFTER_WEBKIT_SCROLLBAR = 1 << 8;
         const AFTER_VIEW_TRANSITION = 1 << 9;
         const AFTER_UNKNOWN_PSEUDO_ELEMENT = 1 << 10;
+
+        /// Whether we explicitly disallow pure CSS modules.
+        const IGNORE_CSS_MODULE_PURITY_CHECK = 1 << 11;
     }
 }
 
@@ -455,7 +458,8 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
     let original_state = *state;
     let mut values = SmallVec::new();
     let mut had_class_or_id = false;
-    let need_to_check_for_purity = parser.check_for_pure_css_modules();
+    let need_to_check_for_purity =
+      parser.check_for_pure_css_modules() && !state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
     loop {
       let selector = input.parse_until_before(Delimiter::Comma, |input| {
         let mut selector_state = original_state;
@@ -3003,6 +3007,10 @@ where
           SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElement(Token::IDHash(id)),
         ));
       }
+
+      // Mark this selector as already checked for purity.
+      state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
+
       let id = Component::ID(id.into());
       SimpleSelectorParseResult::SimpleSelector(id)
     }
@@ -3020,6 +3028,10 @@ where
           return Err(location.new_custom_error(e));
         }
       };
+
+      // Mark this selector as already checked for purity.
+      state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
+
       let class = Component::Class(class.into());
       SimpleSelectorParseResult::SimpleSelector(class)
     }
