@@ -6930,7 +6930,7 @@ mod tests {
     );
     minify_test_with_options(
       ".my-class:is(a) {color: red;}",
-      "._8Z4fiW_my-class a{color:red}",
+      "._8Z4fiW_my-class:is(a){color:red}",
       pure_css_module_options.clone(),
     );
 
