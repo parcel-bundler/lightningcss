@@ -235,6 +235,11 @@ pub enum SelectorError<'i> {
 
   /// Ambiguous CSS module class.
   AmbiguousCssModuleClass(CowArcStr<'i>),
+
+  /// An unexpected token was encountered after a pseudo element.
+  UnexpectedSelectorAfterPseudoElement(
+    #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
+  ),
 }
 
 impl<'i> fmt::Display for SelectorError<'i> {
@@ -261,6 +266,12 @@ impl<'i> fmt::Display for SelectorError<'i> {
       UnexpectedTokenInAttributeSelector(token) => write!(f, "Unexpected token in attribute selector: {:?}", token),
       UnsupportedPseudoClassOrElement(name) => write!(f, "Unsupported pseudo class or element: {}", name),
       AmbiguousCssModuleClass(_) => write!(f, "Ambiguous CSS module class not supported"),
+      UnexpectedSelectorAfterPseudoElement(token) => {
+        write!(
+          f,
+          "Pseudo-elements like '::before' or '::after' can't be followed by selectors like '{token:?}'"
+        )
+      },
     }
   }
 }
@@ -302,6 +313,9 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
       }
       SelectorParseErrorKind::ClassNeedsIdent(t) => SelectorError::ClassNeedsIdent(t.into()),
       SelectorParseErrorKind::AmbiguousCssModuleClass(name) => SelectorError::AmbiguousCssModuleClass(name.into()),
+      SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElement(t) => {
+        SelectorError::UnexpectedSelectorAfterPseudoElement(t.into())
+      }
     }
   }
 }
