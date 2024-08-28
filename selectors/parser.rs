@@ -206,7 +206,7 @@ pub enum SelectorParseErrorKind<'i> {
   InvalidQualNameInAttr(Token<'i>),
   ExplicitNamespaceUnexpectedToken(Token<'i>),
   ClassNeedsIdent(Token<'i>),
-  UnexpectedSelectorAfterPseudoElements(Token<'i>),
+  UnexpectedSelectorAfterPseudoElement(Token<'i>),
 }
 
 macro_rules! with_all_bounds {
@@ -2142,6 +2142,14 @@ where
     }
 
     if state.intersects(SelectorParsingState::AFTER_PSEUDO) {
+      // Input should be exhausted here.
+      let source_location = input.current_source_location();
+      if let Ok(next) = input.next() {
+        let next = next.clone();
+        return Err(
+          source_location.new_custom_error(SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElement(next)),
+        );
+      }
       break;
     }
 
@@ -2957,6 +2965,7 @@ where
   Impl: SelectorImpl<'i>,
 {
   let start = input.state();
+  let token_location = input.current_source_location();
   let token = match input.next_including_whitespace().map(|t| t.clone()) {
     Ok(t) => t,
     Err(..) => {
@@ -2968,14 +2977,18 @@ where
   Ok(Some(match token {
     Token::IDHash(id) => {
       if state.intersects(SelectorParsingState::AFTER_PSEUDO) {
-        return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+        return Err(token_location.new_custom_error(
+          SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElement(Token::IDHash(id)),
+        ));
       }
       let id = Component::ID(id.into());
       SimpleSelectorParseResult::SimpleSelector(id)
     }
     Token::Delim('.') => {
       if state.intersects(SelectorParsingState::AFTER_PSEUDO) {
-        return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+        return Err(token_location.new_custom_error(
+          SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElement(Token::Delim('.')),
+        ));
       }
       let location = input.current_source_location();
       let class = match *input.next_including_whitespace()? {
@@ -2990,7 +3003,9 @@ where
     }
     Token::SquareBracketBlock => {
       if state.intersects(SelectorParsingState::AFTER_PSEUDO) {
-        return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+        return Err(token_location.new_custom_error(
+          SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElement(Token::SquareBracketBlock),
+        ));
       }
       let attr = input.parse_nested_block(|input| parse_attribute_selector(parser, input))?;
       SimpleSelectorParseResult::SimpleSelector(attr)
@@ -3060,25 +3075,6 @@ where
       SimpleSelectorParseResult::SimpleSelector(Component::Nesting)
     }
     _ => {
-      if state.intersects(SelectorParsingState::AFTER_PSEUDO) {
-        let source_location = input.current_source_location();
-        // Handle the case where the token is a whitespace token
-        let token = match token {
-          Token::WhiteSpace(..) => input.next(),
-          _ => Ok(&token),
-        };
-
-        // Use better error message
-        if let Ok(token @ Token::Ident(..) | token @ Token::IDHash(..) | token @ Token::Delim('.')) = token {
-          return Err(source_location.new_custom_error(
-            SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElements(token.clone()),
-          ));
-        }
-
-        input.reset(&start);
-        return Ok(None);
-      }
-
       input.reset(&start);
       return Ok(None);
     }

@@ -6903,21 +6903,41 @@ mod tests {
 
     error_test(
       "input.defaultCheckbox::before h1 {width: 20px}",
-      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElements(Token::Ident(
+      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElement(Token::Ident(
         "h1".into(),
       ))),
     );
-
     error_test(
       "input.defaultCheckbox::before .my-class {width: 20px}",
-      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElements(Token::Delim('.'))),
+      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElement(Token::Delim('.'))),
     );
-
+    error_test(
+      "input.defaultCheckbox::before.my-class {width: 20px}",
+      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElement(Token::Delim('.'))),
+    );
     error_test(
       "input.defaultCheckbox::before #id {width: 20px}",
-      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElements(Token::IDHash(
+      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElement(Token::IDHash(
         "id".into(),
       ))),
+    );
+    error_test(
+      "input.defaultCheckbox::before#id {width: 20px}",
+      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElement(Token::IDHash(
+        "id".into(),
+      ))),
+    );
+    error_test(
+      "input.defaultCheckbox::before [attr] {width: 20px}",
+      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElement(
+        Token::SquareBracketBlock,
+      )),
+    );
+    error_test(
+      "input.defaultCheckbox::before[attr] {width: 20px}",
+      ParserError::SelectorError(SelectorError::UnexpectedSelectorAfterPseudoElement(
+        Token::SquareBracketBlock,
+      )),
     );
   }
 
