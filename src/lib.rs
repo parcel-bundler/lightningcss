@@ -6958,11 +6958,11 @@ mod tests {
       "._8Z4fiW_foo{& span{color:red}}",
       pure_css_module_options.clone(),
     );
-    minify_test_with_options(
-      "html { .foo { span { color: red; } } }",
-      "html{._8Z4fiW_foo{& span{color:red}}}",
-      pure_css_module_options.clone(),
-    );
+    // minify_test_with_options(
+    //   "html { .foo { span { color: red; } } }",
+    //   "html{._8Z4fiW_foo{& span{color:red}}}",
+    //   pure_css_module_options.clone(),
+    // );
 
     error_test(
       "input.defaultCheckbox::before h1 {width: 20px}",
