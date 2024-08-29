@@ -457,7 +457,6 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
   {
     let original_state = *state;
     let mut values = SmallVec::new();
-    let mut had_class_or_id = false;
     let need_to_check_for_purity =
       parser.check_for_pure_css_modules() && !state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
     loop {
@@ -467,6 +466,9 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
         if selector_state.contains(SelectorParsingState::AFTER_NESTING) {
           state.insert(SelectorParsingState::AFTER_NESTING)
         }
+        if selector_state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK) {
+          state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
+        }
         result
       });
 
@@ -474,12 +476,12 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
       match selector {
         Ok(selector) => {
           if need_to_check_for_purity
-            && !had_class_or_id
+            && !state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK)
             && selector
               .iter_raw_match_order()
               .any(|component| matches!(component, Component::Class(..) | Component::ID(..)))
           {
-            had_class_or_id = true;
+            state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
           }
 
           values.push(selector)
@@ -490,10 +492,7 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
         },
       }
 
-      if need_to_check_for_purity
-        && !had_class_or_id
-        && !state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK)
-      {
+      if need_to_check_for_purity && !state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK) {
         return Err(input.new_custom_error(SelectorParseErrorKind::PureCssModuleClass));
       }
 
@@ -2876,6 +2875,9 @@ where
   )?;
   if child_state.contains(SelectorParsingState::AFTER_NESTING) {
     state.insert(SelectorParsingState::AFTER_NESTING)
+  }
+  if child_state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK) {
+    state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
   }
   Ok(Component::Has(inner.0.into_vec().into_boxed_slice()))
 }
