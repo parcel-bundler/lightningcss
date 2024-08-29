@@ -6933,7 +6933,11 @@ mod tests {
       "._8Z4fiW_my-class:is(a){color:red}",
       pure_css_module_options.clone(),
     );
-
+    minify_test_with_options(
+      "div:has(.my-class) {color: red;}",
+      "div:has(._8Z4fiW_my-class){color:red}",
+      pure_css_module_options.clone(),
+    );
     minify_test_with_options(
       ".foo >>> .bar {width: 20px}",
       ".foo>>>.bar{width:20px}",
