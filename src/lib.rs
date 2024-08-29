@@ -6944,9 +6944,24 @@ mod tests {
       deep_options.clone(),
     );
     minify_test_with_options(
+      ".foo { html &:hover { a_value: some-value; } }",
+      "._8Z4fiW_foo{html &:hover{a_value:some-value}}",
+      pure_css_module_options.clone(),
+    );
+    minify_test_with_options(
       ".foo /deep/ .bar {width: 20px}",
       ".foo /deep/ .bar{width:20px}",
       deep_options.clone(),
+    );
+    minify_test_with_options(
+      ".foo { span { color: red; } }",
+      "._8Z4fiW_foo{& span{color:red}}",
+      pure_css_module_options.clone(),
+    );
+    minify_test_with_options(
+      "html { .foo { span { color: red; } } }",
+      "html{._8Z4fiW_foo{& span{color:red}}}",
+      pure_css_module_options.clone(),
     );
 
     error_test(
