@@ -546,6 +546,9 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
         if selector_state.contains(SelectorParsingState::AFTER_NESTING) {
           state.insert(SelectorParsingState::AFTER_NESTING)
         }
+        if selector_state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK) {
+          state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
+        }
         result
       });
 
