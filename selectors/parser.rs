@@ -490,7 +490,10 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
         },
       }
 
-      if need_to_check_for_purity && !had_class_or_id {
+      if need_to_check_for_purity
+        && !had_class_or_id
+        && !state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK)
+      {
         return Err(input.new_custom_error(SelectorParseErrorKind::PureCssModuleClass));
       }
 
