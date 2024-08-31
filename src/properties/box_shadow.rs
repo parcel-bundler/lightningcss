@@ -225,7 +225,7 @@ impl BoxShadowHandler {
           let p3 = box_shadows
             .iter()
             .map(|shadow| BoxShadow {
-              color: shadow.color.to_p3().unwrap(),
+              color: shadow.color.to_p3().unwrap_or_else(|_| shadow.color.clone()),
               ..shadow.clone()
             })
             .collect();
