@@ -156,7 +156,7 @@ Then, you can run the `lightningcss` command via `npx`, `yarn`, or by setting up
 ```json
 {
   "scripts": {
-    "build": "lightningcss --minify --bundle --targets '>= 0.25%' input.css -o output.css"
+    "build": "lightningcss --minify --bundle --targets \">= 0.25%\" input.css -o output.css"
   }
 }
 ```
