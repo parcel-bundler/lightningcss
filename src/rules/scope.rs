@@ -5,7 +5,7 @@ use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
-use crate::selector::SelectorList;
+use crate::selector::{is_pure_css_modules_selector, SelectorList};
 use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -39,6 +39,26 @@ pub struct ScopeRule<'i, R = DefaultAtRule> {
 
 impl<'i, T: Clone> ScopeRule<'i, T> {
   pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>) -> Result<(), MinifyError> {
+    if context.pure_css_modules {
+      if let Some(scope_start) = &self.scope_start {
+        if !scope_start.0.iter().all(is_pure_css_modules_selector) {
+          return Err(MinifyError {
+            kind: crate::error::MinifyErrorKind::ImpureCSSModuleSelector,
+            loc: self.loc,
+          });
+        }
+      }
+
+      if let Some(scope_end) = &self.scope_end {
+        if !scope_end.0.iter().all(is_pure_css_modules_selector) {
+          return Err(MinifyError {
+            kind: crate::error::MinifyErrorKind::ImpureCSSModuleSelector,
+            loc: self.loc,
+          });
+        }
+      }
+    }
+
     self.rules.minify(context, false)
   }
 }

@@ -41,6 +41,8 @@ pub struct Config<'i> {
   /// Whether to scope custom identifiers
   /// Default is `true`.
   pub custom_idents: bool,
+  /// Whether to check for pure CSS modules.
+  pub pure: bool,
 }
 
 impl<'i> Default for Config<'i> {
@@ -51,6 +53,7 @@ impl<'i> Default for Config<'i> {
       animation: true,
       grid: true,
       custom_idents: true,
+      pure: false,
     }
   }
 }

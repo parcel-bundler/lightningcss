@@ -608,6 +608,7 @@ struct CssModulesConfig {
   animation: Option<bool>,
   grid: Option<bool>,
   custom_idents: Option<bool>,
+  pure: Option<bool>,
 }
 
 #[cfg(feature = "bundler")]
@@ -719,6 +720,7 @@ fn compile<'i>(
               animation: c.animation.unwrap_or(true),
               grid: c.grid.unwrap_or(true),
               custom_idents: c.custom_idents.unwrap_or(true),
+              pure: c.pure.unwrap_or_default(),
             }),
           }
         } else {
@@ -849,6 +851,7 @@ fn compile_bundle<
             animation: c.animation.unwrap_or(true),
             grid: c.grid.unwrap_or(true),
             custom_idents: c.custom_idents.unwrap_or(true),
+            pure: c.pure.unwrap_or_default(),
           }),
         }
       } else {

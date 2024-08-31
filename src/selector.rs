@@ -2093,6 +2093,25 @@ pub(crate) fn is_unused(
   })
 }
 
+/// Returns whether the selector has any class or id components.
+pub(crate) fn is_pure_css_modules_selector(selector: &Selector) -> bool {
+  use parcel_selectors::parser::Component;
+  selector.iter_raw_match_order().any(|c| match c {
+    Component::Class(_) | Component::ID(_) => true,
+    Component::Is(s) | Component::Where(s) | Component::Has(s) | Component::Any(_, s) | Component::Negation(s) => {
+      s.iter().any(is_pure_css_modules_selector)
+    }
+    Component::NthOf(nth) => nth.selectors().iter().any(is_pure_css_modules_selector),
+    Component::Slotted(s) => is_pure_css_modules_selector(&s),
+    Component::Host(s) => s.as_ref().map(is_pure_css_modules_selector).unwrap_or(false),
+    Component::NonTSPseudoClass(pc) => match pc {
+      PseudoClass::Local { selector } => is_pure_css_modules_selector(&*selector),
+      _ => false,
+    },
+    _ => false,
+  })
+}
+
 #[cfg(feature = "visitor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
 impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>> Visit<'i, T, V> for SelectorList<'i> {

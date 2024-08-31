@@ -249,6 +249,7 @@ where
       unused_symbols: &options.unused_symbols,
       custom_media,
       css_modules: self.options.css_modules.is_some(),
+      pure_css_modules: self.options.css_modules.as_ref().map(|c| c.pure).unwrap_or_default(),
     };
 
     self.rules.minify(&mut ctx, false).map_err(|e| Error {

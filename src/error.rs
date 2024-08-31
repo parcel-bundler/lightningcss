@@ -356,6 +356,8 @@ pub enum MinifyErrorKind {
     /// The source location of the `@custom-media` rule with unsupported boolean logic.
     custom_media_loc: Location,
   },
+  /// A CSS module selector did not contain at least one class or id selector.
+  ImpureCSSModuleSelector,
 }
 
 impl fmt::Display for MinifyErrorKind {
@@ -367,6 +369,10 @@ impl fmt::Display for MinifyErrorKind {
       UnsupportedCustomMediaBooleanLogic { .. } => write!(
         f,
         "Boolean logic with media types in @custom-media rules is not supported by Lightning CSS"
+      ),
+      ImpureCSSModuleSelector => write!(
+        f,
+        "A selector in CSS modules should contain at least one class or ID selector"
       ),
     }
   }
