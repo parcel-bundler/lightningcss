@@ -137,9 +137,6 @@ bitflags! {
         const AFTER_WEBKIT_SCROLLBAR = 1 << 8;
         const AFTER_VIEW_TRANSITION = 1 << 9;
         const AFTER_UNKNOWN_PSEUDO_ELEMENT = 1 << 10;
-
-        /// Whether we explicitly disallow pure CSS modules.
-        const IGNORE_CSS_MODULE_PURITY_CHECK = 1 << 11;
     }
 }
 
@@ -210,7 +207,6 @@ pub enum SelectorParseErrorKind<'i> {
   ExplicitNamespaceUnexpectedToken(Token<'i>),
   ClassNeedsIdent(Token<'i>),
   UnexpectedSelectorAfterPseudoElement(Token<'i>),
-  PureCssModuleClass,
 }
 
 macro_rules! with_all_bounds {
@@ -361,10 +357,6 @@ pub trait Parser<'i> {
   fn deep_combinator_enabled(&self) -> bool {
     false
   }
-
-  fn check_for_pure_css_modules(&self) -> bool {
-    false
-  }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -457,8 +449,6 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
   {
     let original_state = *state;
     let mut values = SmallVec::new();
-    let need_to_check_for_purity =
-      parser.check_for_pure_css_modules() && !state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
     loop {
       let selector = input.parse_until_before(Delimiter::Comma, |input| {
         let mut selector_state = original_state;
@@ -466,34 +456,16 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
         if selector_state.contains(SelectorParsingState::AFTER_NESTING) {
           state.insert(SelectorParsingState::AFTER_NESTING)
         }
-        if selector_state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK) {
-          state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
-        }
         result
       });
 
       let was_ok = selector.is_ok();
       match selector {
-        Ok(selector) => {
-          if need_to_check_for_purity
-            && !state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK)
-            && selector
-              .iter_raw_match_order()
-              .any(|component| matches!(component, Component::Class(..) | Component::ID(..)))
-          {
-            state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
-          }
-
-          values.push(selector)
-        }
+        Ok(selector) => values.push(selector),
         Err(err) => match recovery {
           ParseErrorRecovery::DiscardList => return Err(err),
           ParseErrorRecovery::IgnoreInvalidSelector => {}
         },
-      }
-
-      if need_to_check_for_purity && !state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK) {
-        return Err(input.new_custom_error(SelectorParseErrorKind::PureCssModuleClass));
       }
 
       loop {
@@ -545,9 +517,6 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
         let result = parse_relative_selector(parser, input, &mut selector_state, nesting_requirement);
         if selector_state.contains(SelectorParsingState::AFTER_NESTING) {
           state.insert(SelectorParsingState::AFTER_NESTING)
-        }
-        if selector_state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK) {
-          state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
         }
         result
       });
@@ -2879,9 +2848,6 @@ where
   if child_state.contains(SelectorParsingState::AFTER_NESTING) {
     state.insert(SelectorParsingState::AFTER_NESTING)
   }
-  if child_state.contains(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK) {
-    state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
-  }
   Ok(Component::Has(inner.0.into_vec().into_boxed_slice()))
 }
 
@@ -3015,10 +2981,6 @@ where
           SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElement(Token::IDHash(id)),
         ));
       }
-
-      // Mark this selector as already checked for purity.
-      state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
-
       let id = Component::ID(id.into());
       SimpleSelectorParseResult::SimpleSelector(id)
     }
@@ -3036,10 +2998,6 @@ where
           return Err(location.new_custom_error(e));
         }
       };
-
-      // Mark this selector as already checked for purity.
-      state.insert(SelectorParsingState::IGNORE_CSS_MODULE_PURITY_CHECK);
-
       let class = Component::Class(class.into());
       SimpleSelectorParseResult::SimpleSelector(class)
     }

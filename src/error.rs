@@ -240,9 +240,6 @@ pub enum SelectorError<'i> {
   UnexpectedSelectorAfterPseudoElement(
     #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
   ),
-
-  /// CSS module selector without any class or ID selector.
-  PureCssModuleClass,
 }
 
 impl<'i> fmt::Display for SelectorError<'i> {
@@ -275,7 +272,6 @@ impl<'i> fmt::Display for SelectorError<'i> {
           "Pseudo-elements like '::before' or '::after' can't be followed by selectors like '{token:?}'"
         )
       },
-      PureCssModuleClass => write!(f, "A selector in CSS modules should contain at least one class or ID selector"),
     }
   }
 }
@@ -320,7 +316,6 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
       SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElement(t) => {
         SelectorError::UnexpectedSelectorAfterPseudoElement(t.into())
       }
-      SelectorParseErrorKind::PureCssModuleClass => SelectorError::PureCssModuleClass,
     }
   }
 }
@@ -361,6 +356,8 @@ pub enum MinifyErrorKind {
     /// The source location of the `@custom-media` rule with unsupported boolean logic.
     custom_media_loc: Location,
   },
+  /// A CSS module selector did not contain at least one class or id selector.
+  ImpureCSSModuleSelector,
 }
 
 impl fmt::Display for MinifyErrorKind {
@@ -372,6 +369,10 @@ impl fmt::Display for MinifyErrorKind {
       UnsupportedCustomMediaBooleanLogic { .. } => write!(
         f,
         "Boolean logic with media types in @custom-media rules is not supported by Lightning CSS"
+      ),
+      ImpureCSSModuleSelector => write!(
+        f,
+        "A selector in CSS modules should contain at least one class or ID selector"
       ),
     }
   }

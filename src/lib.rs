@@ -95,6 +95,18 @@ mod tests {
     assert_eq!(res.code, expected);
   }
 
+  fn minify_error_test_with_options<'i, 'o>(
+    source: &'i str,
+    error: MinifyErrorKind,
+    options: ParserOptions<'o, 'i>,
+  ) {
+    let mut stylesheet = StyleSheet::parse(&source, options.clone()).unwrap();
+    match stylesheet.minify(MinifyOptions::default()) {
+      Err(e) => assert_eq!(e.kind, error),
+      _ => unreachable!(),
+    }
+  }
+
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
     let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet
@@ -212,14 +224,6 @@ mod tests {
 
   fn error_test(source: &str, error: ParserError) {
     let res = StyleSheet::parse(&source, ParserOptions::default());
-    match res {
-      Ok(_) => unreachable!(),
-      Err(e) => assert_eq!(e.kind, error),
-    }
-  }
-
-  fn error_test_with_options<'i, 'o>(source: &'i str, error: ParserError, options: ParserOptions<'o, 'i>) {
-    let res = StyleSheet::parse(&source, options);
     match res {
       Ok(_) => unreachable!(),
       Err(e) => assert_eq!(e.kind, error),
@@ -6899,6 +6903,16 @@ mod tests {
       ".foo /deep/ .bar {width: 20px}",
       ParserError::SelectorError(SelectorError::DanglingCombinator),
     );
+    minify_test_with_options(
+      ".foo >>> .bar {width: 20px}",
+      ".foo>>>.bar{width:20px}",
+      deep_options.clone(),
+    );
+    minify_test_with_options(
+      ".foo /deep/ .bar {width: 20px}",
+      ".foo /deep/ .bar{width:20px}",
+      deep_options.clone(),
+    );
 
     let pure_css_module_options = ParserOptions {
       css_modules: Some(crate::css_modules::Config {
@@ -6908,14 +6922,39 @@ mod tests {
       ..ParserOptions::default()
     };
 
-    error_test_with_options(
+    minify_error_test_with_options(
       "div {width: 20px}",
-      ParserError::SelectorError(SelectorError::PureCssModuleClass),
+      MinifyErrorKind::ImpureCSSModuleSelector,
+      pure_css_module_options.clone(),
+    );
+    minify_error_test_with_options(
+      ":global(.foo) {width: 20px}",
+      MinifyErrorKind::ImpureCSSModuleSelector,
+      pure_css_module_options.clone(),
+    );
+    minify_error_test_with_options(
+      "[foo=bar] {width: 20px}",
+      MinifyErrorKind::ImpureCSSModuleSelector,
+      pure_css_module_options.clone(),
+    );
+    minify_error_test_with_options(
+      "div, .foo {width: 20px}",
+      MinifyErrorKind::ImpureCSSModuleSelector,
+      pure_css_module_options.clone(),
+    );
+    minify_test_with_options(
+      ":local(.foo) {width: 20px}",
+      "._8Z4fiW_foo{width:20px}",
       pure_css_module_options.clone(),
     );
     minify_test_with_options(
       "div.my-class {color: red;}",
       "div._8Z4fiW_my-class{color:red}",
+      pure_css_module_options.clone(),
+    );
+    minify_test_with_options(
+      "#id {color: red;}",
+      "#_8Z4fiW_id{color:red}",
       pure_css_module_options.clone(),
     );
     minify_test_with_options(
@@ -6939,30 +6978,45 @@ mod tests {
       pure_css_module_options.clone(),
     );
     minify_test_with_options(
-      ".foo >>> .bar {width: 20px}",
-      ".foo>>>.bar{width:20px}",
-      deep_options.clone(),
-    );
-    minify_test_with_options(
       ".foo { html &:hover { a_value: some-value; } }",
       "._8Z4fiW_foo{html &:hover{a_value:some-value}}",
       pure_css_module_options.clone(),
-    );
-    minify_test_with_options(
-      ".foo /deep/ .bar {width: 20px}",
-      ".foo /deep/ .bar{width:20px}",
-      deep_options.clone(),
     );
     minify_test_with_options(
       ".foo { span { color: red; } }",
       "._8Z4fiW_foo{& span{color:red}}",
       pure_css_module_options.clone(),
     );
-    // minify_test_with_options(
-    //   "html { .foo { span { color: red; } } }",
-    //   "html{._8Z4fiW_foo{& span{color:red}}}",
-    //   pure_css_module_options.clone(),
-    // );
+    minify_error_test_with_options(
+      "html { .foo { span { color: red; } } }",
+      MinifyErrorKind::ImpureCSSModuleSelector,
+      pure_css_module_options.clone(),
+    );
+    minify_test_with_options(
+      ".foo { div { span { color: red; } } }",
+      "._8Z4fiW_foo{& div{& span{color:red}}}",
+      pure_css_module_options.clone(),
+    );
+    minify_error_test_with_options(
+      "@scope (div) { .foo { color: red } }",
+      MinifyErrorKind::ImpureCSSModuleSelector,
+      pure_css_module_options.clone(),
+    );
+    minify_error_test_with_options(
+      "@scope (.a) to (div) { .foo { color: red } }",
+      MinifyErrorKind::ImpureCSSModuleSelector,
+      pure_css_module_options.clone(),
+    );
+    minify_error_test_with_options(
+      "@scope (.a) to (.b) { div { color: red } }",
+      MinifyErrorKind::ImpureCSSModuleSelector,
+      pure_css_module_options.clone(),
+    );
+    minify_test_with_options(
+      "@scope (.a) to (.b) { .foo { color: red } }",
+      "@scope(._8Z4fiW_a) to (._8Z4fiW_b){._8Z4fiW_foo{color:red}}",
+      pure_css_module_options.clone(),
+    );
 
     error_test(
       "input.defaultCheckbox::before h1 {width: 20px}",

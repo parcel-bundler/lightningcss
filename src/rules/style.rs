@@ -12,7 +12,9 @@ use crate::error::{MinifyError, PrinterError, PrinterErrorKind};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::rules::CssRuleList;
-use crate::selector::{downlevel_selectors, get_prefix, is_compatible, is_unused, SelectorList};
+use crate::selector::{
+  downlevel_selectors, get_prefix, is_compatible, is_pure_css_modules_selector, is_unused, SelectorList,
+};
 use crate::targets::{should_compile, Targets};
 use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
@@ -69,6 +71,19 @@ impl<'i, T: Clone> StyleRule<'i, T> {
       }
     }
 
+    let pure_css_modules = context.pure_css_modules;
+    if context.pure_css_modules {
+      if !self.selectors.0.iter().all(is_pure_css_modules_selector) {
+        return Err(MinifyError {
+          kind: crate::error::MinifyErrorKind::ImpureCSSModuleSelector,
+          loc: self.loc,
+        });
+      }
+
+      // Parent rule contained id or class, so child rules don't need to.
+      context.pure_css_modules = false;
+    }
+
     context.handler_context.context = DeclarationContext::StyleRule;
     self
       .declarations
@@ -85,6 +100,7 @@ impl<'i, T: Clone> StyleRule<'i, T> {
       }
     }
 
+    context.pure_css_modules = pure_css_modules;
     Ok(false)
   }
 }

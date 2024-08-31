@@ -488,6 +488,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub unused_symbols: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>,
   pub css_modules: bool,
+  pub pure_css_modules: bool,
 }
 
 impl<'i, T: Clone> CssRuleList<'i, T> {

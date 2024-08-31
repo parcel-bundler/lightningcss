@@ -356,10 +356,6 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
   fn deep_combinator_enabled(&self) -> bool {
     self.options.flags.contains(ParserFlags::DEEP_SELECTOR_COMBINATOR)
   }
-
-  fn check_for_pure_css_modules(&self) -> bool {
-    self.options.css_modules.as_ref().map_or(false, |v| v.pure)
-  }
 }
 
 enum_property! {
@@ -2094,6 +2090,25 @@ pub(crate) fn is_unused(
     }
 
     false
+  })
+}
+
+/// Returns whether the selector has any class or id components.
+pub(crate) fn is_pure_css_modules_selector(selector: &Selector) -> bool {
+  use parcel_selectors::parser::Component;
+  selector.iter_raw_match_order().any(|c| match c {
+    Component::Class(_) | Component::ID(_) => true,
+    Component::Is(s) | Component::Where(s) | Component::Has(s) | Component::Any(_, s) | Component::Negation(s) => {
+      s.iter().any(is_pure_css_modules_selector)
+    }
+    Component::NthOf(nth) => nth.selectors().iter().any(is_pure_css_modules_selector),
+    Component::Slotted(s) => is_pure_css_modules_selector(&s),
+    Component::Host(s) => s.as_ref().map(is_pure_css_modules_selector).unwrap_or(false),
+    Component::NonTSPseudoClass(pc) => match pc {
+      PseudoClass::Local { selector } => is_pure_css_modules_selector(&*selector),
+      _ => false,
+    },
+    _ => false,
   })
 }
 
