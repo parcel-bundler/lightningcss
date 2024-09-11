@@ -1190,17 +1190,17 @@ impl Feature {
       }
       Feature::Fill | Feature::FillAvailable => {
         if let Some(version) = browsers.chrome {
-          if version >= 1441792 {
+          if version >= 1441792 && version <= 8519680 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 8323072 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 8323072 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1269,7 +1269,7 @@ impl Feature {
       }
       Feature::Stretch => {
         if let Some(version) = browsers.chrome {
-          if version >= 1441792 {
+          if version >= 1441792 && version <= 8519680 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1279,12 +1279,12 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 8323072 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 8323072 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1517,17 +1517,17 @@ impl Feature {
       }
       Feature::BoxDecorationBreak => {
         if let Some(version) = browsers.chrome {
-          if version >= 1441792 {
+          if version >= 1441792 && version <= 8519680 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 8323072 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 8323072 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1919,17 +1919,17 @@ impl Feature {
       }
       Feature::CrossFade => {
         if let Some(version) = browsers.chrome {
-          if version >= 1114112 {
+          if version >= 1114112 && version <= 8519680 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 8323072 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 8323072 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -2154,17 +2154,17 @@ impl Feature {
       }
       Feature::PrintColorAdjust | Feature::ColorAdjust => {
         if let Some(version) = browsers.chrome {
-          if version >= 1114112 {
+          if version >= 1114112 && version <= 8519680 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 8323072 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
+          if version >= 5177344 && version <= 8323072 {
             prefixes |= VendorPrefix::WebKit;
           }
         }

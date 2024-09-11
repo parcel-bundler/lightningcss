@@ -445,7 +445,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -537,7 +537,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -582,7 +582,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -627,7 +627,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -672,7 +672,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -717,7 +717,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -762,7 +762,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -807,7 +807,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -899,7 +899,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -944,7 +944,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1024,7 +1024,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1069,7 +1069,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1159,7 +1159,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1204,7 +1204,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1254,7 +1254,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1341,7 +1341,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1386,7 +1386,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1431,7 +1431,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1471,7 +1471,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1516,7 +1516,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1561,7 +1561,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -1628,7 +1628,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 8323072 {
+          if version < 8388608 {
             return false;
           }
         }
@@ -2908,12 +2908,17 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.samsung {
+          if version < 1769472 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.android {
           if version < 8192000 {
             return false;
           }
         }
-        if browsers.ie.is_some() || browsers.samsung.is_some() {
+        if browsers.ie.is_some() {
           return false;
         }
       }
@@ -3385,12 +3390,17 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.samsung {
+          if version < 1769472 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.android {
           if version < 8060928 {
             return false;
           }
         }
-        if browsers.ie.is_some() || browsers.samsung.is_some() {
+        if browsers.ie.is_some() {
           return false;
         }
       }
@@ -5182,6 +5192,11 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.samsung {
+          if version < 1769472 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.android {
           if version < 8192000 {
             return false;
@@ -5191,7 +5206,6 @@ impl Feature {
           || browsers.ie.is_some()
           || browsers.ios_saf.is_some()
           || browsers.safari.is_some()
-          || browsers.samsung.is_some()
         {
           return false;
         }
