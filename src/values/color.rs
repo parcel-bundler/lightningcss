@@ -3196,7 +3196,6 @@ fn parse_contrast_color<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
     }
   };
 
-  let mut candidates = Vec::new();
   let location = input.current_source_location();
 
   match input.expect_ident() {
@@ -3204,38 +3203,41 @@ fn parse_contrast_color<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
       match_ignore_ascii_case! { value,
         // https://drafts.csswg.org/css-color-5/#contrast-color
         "max" => {
-          return Ok(calculate_contrast_color(base_luminance, candidates));
+          return Ok(calculate_contrast_color(base_luminance, Vec::new()));
         },
 
         // https://github.com/w3c/csswg-drafts/issues/7937
+        #[cfg(feature = "level6")]
         "tbd-bg" | "tbd-fg" => {
           input.expect_ident_matching("wcag2")?;
           input.expect_comma()?;
+
+          let mut candidates = Vec::new();
+
+          loop {
+            let color = CssColor::parse(input)?;
+
+            if color.relative_luminance().is_none() {
+              break Err(input.new_custom_error(ParserError::InvalidValue));
+            }
+
+            candidates.push(color);
+
+            match input.expect_comma() {
+              Ok(()) => {}
+
+              Err(BasicParseError {
+                kind: BasicParseErrorKind::EndOfInput,
+                ..
+              }) => break Ok(calculate_contrast_color(base_luminance, candidates)),
+
+              Err(e) => break Err(e.into()),
+            }
+          }
         },
 
         _ => {
-          return Err(location.new_unexpected_token_error(Token::Ident(value.to_owned())));
-        }
-      };
-
-      loop {
-        let color = CssColor::parse(input)?;
-
-        if color.relative_luminance().is_none() {
-          return Err(input.new_custom_error(ParserError::InvalidValue));
-        }
-
-        candidates.push(color);
-
-        match input.expect_comma() {
-          Ok(()) => {}
-
-          Err(BasicParseError {
-            kind: BasicParseErrorKind::EndOfInput,
-            ..
-          }) => break Ok(calculate_contrast_color(base_luminance, candidates)),
-
-          Err(e) => break Err(e.into()),
+          Err(location.new_unexpected_token_error(Token::Ident(value.to_owned())))
         }
       }
     }
@@ -3243,7 +3245,7 @@ fn parse_contrast_color<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
     Err(BasicParseError {
       kind: BasicParseErrorKind::EndOfInput,
       ..
-    }) => Ok(calculate_contrast_color(base_luminance, candidates)),
+    }) => Ok(calculate_contrast_color(base_luminance, Vec::new())),
 
     Err(e) => Err(e.into()),
   }

@@ -17410,7 +17410,7 @@ mod tests {
   }
 
   #[test]
-  fn contrast_color() {
+  fn contrast_color_level5() {
     fn test(input: &str, output: &str) {
       let output = CssColor::parse_string(output)
         .unwrap()
@@ -17452,6 +17452,24 @@ mod tests {
     test("contrast-color(#c3d117 max)", "#000");
     test("contrast-color(#ffb43f max)", "#000");
     test("contrast-color(#ffe4a8 max)", "#000");
+  }
+
+  #[test]
+  #[cfg(feature = "level6")]
+  fn contrast_color_level6() {
+    fn test(input: &str, output: &str) {
+      let output = CssColor::parse_string(output)
+        .unwrap()
+        .to_css_string(PrinterOptions {
+          minify: true,
+          ..PrinterOptions::default()
+        })
+        .unwrap();
+      minify_test(
+        &format!(".foo {{ color: {} }}", input),
+        &format!(".foo{{color:{}}}", output),
+      );
+    }
 
     test("contrast-color(#00364a tbd-bg wcag2, #b10, #7b4, #05d)", "#7b4");
     test("contrast-color(#00c7fc tbd-bg wcag2, #b10, #7b4, #05d)", "#b10");
