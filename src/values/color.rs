@@ -3152,7 +3152,12 @@ where
   current.into()
 }
 
-fn calculate_contrast_color(base_luminance: f32, candidates: &[CssColor]) -> CssColor {
+fn calculate_contrast_color(base_luminance: f32, mut candidates: Vec<CssColor>) -> CssColor {
+  if candidates.is_empty() {
+    candidates.push(CssColor::RGBA(RGBA::new(0, 0, 0, 1.0)));
+    candidates.push(CssColor::RGBA(RGBA::new(255, 255, 255, 1.0)));
+  }
+
   fn wcag2_contrast_ratio(l1: f32, l2: f32) -> f32 {
     // https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
     let l1 = l1 + 0.05;
@@ -3197,11 +3202,17 @@ fn parse_contrast_color<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
   match input.expect_ident() {
     Ok(value) => {
       match_ignore_ascii_case! { value,
+        // https://drafts.csswg.org/css-color-5/#contrast-color
+        "max" => {
+          return Ok(calculate_contrast_color(base_luminance, candidates));
+        },
+
         // https://github.com/w3c/csswg-drafts/issues/7937
         "tbd-bg" | "tbd-fg" => {
           input.expect_ident_matching("wcag2")?;
           input.expect_comma()?;
         },
+
         _ => {
           return Err(location.new_unexpected_token_error(Token::Ident(value.to_owned())));
         }
@@ -3222,13 +3233,9 @@ fn parse_contrast_color<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
           Err(BasicParseError {
             kind: BasicParseErrorKind::EndOfInput,
             ..
-          }) => {
-            break;
-          }
+          }) => break Ok(calculate_contrast_color(base_luminance, candidates)),
 
-          Err(e) => {
-            return Err(e.into());
-          }
+          Err(e) => break Err(e.into()),
         }
       }
     }
@@ -3236,17 +3243,10 @@ fn parse_contrast_color<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
     Err(BasicParseError {
       kind: BasicParseErrorKind::EndOfInput,
       ..
-    }) => {
-      candidates.push(CssColor::RGBA(RGBA::new(0, 0, 0, 1.0)));
-      candidates.push(CssColor::RGBA(RGBA::new(255, 255, 255, 1.0)));
-    }
+    }) => Ok(calculate_contrast_color(base_luminance, candidates)),
 
-    Err(e) => {
-      return Err(e.into());
-    }
+    Err(e) => Err(e.into()),
   }
-
-  Ok(calculate_contrast_color(base_luminance, &candidates))
 }
 
 fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {

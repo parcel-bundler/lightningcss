@@ -17430,6 +17430,11 @@ mod tests {
     test("contrast-color(#ccc)", "#000");
     test("contrast-color(#fff)", "#000");
 
+    test("contrast-color(#000 max)", "#fff");
+    test("contrast-color(#333 max)", "#fff");
+    test("contrast-color(#ccc max)", "#000");
+    test("contrast-color(#fff max)", "#000");
+
     test("contrast-color(#00364a)", "#fff");
     test("contrast-color(#00c7fc)", "#000");
     test("contrast-color(#263e0f)", "#fff");
@@ -17438,6 +17443,15 @@ mod tests {
     test("contrast-color(#c3d117)", "#000");
     test("contrast-color(#ffb43f)", "#000");
     test("contrast-color(#ffe4a8)", "#000");
+
+    test("contrast-color(#00364a max)", "#fff");
+    test("contrast-color(#00c7fc max)", "#000");
+    test("contrast-color(#263e0f max)", "#fff");
+    test("contrast-color(#371a94 max)", "#fff");
+    test("contrast-color(#9aa60e max)", "#000");
+    test("contrast-color(#c3d117 max)", "#000");
+    test("contrast-color(#ffb43f max)", "#000");
+    test("contrast-color(#ffe4a8 max)", "#000");
 
     test("contrast-color(#00364a tbd-bg wcag2, #b10, #7b4, #05d)", "#7b4");
     test("contrast-color(#00c7fc tbd-bg wcag2, #b10, #7b4, #05d)", "#b10");
