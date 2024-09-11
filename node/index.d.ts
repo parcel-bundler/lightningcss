@@ -304,7 +304,15 @@ export interface CSSModulesConfig {
   /** The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`. */
   pattern?: string,
   /** Whether to rename dashed identifiers, e.g. custom properties. */
-  dashedIdents?: boolean
+  dashedIdents?: boolean,
+  /** Whether to enable hashing for `@keyframes`. */
+  animation?: boolean,
+  /** Whether to enable hashing for CSS grid identifiers. */
+  grid?: boolean,
+  /** Whether to enable hashing for custom identifiers. */
+  customIdents?: boolean,
+  /** Whether to require at least one class or id selector in each rule. */
+  pure?: boolean
 }
 
 export type CSSModuleExports = {
