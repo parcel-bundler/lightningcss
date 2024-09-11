@@ -31,7 +31,7 @@ An extremely fast CSS parser, transformer, and minifier written in Rust. Use it 
   * [Color Level 6](https://drafts.csswg.org/css-color-6/)
     - [`contrast-color()`](https://drafts.csswg.org/css-color-6/#colorcontrast) function
   * [Color Level 5](https://drafts.csswg.org/css-color-5/)
-    - `color-mix()` function
+    - [`color-mix()`](https://drafts.csswg.org/css-color-5/#color-mix) function
     - [`contrast-color()`](https://drafts.csswg.org/css-color-5/#contrast-color) function
     - Relative color syntax, e.g. `lab(from purple calc(l * .8) a b)`
   - [Color Level 4](https://drafts.csswg.org/css-color-4/)
