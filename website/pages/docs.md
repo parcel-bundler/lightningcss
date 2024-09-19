@@ -164,7 +164,7 @@ Then, you can run the `lightningcss` command via `npx`, `yarn`, or by setting up
 To see all of the available options, use the `--help` argument:
 
 ```shell
-npx lightningcss --help
+npx lightningcss-cli --help
 ```
 
 ## Error recovery
