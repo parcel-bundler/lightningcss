@@ -7056,11 +7056,6 @@ mod tests {
         Token::SquareBracketBlock,
       )),
     );
-
-    error_test(
-      "input:placeholder{color: red;}",
-      ParserError::SelectorError(SelectorError::UnknownPseudoClass("placeholder".into())),
-    );
   }
 
   #[test]
@@ -27191,6 +27186,10 @@ mod tests {
           color: red;
         }
       }
+
+      input:placeholder {
+        color: red;
+      }
     "#,
       indoc! { r#"
       .foo {
@@ -27205,6 +27204,10 @@ mod tests {
         .bar {
           color: red;
         }
+      }
+
+      input:placeholder {
+        color: red;
       }
     "#},
       ParserOptions {
@@ -27242,6 +27245,14 @@ mod tests {
             line: 15,
             column: 9
           })
+        },
+        Error {
+          kind: ParserError::SelectorError(SelectorError::UnknownPseudoClass("placeholder".into())),
+          loc: Some(ErrorLocation {
+            filename: "test.css".into(),
+            line: 20,
+            column: 9
+          }),
         },
       ]
     )
