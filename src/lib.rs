@@ -7056,6 +7056,11 @@ mod tests {
         Token::SquareBracketBlock,
       )),
     );
+
+    error_test(
+      "input:placeholder{color: red;}",
+      ParserError::SelectorError(SelectorError::UnknownPseudoClass("placeholder".into())),
+    );
   }
 
   #[test]
