@@ -240,6 +240,9 @@ pub enum SelectorError<'i> {
   UnexpectedSelectorAfterPseudoElement(
     #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
   ),
+
+  /// An unknown pseudo class was encountered.
+  UnknownPseudoClass(CowArcStr<'i>),
 }
 
 impl<'i> fmt::Display for SelectorError<'i> {
@@ -272,6 +275,7 @@ impl<'i> fmt::Display for SelectorError<'i> {
           "Pseudo-elements like '::before' or '::after' can't be followed by selectors like '{token:?}'"
         )
       },
+      UnknownPseudoClass(name) => write!(f, "Invalid CSS syntax: '{name}' is not recognized as a valid pseudo-class. Did you mean '::{name}' (pseudo-element) or is this a typo?"),
     }
   }
 }
