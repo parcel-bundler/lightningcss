@@ -268,8 +268,8 @@ impl<'i> fmt::Display for SelectorError<'i> {
       PseudoElementExpectedIdent(token) => write!(f, "Invalid token in pseudo element: {:?}", token),
       UnexpectedIdent(name) => write!(f, "Unexpected identifier: {}", name),
       UnexpectedTokenInAttributeSelector(token) => write!(f, "Unexpected token in attribute selector: {:?}", token),
-      UnsupportedPseudoClass(name) =>write!(f, "Invalid CSS syntax: '{name}' is not recognized as a valid pseudo-class. Did you mean '::{name}' (pseudo-element) or is this a typo?"),
-      UnsupportedPseudoElement(name) => write!(f, "Unsupported pseudo element: {}", name),
+      UnsupportedPseudoClass(name) =>write!(f, "'{name}' is not recognized as a valid pseudo-class. Did you mean '::{name}' (pseudo-element) or is this a typo?"),
+      UnsupportedPseudoElement(name) => write!(f, "'{name}' is not recognized as a valid pseudo-element. Did you mean ':{name}' (pseudo-class) or is this a typo?"),
       AmbiguousCssModuleClass(_) => write!(f, "Ambiguous CSS module class not supported"),
       UnexpectedSelectorAfterPseudoElement(token) => {
         write!(
