@@ -27247,7 +27247,7 @@ mod tests {
           })
         },
         Error {
-          kind: ParserError::SelectorError(SelectorError::UnknownPseudoClass("placeholder".into())),
+          kind: ParserError::SelectorError(SelectorError::UnsupportedPseudoClass("placeholder".into())),
           loc: Some(ErrorLocation {
             filename: "test.css".into(),
             line: 20,

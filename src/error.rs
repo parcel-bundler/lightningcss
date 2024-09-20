@@ -230,8 +230,12 @@ pub enum SelectorError<'i> {
   UnexpectedTokenInAttributeSelector(
     #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
   ),
-  /// An unsupported pseudo class or pseudo element was encountered.
-  UnsupportedPseudoClassOrElement(CowArcStr<'i>),
+
+  /// An unsupported pseudo class was encountered.
+  UnsupportedPseudoClass(CowArcStr<'i>),
+
+  /// An unsupported pseudo element was encountered.
+  UnsupportedPseudoElement(CowArcStr<'i>),
 
   /// Ambiguous CSS module class.
   AmbiguousCssModuleClass(CowArcStr<'i>),
@@ -240,9 +244,6 @@ pub enum SelectorError<'i> {
   UnexpectedSelectorAfterPseudoElement(
     #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
   ),
-
-  /// An unknown pseudo class was encountered.
-  UnknownPseudoClass(CowArcStr<'i>),
 }
 
 impl<'i> fmt::Display for SelectorError<'i> {
@@ -267,7 +268,8 @@ impl<'i> fmt::Display for SelectorError<'i> {
       PseudoElementExpectedIdent(token) => write!(f, "Invalid token in pseudo element: {:?}", token),
       UnexpectedIdent(name) => write!(f, "Unexpected identifier: {}", name),
       UnexpectedTokenInAttributeSelector(token) => write!(f, "Unexpected token in attribute selector: {:?}", token),
-      UnsupportedPseudoClassOrElement(name) => write!(f, "Unsupported pseudo class or element: {}", name),
+      UnsupportedPseudoClass(name) =>write!(f, "Invalid CSS syntax: '{name}' is not recognized as a valid pseudo-class. Did you mean '::{name}' (pseudo-element) or is this a typo?"),
+      UnsupportedPseudoElement(name) => write!(f, "Unsupported pseudo element: {}", name),
       AmbiguousCssModuleClass(_) => write!(f, "Ambiguous CSS module class not supported"),
       UnexpectedSelectorAfterPseudoElement(token) => {
         write!(
@@ -275,7 +277,7 @@ impl<'i> fmt::Display for SelectorError<'i> {
           "Pseudo-elements like '::before' or '::after' can't be followed by selectors like '{token:?}'"
         )
       },
-      UnknownPseudoClass(name) => write!(f, "Invalid CSS syntax: '{name}' is not recognized as a valid pseudo-class. Did you mean '::{name}' (pseudo-element) or is this a typo?"),
+      
     }
   }
 }
@@ -304,9 +306,8 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
         SelectorError::UnexpectedTokenInAttributeSelector(t.into())
       }
       SelectorParseErrorKind::PseudoElementExpectedIdent(t) => SelectorError::PseudoElementExpectedIdent(t.into()),
-      SelectorParseErrorKind::UnsupportedPseudoClassOrElement(t) => {
-        SelectorError::UnsupportedPseudoClassOrElement(t.into())
-      }
+      SelectorParseErrorKind::UnsupportedPseudoClass(t) => SelectorError::UnsupportedPseudoClass(t.into()),
+      SelectorParseErrorKind::UnsupportedPseudoElement(t) => SelectorError::UnsupportedPseudoElement(t.into()),
       SelectorParseErrorKind::UnexpectedIdent(t) => SelectorError::UnexpectedIdent(t.into()),
       SelectorParseErrorKind::ExpectedNamespace(t) => SelectorError::ExpectedNamespace(t.into()),
       SelectorParseErrorKind::ExpectedBarInAttr(t) => SelectorError::ExpectedBarInAttr(t.into()),

@@ -196,7 +196,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
 
       _ => {
         if !name.starts_with('-') {
-          self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
+          self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name.clone())));
         }
         Custom { name: name.into() }
       }
@@ -225,7 +225,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "global" if self.options.css_modules.is_some() => Global { selector: Box::new(Selector::parse(self, parser)?) },
       _ => {
         if !name.starts_with('-') {
-          self.options.warn(parser.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
+          self.options.warn(parser.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name.clone())));
         }
         let mut args = Vec::new();
         TokenList::parse_raw(parser, &mut args, &self.options, 0)?;
@@ -285,7 +285,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
 
       _ => {
         if !name.starts_with('-') {
-          self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
+          self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name.clone())));
         }
         Custom { name: name.into() }
       }
@@ -309,7 +309,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "view-transition-new" => ViewTransitionNew { part_name: ViewTransitionPartName::parse(arguments)? },
       _ => {
         if !name.starts_with('-') {
-          self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
+          self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name.clone())));
         }
         let mut args = Vec::new();
         TokenList::parse_raw(arguments, &mut args, &self.options, 0)?;
