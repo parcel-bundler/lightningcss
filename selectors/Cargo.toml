@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["css", "selectors"]
 license = "MPL-2.0"
 build = "build.rs"
+edition = "2021"
 
 [lib]
 name = "parcel_selectors"
