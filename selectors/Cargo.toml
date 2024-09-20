@@ -26,7 +26,7 @@ bitflags = "2.2.1"
 cssparser = "0.33.0"
 rustc-hash = "2"
 log = "0.4"
-phf = "0.10"
+phf = "0.11.2"
 precomputed-hash = "0.1"
 smallvec = "1.0"
 serde = { version = "1.0.201", features = ["derive"], optional = true }
@@ -34,4 +34,4 @@ schemars = { version = "0.8.19", features = ["smallvec"], optional = true }
 static-self = { version = "0.1.0", path = "../static-self", optional = true }
 
 [build-dependencies]
-phf_codegen = "0.10"
+phf_codegen = "0.11"
