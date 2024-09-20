@@ -337,7 +337,7 @@ pub trait Parser<'i> {
     name: CowRcStr<'i>,
     arguments: &mut CssParser<'i, 't>,
   ) -> Result<<Self::Impl as SelectorImpl<'i>>::PseudoElement, ParseError<'i, Self::Error>> {
-    Err(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name)))
+    Err(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name)))
   }
 
   fn default_namespace(&self) -> Option<<Self::Impl as SelectorImpl<'i>>::NamespaceUrl> {

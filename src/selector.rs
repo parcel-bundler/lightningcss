@@ -285,7 +285,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
 
       _ => {
         if !name.starts_with('-') {
-          self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name.clone())));
+          self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name.clone())));
         }
         Custom { name: name.into() }
       }
@@ -309,7 +309,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "view-transition-new" => ViewTransitionNew { part_name: ViewTransitionPartName::parse(arguments)? },
       _ => {
         if !name.starts_with('-') {
-          self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name.clone())));
+          self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name.clone())));
         }
         let mut args = Vec::new();
         TokenList::parse_raw(arguments, &mut args, &self.options, 0)?;
