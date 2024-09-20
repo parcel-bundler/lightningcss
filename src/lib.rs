@@ -27190,6 +27190,10 @@ mod tests {
       input:placeholder {
         color: red;
       }
+
+      input::hover {
+        color: red;
+      }
     "#,
       indoc! { r#"
       .foo {
@@ -27207,6 +27211,10 @@ mod tests {
       }
 
       input:placeholder {
+        color: red;
+      }
+
+      input::hover {
         color: red;
       }
     "#},
@@ -27251,6 +27259,14 @@ mod tests {
           loc: Some(ErrorLocation {
             filename: "test.css".into(),
             line: 24,
+            column: 13,
+          }),
+        },
+        Error {
+          kind: ParserError::SelectorError(SelectorError::UnsupportedPseudoElement("hover".into())),
+          loc: Some(ErrorLocation {
+            filename: "test.css".into(),
+            line: 28,
             column: 13,
           }),
         },
