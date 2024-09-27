@@ -19311,6 +19311,14 @@ mod tests {
       ".foo { color: color-mix(in srgb, blue, currentColor); }",
       ".foo{color:color-mix(in srgb,blue,currentColor)}",
     );
+    minify_test(
+      ".foo { color: color-mix(in srgb, accentcolor, blue); }",
+      ".foo{color:color-mix(in srgb,accentcolor,blue)}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in srgb, blue, accentcolor); }",
+      ".foo{color:color-mix(in srgb,blue,accentcolor)}",
+    );
 
     // regex for converting web platform tests:
     // test_computed_value\(.*?, `(.*?)`, `(.*?)`\);
