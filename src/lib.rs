@@ -7838,6 +7838,14 @@ mod tests {
       ".foo{transform:rotateX(-40deg)rotateY(50deg)}",
     );
     minify_test(".foo { width: calc(10px * mod(18, 5)) }", ".foo{width:30px}");
+    minify_test(".foo { --foo: calc(1px)}",".foo{--foo:1px}");
+    minify_test(".foo { --foo: calc(calc(1px + 2px) + 2px)}",".foo{--foo:calc((1px + 2px) + 2px)}");
+    minify_test(".foo { --foo: calc(max(20px, 1em) + 2px)}",".foo{--foo:calc(max(20px,1em) + 2px)}");
+    minify_test(".foo { --foo: calc(2px + (2px))}",".foo{--foo:calc(2px + 2px)}");
+    //TODO implement
+    //minify_test(":root { --foo: calc(1px + 2px)}",":root{--foo:3px}");
+    //TODO implement
+    //minify_test(":root { --foo: calc(1px + 2px + var(--foo))}",":root{--foo:calc(3px + var(--foo))}");
   }
 
   #[test]
