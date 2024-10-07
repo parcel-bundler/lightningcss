@@ -3253,7 +3253,9 @@ impl CssColor {
       + From<OKLCH>
       + Copy,
   {
-    if matches!(self, CssColor::CurrentColor) || matches!(other, CssColor::CurrentColor) {
+    if matches!(self, CssColor::CurrentColor | CssColor::System(..))
+      || matches!(other, CssColor::CurrentColor | CssColor::System(..))
+    {
       return Err(());
     }
 
