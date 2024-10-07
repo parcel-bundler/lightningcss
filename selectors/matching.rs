@@ -60,7 +60,7 @@ impl ElementSelectorFlags {
 }
 
 /// Holds per-compound-selector data.
-struct LocalMatchingContext<'a, 'b: 'a, 'i, Impl: SelectorImpl<'i>> {
+struct LocalMatchingContext<'a, 'b, 'i, Impl: SelectorImpl<'i>> {
   shared: &'a mut MatchingContext<'b, 'i, Impl>,
   matches_hover_and_active_quirk: MatchesHoverAndActiveQuirk,
 }

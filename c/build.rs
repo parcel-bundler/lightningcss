@@ -1,5 +1,3 @@
-extern crate cbindgen;
-
 use std::env;
 
 fn main() {

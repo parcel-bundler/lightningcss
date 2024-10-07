@@ -1008,7 +1008,7 @@ impl<'i, Impl: SelectorImpl<'i>> From<Vec<Component<'i, Impl>>> for Selector<'i,
 }
 
 #[derive(Clone)]
-pub struct SelectorIter<'a, 'i, Impl: 'a + SelectorImpl<'i>> {
+pub struct SelectorIter<'a, 'i, Impl: SelectorImpl<'i>> {
   iter: slice::Iter<'a, Component<'i, Impl>>,
   next_combinator: Option<Combinator>,
 }
@@ -1091,7 +1091,7 @@ impl<'a, 'i, Impl: SelectorImpl<'i>> fmt::Debug for SelectorIter<'a, 'i, Impl> {
 }
 
 /// An iterator over all simple selectors belonging to ancestors.
-struct AncestorIter<'a, 'i, Impl: 'a + SelectorImpl<'i>>(SelectorIter<'a, 'i, Impl>);
+struct AncestorIter<'a, 'i, Impl: SelectorImpl<'i>>(SelectorIter<'a, 'i, Impl>);
 impl<'a, 'i, Impl: 'a + SelectorImpl<'i>> AncestorIter<'a, 'i, Impl> {
   /// Creates an AncestorIter. The passed-in iterator is assumed to point to
   /// the beginning of the child sequence, which will be skipped.
