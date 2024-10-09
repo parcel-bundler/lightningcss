@@ -11,7 +11,7 @@ use crate::printer::Printer;
 use crate::properties::border_radius::BorderRadius;
 use crate::traits::{Parse, ToCss};
 #[cfg(feature = "visitor")]
-use crate::visitor::Visit;
+use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::*;
 use oxvg_path;
 
@@ -129,11 +129,10 @@ pub struct Point {
   y: LengthPercentage,
 }
 
-/// A path within a `path()` shape.
+/// An SVG path within a `path()` shape.
 ///
 /// See [Path](oxvg_path::Path).
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Path(pub oxvg_path::Path);
@@ -396,5 +395,14 @@ impl ToCss for Path {
     W: std::fmt::Write,
   {
     Ok(write!(dest, "{}", self.0)?)
+  }
+}
+
+#[cfg(feature = "visitor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
+impl<'i, V: ?Sized + Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for Path {
+  const CHILD_TYPES: VisitTypes = VisitTypes::empty();
+  fn visit_children(&mut self, _: &mut V) -> Result<(), V::Error> {
+    Ok(())
   }
 }
