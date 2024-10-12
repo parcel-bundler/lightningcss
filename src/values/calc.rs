@@ -910,6 +910,7 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> 
       (Calc::Number(a), Calc::Number(b)) => Calc::Number(a + b),
       (Calc::Value(a), b) => (a.add(V::from(b))).into(),
       (a, Calc::Value(b)) => (V::from(a).add(*b)).into(),
+      (a, Calc::Number(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Number(b))),
       (Calc::Function(a), b) => Calc::Sum(Box::new(Calc::Function(a)), Box::new(b)),
       (a, Calc::Function(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Function(b))),
       (a, b) => V::from(a).add(V::from(b)).into(),

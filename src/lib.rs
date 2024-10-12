@@ -7526,6 +7526,7 @@ mod tests {
     minify_test(".foo { width: calc(20px + 30px) }", ".foo{width:50px}");
     minify_test(".foo { width: calc(20px + 30px + 40px) }", ".foo{width:90px}");
     minify_test(".foo { width: calc(100% - 30px) }", ".foo{width:calc(100% - 30px)}");
+    minify_test(".foo { width: calc(100% - 30px - 0) }", ".foo{width:calc(100% - 30px - 0)}");
     minify_test(
       ".foo { width: calc(100% - 30px + 20px) }",
       ".foo{width:calc(100% - 10px)}",
