@@ -24366,12 +24366,14 @@ mod tests {
       indoc! {r#"
       .EgL3uq_box2 {
         @container main (width >= 0) {
-          background-color: #90ee90;
+          & {
+            background-color: #90ee90;
+          }
         }
       }
     "#},
       map! {
-        "box2" => ".EgL3uq_box2"
+        "box2" => "EgL3uq_box2"
       },
       HashMap::new(),
       crate::css_modules::Config { ..Default::default() },
