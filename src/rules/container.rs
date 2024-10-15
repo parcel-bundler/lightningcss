@@ -268,7 +268,9 @@ impl<'i> ToCss for ContainerName<'i> {
   where
     W: std::fmt::Write,
   {
-    self.0.to_css(dest)
+    // Container name should not be hashed
+    // https://github.com/vercel/next.js/issues/71233
+    self.0.to_css_with_options(dest, false)
   }
 }
 
