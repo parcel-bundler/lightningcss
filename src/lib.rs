@@ -24355,6 +24355,28 @@ mod tests {
       },
     );
 
+    css_modules_test(
+      r#"
+      .box2 {
+        @container main (width >= 0) {
+          background-color: #90ee90;
+        }
+      }
+    "#,
+      indoc! {r#"
+      .EgL3uq_box2 {
+        @container main (width >= 0) {
+          background-color: #90ee90;
+        }
+      }
+    "#},
+      map! {
+        "box2" => ".EgL3uq_box2"
+      },
+      HashMap::new(),
+      crate::css_modules::Config { ..Default::default() },
+    );
+
     // Stable hashes between project roots.
     fn test_project_root(project_root: &str, filename: &str, hash: &str) {
       let stylesheet = StyleSheet::parse(
