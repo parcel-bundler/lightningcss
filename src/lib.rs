@@ -24365,6 +24365,31 @@ mod tests {
     "#,
       indoc! {r#"
       .EgL3uq_box2 {
+        @container EgL3uq_main (width >= 0) {
+          & {
+            background-color: #90ee90;
+          }
+        }
+      }
+    "#},
+      map! {
+        "main" => "EgL3uq_main",
+        "box2" => "EgL3uq_box2"
+      },
+      HashMap::new(),
+      crate::css_modules::Config { ..Default::default() },
+    );
+
+    css_modules_test(
+      r#"
+      .box2 {
+        @container main (width >= 0) {
+          background-color: #90ee90;
+        }
+      }
+    "#,
+      indoc! {r#"
+      .EgL3uq_box2 {
         @container main (width >= 0) {
           & {
             background-color: #90ee90;
@@ -24376,7 +24401,10 @@ mod tests {
         "box2" => "EgL3uq_box2"
       },
       HashMap::new(),
-      crate::css_modules::Config { ..Default::default() },
+      crate::css_modules::Config {
+        container: false,
+        ..Default::default()
+      },
     );
 
     // Stable hashes between project roots.
