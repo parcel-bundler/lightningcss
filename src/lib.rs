@@ -3971,8 +3971,12 @@ mod tests {
       ".foo{width:calc(100% - env(safe-area-inset-left))}"
     );
     minify_test(
-      ".foo { height: 16px, var(--header-height); }",
+      ".foo { height: 16px; height: var(--header-height); }",
       ".foo{height:var(--header-height)}",
+    );
+    minify_test(
+      ".foo { height: auto; height: calc(100vh - var(--header-height, 0rem)); }",
+      ".foo{height:calc(100vh - var(--header-height,0rem))}",
     );
   }
 
