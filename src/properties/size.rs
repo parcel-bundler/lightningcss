@@ -15,6 +15,7 @@ use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
 use crate::serialization::*;
@@ -377,7 +378,7 @@ property_bitflags! {
 }
 
 #[derive(Default)]
-pub(crate) struct SizeHandler {
+pub(crate) struct SizeHandler<'i> {
   width: Option<Size>,
   height: Option<Size>,
   min_width: Option<Size>,
@@ -390,12 +391,13 @@ pub(crate) struct SizeHandler {
   min_inline_size: Option<Size>,
   max_block_size: Option<MaxSize>,
   max_inline_size: Option<MaxSize>,
+  unparsed: HashMap<PropertyId<'i>, Property<'i>>,
   has_any: bool,
   flushed_properties: SizeProperty,
   category: PropertyCategory,
 }
 
-impl<'i> PropertyHandler<'i> for SizeHandler {
+impl<'i> PropertyHandler<'i> for SizeHandler<'i> {
   fn handle_property(
     &mut self,
     property: &Property<'i>,
@@ -405,11 +407,11 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
     let logical_supported = !context.should_compile_logical(Feature::LogicalSize);
 
     macro_rules! property {
-      ($prop: ident, $val: ident, $category: ident) => {{
+      ($prop: ident, $prop_id: ident,$val: ident, $category: ident) => {{
         // If the category changes betweet logical and physical,
         // or if the value contains syntax that isn't supported across all targets,
         // preserve the previous value as a fallback.
-        if PropertyCategory::$category != self.category || (self.$prop.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets))) {
+        if PropertyCategory::$category != self.category || ((self.$prop.is_some() || self.unparsed.contains_key(&PropertyId::$prop_id)) && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets))) {
           self.flush(dest, context);
         }
 
@@ -420,53 +422,58 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
     }
 
     match property {
-      Property::Width(v) => property!(width, v, Physical),
-      Property::Height(v) => property!(height, v, Physical),
-      Property::MinWidth(v) => property!(min_width, v, Physical),
-      Property::MinHeight(v) => property!(min_height, v, Physical),
-      Property::MaxWidth(v) => property!(max_width, v, Physical),
-      Property::MaxHeight(v) => property!(max_height, v, Physical),
-      Property::BlockSize(size) => property!(block_size, size, Logical),
-      Property::MinBlockSize(size) => property!(min_block_size, size, Logical),
-      Property::MaxBlockSize(size) => property!(max_block_size, size, Logical),
-      Property::InlineSize(size) => property!(inline_size, size, Logical),
-      Property::MinInlineSize(size) => property!(min_inline_size, size, Logical),
-      Property::MaxInlineSize(size) => property!(max_inline_size, size, Logical),
+      Property::Width(v) => property!(width, Width, v, Physical),
+      Property::Height(v) => property!(height, Height, v, Physical),
+      Property::MinWidth(v) => property!(min_width, MinWidth, v, Physical),
+      Property::MinHeight(v) => property!(min_height, MinHeight, v, Physical),
+      Property::MaxWidth(v) => property!(max_width, MaxWidth, v, Physical),
+      Property::MaxHeight(v) => property!(max_height, MaxHeight, v, Physical),
+      Property::BlockSize(size) => property!(block_size, BlockSize, size, Logical),
+      Property::MinBlockSize(size) => property!(min_block_size, MinBlockSize, size, Logical),
+      Property::MaxBlockSize(size) => property!(max_block_size, MaxBlockSize, size, Logical),
+      Property::InlineSize(size) => property!(inline_size, InlineSize, size, Logical),
+      Property::MinInlineSize(size) => property!(min_inline_size, MinInlineSize, size, Logical),
+      Property::MaxInlineSize(size) => property!(max_inline_size, MaxInlineSize, size, Logical),
       Property::Unparsed(unparsed) => {
+        macro_rules! physical_unparsed {
+          ($prop: ident) => {{
+            // Origin prop assigned None means origin prop is overrided.
+            self.$prop = None;
+
+            self.has_any = true;
+            self.unparsed.insert(unparsed.property_id.clone(), property.clone());
+          }};
+        }
+
         macro_rules! logical_unparsed {
-          ($physical: ident) => {
+          ($prop: ident, $physical: ident) => {{
+            // Origin prop assigned None means origin prop is overrided.
+            self.$prop = None;
+            self.has_any = true;
             if logical_supported {
-              self
-                .flushed_properties
-                .insert(SizeProperty::try_from(&unparsed.property_id).unwrap());
-              dest.push(property.clone());
+              self.unparsed.insert(unparsed.property_id.clone(), property.clone());
             } else {
-              dest.push(Property::Unparsed(
-                unparsed.with_property_id(PropertyId::$physical),
-              ));
-              self.flushed_properties.insert(SizeProperty::$physical);
+              self.unparsed.insert(
+                unparsed.property_id.clone(),
+                Property::Unparsed(unparsed.with_property_id(PropertyId::$physical)),
+              );
             }
-          };
+          }};
         }
 
         match &unparsed.property_id {
-          PropertyId::Width
-          | PropertyId::Height
-          | PropertyId::MinWidth
-          | PropertyId::MaxWidth
-          | PropertyId::MinHeight
-          | PropertyId::MaxHeight => {
-            self
-              .flushed_properties
-              .insert(SizeProperty::try_from(&unparsed.property_id).unwrap());
-            dest.push(property.clone());
-          }
-          PropertyId::BlockSize => logical_unparsed!(Height),
-          PropertyId::MinBlockSize => logical_unparsed!(MinHeight),
-          PropertyId::MaxBlockSize => logical_unparsed!(MaxHeight),
-          PropertyId::InlineSize => logical_unparsed!(Width),
-          PropertyId::MinInlineSize => logical_unparsed!(MinWidth),
-          PropertyId::MaxInlineSize => logical_unparsed!(MaxWidth),
+          PropertyId::Width => physical_unparsed!(width),
+          PropertyId::Height => physical_unparsed!(height),
+          PropertyId::MinWidth => physical_unparsed!(min_width),
+          PropertyId::MaxWidth => physical_unparsed!(max_width),
+          PropertyId::MinHeight => physical_unparsed!(min_height),
+          PropertyId::MaxHeight => physical_unparsed!(max_height),
+          PropertyId::BlockSize => logical_unparsed!(block_size, Height),
+          PropertyId::MinBlockSize => logical_unparsed!(min_block_size, MinHeight),
+          PropertyId::MaxBlockSize => logical_unparsed!(max_block_size, MaxHeight),
+          PropertyId::InlineSize => logical_unparsed!(inline_size, Width),
+          PropertyId::MinInlineSize => logical_unparsed!(min_inline_size, MinWidth),
+          PropertyId::MaxInlineSize => logical_unparsed!(max_inline_size, MaxWidth),
           _ => return false,
         }
       }
@@ -476,14 +483,14 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, context: &mut PropertyHandlerContext<'i, '_>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     self.flush(dest, context);
     self.flushed_properties = SizeProperty::empty();
   }
 }
 
-impl SizeHandler {
-  fn flush<'i>(&mut self, dest: &mut DeclarationList, context: &mut PropertyHandlerContext<'i, '_>) {
+impl<'i> SizeHandler<'i> {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -504,7 +511,7 @@ impl SizeHandler {
     }
 
     macro_rules! property {
-      ($prop: ident, $val: ident, $size: ident) => {{
+      ($prop: ident, $prop_id: ident, $val: ident, $size: ident) => {{
         if let Some(val) = std::mem::take(&mut self.$val) {
           match val {
             $size::Stretch(VendorPrefix::None) => prefix!($prop, $size, Stretch),
@@ -515,6 +522,11 @@ impl SizeHandler {
           }
           dest.push(Property::$prop(val.clone()));
           self.flushed_properties.insert(SizeProperty::$prop);
+        } else {
+          if let Some(property) = self.unparsed.remove(&PropertyId::$prop_id) {
+            dest.push(property);
+            self.flushed_properties.insert(SizeProperty::$prop);
+          }
         }
       }};
     }
@@ -522,19 +534,19 @@ impl SizeHandler {
     macro_rules! logical {
       ($prop: ident, $val: ident, $physical: ident, $size: ident) => {
         if logical_supported {
-          property!($prop, $val, $size);
+          property!($prop, $prop, $val, $size);
         } else {
-          property!($physical, $val, $size);
+          property!($physical, $prop, $val, $size);
         }
       };
     }
 
-    property!(Width, width, Size);
-    property!(MinWidth, min_width, Size);
-    property!(MaxWidth, max_width, MaxSize);
-    property!(Height, height, Size);
-    property!(MinHeight, min_height, Size);
-    property!(MaxHeight, max_height, MaxSize);
+    property!(Width, Width, width, Size);
+    property!(MinWidth, MinWidth, min_width, Size);
+    property!(MaxWidth, MaxWidth, max_width, MaxSize);
+    property!(Height, Height, height, Size);
+    property!(MinHeight, MinHeight, min_height, Size);
+    property!(MaxHeight, MaxHeight, max_height, MaxSize);
     logical!(BlockSize, block_size, Height, Size);
     logical!(MinBlockSize, min_block_size, MinHeight, Size);
     logical!(MaxBlockSize, max_block_size, MaxHeight, MaxSize);

@@ -3966,6 +3966,14 @@ mod tests {
     minify_test(".foo { aspect-ratio: 2 / 3 }", ".foo{aspect-ratio:2/3}");
     minify_test(".foo { aspect-ratio: auto 2 / 3 }", ".foo{aspect-ratio:auto 2/3}");
     minify_test(".foo { aspect-ratio: 2 / 3 auto }", ".foo{aspect-ratio:auto 2/3}");
+    minify_test(
+      ".foo { width: 100%; width: calc(100% - constant(safe-area-inset-left)); width: calc(100% - env(safe-area-inset-left));}",
+      ".foo{width:calc(100% - env(safe-area-inset-left))}"
+    );
+    minify_test(
+      ".foo { height: 16px, var(--header-height); }",
+      ".foo{height:var(--header-height)}",
+    );
   }
 
   #[test]

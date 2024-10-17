@@ -495,7 +495,7 @@ pub(crate) struct DeclarationHandler<'i> {
   flex: FlexHandler,
   grid: GridHandler<'i>,
   align: AlignHandler,
-  size: SizeHandler,
+  size: SizeHandler<'i>,
   margin: MarginHandler<'i>,
   padding: PaddingHandler<'i>,
   scroll_margin: ScrollMarginHandler<'i>,
