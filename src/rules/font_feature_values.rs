@@ -24,7 +24,7 @@ pub struct FontFeatureValuesRule<'i, R = DefaultAtRule> {
   /// The name of the font feature values.
   pub name: Vec<FontFeatureValuesRuleName<'i>>,
   /// The declarations within the `@font-feature-values` rule.
-  #[cfg_attr(feature = "serde", serde(default))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub declarations: DeclarationBlock<'i>,
   /// The rules within the `@font-feature-values` rule.
   #[cfg_attr(feature = "serde", serde(default = "default_rule_list::<R>"))]
