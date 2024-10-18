@@ -41,6 +41,7 @@ pub mod counter_style;
 pub mod custom_media;
 pub mod document;
 pub mod font_face;
+pub mod font_feature_values;
 pub mod font_palette_values;
 pub mod import;
 pub mod keyframes;
@@ -58,6 +59,7 @@ pub mod unknown;
 pub mod view_transition;
 pub mod viewport;
 
+use self::font_feature_values::FontFeatureValuesRule;
 use self::font_palette_values::FontPaletteValuesRule;
 use self::layer::{LayerBlockRule, LayerStatementRule};
 use self::property::PropertyRule;
@@ -148,6 +150,8 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   FontFace(FontFaceRule<'i>),
   /// A `@font-palette-values` rule.
   FontPaletteValues(FontPaletteValuesRule<'i>),
+  /// A `@font-feature-values` rule.
+  FontFeatureValues(FontFeatureValuesRule<'i, R>),
   /// A `@page` rule.
   Page(PageRule<'i>),
   /// A `@supports` rule.
@@ -266,6 +270,10 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         let rule = FontPaletteValuesRule::deserialize(deserializer)?;
         Ok(CssRule::FontPaletteValues(rule))
       }
+      "font-feature-values" => {
+        let rule = FontFeatureValuesRule::deserialize(deserializer)?;
+        Ok(CssRule::FontFeatureValues(rule))
+      }
       "page" => {
         let rule = PageRule::deserialize(deserializer)?;
         Ok(CssRule::Page(rule))
@@ -352,6 +360,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
       CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
       CssRule::FontFace(font_face) => font_face.to_css(dest),
       CssRule::FontPaletteValues(f) => f.to_css(dest),
+      CssRule::FontFeatureValues(font_feature_values) => font_feature_values.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
       CssRule::Supports(supports) => supports.to_css(dest),
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),

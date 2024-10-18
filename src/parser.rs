@@ -4,6 +4,7 @@ use crate::media_query::*;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
+use crate::rules::font_feature_values::{FontFeatureValuesRule, FontFeatureValuesRuleName};
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::property::PropertyRule;
@@ -173,7 +174,7 @@ pub enum AtRulePrelude<'i, T> {
   /// A @font-face rule prelude.
   FontFace,
   /// A @font-feature-values rule prelude, with its FamilyName list.
-  FontFeatureValues, //(Vec<FamilyName>),
+  FontFeatureValues(Vec<FontFeatureValuesRuleName<'i>>),
   /// A @font-palette-values rule prelude, with its name.
   FontPaletteValues(DashedIdent<'i>),
   /// A @counter-style rule prelude, with its counter style name.
@@ -243,7 +244,7 @@ impl<'i, T> AtRulePrelude<'i, T> {
 
       Self::Namespace(..)
       | Self::FontFace
-      | Self::FontFeatureValues
+      | Self::FontFeatureValues(..)
       | Self::FontPaletteValues(..)
       | Self::CounterStyle(..)
       | Self::Keyframes(..)
@@ -574,6 +575,15 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       //     let family_names = parse_family_name_list(self.context, input)?;
       //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::FontFeatureValues(family_names)))
       // },
+      "font-feature-values" => {
+        let names = match Vec::<FontFeatureValuesRuleName>::parse(input) {
+          Ok(names) => names,
+          Err(ParseError { kind: ParseErrorKind::Basic(BasicParseErrorKind::EndOfInput), .. }) => Vec::new(),
+          Err(e) => return Err(e)
+        };
+
+        AtRulePrelude::FontFeatureValues(names)
+      },
       "font-palette-values" => {
         let name = DashedIdent::parse(input)?;
         AtRulePrelude::FontPaletteValues(name)
@@ -861,7 +871,18 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         }));
         Ok(())
       }
-      AtRulePrelude::FontFeatureValues => unreachable!(),
+      AtRulePrelude::FontFeatureValues(faimily_names) => {
+        println!("faimily_names: {:?}", faimily_names);
+
+        let (declarations, rules) = self.parse_nested(input, true)?;
+        self.rules.0.push(CssRule::FontFeatureValues(FontFeatureValuesRule {
+          name: faimily_names,
+          declarations,
+          rules,
+          loc,
+        }));
+        Ok(())
+      }
       AtRulePrelude::Unknown(name, prelude) => {
         self.rules.0.push(CssRule::Unknown(UnknownAtRule {
           name,
