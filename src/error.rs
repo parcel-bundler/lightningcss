@@ -88,6 +88,8 @@ pub enum ParserError<'i> {
   InvalidNesting,
   /// The @nest rule is deprecated.
   DeprecatedNestRule,
+  /// The @value rule (of CSS modules) is deprecated.
+  DeprecatedCssModulesValueRule,
   /// An invalid selector in an `@page` rule.
   InvalidPageSelector,
   /// An invalid value was encountered.
@@ -118,6 +120,7 @@ impl<'i> fmt::Display for ParserError<'i> {
       InvalidMediaQuery => write!(f, "Invalid media query"),
       InvalidNesting => write!(f, "Invalid nesting"),
       DeprecatedNestRule => write!(f, "The @nest rule is deprecated"),
+      DeprecatedCssModulesValueRule => write!(f, "The @value rule is deprecated"),
       InvalidPageSelector => write!(f, "Invalid page selector"),
       InvalidValue => write!(f, "Invalid value"),
       QualifiedRuleInvalid => write!(f, "Invalid qualified rule"),
