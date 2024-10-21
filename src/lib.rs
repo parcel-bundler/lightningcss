@@ -230,6 +230,20 @@ mod tests {
     }
   }
 
+  fn css_modules_error_test(source: &str, error: ParserError) {
+    let res = StyleSheet::parse(
+      &source,
+      ParserOptions {
+        css_modules: Some(Default::default()),
+        ..Default::default()
+      },
+    );
+    match res {
+      Ok(_) => unreachable!(),
+      Err(e) => assert_eq!(e.kind, error),
+    }
+  }
+
   macro_rules! map(
     { $($key:expr => $name:literal $(referenced: $referenced: literal)? $($value:literal $(global: $global: literal)? $(from $from:literal)?)*),* } => {
       {
@@ -27610,6 +27624,14 @@ mod tests {
     error_test(
       "@container style(style(--foo: bar)) {}",
       ParserError::UnexpectedToken(crate::properties::custom::Token::Function("style".into())),
+    );
+  }
+
+  #[test]
+  fn test_css_modules_value_rule() {
+    css_modules_error_test(
+      "@value compact: (max-width: 37.4375em);",
+      ParserError::DeprecatedCssModulesValueRule,
     );
   }
 
