@@ -680,9 +680,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       },
 
       "value" if self.options.css_modules.is_some() => {
-        self.options.warn(input.new_custom_error(ParserError::DeprecatedCssModulesValueRule));
-
-        parse_custom_at_rule_prelude(&name, input, self.options, self.at_rule_parser)?
+        return Err(input.new_custom_error(ParserError::DeprecatedCssModulesValueRule));
       },
 
 
