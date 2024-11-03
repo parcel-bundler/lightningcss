@@ -3966,6 +3966,15 @@ mod tests {
     minify_test(".foo { aspect-ratio: 2 / 3 }", ".foo{aspect-ratio:2/3}");
     minify_test(".foo { aspect-ratio: auto 2 / 3 }", ".foo{aspect-ratio:auto 2/3}");
     minify_test(".foo { aspect-ratio: 2 / 3 auto }", ".foo{aspect-ratio:auto 2/3}");
+
+    minify_test(
+      ".foo { width: 200px; width: var(--foo); }",
+      ".foo{width:200px;width:var(--foo)}",
+    );
+    minify_test(
+      ".foo { width: var(--foo); width: 200px; }",
+      ".foo{width:var(--foo);width:200px}",
+    );
   }
 
   #[test]

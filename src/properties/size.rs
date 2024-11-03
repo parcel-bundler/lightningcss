@@ -433,6 +433,7 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
       Property::MinInlineSize(size) => property!(min_inline_size, size, Logical),
       Property::MaxInlineSize(size) => property!(max_inline_size, size, Logical),
       Property::Unparsed(unparsed) => {
+        self.flush(dest, context);
         macro_rules! logical_unparsed {
           ($physical: ident) => {
             if logical_supported {
