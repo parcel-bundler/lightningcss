@@ -27194,6 +27194,14 @@ mod tests {
           color: red;
         }
       }
+
+      input:placeholder {
+        color: red;
+      }
+
+      input::hover {
+        color: red;
+      }
     "#,
       indoc! { r#"
       .foo {
@@ -27208,6 +27216,14 @@ mod tests {
         .bar {
           color: red;
         }
+      }
+
+      input:placeholder {
+        color: red;
+      }
+
+      input::hover {
+        color: red;
       }
     "#},
       ParserOptions {
@@ -27245,6 +27261,22 @@ mod tests {
             line: 15,
             column: 9
           })
+        },
+        Error {
+          kind: ParserError::SelectorError(SelectorError::UnsupportedPseudoClass("placeholder".into())),
+          loc: Some(ErrorLocation {
+            filename: "test.css".into(),
+            line: 24,
+            column: 13,
+          }),
+        },
+        Error {
+          kind: ParserError::SelectorError(SelectorError::UnsupportedPseudoElement("hover".into())),
+          loc: Some(ErrorLocation {
+            filename: "test.css".into(),
+            line: 28,
+            column: 13,
+          }),
         },
       ]
     )

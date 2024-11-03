@@ -197,7 +197,8 @@ pub enum SelectorParseErrorKind<'i> {
   MissingNestingPrefix,
   UnexpectedTokenInAttributeSelector(Token<'i>),
   PseudoElementExpectedIdent(Token<'i>),
-  UnsupportedPseudoClassOrElement(CowRcStr<'i>),
+  UnsupportedPseudoElement(CowRcStr<'i>),
+  UnsupportedPseudoClass(CowRcStr<'i>),
   AmbiguousCssModuleClass(CowRcStr<'i>),
   UnexpectedIdent(CowRcStr<'i>),
   ExpectedNamespace(CowRcStr<'i>),
@@ -312,7 +313,7 @@ pub trait Parser<'i> {
     location: SourceLocation,
     name: CowRcStr<'i>,
   ) -> Result<<Self::Impl as SelectorImpl<'i>>::NonTSPseudoClass, ParseError<'i, Self::Error>> {
-    Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name)))
+    Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name)))
   }
 
   fn parse_non_ts_functional_pseudo_class<'t>(
@@ -320,7 +321,7 @@ pub trait Parser<'i> {
     name: CowRcStr<'i>,
     arguments: &mut CssParser<'i, 't>,
   ) -> Result<<Self::Impl as SelectorImpl<'i>>::NonTSPseudoClass, ParseError<'i, Self::Error>> {
-    Err(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name)))
+    Err(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name)))
   }
 
   fn parse_pseudo_element(
@@ -328,7 +329,7 @@ pub trait Parser<'i> {
     location: SourceLocation,
     name: CowRcStr<'i>,
   ) -> Result<<Self::Impl as SelectorImpl<'i>>::PseudoElement, ParseError<'i, Self::Error>> {
-    Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name)))
+    Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name)))
   }
 
   fn parse_functional_pseudo_element<'t>(
@@ -336,7 +337,7 @@ pub trait Parser<'i> {
     name: CowRcStr<'i>,
     arguments: &mut CssParser<'i, 't>,
   ) -> Result<<Self::Impl as SelectorImpl<'i>>::PseudoElement, ParseError<'i, Self::Error>> {
-    Err(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name)))
+    Err(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name)))
   }
 
   fn default_namespace(&self) -> Option<<Self::Impl as SelectorImpl<'i>>::NamespaceUrl> {
@@ -3353,7 +3354,7 @@ pub mod tests {
           "active" => return Ok(PseudoClass::Active),
           _ => {}
       }
-      Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name)))
+      Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name)))
     }
 
     fn parse_non_ts_functional_pseudo_class<'t>(
@@ -3368,7 +3369,7 @@ pub mod tests {
           },
           _ => {}
       }
-      Err(parser.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name)))
+      Err(parser.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name)))
     }
 
     fn parse_pseudo_element(
@@ -3381,7 +3382,7 @@ pub mod tests {
           "after" => return Ok(PseudoElement::After),
           _ => {}
       }
-      Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name)))
+      Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name)))
     }
 
     fn default_namespace(&self) -> Option<DummyAtom> {
