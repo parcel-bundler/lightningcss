@@ -926,12 +926,14 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> 
           Calc::Sum(Box::new(Calc::Number(a)), Box::new(Calc::Sum(b, c)))
         }
       }
-      (a @ Calc::Product(..), b) => Calc::Sum(Box::new(a), Box::new(b)),
-      (a, b @ Calc::Product(..)) => Calc::Sum(Box::new(a), Box::new(b)),
-      (Calc::Value(a), b) => (a.add(V::from(b))).into(),
-      (a, Calc::Value(b)) => (V::from(a).add(*b)).into(),
+      (a @ Calc::Number(_), b)
+      | (a, b @ Calc::Number(_))
+      | (a @ Calc::Product(..), b)
+      | (a, b @ Calc::Product(..)) => Calc::Sum(Box::new(a), Box::new(b)),
       (Calc::Function(a), b) => Calc::Sum(Box::new(Calc::Function(a)), Box::new(b)),
       (a, Calc::Function(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Function(b))),
+      (Calc::Value(a), b) => (a.add(V::from(b))).into(),
+      (a, Calc::Value(b)) => (V::from(a).add(*b)).into(),
       (a @ Calc::Sum(..), b @ Calc::Sum(..)) => V::from(a).add(V::from(b)).into(),
     }
   }

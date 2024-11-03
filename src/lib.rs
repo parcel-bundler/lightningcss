@@ -7868,6 +7868,10 @@ mod tests {
       ".foo { width: calc(100% - clamp(1.125rem, 1.25vw, 1.2375rem) - clamp(1.125rem, 1.25vw, 1.2375rem)); }",
       ".foo{width:calc(100% - clamp(1.125rem,1.25vw,1.2375rem) - clamp(1.125rem,1.25vw,1.2375rem))}",
     );
+    minify_test(
+      ".foo { width: calc(100% - 2 (2 * var(--card-margin))); }",
+      ".foo{width:calc(100% - 2 (2*var(--card-margin)))}",
+    );
   }
 
   #[test]
