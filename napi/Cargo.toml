@@ -16,7 +16,7 @@ bundler = ["dep:crossbeam-channel", "dep:rayon"]
 serde = { version = "1.0.201", features = ["derive"] }
 serde_bytes = "0.11.5"
 cssparser = "0.33.0"
-lightningcss = { version = "1.0.0-alpha.56", path = "../", features = [
+lightningcss = { version = "1.0.0-alpha.60", path = "../", features = [
   "nodejs",
   "serde",
 ] }
