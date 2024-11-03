@@ -41,6 +41,9 @@ pub struct Config<'i> {
   /// Whether to scope custom identifiers
   /// Default is `true`.
   pub custom_idents: bool,
+  /// Whether to scope container names.
+  /// Default is `true`.
+  pub container: bool,
   /// Whether to check for pure CSS modules.
   pub pure: bool,
 }
@@ -52,6 +55,7 @@ impl<'i> Default for Config<'i> {
       dashed_idents: Default::default(),
       animation: true,
       grid: true,
+      container: true,
       custom_idents: true,
       pure: false,
     }
