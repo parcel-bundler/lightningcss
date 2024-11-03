@@ -400,22 +400,24 @@ impl<
           None => {}
         }
 
-        let cmp = if let (Some(Calc::Value(min_val)), Calc::Value(center_val)) = (&min, &center) {
-          center_val.partial_cmp(&min_val)
-        } else {
-          None
-        };
+        if cmp.is_some() {
+          let cmp = if let (Some(Calc::Value(min_val)), Calc::Value(center_val)) = (&min, &center) {
+            center_val.partial_cmp(&min_val)
+          } else {
+            None
+          };
 
-        // If center is known to be less than the minimum, replace it with minimum and remove the min argument.
-        // Otherwise, if center is known to be greater than the minimum, remove the min argument.
-        match cmp {
-          Some(std::cmp::Ordering::Less) => {
-            center = std::mem::take(&mut min).unwrap();
+          // If center is known to be less than the minimum, replace it with minimum and remove the min argument.
+          // Otherwise, if center is known to be greater than the minimum, remove the min argument.
+          match cmp {
+            Some(std::cmp::Ordering::Less) => {
+              center = std::mem::take(&mut min).unwrap();
+            }
+            Some(_) => {
+              min = None;
+            }
+            None => {}
           }
-          Some(_) => {
-            min = None;
-          }
-          None => {}
         }
 
         // Generate clamp(), min(), max(), or value depending on which arguments are left.

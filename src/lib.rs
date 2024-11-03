@@ -7704,7 +7704,7 @@ mod tests {
     );
     minify_test(
       ".foo { border-width: clamp(1em, 2em, 4vh) }",
-      ".foo{border-width:min(2em,4vh)}",
+      ".foo{border-width:clamp(1em,2em,4vh)}",
     );
     minify_test(
       ".foo { border-width: clamp(1em, 2vh, 4vh) }",
@@ -7715,6 +7715,10 @@ mod tests {
       ".foo{border-width:clamp(1px,1px + 2em,4px)}",
     );
     minify_test(".foo { border-width: clamp(1px, 2pt, 1in) }", ".foo{border-width:2pt}");
+    minify_test(
+      ".foo { width: clamp(-100px, 0px, 50% - 50vw); }",
+      ".foo{width:clamp(-100px,0px,50% - 50vw)}",
+    );
 
     minify_test(
       ".foo { top: calc(-1 * clamp(1.75rem, 8vw, 4rem)) }",
