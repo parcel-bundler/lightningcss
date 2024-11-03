@@ -25,6 +25,7 @@ const MDN_BROWSER_MAPPING = {
   firefox_android: 'firefox',
   opera_android: 'opera',
   safari_ios: 'ios_saf',
+  webview_ios: 'ios_saf',
   samsunginternet_android: 'samsung',
   webview_android: 'android',
   oculus: null,
