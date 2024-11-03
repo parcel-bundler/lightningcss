@@ -309,6 +309,8 @@ export interface CSSModulesConfig {
   animation?: boolean,
   /** Whether to enable hashing for CSS grid identifiers. */
   grid?: boolean,
+  /** Whether to enable hashing for `@container` names. */
+  container?: boolean,
   /** Whether to enable hashing for custom identifiers. */
   customIdents?: boolean,
   /** Whether to require at least one class or id selector in each rule. */
