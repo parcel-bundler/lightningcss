@@ -9,8 +9,13 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-lightningcss-napi = { version = "0.3.0", path = "../napi", features = ["bundler", "visitor"] }
-napi = {version = "2.15.4", default-features = false, features = ["compat-mode"]}
+lightningcss-napi = { version = "0.4.0", path = "../napi", features = [
+  "bundler",
+  "visitor",
+] }
+napi = { version = "2.15.4", default-features = false, features = [
+  "compat-mode",
+] }
 napi-derive = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]

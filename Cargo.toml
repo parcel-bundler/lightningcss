@@ -6,7 +6,7 @@ members = [
   "c",
   "derive",
   "static-self",
-  "static-self-derive"
+  "static-self-derive",
 ]
 
 [package]
@@ -16,7 +16,7 @@ version = "1.0.0-alpha.59"
 description = "A CSS parser, transformer, and minifier"
 license = "MPL-2.0"
 edition = "2021"
-keywords = [ "CSS", "minifier", "Parcel" ]
+keywords = ["CSS", "minifier", "Parcel"]
 repository = "https://github.com/parcel-bundler/lightningcss"
 
 [package.metadata.docs.rs]
@@ -41,17 +41,27 @@ cli = ["atty", "clap", "serde_json", "browserslist", "jemallocator"]
 grid = []
 jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
 nodejs = ["dep:serde"]
-serde = ["dep:serde", "smallvec/serde", "cssparser/serde", "parcel_selectors/serde", "into_owned"]
+serde = [
+  "dep:serde",
+  "smallvec/serde",
+  "cssparser/serde",
+  "parcel_selectors/serde",
+  "into_owned",
+]
 sourcemap = ["parcel_sourcemap"]
 visitor = []
-into_owned = ["static-self", "static-self/smallvec", "parcel_selectors/into_owned"]
+into_owned = [
+  "static-self",
+  "static-self/smallvec",
+  "parcel_selectors/into_owned",
+]
 substitute_variables = ["visitor", "into_owned"]
 
 [dependencies]
 serde = { version = "1.0.201", features = ["derive"], optional = true }
 cssparser = "0.33.0"
 cssparser-color = "0.1.0"
-parcel_selectors = { version = "0.27.0", path = "./selectors" }
+parcel_selectors = { version = "0.28.0", path = "./selectors" }
 itertools = "0.10.1"
 smallvec = { version = "1.7.0", features = ["union"] }
 bitflags = "2.2.1"
@@ -74,7 +84,9 @@ schemars = { version = "0.8.19", features = ["smallvec"], optional = true }
 static-self = { version = "0.1.0", path = "static-self", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"], optional = true }
+jemallocator = { version = "0.3.2", features = [
+  "disable_initial_exec_tls",
+], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["custom"], default-features = false }
