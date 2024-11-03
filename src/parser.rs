@@ -678,6 +678,12 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         let selectors = SelectorList::parse(&selector_parser, input, ParseErrorRecovery::DiscardList, NestingRequirement::Contained)?;
         AtRulePrelude::Nest(selectors)
       },
+
+      "value" if self.options.css_modules.is_some() => {
+        return Err(input.new_custom_error(ParserError::DeprecatedCssModulesValueRule));
+      },
+
+
       _ => parse_custom_at_rule_prelude(&name, input, self.options, self.at_rule_parser)?
     };
 
