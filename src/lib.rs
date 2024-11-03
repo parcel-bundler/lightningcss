@@ -7847,6 +7847,27 @@ mod tests {
       ".foo{transform:rotateX(-40deg)rotateY(50deg)}",
     );
     minify_test(".foo { width: calc(10px * mod(18, 5)) }", ".foo{width:30px}");
+
+    minify_test(
+      ".foo { width: calc(100% - 30px - 0) }",
+      ".foo{width:calc(100% - 30px - 0)}",
+    );
+    minify_test(
+      ".foo { width: calc(100% - 30px - 1 - 2) }",
+      ".foo{width:calc(100% - 30px - 3)}",
+    );
+    minify_test(
+      ".foo { width: calc(1 - 2 - 100% - 30px) }",
+      ".foo{width:calc(-1 - 100% - 30px)}",
+    );
+    minify_test(
+      ".foo { width: calc(2 * min(1px, 1vmin) - min(1px, 1vmin)); }",
+      ".foo{width:calc(2*min(1px,1vmin) - min(1px,1vmin))}",
+    );
+    minify_test(
+      ".foo { width: calc(100% - clamp(1.125rem, 1.25vw, 1.2375rem) - clamp(1.125rem, 1.25vw, 1.2375rem)); }",
+      ".foo{width:calc(100% - clamp(1.125rem,1.25vw,1.2375rem) - clamp(1.125rem,1.25vw,1.2375rem))}",
+    );
   }
 
   #[test]

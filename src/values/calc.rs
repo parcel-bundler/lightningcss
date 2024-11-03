@@ -908,11 +908,31 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> 
     match (self, other) {
       (Calc::Value(a), Calc::Value(b)) => (a.add(*b)).into(),
       (Calc::Number(a), Calc::Number(b)) => Calc::Number(a + b),
+      (Calc::Sum(a, b), Calc::Number(c)) => {
+        if let Calc::Number(a) = *a {
+          Calc::Sum(Box::new(Calc::Number(a + c)), b)
+        } else if let Calc::Number(b) = *b {
+          Calc::Sum(a, Box::new(Calc::Number(b + c)))
+        } else {
+          Calc::Sum(Box::new(Calc::Sum(a, b)), Box::new(Calc::Number(c)))
+        }
+      }
+      (Calc::Number(a), Calc::Sum(b, c)) => {
+        if let Calc::Number(b) = *b {
+          Calc::Sum(Box::new(Calc::Number(a + b)), c)
+        } else if let Calc::Number(c) = *c {
+          Calc::Sum(Box::new(Calc::Number(a + c)), b)
+        } else {
+          Calc::Sum(Box::new(Calc::Number(a)), Box::new(Calc::Sum(b, c)))
+        }
+      }
+      (a @ Calc::Product(..), b) => Calc::Sum(Box::new(a), Box::new(b)),
+      (a, b @ Calc::Product(..)) => Calc::Sum(Box::new(a), Box::new(b)),
       (Calc::Value(a), b) => (a.add(V::from(b))).into(),
       (a, Calc::Value(b)) => (V::from(a).add(*b)).into(),
       (Calc::Function(a), b) => Calc::Sum(Box::new(Calc::Function(a)), Box::new(b)),
       (a, Calc::Function(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Function(b))),
-      (a, b) => V::from(a).add(V::from(b)).into(),
+      (a @ Calc::Sum(..), b @ Calc::Sum(..)) => V::from(a).add(V::from(b)).into(),
     }
   }
 }
@@ -966,6 +986,52 @@ impl<V: TrySign> TrySign for Calc<V> {
     match self {
       Calc::Number(v) => v.try_sign(),
       Calc::Value(v) => v.try_sign(),
+      Calc::Product(c, v) => v.try_sign().map(|s| s * c.sign()),
+      Calc::Function(f) => f.try_sign(),
+      _ => None,
+    }
+  }
+}
+
+impl<V: TrySign> TrySign for MathFunction<V> {
+  fn try_sign(&self) -> Option<f32> {
+    match self {
+      MathFunction::Abs(_) => Some(1.0),
+      MathFunction::Max(values) | MathFunction::Min(values) => {
+        let mut iter = values.iter();
+        if let Some(sign) = iter.next().and_then(|f| f.try_sign()) {
+          for value in iter {
+            if let Some(s) = value.try_sign() {
+              if s != sign {
+                return None;
+              }
+            } else {
+              return None;
+            }
+          }
+          return Some(sign);
+        } else {
+          return None;
+        }
+      }
+      MathFunction::Clamp(a, b, c) => {
+        if let (Some(a), Some(b), Some(c)) = (a.try_sign(), b.try_sign(), c.try_sign()) {
+          if a == b && b == c {
+            return Some(a);
+          }
+        }
+        return None;
+      }
+      MathFunction::Round(_, a, b) => {
+        if let (Some(a), Some(b)) = (a.try_sign(), b.try_sign()) {
+          if a == b {
+            return Some(a);
+          }
+        }
+        return None;
+      }
+      MathFunction::Sign(v) => v.try_sign(),
+      MathFunction::Calc(v) => v.try_sign(),
       _ => None,
     }
   }
