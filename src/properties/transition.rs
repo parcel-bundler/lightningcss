@@ -154,7 +154,24 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
     }
 
     match property {
-      TransitionProperty(val, vp) => property!(TransitionProperty, properties, val, vp),
+      TransitionProperty(val, vp) => {
+        let none_prefixed_names = val
+          .iter()
+          .filter(|p| p.prefix() == VendorPrefix::None)
+          .map(|p| p.name())
+          .collect::<Vec<_>>();
+
+        if none_prefixed_names.is_empty() {
+          property!(TransitionProperty, properties, val, vp)
+        } else {
+          let filtered_val = val
+            .iter()
+            .filter(|p| !(none_prefixed_names.contains(&p.name()) && p.prefix() != VendorPrefix::None))
+            .cloned()
+            .collect::<SmallVec<[PropertyId<'_>; 1]>>();
+          property!(TransitionProperty, properties, &filtered_val, vp)
+        }
+      }
       TransitionDuration(val, vp) => property!(TransitionDuration, durations, val, vp),
       TransitionDelay(val, vp) => property!(TransitionDelay, delays, val, vp),
       TransitionTimingFunction(val, vp) => property!(TransitionTimingFunction, timing_functions, val, vp),

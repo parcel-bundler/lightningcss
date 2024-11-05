@@ -25742,6 +25742,33 @@ mod tests {
         ..Browsers::default()
       },
     );
+    prefix_test(
+      r#"
+       .foo {
+         transition-property: -webkit-backdrop-filter, backdrop-filter;
+       }
+       .bar {
+         transition-property: backdrop-filter;
+       }
+       .baz {
+         transition-property: -webkit-backdrop-filter;
+       }
+     "#,
+      indoc! {r#"
+       .foo, .bar {
+         transition-property: -webkit-backdrop-filter, backdrop-filter;
+       }
+
+       .baz {
+         transition-property: -webkit-backdrop-filter;
+       }
+     "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
