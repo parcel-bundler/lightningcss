@@ -4,7 +4,7 @@ use crate::media_query::*;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
-use crate::rules::font_feature_values::{FontFeatureValuesRule, FontFeatureValuesRuleName};
+use crate::rules::font_feature_values::FontFeatureValuesRule;
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::property::PropertyRule;
@@ -13,6 +13,7 @@ use crate::rules::starting_style::StartingStyleRule;
 use crate::rules::view_transition::ViewTransitionRule;
 use crate::rules::viewport::ViewportRule;
 
+use crate::properties::font::FontFamily;
 use crate::rules::{
   counter_style::CounterStyleRule,
   custom_media::CustomMediaRule,
@@ -174,7 +175,7 @@ pub enum AtRulePrelude<'i, T> {
   /// A @font-face rule prelude.
   FontFace,
   /// A @font-feature-values rule prelude, with its FamilyName list.
-  FontFeatureValues(Vec<FontFeatureValuesRuleName<'i>>),
+  FontFeatureValues(Vec<FontFamily<'i>>),
   /// A @font-palette-values rule prelude, with its name.
   FontPaletteValues(DashedIdent<'i>),
   /// A @counter-style rule prelude, with its counter style name.
@@ -576,9 +577,8 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::FontFeatureValues(family_names)))
       // },
       "font-feature-values" => {
-        let names = match Vec::<FontFeatureValuesRuleName>::parse(input) {
+        let names = match Vec::<FontFamily>::parse(input) {
           Ok(names) => names,
-          Err(ParseError { kind: ParseErrorKind::Basic(BasicParseErrorKind::EndOfInput), .. }) => Vec::new(),
           Err(e) => return Err(e)
         };
 

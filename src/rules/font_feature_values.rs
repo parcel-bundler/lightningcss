@@ -6,9 +6,8 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
+use crate::properties::font::FontFamily;
 use crate::traits::{Parse, ToCss};
-use crate::values::ident::CustomIdent;
-use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -22,7 +21,7 @@ use std::fmt::Write;
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct FontFeatureValuesRule<'i> {
   /// The name of the font feature values.
-  pub name: Vec<FontFeatureValuesRuleName<'i>>,
+  pub name: Vec<FontFamily<'i>>,
   /// The declarations within the `@font-feature-values` rule.
   #[cfg_attr(feature = "serde", serde())]
   pub declarations: DeclarationBlock<'i>,
@@ -35,7 +34,7 @@ pub struct FontFeatureValuesRule<'i> {
 
 impl<'i> FontFeatureValuesRule<'i> {
   pub(crate) fn parse<'t, 'o>(
-    family_names: Vec<FontFeatureValuesRuleName<'i>>,
+    family_names: Vec<FontFamily<'i>>,
     input: &mut Parser<'i, 't>,
     loc: Location,
     options: &ParserOptions<'o, 'i>,
@@ -162,75 +161,6 @@ impl<'a, 'o, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for FontFeatureValu
 
   fn parse_qualified(&self) -> bool {
     false
-  }
-}
-
-/// FontFeatureValuesRuleName
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
-)]
-#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-pub enum FontFeatureValuesRuleName<'i> {
-  /// `<custom-ident>` of a `@font-feature-values` name.
-  #[cfg_attr(feature = "serde", serde(borrow))]
-  Ident(CustomIdent<'i>),
-
-  /// `<string>` of a `@font-feature-values` name.
-  #[cfg_attr(feature = "serde", serde(borrow))]
-  Custom(CowArcStr<'i>),
-}
-
-impl<'i> Parse<'i> for FontFeatureValuesRuleName<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    match input.next()?.clone() {
-      Token::Ident(ref s) => {
-        // CSS-wide keywords without quotes throws an error.
-        match_ignore_ascii_case! { &*s,
-          "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
-            Err(input.new_unexpected_token_error(Token::Ident(s.clone())))
-          },
-          _ => {
-            Ok(FontFeatureValuesRuleName::Ident(CustomIdent(s.into())))
-          }
-        }
-      }
-
-      Token::QuotedString(ref s) => Ok(FontFeatureValuesRuleName::Custom(s.into())),
-      t => return Err(input.new_unexpected_token_error(t.clone())),
-    }
-  }
-}
-
-impl<'i> ToCss for FontFeatureValuesRuleName<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    let css_module_animation_enabled =
-      dest.css_module.as_ref().map_or(false, |css_module| css_module.config.animation);
-
-    match self {
-      FontFeatureValuesRuleName::Ident(ident) => {
-        dest.write_ident(ident.0.as_ref(), css_module_animation_enabled)?;
-      }
-      FontFeatureValuesRuleName::Custom(custom) => {
-        // CSS-wide keywords and `none` cannot remove quotes.
-        match_ignore_ascii_case! { &*custom,
-          "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
-            serialize_string(&custom, dest)?;
-          },
-          _ => {
-            dest.write_ident(custom.as_ref(), css_module_animation_enabled)?;
-          }
-        }
-      }
-    }
-    Ok(())
   }
 }
 
