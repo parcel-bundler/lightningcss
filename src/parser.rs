@@ -711,6 +711,45 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
     Ok(result)
   }
 
+  #[inline]
+  fn rule_without_block(
+    &mut self,
+    prelude: AtRulePrelude<'i, T::Prelude>,
+    start: &ParserState,
+  ) -> Result<Self::AtRule, ()> {
+    let loc = self.loc(start);
+    match prelude {
+      AtRulePrelude::Layer(names) => {
+        if self.is_in_style_rule || names.is_empty() {
+          return Err(());
+        }
+
+        self.rules.0.push(CssRule::LayerStatement(LayerStatementRule { names, loc }));
+        Ok(())
+      }
+      AtRulePrelude::Unknown(name, prelude) => {
+        self.rules.0.push(CssRule::Unknown(UnknownAtRule {
+          name,
+          prelude,
+          block: None,
+          loc,
+        }));
+        Ok(())
+      }
+      AtRulePrelude::Custom(prelude) => {
+        self.rules.0.push(parse_custom_at_rule_without_block(
+          prelude,
+          start,
+          self.options,
+          self.at_rule_parser,
+          self.is_in_style_rule,
+        )?);
+        Ok(())
+      }
+      _ => Err(()),
+    }
+  }
+
   fn parse_block<'t>(
     &mut self,
     prelude: Self::Prelude,
@@ -871,16 +910,9 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         }));
         Ok(())
       }
-      AtRulePrelude::FontFeatureValues(faimily_names) => {
-        println!("faimily_names: {:?}", faimily_names);
-
-        let (declarations, rules) = self.parse_nested(input, true)?;
-        self.rules.0.push(CssRule::FontFeatureValues(FontFeatureValuesRule {
-          name: faimily_names,
-          declarations,
-          rules,
-          loc,
-        }));
+      AtRulePrelude::FontFeatureValues(family_names) => {
+        let rule = FontFeatureValuesRule::parse(family_names, input, loc, self.options)?;
+        self.rules.0.push(CssRule::FontFeatureValues(rule));
         Ok(())
       }
       AtRulePrelude::Unknown(name, prelude) => {
@@ -903,45 +935,6 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         )?);
         Ok(())
       }
-    }
-  }
-
-  #[inline]
-  fn rule_without_block(
-    &mut self,
-    prelude: AtRulePrelude<'i, T::Prelude>,
-    start: &ParserState,
-  ) -> Result<Self::AtRule, ()> {
-    let loc = self.loc(start);
-    match prelude {
-      AtRulePrelude::Layer(names) => {
-        if self.is_in_style_rule || names.is_empty() {
-          return Err(());
-        }
-
-        self.rules.0.push(CssRule::LayerStatement(LayerStatementRule { names, loc }));
-        Ok(())
-      }
-      AtRulePrelude::Unknown(name, prelude) => {
-        self.rules.0.push(CssRule::Unknown(UnknownAtRule {
-          name,
-          prelude,
-          block: None,
-          loc,
-        }));
-        Ok(())
-      }
-      AtRulePrelude::Custom(prelude) => {
-        self.rules.0.push(parse_custom_at_rule_without_block(
-          prelude,
-          start,
-          self.options,
-          self.at_rule_parser,
-          self.is_in_style_rule,
-        )?);
-        Ok(())
-      }
-      _ => Err(()),
     }
   }
 }

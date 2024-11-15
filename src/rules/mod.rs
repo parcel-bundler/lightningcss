@@ -151,7 +151,7 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   /// A `@font-palette-values` rule.
   FontPaletteValues(FontPaletteValuesRule<'i>),
   /// A `@font-feature-values` rule.
-  FontFeatureValues(FontFeatureValuesRule<'i, R>),
+  FontFeatureValues(FontFeatureValuesRule<'i>),
   /// A `@page` rule.
   Page(PageRule<'i>),
   /// A `@supports` rule.
