@@ -23,7 +23,7 @@ pub struct FontFeatureValuesRule<'i> {
   /// The name of the font feature values.
   pub name: Vec<FontFamily<'i>>,
   /// The declarations within the `@font-feature-values` rule.
-  #[cfg_attr(feature = "serde", serde())]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub declarations: DeclarationBlock<'i>,
   /// The rules within the `@font-feature-values` rule.
   pub rules: Vec<FontFeatureSubrule<'i>>,
@@ -204,17 +204,28 @@ impl<'i> ToCss for FontFeatureValuesRule<'i> {
 }
 
 enum_property! {
+    /// The name of the `@font-feature-values` sub-rule.
+    /// font-feature-value-type = <@stylistic> | <@historical-forms> | <@styleset> | <@character-variant>
+    ///   | <@swash> | <@ornaments> | <@annotation>
     pub enum FontFeatureSubruleType {
+        /// @stylistic = @stylistic { <declaration-list> }
         Stylistic ,
+        /// @historical-forms = @historical-forms { <declaration-list> }
         HistoricalForms,
+        /// @styleset = @styleset { <declaration-list> }
         Styleset,
+        /// @character-variant = @character-variant { <declaration-list> }
         CharacterVariant,
+        /// @swash = @swash { <declaration-list> }
         Swash,
+        /// @ornaments = @ornaments { <declaration-list> }
         Ornaments,
+        /// @annotation = @annotation { <declaration-list> }
         Annotation,
     }
 }
 
+/// https://drafts.csswg.org/css-fonts/#font-feature-values-syntax
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
@@ -225,7 +236,9 @@ enum_property! {
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct FontFeatureSubrule<'i> {
+  /// The name of the `@font-feature-values` sub-rule.
   pub name: FontFeatureSubruleType,
+  /// The declarations within the `@font-feature-values` sub-rules.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub declarations: DeclarationBlock<'i>,
   /// The location of the rule in the source file.
