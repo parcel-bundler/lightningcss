@@ -241,10 +241,11 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
           if let Some(orig) = mapping.original {
             let sources_len = map.get_sources().len();
             let source_index = map.add_source(sm.get_source(orig.source).unwrap());
+            let name = orig.name.map(|name| map.add_name(sm.get_name(name).unwrap()));
             original.original_line = orig.original_line;
             original.original_column = orig.original_column;
             original.source = source_index;
-            original.name = orig.name;
+            original.name = name;
 
             if map.get_sources().len() > sources_len {
               let content = sm.get_source_content(orig.source).unwrap().to_owned();
