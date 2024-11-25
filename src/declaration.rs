@@ -1,7 +1,6 @@
 //! CSS declarations.
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::ops::Range;
 
 use crate::context::{DeclarationContext, PropertyHandlerContext};
@@ -41,6 +40,7 @@ use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use indexmap::IndexMap;
 
 /// A CSS declaration block.
 ///
@@ -518,7 +518,7 @@ pub(crate) struct DeclarationHandler<'i> {
   prefix: PrefixHandler,
   direction: Option<Direction>,
   unicode_bidi: Option<UnicodeBidi>,
-  custom_properties: HashMap<DashedIdent<'i>, usize>,
+  custom_properties: IndexMap<DashedIdent<'i>, usize>,
   decls: DeclarationList<'i>,
 }
 
@@ -609,7 +609,7 @@ impl<'i> DeclarationHandler<'i> {
           direction: self.direction.clone(),
           ..Default::default()
         };
-        for (key, index) in self.custom_properties.drain() {
+        for (key, index) in self.custom_properties.drain(..) {
           handler.custom_properties.insert(key, handler.decls.len());
           handler.decls.push(self.decls[index].clone());
         }

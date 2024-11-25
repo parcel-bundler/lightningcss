@@ -28355,5 +28355,9 @@ mod tests {
       ".foo { all: unset; background: var(--foo); }",
       ".foo{all:unset;background:var(--foo)}",
     );
+    minify_test(
+      ".foo {--bar:currentcolor; --foo:1.1em; all:unset}",
+      ".foo{--bar:currentcolor;--foo:1.1em;all:unset}",
+    );
   }
 }

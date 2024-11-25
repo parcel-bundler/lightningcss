@@ -756,6 +756,7 @@ dependencies = [
  "dashmap",
  "data-encoding",
  "getrandom",
+ "indexmap 2.2.6",
  "indoc",
  "itertools 0.10.5",
  "jemallocator",
