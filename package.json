@@ -1,6 +1,6 @@
 {
   "name": "lightningcss",
-  "version": "1.28.1",
+  "version": "1.28.2",
   "license": "MPL-2.0",
   "description": "A CSS parser, transformer, and minifier written in Rust",
   "main": "node/index.js",

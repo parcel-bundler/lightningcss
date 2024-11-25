@@ -741,7 +741,7 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.60"
+version = "1.0.0-alpha.61"
 dependencies = [
  "ahash 0.8.7",
  "assert_cmd",
@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "lightningcss-napi"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "crossbeam-channel",
  "cssparser",
