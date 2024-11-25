@@ -4,6 +4,7 @@ use crate::media_query::*;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
+use crate::rules::font_feature_values::FontFeatureValuesRule;
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::property::PropertyRule;
@@ -11,6 +12,7 @@ use crate::rules::scope::ScopeRule;
 use crate::rules::starting_style::StartingStyleRule;
 use crate::rules::viewport::ViewportRule;
 
+use crate::properties::font::FontFamily;
 use crate::rules::{
   counter_style::CounterStyleRule,
   custom_media::CustomMediaRule,
@@ -172,7 +174,7 @@ pub enum AtRulePrelude<'i, T> {
   /// A @font-face rule prelude.
   FontFace,
   /// A @font-feature-values rule prelude, with its FamilyName list.
-  FontFeatureValues, //(Vec<FamilyName>),
+  FontFeatureValues(Vec<FontFamily<'i>>),
   /// A @font-palette-values rule prelude, with its name.
   FontPaletteValues(DashedIdent<'i>),
   /// A @counter-style rule prelude, with its counter style name.
@@ -240,7 +242,7 @@ impl<'i, T> AtRulePrelude<'i, T> {
 
       Self::Namespace(..)
       | Self::FontFace
-      | Self::FontFeatureValues
+      | Self::FontFeatureValues(..)
       | Self::FontPaletteValues(..)
       | Self::CounterStyle(..)
       | Self::Keyframes(..)
@@ -570,6 +572,14 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       //     let family_names = parse_family_name_list(self.context, input)?;
       //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::FontFeatureValues(family_names)))
       // },
+      "font-feature-values" => {
+        let names = match Vec::<FontFamily>::parse(input) {
+          Ok(names) => names,
+          Err(e) => return Err(e)
+        };
+
+        AtRulePrelude::FontFeatureValues(names)
+      },
       "font-palette-values" => {
         let name = DashedIdent::parse(input)?;
         AtRulePrelude::FontPaletteValues(name)
@@ -692,6 +702,45 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
     }
 
     Ok(result)
+  }
+
+  #[inline]
+  fn rule_without_block(
+    &mut self,
+    prelude: AtRulePrelude<'i, T::Prelude>,
+    start: &ParserState,
+  ) -> Result<Self::AtRule, ()> {
+    let loc = self.loc(start);
+    match prelude {
+      AtRulePrelude::Layer(names) => {
+        if self.is_in_style_rule || names.is_empty() {
+          return Err(());
+        }
+
+        self.rules.0.push(CssRule::LayerStatement(LayerStatementRule { names, loc }));
+        Ok(())
+      }
+      AtRulePrelude::Unknown(name, prelude) => {
+        self.rules.0.push(CssRule::Unknown(UnknownAtRule {
+          name,
+          prelude,
+          block: None,
+          loc,
+        }));
+        Ok(())
+      }
+      AtRulePrelude::Custom(prelude) => {
+        self.rules.0.push(parse_custom_at_rule_without_block(
+          prelude,
+          start,
+          self.options,
+          self.at_rule_parser,
+          self.is_in_style_rule,
+        )?);
+        Ok(())
+      }
+      _ => Err(()),
+    }
   }
 
   fn parse_block<'t>(
@@ -847,7 +896,11 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         }));
         Ok(())
       }
-      AtRulePrelude::FontFeatureValues => unreachable!(),
+      AtRulePrelude::FontFeatureValues(family_names) => {
+        let rule = FontFeatureValuesRule::parse(family_names, input, loc, self.options)?;
+        self.rules.0.push(CssRule::FontFeatureValues(rule));
+        Ok(())
+      }
       AtRulePrelude::Unknown(name, prelude) => {
         self.rules.0.push(CssRule::Unknown(UnknownAtRule {
           name,
@@ -868,45 +921,6 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         )?);
         Ok(())
       }
-    }
-  }
-
-  #[inline]
-  fn rule_without_block(
-    &mut self,
-    prelude: AtRulePrelude<'i, T::Prelude>,
-    start: &ParserState,
-  ) -> Result<Self::AtRule, ()> {
-    let loc = self.loc(start);
-    match prelude {
-      AtRulePrelude::Layer(names) => {
-        if self.is_in_style_rule || names.is_empty() {
-          return Err(());
-        }
-
-        self.rules.0.push(CssRule::LayerStatement(LayerStatementRule { names, loc }));
-        Ok(())
-      }
-      AtRulePrelude::Unknown(name, prelude) => {
-        self.rules.0.push(CssRule::Unknown(UnknownAtRule {
-          name,
-          prelude,
-          block: None,
-          loc,
-        }));
-        Ok(())
-      }
-      AtRulePrelude::Custom(prelude) => {
-        self.rules.0.push(parse_custom_at_rule_without_block(
-          prelude,
-          start,
-          self.options,
-          self.at_rule_parser,
-          self.is_in_style_rule,
-        )?);
-        Ok(())
-      }
-      _ => Err(()),
     }
   }
 }

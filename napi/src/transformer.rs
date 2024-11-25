@@ -298,6 +298,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
             CssRule::Keyframes(..) => "keyframes",
             CssRule::FontFace(..) => "font-face",
             CssRule::FontPaletteValues(..) => "font-palette-values",
+            CssRule::FontFeatureValues(..) => "font-feature-values",
             CssRule::Page(..) => "page",
             CssRule::Supports(..) => "supports",
             CssRule::CounterStyle(..) => "counter-style",
