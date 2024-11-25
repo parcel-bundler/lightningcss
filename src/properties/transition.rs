@@ -154,12 +154,15 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
     }
 
     match property {
-      TransitionProperty(val, vp) => property!(TransitionProperty, properties, val, vp),
+      TransitionProperty(val, vp) => {
+        let merged_values = merge_properties(val.iter());
+        property!(TransitionProperty, properties, &merged_values, vp);
+      }
       TransitionDuration(val, vp) => property!(TransitionDuration, durations, val, vp),
       TransitionDelay(val, vp) => property!(TransitionDelay, delays, val, vp),
       TransitionTimingFunction(val, vp) => property!(TransitionTimingFunction, timing_functions, val, vp),
       Transition(val, vp) => {
-        let properties: SmallVec<[PropertyId; 1]> = val.iter().map(|b| b.property.clone()).collect();
+        let properties: SmallVec<[PropertyId; 1]> = merge_properties(val.iter().map(|b| &b.property));
         maybe_flush!(properties, &properties, vp);
 
         let durations: SmallVec<[Time; 1]> = val.iter().map(|b| b.duration.clone()).collect();
@@ -326,6 +329,23 @@ fn is_transition_property(property_id: &PropertyId) -> bool {
     | PropertyId::Transition(_) => true,
     _ => false,
   }
+}
+
+fn merge_properties<'i: 'a, 'a>(val: impl Iterator<Item = &'a PropertyId<'i>>) -> SmallVec<[PropertyId<'i>; 1]> {
+  let mut merged_values = SmallVec::<[PropertyId<'_>; 1]>::with_capacity(val.size_hint().1.unwrap_or(1));
+  for p in val {
+    let without_prefix = p.with_prefix(VendorPrefix::empty());
+    if let Some(idx) = merged_values
+      .iter()
+      .position(|c| c.with_prefix(VendorPrefix::empty()) == without_prefix)
+    {
+      merged_values[idx].add_prefix(p.prefix());
+    } else {
+      merged_values.push(p.clone());
+    }
+  }
+
+  merged_values
 }
 
 fn expand_properties<'i>(

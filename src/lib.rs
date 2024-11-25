@@ -11302,6 +11302,77 @@ mod tests {
         ..Browsers::default()
       },
     );
+    prefix_test(
+      r#"
+       .foo {
+         transition-property: -webkit-backdrop-filter, backdrop-filter;
+       }
+       .bar {
+         transition-property: backdrop-filter;
+       }
+       .baz {
+         transition-property: -webkit-backdrop-filter;
+       }
+     "#,
+      indoc! {r#"
+       .foo, .bar {
+         transition-property: -webkit-backdrop-filter, backdrop-filter;
+       }
+
+       .baz {
+         transition-property: -webkit-backdrop-filter;
+       }
+     "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+       .foo {
+         transition-property: -webkit-border-radius, -webkit-border-radius, -moz-border-radius;
+       }
+     "#,
+      indoc! {r#"
+       .foo {
+         transition-property: -webkit-border-radius, -moz-border-radius;
+       }
+     "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+       .foo {
+         transition: -webkit-backdrop-filter, backdrop-filter;
+       }
+       .bar {
+         transition: backdrop-filter;
+       }
+       .baz {
+         transition: -webkit-backdrop-filter;
+       }
+     "#,
+      indoc! {r#"
+       .foo, .bar {
+         transition: -webkit-backdrop-filter, backdrop-filter;
+       }
+
+       .baz {
+         transition: -webkit-backdrop-filter;
+       }
+     "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
