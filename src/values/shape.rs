@@ -254,19 +254,23 @@ impl<'i> Parse<'i> for Point {
 
 impl<'i> Parse<'i> for Path {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    use oxvg_path::convert;
+
     let fill_rule = input.try_parse(FillRule::parse);
     if fill_rule.is_ok() {
       input.expect_comma()?;
     }
 
     let string = input.expect_string()?.to_string();
-    match oxvg_path::Path::parse(string) {
-      Ok(path) => Ok(Path {
-        fill_rule: fill_rule.unwrap_or_default(),
-        path,
-      }),
-      Err(_) => Err(input.new_custom_error(ParserError::InvalidValue)),
-    }
+    let Ok(path) = oxvg_path::Path::parse(string) else {
+      return Err(input.new_custom_error(ParserError::InvalidValue));
+    };
+    let path = convert::run(&path, &convert::Options::default(), &convert::StyleInfo::conservative());
+
+    Ok(Path {
+      fill_rule: fill_rule.unwrap_or_default(),
+      path,
+    })
   }
 }
 
