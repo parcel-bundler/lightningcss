@@ -121,9 +121,9 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitflags"
-version = "2.4.1"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
+checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
 name = "bitvec"
@@ -747,7 +747,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "atty",
- "bitflags 2.4.1",
+ "bitflags 2.6.0",
  "browserslist-rs",
  "clap",
  "const-str",
@@ -762,6 +762,7 @@ dependencies = [
  "jemallocator",
  "lazy_static",
  "lightningcss-derive",
+ "oxvg_path",
  "parcel_selectors",
  "parcel_sourcemap",
  "paste",
@@ -878,7 +879,7 @@ version = "2.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72e0dc78e0524286630914db66e31bad70160e379705a9ce92e0161ce2389d89"
 dependencies = [
- "bitflags 2.4.1",
+ "bitflags 2.6.0",
  "ctor",
  "napi-derive",
  "napi-sys",
@@ -975,10 +976,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f222829ae9293e33a9f5e9f440c6760a3d450a64affe1846486b140db81c1f4"
 
 [[package]]
+name = "oxvg_path"
+version = "0.0.1-beta.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00fb8e08be2a3fcb2ff98de9122a82295dd6ef2cc9596f3c14a8c7fcf3d5a5bc"
+dependencies = [
+ "bitflags 2.6.0",
+ "ryu",
+]
+
+[[package]]
 name = "parcel_selectors"
 version = "0.28.0"
 dependencies = [
- "bitflags 2.4.1",
+ "bitflags 2.6.0",
  "cssparser",
  "log",
  "phf",
@@ -1330,7 +1341,7 @@ version = "0.38.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b426b0506e5d50a7d8dafcf2e81471400deb602392c7dd110815afb4eaf02a3"
 dependencies = [
- "bitflags 2.4.1",
+ "bitflags 2.6.0",
  "errno",
  "libc",
  "linux-raw-sys",
@@ -1339,9 +1350,9 @@ dependencies = [
 
 [[package]]
 name = "ryu"
-version = "1.0.15"
+version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ad4cc8da4ef723ed60bced201181d83791ad433213d8c24efffda1eec85d741"
+checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 
 [[package]]
 name = "same-file"

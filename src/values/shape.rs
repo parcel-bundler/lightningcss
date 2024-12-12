@@ -1,5 +1,7 @@
 //! CSS shape values for masking and clipping.
 
+use std::fmt::Write;
+
 use super::length::LengthPercentage;
 use super::position::Position;
 use super::rect::Rect;
@@ -11,6 +13,7 @@ use crate::traits::{Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use oxvg_path;
 
 /// A CSS [`<basic-shape>`](https://www.w3.org/TR/css-shapes-1/#basic-shape-functions) value.
 #[derive(Debug, Clone, PartialEq)]
@@ -31,6 +34,8 @@ pub enum BasicShape {
   Ellipse(Ellipse),
   /// A polygon.
   Polygon(Polygon),
+  /// A path.
+  Path(Path),
 }
 
 /// An [`inset()`](https://www.w3.org/TR/css-shapes-1/#funcdef-inset) rectangle shape.
@@ -124,6 +129,15 @@ pub struct Point {
   y: LengthPercentage,
 }
 
+/// A path within a `path()` shape.
+///
+/// See [Path](oxvg_path::Path).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct Path(pub oxvg_path::Path);
+
 enum_property! {
   /// A [`<fill-rule>`](https://www.w3.org/TR/css-shapes-1/#typedef-fill-rule) used to
   /// determine the interior of a `polygon()` shape.
@@ -152,6 +166,7 @@ impl<'i> Parse<'i> for BasicShape {
       "circle" => Ok(BasicShape::Circle(input.parse_nested_block(Circle::parse)?)),
       "ellipse" => Ok(BasicShape::Ellipse(input.parse_nested_block(Ellipse::parse)?)),
       "polygon" => Ok(BasicShape::Polygon(input.parse_nested_block(Polygon::parse)?)),
+      "path" => Ok(BasicShape::Path(input.parse_nested_block(Path::parse)?)),
       _ => Err(location.new_unexpected_token_error(Token::Ident(f.clone()))),
     }
   }
@@ -233,6 +248,16 @@ impl<'i> Parse<'i> for Point {
   }
 }
 
+impl<'i> Parse<'i> for Path {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let string = input.expect_string()?.to_string();
+    match oxvg_path::Path::parse(string) {
+      Ok(path) => Ok(Path(path)),
+      Err(_) => Err(input.new_custom_error(ParserError::InvalidValue)),
+    }
+  }
+}
+
 impl ToCss for BasicShape {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
@@ -257,6 +282,11 @@ impl ToCss for BasicShape {
       BasicShape::Polygon(poly) => {
         dest.write_str("polygon(")?;
         poly.to_css(dest)?;
+        dest.write_char(')')
+      }
+      BasicShape::Path(path) => {
+        dest.write_str("path(")?;
+        path.to_css(dest)?;
         dest.write_char(')')
       }
     }
@@ -357,5 +387,14 @@ impl ToCss for Point {
     self.x.to_css(dest)?;
     dest.write_char(' ')?;
     self.y.to_css(dest)
+  }
+}
+
+impl ToCss for Path {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    Ok(write!(dest, "{}", self.0)?)
   }
 }
