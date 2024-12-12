@@ -135,7 +135,12 @@ pub struct Point {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-pub struct Path(pub oxvg_path::Path);
+pub struct Path {
+  /// The fill rule used to determine the interior of the polygon.
+  pub fill_rule: FillRule,
+  /// The path data of each command in the path
+  pub path: oxvg_path::Path,
+}
 
 enum_property! {
   /// A [`<fill-rule>`](https://www.w3.org/TR/css-shapes-1/#typedef-fill-rule) used to
@@ -249,9 +254,17 @@ impl<'i> Parse<'i> for Point {
 
 impl<'i> Parse<'i> for Path {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let fill_rule = input.try_parse(FillRule::parse);
+    if fill_rule.is_ok() {
+      input.expect_comma()?;
+    }
+
     let string = input.expect_string()?.to_string();
     match oxvg_path::Path::parse(string) {
-      Ok(path) => Ok(Path(path)),
+      Ok(path) => Ok(Path {
+        fill_rule: fill_rule.unwrap_or_default(),
+        path,
+      }),
       Err(_) => Err(input.new_custom_error(ParserError::InvalidValue)),
     }
   }
@@ -394,7 +407,15 @@ impl ToCss for Path {
   where
     W: std::fmt::Write,
   {
-    Ok(write!(dest, "{}", self.0)?)
+    if self.fill_rule != FillRule::default() {
+      self.fill_rule.to_css(dest)?;
+      dest.delim(',', false)?;
+    }
+
+    dest.write_char('"')?;
+    write!(dest, "{}", self.path)?;
+    dest.write_char('"')?;
+    Ok(())
   }
 }
 
