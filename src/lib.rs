@@ -25011,6 +25011,18 @@ mod tests {
       ".foo{clip-path:polygon(evenodd,50% 0%,100% 50%,50% 100%,0% 50%)}",
     );
     minify_test(
+      r#".foo { clip-path: path("M 0 0 L 0 10"); }"#,
+      r#".foo{clip-path:path("M0 0v10")}"#,
+    );
+    minify_test(
+      r#".foo { clip-path: path(nonzero, "M 0 0 L 10 20"); }"#,
+      r#".foo{clip-path:path("m0 0 10 20")}"#,
+    );
+    minify_test(
+      r#".foo { clip-path: path(evenodd, "M 0 0 L 10 20"); }"#,
+      r#".foo{clip-path:path(evenodd,"m0 0 10 20")}"#,
+    );
+    minify_test(
       ".foo { clip-path: padding-box circle(50px at 0 100px); }",
       ".foo{clip-path:circle(50px at 0 100px) padding-box}",
     );
