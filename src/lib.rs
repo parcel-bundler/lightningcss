@@ -8402,7 +8402,7 @@ mod tests {
         }
       "#,
       indoc! { r#"
-        @media (min-color: 3) {
+        @media not (max-color: 2) {
           .foo {
             color: #7fff00;
           }
@@ -8423,7 +8423,7 @@ mod tests {
         }
       "#,
       indoc! { r#"
-        @media (max-color: 1) {
+        @media not (min-color: 2) {
           .foo {
             color: #7fff00;
           }
@@ -8444,7 +8444,7 @@ mod tests {
         }
       "#,
       indoc! { r#"
-        @media (min-width: 240.001px) {
+        @media not (max-width: 240px) {
           .foo {
             color: #7fff00;
           }
@@ -8507,7 +8507,66 @@ mod tests {
         }
       "#,
       indoc! { r#"
-        @media (max-width: 239.999px) {
+        @media not (min-width: 240px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(60 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+        @media not (width < 240px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (min-width: 240px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(60 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    test(
+      r#"
+        @media not (width < 240px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (width >= 240px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+    );
+
+    prefix_test(
+      r#"
+        @media (width < 240px) and (hover) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (not (min-width: 240px)) and (hover) {
           .foo {
             color: #7fff00;
           }
@@ -8612,7 +8671,28 @@ mod tests {
         }
       "#,
       indoc! { r#"
-        @media (min-width: 100.001px) and (max-width: 199.999px) {
+        @media (not (max-width: 100px)) and (not (min-width: 200px)) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(85 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+        @media not (100px < width < 200px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media not ((not (max-width: 100px)) and (not (min-width: 200px))) {
           .foo {
             color: #7fff00;
           }
@@ -8663,7 +8743,7 @@ mod tests {
       }
       "#,
       indoc! { r#"
-        @media (min-width: calc(1.001px + 1rem)) {
+        @media not (max-width: calc(1px + 1rem)) {
           .foo {
             color: #ff0;
           }
@@ -8681,7 +8761,7 @@ mod tests {
       }
       "#,
       indoc! { r#"
-        @media (min-width: calc(max(10px, 1rem) + .001px)) {
+        @media not (max-width: max(10px, 1rem)) {
           .foo {
             color: #ff0;
           }
@@ -8699,7 +8779,7 @@ mod tests {
       }
       "#,
       indoc! { r#"
-        @media (min-width: .001px) {
+        @media not (max-width: 0) {
           .foo {
             color: #ff0;
           }
@@ -8753,7 +8833,7 @@ mod tests {
       }
       "#,
       indoc! { r#"
-        @media (-webkit-min-device-pixel-ratio: 2.001), (min-resolution: 2.001dppx) {
+        @media not (-webkit-max-device-pixel-ratio: 2), not (max-resolution: 2dppx) {
           .foo {
             color: #ff0;
           }
@@ -22509,7 +22589,7 @@ mod tests {
             grid-auto-flow: column;
           }
 
-          @media (min-width: 1024px) {
+          @media not (max-width: 1024px) {
             .foo {
               max-inline-size: 1024px;
             }
@@ -26336,7 +26416,7 @@ mod tests {
       }
       "#,
       indoc! {r#"
-      @media screen and ((prefers-color-scheme: dark) or (not (width >= 300px))) {
+      @media screen and ((prefers-color-scheme: dark) or ((width < 300px))) {
         .foo {
           order: 6;
         }

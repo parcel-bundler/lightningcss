@@ -765,6 +765,16 @@ where
   Ok(())
 }
 
+impl<'i> MediaCondition<'i> {
+  fn negate(&self) -> Option<MediaCondition<'i>> {
+    match self {
+      MediaCondition::Not(not) => Some((**not).clone()),
+      MediaCondition::Feature(f) => f.negate().map(MediaCondition::Feature),
+      _ => None,
+    }
+  }
+}
+
 impl<'i> ToCss for MediaCondition<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
@@ -773,8 +783,12 @@ impl<'i> ToCss for MediaCondition<'i> {
     match *self {
       MediaCondition::Feature(ref f) => f.to_css(dest),
       MediaCondition::Not(ref c) => {
-        dest.write_str("not ")?;
-        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))
+        if let Some(negated) = c.negate() {
+          negated.to_css(dest)
+        } else {
+          dest.write_str("not ")?;
+          to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))
+        }
       }
       MediaCondition::Operation {
         ref conditions,
@@ -841,6 +855,16 @@ impl MediaFeatureComparison {
       MediaFeatureComparison::Equal => MediaFeatureComparison::Equal,
     }
   }
+
+  fn negate(&self) -> MediaFeatureComparison {
+    match self {
+      MediaFeatureComparison::GreaterThan => MediaFeatureComparison::LessThanEqual,
+      MediaFeatureComparison::GreaterThanEqual => MediaFeatureComparison::LessThan,
+      MediaFeatureComparison::LessThan => MediaFeatureComparison::GreaterThanEqual,
+      MediaFeatureComparison::LessThanEqual => MediaFeatureComparison::GreaterThan,
+      MediaFeatureComparison::Equal => MediaFeatureComparison::Equal,
+    }
+  }
 }
 
 /// A generic media feature or container feature.
@@ -902,7 +926,7 @@ pub type MediaFeature<'i> = QueryFeature<'i, MediaFeatureId>;
 
 impl<'i, FeatureId> Parse<'i> for QueryFeature<'i, FeatureId>
 where
-  FeatureId: for<'x> Parse<'x> + std::fmt::Debug + PartialEq + ValueType,
+  FeatureId: for<'x> Parse<'x> + std::fmt::Debug + PartialEq + ValueType + Clone,
 {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Self::parse_name_first) {
@@ -920,7 +944,7 @@ where
 
 impl<'i, FeatureId> QueryFeature<'i, FeatureId>
 where
-  FeatureId: for<'x> Parse<'x> + std::fmt::Debug + PartialEq + ValueType,
+  FeatureId: for<'x> Parse<'x> + std::fmt::Debug + PartialEq + ValueType + Clone,
 {
   fn parse_name_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (name, legacy_op) = MediaFeatureName::parse(input)?;
@@ -1017,9 +1041,31 @@ where
   }
 
   pub(crate) fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool {
-    parent_operator != Some(Operator::And)
-      && matches!(self, QueryFeature::Interval { .. })
-      && should_compile!(targets, MediaIntervalSyntax)
+    if !should_compile!(targets, MediaIntervalSyntax) {
+      return false;
+    }
+
+    match self {
+      QueryFeature::Interval { .. } => parent_operator != Some(Operator::And),
+      QueryFeature::Range { operator, .. } => {
+        matches!(
+          operator,
+          MediaFeatureComparison::GreaterThan | MediaFeatureComparison::LessThan
+        )
+      }
+      _ => false,
+    }
+  }
+
+  fn negate(&self) -> Option<QueryFeature<'i, FeatureId>> {
+    match self {
+      QueryFeature::Range { name, operator, value } => Some(QueryFeature::Range {
+        name: (*name).clone(),
+        operator: operator.negate(),
+        value: value.clone(),
+      }),
+      _ => None,
+    }
   }
 }
 
@@ -1028,13 +1074,13 @@ impl<'i, FeatureId: FeatureToCss> ToCss for QueryFeature<'i, FeatureId> {
   where
     W: std::fmt::Write,
   {
-    dest.write_char('(')?;
-
     match self {
       QueryFeature::Boolean { name } => {
+        dest.write_char('(')?;
         name.to_css(dest)?;
       }
       QueryFeature::Plain { name, value } => {
+        dest.write_char('(')?;
         name.to_css(dest)?;
         dest.delim(':', false)?;
         value.to_css(dest)?;
@@ -1042,9 +1088,10 @@ impl<'i, FeatureId: FeatureToCss> ToCss for QueryFeature<'i, FeatureId> {
       QueryFeature::Range { name, operator, value } => {
         // If range syntax is unsupported, use min/max prefix if possible.
         if should_compile!(dest.targets, MediaRangeSyntax) {
-          return write_min_max(operator, name, value, dest);
+          return write_min_max(operator, name, value, dest, false);
         }
 
+        dest.write_char('(')?;
         name.to_css(dest)?;
         operator.to_css(dest)?;
         value.to_css(dest)?;
@@ -1057,11 +1104,12 @@ impl<'i, FeatureId: FeatureToCss> ToCss for QueryFeature<'i, FeatureId> {
         end_operator,
       } => {
         if should_compile!(dest.targets, MediaIntervalSyntax) {
-          write_min_max(&start_operator.opposite(), name, start, dest)?;
-          dest.write_str(" and (")?;
-          return write_min_max(end_operator, name, end, dest);
+          write_min_max(&start_operator.opposite(), name, start, dest, true)?;
+          dest.write_str(" and ")?;
+          return write_min_max(end_operator, name, end, dest, true);
         }
 
+        dest.write_char('(')?;
         start.to_css(dest)?;
         start_operator.to_css(dest)?;
         name.to_css(dest)?;
@@ -1378,16 +1426,32 @@ fn write_min_max<W, FeatureId: FeatureToCss>(
   name: &MediaFeatureName<FeatureId>,
   value: &MediaFeatureValue,
   dest: &mut Printer<W>,
+  is_range: bool,
 ) -> Result<(), PrinterError>
 where
   W: std::fmt::Write,
 {
   let prefix = match operator {
-    MediaFeatureComparison::GreaterThan | MediaFeatureComparison::GreaterThanEqual => Some("min-"),
-    MediaFeatureComparison::LessThan | MediaFeatureComparison::LessThanEqual => Some("max-"),
+    MediaFeatureComparison::GreaterThan => {
+      if is_range {
+        dest.write_char('(')?;
+      }
+      dest.write_str("not ")?;
+      Some("max-")
+    }
+    MediaFeatureComparison::GreaterThanEqual => Some("min-"),
+    MediaFeatureComparison::LessThan => {
+      if is_range {
+        dest.write_char('(')?;
+      }
+      dest.write_str("not ")?;
+      Some("min-")
+    }
+    MediaFeatureComparison::LessThanEqual => Some("max-"),
     MediaFeatureComparison::Equal => None,
   };
 
+  dest.write_char('(')?;
   if let Some(prefix) = prefix {
     name.to_css_with_prefix(prefix, dest)?;
   } else {
@@ -1395,17 +1459,15 @@ where
   }
 
   dest.delim(':', false)?;
+  value.to_css(dest)?;
 
-  let adjusted = match operator {
-    MediaFeatureComparison::GreaterThan => Some(value.clone() + 0.001),
-    MediaFeatureComparison::LessThan => Some(value.clone() + -0.001),
-    _ => None,
-  };
-
-  if let Some(value) = adjusted {
-    value.to_css(dest)?;
-  } else {
-    value.to_css(dest)?;
+  if is_range
+    && matches!(
+      operator,
+      MediaFeatureComparison::GreaterThan | MediaFeatureComparison::LessThan
+    )
+  {
+    dest.write_char(')')?;
   }
 
   dest.write_char(')')?;
@@ -1556,25 +1618,6 @@ impl<'i> ToCss for MediaFeatureValue<'i> {
         Ok(())
       }
       MediaFeatureValue::Env(env) => env.to_css(dest, false),
-    }
-  }
-}
-
-impl<'i> std::ops::Add<f32> for MediaFeatureValue<'i> {
-  type Output = Self;
-
-  fn add(self, other: f32) -> Self {
-    match self {
-      MediaFeatureValue::Length(len) => MediaFeatureValue::Length(len + Length::px(other)),
-      MediaFeatureValue::Number(num) => MediaFeatureValue::Number(num + other),
-      MediaFeatureValue::Integer(num) => {
-        MediaFeatureValue::Integer(num + if other.is_sign_positive() { 1 } else { -1 })
-      }
-      MediaFeatureValue::Boolean(v) => MediaFeatureValue::Boolean(v),
-      MediaFeatureValue::Resolution(res) => MediaFeatureValue::Resolution(res + other),
-      MediaFeatureValue::Ratio(ratio) => MediaFeatureValue::Ratio(ratio + other),
-      MediaFeatureValue::Ident(id) => MediaFeatureValue::Ident(id),
-      MediaFeatureValue::Env(env) => MediaFeatureValue::Env(env), // TODO: calc support
     }
   }
 }
@@ -1817,7 +1860,7 @@ mod tests {
     };
     assert_eq!(
       media_query.to_css_string(printer_options).unwrap(),
-      "screen and not ((min-width: 200px) and (max-width: 499.999px))"
+      "screen and not ((min-width: 200px) and (not (min-width: 500px)))"
     );
   }
 }
