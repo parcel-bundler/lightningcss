@@ -254,7 +254,7 @@ for (let feature of cssFeatures) {
 addValue(compat, {}, 'custom-media-queries');
 
 let mdnFeatures = {
-  doublePositionGradients: mdn.css.types.image.gradient['radial-gradient'].doubleposition.__compat.support,
+  doublePositionGradients: mdn.css.types.gradient['radial-gradient'].doubleposition.__compat.support,
   clampFunction: mdn.css.types.clamp.__compat.support,
   placeSelf: mdn.css.properties['place-self'].__compat.support,
   placeContent: mdn.css.properties['place-content'].__compat.support,
@@ -320,7 +320,7 @@ let mdnFeatures = {
   absFunction: mdn.css.types.abs.__compat.support,
   signFunction: mdn.css.types.sign.__compat.support,
   hypotFunction: mdn.css.types.hypot.__compat.support,
-  gradientInterpolationHints: mdn.css.types.image.gradient['linear-gradient'].interpolation_hints.__compat.support,
+  gradientInterpolationHints: mdn.css.types.gradient['linear-gradient'].interpolation_hints.__compat.support,
   borderImageRepeatRound: mdn.css.properties['border-image-repeat'].round.__compat.support,
   borderImageRepeatSpace: mdn.css.properties['border-image-repeat'].space.__compat.support,
   fontSizeRem: mdn.css.properties['font-size'].rem_values.__compat.support,
@@ -345,13 +345,13 @@ for (let key in mdn.css.types.length) {
   mdnFeatures[feat] = mdn.css.types.length[key].__compat.support;
 }
 
-for (let key in mdn.css.types.image.gradient) {
+for (let key in mdn.css.types.gradient) {
   if (key === '__compat') {
     continue;
   }
 
   let feat = key.replace(/-([a-z])/g, (_, l) => l.toUpperCase());
-  mdnFeatures[feat] = mdn.css.types.image.gradient[key].__compat.support;
+  mdnFeatures[feat] = mdn.css.types.gradient[key].__compat.support;
 }
 
 const nonStandardListStyleType = new Set([

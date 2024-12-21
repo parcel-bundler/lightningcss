@@ -562,7 +562,7 @@ impl Feature {
       }
       Feature::Element => {
         if let Some(version) = browsers.firefox {
-          if version >= 131072 {
+          if version >= 131072 && version <= 8847360 {
             prefixes |= VendorPrefix::Moz;
           }
         }
@@ -1225,7 +1225,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1703936 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1274,7 +1274,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 196608 {
+          if version >= 196608 && version <= 8847360 {
             prefixes |= VendorPrefix::Moz;
           }
         }
@@ -1304,7 +1304,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 327680 {
+          if version >= 327680 && version <= 1703936 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1549,7 +1549,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1703936 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1951,7 +1951,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1703936 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -2191,7 +2191,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1703936 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
