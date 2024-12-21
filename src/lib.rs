@@ -16380,7 +16380,7 @@ mod tests {
     );
     minify_test(
       ".foo { list-style: \"★\" url(ellipse.png) outside; }",
-      ".foo{list-style:\"★\" url(ellipse.png)}",
+      ".foo{list-style:url(ellipse.png) \"★\"}",
     );
 
     test(
@@ -16421,7 +16421,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        list-style: \"★\" url("ellipse.png");
+        list-style: url("ellipse.png") \"★\";
         list-style-image: var(--img);
       }
     "#},
@@ -16447,8 +16447,8 @@ mod tests {
       ".foo { list-style: \"★\" linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style: "★" linear-gradient(#ff0f0e, #7773ff);
-          list-style: "★" linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+          list-style: linear-gradient(#ff0f0e, #7773ff) "★";
+          list-style: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) "★";
         }
       "#},
       Browsers {
@@ -16474,6 +16474,33 @@ mod tests {
         chrome: Some(90 << 16),
         ..Browsers::default()
       },
+    );
+
+    test(
+      r#"
+      .foo {
+        list-style: inside;
+        list-style-type: disc;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        list-style: inside;
+      }
+    "#},
+    );
+    test(
+      r#"
+      .foo {
+        list-style: inside;
+        list-style-type: decimal;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        list-style: inside decimal;
+      }
+    "#},
     );
   }
 

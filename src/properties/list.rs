@@ -332,13 +332,13 @@ enum_property! {
 shorthand_property! {
   /// A value for the [list-style](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-property) shorthand property.
   pub struct ListStyle<'i> {
-    /// The list style type.
-    #[cfg_attr(feature = "serde", serde(borrow))]
-    list_style_type: ListStyleType(ListStyleType<'i>),
-    /// The list marker image.
-    image: ListStyleImage(Image<'i>),
     /// The position of the list marker.
     position: ListStylePosition(ListStylePosition),
+    /// The list marker image.
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    image: ListStyleImage(Image<'i>),
+    /// The list style type.
+    list_style_type: ListStyleType(ListStyleType<'i>),
   }
 }
 
