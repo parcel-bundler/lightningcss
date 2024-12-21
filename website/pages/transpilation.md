@@ -108,13 +108,14 @@ Here is a full list of available flags, described in the sections below:
 * `P3Colors`
 * `HexAlphaColors`
 * `SpaceSeparatedColorNotation`
+* `LightDark`
 * `FontFamilySystemUi`
 * `DoublePositionGradients`
 * `VendorPrefixes`
 * `LogicalProperties`
 * `Selectors` – shorthand for `Nesting | NotSelectorList | DirSelector | LangSelectorList | IsSelector`
 * `MediaQueries` – shorthand for `MediaIntervalSyntax | MediaRangeSyntax | CustomMediaQueries`
-* `Colors` – shorthand for `ColorFunction | OklabColors | LabColors | P3Colors | HexAlphaColors | SpaceSeparatedColorNotation`
+* `Colors` – shorthand for `ColorFunction | OklabColors | LabColors | P3Colors | HexAlphaColors | SpaceSeparatedColorNotation | LightDark`
 
 </div>
 

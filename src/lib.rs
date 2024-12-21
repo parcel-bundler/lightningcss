@@ -28323,6 +28323,29 @@ mod tests {
         ..Browsers::default()
       },
     );
+    nesting_test_with_targets(
+      r#"
+        .foo { color-scheme: light; }
+        .bar { color: light-dark(red, green); }
+      "#,
+      indoc! {r#"
+        .foo {
+          color-scheme: light;
+        }
+
+        .bar {
+          color: light-dark(red, green);
+        }
+      "#},
+      Targets {
+        browsers: Some(Browsers {
+          safari: Some(13 << 16),
+          ..Browsers::default()
+        }),
+        include: Features::empty(),
+        exclude: Features::LightDark,
+      },
+    );
   }
 
   #[test]

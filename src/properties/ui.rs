@@ -1,13 +1,12 @@
 //! CSS properties related to user interface.
 
-use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_shorthand, enum_property, shorthand_property};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
-use crate::targets::{Browsers, Targets};
+use crate::targets::{should_compile, Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::CssColor;
 use crate::values::number::CSSNumber;
@@ -548,7 +547,7 @@ impl<'i> PropertyHandler<'i> for ColorSchemeHandler {
   ) -> bool {
     match property {
       Property::ColorScheme(color_scheme) => {
-        if !context.targets.is_compatible(Feature::LightDark) {
+        if should_compile!(context.targets, LightDark) {
           if color_scheme.contains(ColorScheme::Light) {
             dest.push(define_var("--lightningcss-light", Token::Ident("initial".into())));
             dest.push(define_var("--lightningcss-dark", Token::WhiteSpace(" ".into())));

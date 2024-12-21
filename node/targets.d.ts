@@ -33,7 +33,8 @@ export const Features: {
   DoublePositionGradients: 131072,
   VendorPrefixes: 262144,
   LogicalProperties: 524288,
+  LightDark: 1048576,
   Selectors: 31,
   MediaQueries: 448,
-  Colors: 64512,
+  Colors: 1113088,
 };

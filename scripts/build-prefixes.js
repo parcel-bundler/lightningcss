@@ -465,9 +465,10 @@ let flags = [
   'DoublePositionGradients',
   'VendorPrefixes',
   'LogicalProperties',
+  'LightDark',
   ['Selectors', ['Nesting', 'NotSelectorList', 'DirSelector', 'LangSelectorList', 'IsSelector']],
   ['MediaQueries', ['MediaIntervalSyntax', 'MediaRangeSyntax', 'CustomMediaQueries']],
-  ['Colors', ['ColorFunction', 'OklabColors', 'LabColors', 'P3Colors', 'HexAlphaColors', 'SpaceSeparatedColorNotation']],
+  ['Colors', ['ColorFunction', 'OklabColors', 'LabColors', 'P3Colors', 'HexAlphaColors', 'SpaceSeparatedColorNotation', 'LightDark']],
 ];
 
 let enumify = (f) => f.replace(/^@([a-z])/, (_, x) => 'At' + x.toUpperCase()).replace(/^::([a-z])/, (_, x) => 'PseudoElement' + x.toUpperCase()).replace(/^:([a-z])/, (_, x) => 'PseudoClass' + x.toUpperCase()).replace(/(^|-)([a-z])/g, (_, a, x) => x.toUpperCase())

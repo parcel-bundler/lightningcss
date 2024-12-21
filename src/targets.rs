@@ -158,9 +158,10 @@ bitflags! {
     const DoublePositionGradients = 1 << 17;
     const VendorPrefixes = 1 << 18;
     const LogicalProperties = 1 << 19;
+    const LightDark = 1 << 20;
     const Selectors = Self::Nesting.bits() | Self::NotSelectorList.bits() | Self::DirSelector.bits() | Self::LangSelectorList.bits() | Self::IsSelector.bits();
     const MediaQueries = Self::MediaIntervalSyntax.bits() | Self::MediaRangeSyntax.bits() | Self::CustomMediaQueries.bits();
-    const Colors = Self::ColorFunction.bits() | Self::OklabColors.bits() | Self::LabColors.bits() | Self::P3Colors.bits() | Self::HexAlphaColors.bits() | Self::SpaceSeparatedColorNotation.bits();
+    const Colors = Self::ColorFunction.bits() | Self::OklabColors.bits() | Self::LabColors.bits() | Self::P3Colors.bits() | Self::HexAlphaColors.bits() | Self::SpaceSeparatedColorNotation.bits() | Self::LightDark.bits();
   }
 }
 

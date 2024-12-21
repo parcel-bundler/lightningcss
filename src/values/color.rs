@@ -595,7 +595,7 @@ impl ToCss for CssColor {
         CssColor::from(srgb).to_css(dest)
       }
       CssColor::LightDark(light, dark) => {
-        if !dest.targets.is_compatible(Feature::LightDark) {
+        if should_compile!(dest.targets, LightDark) {
           dest.write_str("var(--lightningcss-light")?;
           dest.delim(',', false)?;
           light.to_css(dest)?;
