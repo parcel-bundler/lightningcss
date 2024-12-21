@@ -42,8 +42,8 @@
     "detect-libc": "^1.0.3"
   },
   "devDependencies": {
-    "@babel/parser": "^7.21.4",
-    "@babel/traverse": "^7.21.4",
+    "@babel/parser": "7.21.4",
+    "@babel/traverse": "7.21.4",
     "@codemirror/lang-css": "^6.0.1",
     "@codemirror/lang-javascript": "^6.1.2",
     "@codemirror/lint": "^6.1.0",
@@ -74,6 +74,7 @@
     "puppeteer": "^12.0.1",
     "recast": "^0.22.0",
     "sharp": "^0.33.5",
+    "typescript": "^5.7.2",
     "util": "^0.12.4",
     "uvu": "^0.5.6"
   },
