@@ -13,6 +13,8 @@ function composeVisitors(visitors) {
 
   /** @type Visitor */
   let res = {};
+  composeSimpleVisitors(res, visitors, 'StyleSheet');
+  composeSimpleVisitors(res, visitors, 'StyleSheetExit');
   composeObjectVisitors(res, visitors, 'Rule', ruleVisitor, wrapUnknownAtRule);
   composeObjectVisitors(res, visitors, 'RuleExit', ruleVisitor, wrapUnknownAtRule);
   composeObjectVisitors(res, visitors, 'Declaration', declarationVisitor, wrapCustomProperty);

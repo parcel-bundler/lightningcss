@@ -686,4 +686,37 @@ test('variables', () => {
   assert.equal(res.code.toString(), 'body{padding:20px;width:600px}');
 });
 
+test('StyleSheet', () => {
+  let styleSheetCalledCount = 0;
+  let styleSheetExitCalledCount = 0;
+  transform({
+    filename: 'test.css',
+    code: Buffer.from(`
+      body {
+        color: blue;
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        StyleSheet() {
+          styleSheetCalledCount++
+        },
+        StyleSheetExit() {
+          styleSheetExitCalledCount++
+        }
+      },
+      {
+        StyleSheet() {
+          styleSheetCalledCount++
+        },
+        StyleSheetExit() {
+          styleSheetExitCalledCount++
+        }
+      }
+    ])
+  });
+  assert.equal(styleSheetCalledCount, 2);
+  assert.equal(styleSheetExitCalledCount, 2);
+});
+
 test.run();
