@@ -2,8 +2,11 @@
 
 #![allow(missing_docs)]
 
+use std::borrow::Borrow;
+
 use crate::vendor_prefix::VendorPrefix;
 use bitflags::bitflags;
+use indexmap::IndexSet;
 #[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::{Deserialize, Serialize};
 
@@ -136,7 +139,7 @@ fn parse_version(version: &str) -> Option<u32> {
 
 bitflags! {
   /// Features to explicitly enable or disable.
-  #[derive(Debug, Default, Clone, Copy)]
+  #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq)]
   pub struct Features: u32 {
     const Nesting = 1 << 0;
     const NotSelectorList = 1 << 1;
@@ -164,6 +167,26 @@ bitflags! {
     const Colors = Self::ColorFunction.bits() | Self::OklabColors.bits() | Self::LabColors.bits() | Self::P3Colors.bits() | Self::HexAlphaColors.bits() | Self::SpaceSeparatedColorNotation.bits() | Self::LightDark.bits();
   }
 }
+
+pub(crate) trait FeaturesIterator: Sized + Iterator {
+  fn union_all<T>(self) -> Features
+  where
+    Self: Iterator<Item = T>,
+    T: Borrow<Features>,
+  {
+    self.fold(Features::empty(), |a, b| a | *b.borrow())
+  }
+
+  fn try_union_all<T>(&mut self) -> Option<Features>
+  where
+    Self: Iterator<Item = Option<T>>,
+    T: Borrow<Features>,
+  {
+    self.try_fold(Features::empty(), |a, b| b.map(|b| a | *b.borrow()))
+  }
+}
+
+impl<I> FeaturesIterator for I where I: Iterator {}
 
 /// Target browsers and features to compile.
 #[derive(Debug, Clone, Copy, Default)]
@@ -222,6 +245,43 @@ impl Targets {
     } else {
       prefix
     }
+  }
+}
+
+#[derive(Debug)]
+pub(crate) struct TargetsWithSupportsScope {
+  input_targets: Targets,
+  supports_scope_features: IndexSet<Features>,
+  pub(crate) current: Targets,
+}
+
+impl TargetsWithSupportsScope {
+  pub fn new(targets: Targets) -> Self {
+    Self {
+      input_targets: targets,
+      supports_scope_features: IndexSet::new(),
+      current: targets,
+    }
+  }
+
+  fn recalculate(&mut self) {
+    self.current.exclude = self.input_targets.exclude | self.supports_scope_features.iter().union_all();
+  }
+
+  /// Returns true if inserted
+  pub fn enter_supports(&mut self, supported_features: Features) -> bool {
+    if supported_features.is_empty() {
+      return false;
+    }
+    let inserted = self.supports_scope_features.insert(supported_features);
+    self.recalculate();
+    inserted
+  }
+
+  /// Should be only called if inserted
+  pub fn exit_supports(&mut self) {
+    self.supports_scope_features.pop();
+    self.recalculate();
   }
 }
 
