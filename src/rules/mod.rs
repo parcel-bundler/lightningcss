@@ -70,7 +70,7 @@ use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
 use crate::selector::{is_compatible, is_equivalent, Component, Selector, SelectorList};
 use crate::stylesheet::ParserOptions;
-use crate::targets::Targets;
+use crate::targets::TargetsWithSupportsScope;
 use crate::traits::{AtRuleParser, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
@@ -481,7 +481,7 @@ impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>> Visit<'i, T, V> for Css
 }
 
 pub(crate) struct MinifyContext<'a, 'i> {
-  pub targets: &'a Targets,
+  pub targets: TargetsWithSupportsScope,
   pub handler: &'a mut DeclarationHandler<'i>,
   pub important_handler: &'a mut DeclarationHandler<'i>,
   pub handler_context: PropertyHandlerContext<'i, 'a>,
@@ -516,7 +516,8 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
 
           macro_rules! set_prefix {
             ($keyframes: ident) => {
-              $keyframes.vendor_prefix = context.targets.prefixes($keyframes.vendor_prefix, Feature::AtKeyframes);
+              $keyframes.vendor_prefix =
+                context.targets.current.prefixes($keyframes.vendor_prefix, Feature::AtKeyframes);
             };
           }
 
@@ -540,7 +541,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           set_prefix!(keyframes);
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
 
-          let fallbacks = keyframes.get_fallbacks(context.targets);
+          let fallbacks = keyframes.get_fallbacks(&context.targets.current);
           rules.push(rule);
           rules.extend(fallbacks);
           continue;
@@ -628,14 +629,14 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           // If some of the selectors in this rule are not compatible with the targets,
           // we need to either wrap in :is() or split them into multiple rules.
           let incompatible = if style.selectors.0.len() > 1
-            && context.targets.should_compile_selectors()
-            && !style.is_compatible(*context.targets)
+            && context.targets.current.should_compile_selectors()
+            && !style.is_compatible(context.targets.current)
           {
             // The :is() selector accepts a forgiving selector list, so use that if possible.
             // Note that :is() does not allow pseudo elements, so we need to check for that.
             // In addition, :is() takes the highest specificity of its arguments, so if the selectors
             // have different weights, we need to split them into separate rules as well.
-            if context.targets.is_compatible(crate::compat::Feature::IsSelector)
+            if context.targets.current.is_compatible(crate::compat::Feature::IsSelector)
               && !style.selectors.0.iter().any(|selector| selector.has_pseudo_element())
               && style.selectors.0.iter().map(|selector| selector.specificity()).all_equal()
             {
@@ -654,7 +655,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
                 .cloned()
                 .partition::<SmallVec<[Selector; 1]>, _>(|selector| {
                   let list = SelectorList::new(smallvec![selector.clone()]);
-                  is_compatible(&list.0, *context.targets)
+                  is_compatible(&list.0, context.targets.current)
                 });
               style.selectors = SelectorList::new(compatible);
               incompatible
@@ -808,7 +809,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
 
           f.minify(context, parent_is_unused);
 
-          let fallbacks = f.get_fallbacks(*context.targets);
+          let fallbacks = f.get_fallbacks(context.targets.current);
           rules.push(rule);
           rules.extend(fallbacks);
           continue;
@@ -899,8 +900,8 @@ fn merge_style_rules<'i, T>(
 ) -> bool {
   // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
   if style.selectors == last_style_rule.selectors
-    && style.is_compatible(*context.targets)
-    && last_style_rule.is_compatible(*context.targets)
+    && style.is_compatible(context.targets.current)
+    && last_style_rule.is_compatible(context.targets.current)
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
     && (!context.css_modules || style.loc.source_index == last_style_rule.loc.source_index)
@@ -929,7 +930,7 @@ fn merge_style_rules<'i, T>(
     {
       // If the new rule is unprefixed, replace the prefixes of the last rule.
       // Otherwise, add the new prefix.
-      if style.vendor_prefix.contains(VendorPrefix::None) && context.targets.should_compile_selectors() {
+      if style.vendor_prefix.contains(VendorPrefix::None) && context.targets.current.should_compile_selectors() {
         last_style_rule.vendor_prefix = style.vendor_prefix;
       } else {
         last_style_rule.vendor_prefix |= style.vendor_prefix;
@@ -938,9 +939,9 @@ fn merge_style_rules<'i, T>(
     }
 
     // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
-    if style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) {
+    if style.is_compatible(context.targets.current) && last_style_rule.is_compatible(context.targets.current) {
       last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
-      if style.vendor_prefix.contains(VendorPrefix::None) && context.targets.should_compile_selectors() {
+      if style.vendor_prefix.contains(VendorPrefix::None) && context.targets.current.should_compile_selectors() {
         last_style_rule.vendor_prefix = style.vendor_prefix;
       } else {
         last_style_rule.vendor_prefix |= style.vendor_prefix;
