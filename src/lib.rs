@@ -182,6 +182,7 @@ mod tests {
     expected_exports: CssModuleExports,
     expected_references: CssModuleReferences,
     config: crate::css_modules::Config<'i>,
+    minify: bool,
   ) {
     let mut stylesheet = StyleSheet::parse(
       &source,
@@ -193,7 +194,12 @@ mod tests {
     )
     .unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    let res = stylesheet
+      .to_css(PrinterOptions {
+        minify,
+        ..Default::default()
+      })
+      .unwrap();
     assert_eq!(res.code, expected);
     assert_eq!(res.exports.unwrap(), expected_exports);
     assert_eq!(res.references.unwrap(), expected_references);
@@ -6856,6 +6862,19 @@ mod tests {
       ":root::view-transition {position: fixed}",
       ":root::view-transition{position:fixed}",
     );
+    minify_test(
+      ":root:active-view-transition {position: fixed}",
+      ":root:active-view-transition{position:fixed}",
+    );
+    minify_test(
+      ":root:active-view-transition-type(slide-in) {position: fixed}",
+      ":root:active-view-transition-type(slide-in){position:fixed}",
+    );
+    minify_test(
+      ":root:active-view-transition-type(slide-in, reverse) {position: fixed}",
+      ":root:active-view-transition-type(slide-in,reverse){position:fixed}",
+    );
+
     for name in &[
       "view-transition-group",
       "view-transition-image-pair",
@@ -6867,12 +6886,40 @@ mod tests {
         &format!(":root::{}(*){{position:fixed}}", name),
       );
       minify_test(
+        &format!(":root::{}(*.class) {{position: fixed}}", name),
+        &format!(":root::{}(*.class){{position:fixed}}", name),
+      );
+      minify_test(
+        &format!(":root::{}(*.class.class) {{position: fixed}}", name),
+        &format!(":root::{}(*.class.class){{position:fixed}}", name),
+      );
+      minify_test(
         &format!(":root::{}(foo) {{position: fixed}}", name),
         &format!(":root::{}(foo){{position:fixed}}", name),
       );
       minify_test(
+        &format!(":root::{}(foo.class) {{position: fixed}}", name),
+        &format!(":root::{}(foo.class){{position:fixed}}", name),
+      );
+      minify_test(
+        &format!(":root::{}(foo.bar.baz) {{position: fixed}}", name),
+        &format!(":root::{}(foo.bar.baz){{position:fixed}}", name),
+      );
+      minify_test(
         &format!(":root::{}(foo):only-child {{position: fixed}}", name),
         &format!(":root::{}(foo):only-child{{position:fixed}}", name),
+      );
+      minify_test(
+        &format!(":root::{}(foo.bar.baz):only-child {{position: fixed}}", name),
+        &format!(":root::{}(foo.bar.baz):only-child{{position:fixed}}", name),
+      );
+      minify_test(
+        &format!(":root::{}(.foo) {{position: fixed}}", name),
+        &format!(":root::{}(.foo){{position:fixed}}", name),
+      );
+      minify_test(
+        &format!(":root::{}(.foo.bar) {{position: fixed}}", name),
+        &format!(":root::{}(.foo.bar){{position:fixed}}", name),
       );
       error_test(
         &format!(":root::{}(foo):first-child {{position: fixed}}", name),
@@ -6880,6 +6927,30 @@ mod tests {
       );
       error_test(
         &format!(":root::{}(foo)::before {{position: fixed}}", name),
+        ParserError::SelectorError(SelectorError::InvalidState),
+      );
+      error_test(
+        &format!(":root::{}(*.*) {{position: fixed}}", name),
+        ParserError::SelectorError(SelectorError::InvalidState),
+      );
+      error_test(
+        &format!(":root::{}(*. cls) {{position: fixed}}", name),
+        ParserError::SelectorError(SelectorError::InvalidState),
+      );
+      error_test(
+        &format!(":root::{}(foo .bar) {{position: fixed}}", name),
+        ParserError::SelectorError(SelectorError::InvalidState),
+      );
+      error_test(
+        &format!(":root::{}(*.cls. c) {{position: fixed}}", name),
+        ParserError::SelectorError(SelectorError::InvalidState),
+      );
+      error_test(
+        &format!(":root::{}(*.cls>cls) {{position: fixed}}", name),
+        ParserError::SelectorError(SelectorError::InvalidState),
+      );
+      error_test(
+        &format!(":root::{}(*.cls.foo.*) {{position: fixed}}", name),
         ParserError::SelectorError(SelectorError::InvalidState),
       );
     }
@@ -23860,6 +23931,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -23906,6 +23978,7 @@ mod tests {
         // custom_idents: false,
         ..Default::default()
       },
+      false,
     );
 
     css_modules_test(
@@ -23951,6 +24024,7 @@ mod tests {
         custom_idents: false,
         ..Default::default()
       },
+      false,
     );
 
     #[cfg(feature = "grid")]
@@ -23995,6 +24069,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     #[cfg(feature = "grid")]
@@ -24033,6 +24108,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     #[cfg(feature = "grid")]
@@ -24073,6 +24149,7 @@ mod tests {
         grid: false,
         ..Default::default()
       },
+      false,
     );
 
     css_modules_test(
@@ -24089,6 +24166,7 @@ mod tests {
       map! {},
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -24123,6 +24201,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     // :global(:local(.hi)) {
@@ -24155,6 +24234,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -24184,6 +24264,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -24221,6 +24302,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -24240,6 +24322,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -24259,6 +24342,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -24278,6 +24362,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -24297,6 +24382,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -24327,6 +24413,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -24348,6 +24435,7 @@ mod tests {
         pattern: crate::css_modules::Pattern::parse("test-[hash]-[local]").unwrap(),
         ..Default::default()
       },
+      false,
     );
 
     let stylesheet = StyleSheet::parse(
@@ -24409,6 +24497,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
 
     css_modules_test(
@@ -24478,6 +24567,7 @@ mod tests {
         dashed_idents: true,
         ..Default::default()
       },
+      false,
     );
 
     css_modules_test(
@@ -24497,6 +24587,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
     css_modules_test(
       r#"
@@ -24514,6 +24605,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
     css_modules_test(
       r#"
@@ -24531,6 +24623,7 @@ mod tests {
       },
       HashMap::new(),
       Default::default(),
+      false,
     );
     css_modules_test(
       r#"
@@ -24551,6 +24644,7 @@ mod tests {
         animation: false,
         ..Default::default()
       },
+      false,
     );
     css_modules_test(
       r#"
@@ -24569,6 +24663,7 @@ mod tests {
       },
       HashMap::new(),
       crate::css_modules::Config { ..Default::default() },
+      false,
     );
 
     css_modules_test(
@@ -24591,6 +24686,7 @@ mod tests {
         pattern: crate::css_modules::Pattern::parse("[content-hash]-[local]").unwrap(),
         ..Default::default()
       },
+      false,
     );
 
     css_modules_test(
@@ -24616,6 +24712,7 @@ mod tests {
       },
       HashMap::new(),
       crate::css_modules::Config { ..Default::default() },
+      false,
     );
 
     css_modules_test(
@@ -24643,7 +24740,141 @@ mod tests {
         container: false,
         ..Default::default()
       },
+      false,
     );
+
+    css_modules_test(
+      ".foo { view-transition-name: bar }",
+      ".EgL3uq_foo{view-transition-name:EgL3uq_bar}",
+      map! {
+        "foo" => "EgL3uq_foo",
+        "bar" => "EgL3uq_bar"
+      },
+      HashMap::new(),
+      Default::default(),
+      true,
+    );
+    css_modules_test(
+      ".foo { view-transition-name: none }",
+      ".EgL3uq_foo{view-transition-name:none}",
+      map! {
+        "foo" => "EgL3uq_foo"
+      },
+      HashMap::new(),
+      Default::default(),
+      true,
+    );
+    css_modules_test(
+      ".foo { view-transition-name: auto }",
+      ".EgL3uq_foo{view-transition-name:auto}",
+      map! {
+        "foo" => "EgL3uq_foo"
+      },
+      HashMap::new(),
+      Default::default(),
+      true,
+    );
+
+    css_modules_test(
+      ".foo { view-transition-class: bar baz qux }",
+      ".EgL3uq_foo{view-transition-class:EgL3uq_bar EgL3uq_baz EgL3uq_qux}",
+      map! {
+        "foo" => "EgL3uq_foo",
+        "bar" => "EgL3uq_bar",
+        "baz" => "EgL3uq_baz",
+        "qux" => "EgL3uq_qux"
+      },
+      HashMap::new(),
+      Default::default(),
+      true,
+    );
+
+    css_modules_test(
+      ".foo { view-transition-group: contain }",
+      ".EgL3uq_foo{view-transition-group:contain}",
+      map! {
+        "foo" => "EgL3uq_foo"
+      },
+      HashMap::new(),
+      Default::default(),
+      true,
+    );
+    css_modules_test(
+      ".foo { view-transition-group: bar }",
+      ".EgL3uq_foo{view-transition-group:EgL3uq_bar}",
+      map! {
+        "foo" => "EgL3uq_foo",
+        "bar" => "EgL3uq_bar"
+      },
+      HashMap::new(),
+      Default::default(),
+      true,
+    );
+
+    css_modules_test(
+      "@view-transition { types: foo bar baz }",
+      "@view-transition{types:EgL3uq_foo EgL3uq_bar EgL3uq_baz}",
+      map! {
+        "foo" => "EgL3uq_foo",
+        "bar" => "EgL3uq_bar",
+        "baz" => "EgL3uq_baz"
+      },
+      HashMap::new(),
+      Default::default(),
+      true,
+    );
+
+    css_modules_test(
+      ":root:active-view-transition-type(foo, bar) { color: red }",
+      ":root:active-view-transition-type(EgL3uq_foo,EgL3uq_bar){color:red}",
+      map! {
+        "foo" => "EgL3uq_foo",
+        "bar" => "EgL3uq_bar"
+      },
+      HashMap::new(),
+      Default::default(),
+      true,
+    );
+
+    for name in &[
+      "view-transition-group",
+      "view-transition-image-pair",
+      "view-transition-new",
+      "view-transition-old",
+    ] {
+      css_modules_test(
+        &format!(":root::{}(foo) {{position: fixed}}", name),
+        &format!(":root::{}(EgL3uq_foo){{position:fixed}}", name),
+        map! {
+          "foo" => "EgL3uq_foo"
+        },
+        HashMap::new(),
+        Default::default(),
+        true,
+      );
+      css_modules_test(
+        &format!(":root::{}(.bar) {{position: fixed}}", name),
+        &format!(":root::{}(.EgL3uq_bar){{position:fixed}}", name),
+        map! {
+          "bar" => "EgL3uq_bar"
+        },
+        HashMap::new(),
+        Default::default(),
+        true,
+      );
+      css_modules_test(
+        &format!(":root::{}(foo.bar.baz) {{position: fixed}}", name),
+        &format!(":root::{}(EgL3uq_foo.EgL3uq_bar.EgL3uq_baz){{position:fixed}}", name),
+        map! {
+          "foo" => "EgL3uq_foo",
+          "bar" => "EgL3uq_bar",
+          "baz" => "EgL3uq_baz"
+        },
+        HashMap::new(),
+        Default::default(),
+        true,
+      );
+    }
 
     // Stable hashes between project roots.
     fn test_project_root(project_root: &str, filename: &str, hash: &str) {
@@ -28143,6 +28374,7 @@ mod tests {
         dashed_idents: true,
         ..Default::default()
       },
+      false,
     );
   }
 
@@ -28488,6 +28720,26 @@ mod tests {
     minify_test(
       ".foo {--bar:currentcolor; --foo:1.1em; all:unset}",
       ".foo{--bar:currentcolor;--foo:1.1em;all:unset}",
+    );
+  }
+
+  #[test]
+  fn test_view_transition() {
+    minify_test(
+      "@view-transition { navigation: auto }",
+      "@view-transition{navigation:auto}",
+    );
+    minify_test(
+      "@view-transition { navigation: auto; types: none; }",
+      "@view-transition{navigation:auto;types:none}",
+    );
+    minify_test(
+      "@view-transition { navigation: auto; types: foo bar; }",
+      "@view-transition{navigation:auto;types:foo bar}",
+    );
+    minify_test(
+      "@layer { @view-transition { navigation: auto; types: foo bar; } }",
+      "@layer{@view-transition{navigation:auto;types:foo bar}}",
     );
   }
 }

@@ -55,6 +55,7 @@ pub mod starting_style;
 pub mod style;
 pub mod supports;
 pub mod unknown;
+pub mod view_transition;
 pub mod viewport;
 
 use self::font_palette_values::FontPaletteValuesRule;
@@ -97,6 +98,7 @@ use std::hash::{BuildHasherDefault, Hasher};
 use style::StyleRule;
 use supports::SupportsRule;
 use unknown::UnknownAtRule;
+use view_transition::ViewTransitionRule;
 use viewport::ViewportRule;
 
 #[derive(Clone)]
@@ -174,6 +176,8 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   Scope(ScopeRule<'i, R>),
   /// A `@starting-style` rule.
   StartingStyle(StartingStyleRule<'i, R>),
+  /// A `@view-transition` rule.
+  ViewTransition(ViewTransitionRule<'i>),
   /// A placeholder for a rule that was removed.
   Ignored,
   /// An unknown at-rule.
@@ -318,6 +322,10 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         let rule = StartingStyleRule::deserialize(deserializer)?;
         Ok(CssRule::StartingStyle(rule))
       }
+      "view-transition" => {
+        let rule = ViewTransitionRule::deserialize(deserializer)?;
+        Ok(CssRule::ViewTransition(rule))
+      }
       "ignored" => Ok(CssRule::Ignored),
       "unknown" => {
         let rule = UnknownAtRule::deserialize(deserializer)?;
@@ -358,6 +366,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
       CssRule::StartingStyle(rule) => rule.to_css(dest),
       CssRule::Container(container) => container.to_css(dest),
       CssRule::Scope(scope) => scope.to_css(dest),
+      CssRule::ViewTransition(rule) => rule.to_css(dest),
       CssRule::Unknown(unknown) => unknown.to_css(dest),
       CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError {
         kind: PrinterErrorKind::FmtError,

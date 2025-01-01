@@ -212,6 +212,7 @@ pub enum Feature {
   VbUnit,
   VhUnit,
   ViUnit,
+  ViewTransition,
   ViewportPercentageUnitsDynamic,
   ViewportPercentageUnitsLarge,
   ViewportPercentageUnitsSmall,
@@ -3461,6 +3462,46 @@ impl Feature {
           || browsers.ios_saf.is_some()
           || browsers.safari.is_some()
         {
+          return false;
+        }
+      }
+      Feature::ViewTransition => {
+        if let Some(version) = browsers.chrome {
+          if version < 7143424 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 7143424 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4849664 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 1376256 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 7143424 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some() || browsers.ie.is_some() {
           return false;
         }
       }
