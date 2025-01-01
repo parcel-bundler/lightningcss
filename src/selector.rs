@@ -1622,6 +1622,14 @@ where
       selector.to_css(dest)?;
       dest.write_char(')')
     }
+    Component::NthOf(ref nth_of_data) => {
+      let nth_data = nth_of_data.nth_data();
+      nth_data.write_start(dest, true)?;
+      nth_data.write_affine(dest)?;
+      dest.write_str(" of ")?;
+      serialize_selector_list(nth_of_data.selectors().iter(), dest, context, true)?;
+      dest.write_char(')')
+    }
     _ => {
       cssparser::ToCss::to_css(component, dest)?;
       Ok(())
