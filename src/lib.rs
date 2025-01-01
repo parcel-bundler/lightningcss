@@ -24993,6 +24993,27 @@ mod tests {
         Default::default(),
         true,
       );
+
+      css_modules_test(
+        ":nth-child(1 of .foo) {width: 20px}",
+        ":nth-child(1 of .EgL3uq_foo){width:20px}",
+        map! {
+          "foo" => "EgL3uq_foo"
+        },
+        HashMap::new(),
+        Default::default(),
+        true,
+      );
+      css_modules_test(
+        ":nth-last-child(1 of .foo) {width: 20px}",
+        ":nth-last-child(1 of .EgL3uq_foo){width:20px}",
+        map! {
+          "foo" => "EgL3uq_foo"
+        },
+        HashMap::new(),
+        Default::default(),
+        true,
+      );
     }
 
     // Stable hashes between project roots.

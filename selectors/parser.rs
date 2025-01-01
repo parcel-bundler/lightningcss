@@ -1302,7 +1302,7 @@ impl NthSelectorData {
 
   /// Writes the beginning of the selector.
   #[inline]
-  fn write_start<W: fmt::Write>(&self, dest: &mut W, is_function: bool) -> fmt::Result {
+  pub fn write_start<W: fmt::Write>(&self, dest: &mut W, is_function: bool) -> fmt::Result {
     dest.write_str(match self.ty {
       NthType::Child if is_function => ":nth-child(",
       NthType::Child => ":first-child",
@@ -1322,7 +1322,7 @@ impl NthSelectorData {
   /// Serialize <an+b> (part of the CSS Syntax spec, but currently only used here).
   /// <https://drafts.csswg.org/css-syntax-3/#serialize-an-anb-value>
   #[inline]
-  fn write_affine<W: fmt::Write>(&self, dest: &mut W) -> fmt::Result {
+  pub fn write_affine<W: fmt::Write>(&self, dest: &mut W) -> fmt::Result {
     match (self.a, self.b) {
       (0, 0) => dest.write_char('0'),
 
