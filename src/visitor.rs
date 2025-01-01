@@ -82,6 +82,7 @@ use crate::{
   },
 };
 use bitflags::bitflags;
+use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 pub(crate) use lightningcss_derive::Visit;
@@ -386,6 +387,23 @@ impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T: Visit<'i, T, V>, V
 
   fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
     self.iter_mut().try_for_each(|v| v.visit_children(visitor))
+  }
+}
+
+impl<'i, T, V, U, W> Visit<'i, T, V> for IndexMap<U, W>
+where
+  T: Visit<'i, T, V>,
+  V: ?Sized + Visitor<'i, T>,
+  W: Visit<'i, T, V>,
+{
+  const CHILD_TYPES: VisitTypes = W::CHILD_TYPES;
+
+  fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
+    self.iter_mut().try_for_each(|(_k, v)| v.visit(visitor))
+  }
+
+  fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
+    self.iter_mut().try_for_each(|(_k, v)| v.visit_children(visitor))
   }
 }
 

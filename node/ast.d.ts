@@ -34,6 +34,10 @@ export type Rule<D = Declaration, M = MediaQuery> = | {
     value: FontPaletteValuesRule;
   }
 | {
+    type: "font-feature-values";
+    value: FontFeatureValuesRule;
+  }
+| {
     type: "page";
     value: PageRule<D>;
   }
@@ -7160,6 +7164,17 @@ export type BasePalette =
       value: number;
     };
 /**
+ * The name of the `@font-feature-values` sub-rule. font-feature-value-type = <@stylistic> | <@historical-forms> | <@styleset> | <@character-variant> | <@swash> | <@ornaments> | <@annotation>
+ */
+export type FontFeatureSubruleType =
+  | "stylistic"
+  | "historical-forms"
+  | "styleset"
+  | "character-variant"
+  | "swash"
+  | "ornaments"
+  | "annotation";
+/**
  * A [page margin box](https://www.w3.org/TR/css-page-3/#margin-boxes).
  */
 export type PageMarginBox =
@@ -9327,6 +9342,44 @@ export interface OverrideColors {
    * The index of the color within the palette to override.
    */
   index: number;
+}
+/**
+ * A [@font-feature-values](https://drafts.csswg.org/css-fonts/#font-feature-values) rule.
+ */
+export interface FontFeatureValuesRule {
+  /**
+   * The location of the rule in the source file.
+   */
+  loc: Location2;
+  /**
+   * The name of the font feature values.
+   */
+  name: String[];
+  /**
+   * The rules within the `@font-feature-values` rule.
+   */
+  rules: {
+    [k: string]: FontFeatureSubrule;
+  };
+}
+/**
+ * A sub-rule of `@font-feature-values` https://drafts.csswg.org/css-fonts/#font-feature-values-syntax
+ */
+export interface FontFeatureSubrule {
+  /**
+   * The declarations within the `@font-feature-values` sub-rules.
+   */
+  declarations: {
+    [k: string]: number[];
+  };
+  /**
+   * The location of the rule in the source file.
+   */
+  loc: Location2;
+  /**
+   * The name of the `@font-feature-values` sub-rule.
+   */
+  name: FontFeatureSubruleType;
 }
 /**
  * A [@page](https://www.w3.org/TR/css-page-3/#at-page-rule) rule.

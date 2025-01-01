@@ -348,17 +348,44 @@ pub enum FontFamily<'i> {
   Generic(GenericFontFamily),
   /// A custom family name.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  FamilyName(CowArcStr<'i>),
+  FamilyName(FamilyName<'i>),
 }
 
 impl<'i> Parse<'i> for FontFamily<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(value) = input.try_parse(|i| i.expect_string_cloned()) {
-      return Ok(FontFamily::FamilyName(value.into()));
-    }
-
     if let Ok(value) = input.try_parse(GenericFontFamily::parse) {
       return Ok(FontFamily::Generic(value));
+    }
+
+    let family = FamilyName::parse(input)?;
+    Ok(FontFamily::FamilyName(family))
+  }
+}
+
+impl<'i> ToCss for FontFamily<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      FontFamily::Generic(val) => val.to_css(dest),
+      FontFamily::FamilyName(val) => val.to_css(dest),
+    }
+  }
+}
+
+/// A font [family name](https://drafts.csswg.org/css-fonts/#family-name-syntax).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct FamilyName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'i>);
+
+impl<'i> Parse<'i> for FamilyName<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(value) = input.try_parse(|i| i.expect_string_cloned()) {
+      return Ok(FamilyName(value.into()));
     }
 
     let value: CowArcStr<'i> = input.expect_ident()?.into();
@@ -380,40 +407,36 @@ impl<'i> Parse<'i> for FontFamily<'i> {
       value
     };
 
-    Ok(FontFamily::FamilyName(value))
+    Ok(FamilyName(value))
   }
 }
 
-impl<'i> ToCss for FontFamily<'i> {
+impl<'i> ToCss for FamilyName<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
-    match self {
-      FontFamily::Generic(val) => val.to_css(dest),
-      FontFamily::FamilyName(val) => {
-        // Generic family names such as sans-serif must be quoted if parsed as a string.
-        // CSS wide keywords, as well as "default", must also be quoted.
-        // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
-        if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() {
-          let mut id = String::new();
-          let mut first = true;
-          for slice in val.split(' ') {
-            if first {
-              first = false;
-            } else {
-              id.push(' ');
-            }
-            serialize_identifier(slice, &mut id)?;
-          }
-          if id.len() < val.len() + 2 {
-            return dest.write_str(&id);
-          }
+    // Generic family names such as sans-serif must be quoted if parsed as a string.
+    // CSS wide keywords, as well as "default", must also be quoted.
+    // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
+    let val = &self.0;
+    if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() {
+      let mut id = String::new();
+      let mut first = true;
+      for slice in val.split(' ') {
+        if first {
+          first = false;
+        } else {
+          id.push(' ');
         }
-        serialize_string(&val, dest)?;
-        Ok(())
+        serialize_identifier(slice, &mut id)?;
+      }
+      if id.len() < val.len() + 2 {
+        return dest.write_str(&id);
       }
     }
+    serialize_string(&val, dest)?;
+    Ok(())
   }
 }
 
@@ -994,7 +1017,7 @@ fn compatible_font_family(mut family: Option<Vec<FontFamily>>, is_supported: boo
         (position + 1)..(position + 1),
         DEFAULT_SYSTEM_FONTS
           .iter()
-          .map(|name| FontFamily::FamilyName(CowArcStr::from(*name))),
+          .map(|name| FontFamily::FamilyName(FamilyName(CowArcStr::from(*name)))),
       );
     }
   }

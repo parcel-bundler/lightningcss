@@ -13,3 +13,4 @@ repository = "https://github.com/parcel-bundler/lightningcss"
 [dependencies]
 smallvec = { version = "1.11.1", optional = true }
 static-self-derive = { version = "0.1.1", path = "../static-self-derive" }
+indexmap = { version = "2.2.6", optional = true }

@@ -41,6 +41,7 @@ pub mod counter_style;
 pub mod custom_media;
 pub mod document;
 pub mod font_face;
+pub mod font_feature_values;
 pub mod font_palette_values;
 pub mod import;
 pub mod keyframes;
@@ -58,6 +59,7 @@ pub mod unknown;
 pub mod view_transition;
 pub mod viewport;
 
+use self::font_feature_values::FontFeatureValuesRule;
 use self::font_palette_values::FontPaletteValuesRule;
 use self::layer::{LayerBlockRule, LayerStatementRule};
 use self::property::PropertyRule;
@@ -148,6 +150,8 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   FontFace(FontFaceRule<'i>),
   /// A `@font-palette-values` rule.
   FontPaletteValues(FontPaletteValuesRule<'i>),
+  /// A `@font-feature-values` rule.
+  FontFeatureValues(FontFeatureValuesRule<'i>),
   /// A `@page` rule.
   Page(PageRule<'i>),
   /// A `@supports` rule.
@@ -266,6 +270,10 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         let rule = FontPaletteValuesRule::deserialize(deserializer)?;
         Ok(CssRule::FontPaletteValues(rule))
       }
+      "font-feature-values" => {
+        let rule = FontFeatureValuesRule::deserialize(deserializer)?;
+        Ok(CssRule::FontFeatureValues(rule))
+      }
       "page" => {
         let rule = PageRule::deserialize(deserializer)?;
         Ok(CssRule::Page(rule))
@@ -352,6 +360,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
       CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
       CssRule::FontFace(font_face) => font_face.to_css(dest),
       CssRule::FontPaletteValues(f) => f.to_css(dest),
+      CssRule::FontFeatureValues(font_feature_values) => font_feature_values.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
       CssRule::Supports(supports) => supports.to_css(dest),
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
@@ -509,6 +518,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
     let mut keyframe_rules = HashMap::new();
     let mut layer_rules = HashMap::new();
     let mut property_rules = HashMap::new();
+    let mut font_feature_values_rules = Vec::new();
     let mut style_rules =
       HashMap::with_capacity_and_hasher(self.0.len(), BuildHasherDefault::<PrecomputedHasher>::default());
     let mut rules = Vec::new();
@@ -822,12 +832,25 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           rules.extend(fallbacks);
           continue;
         }
+        CssRule::FontFeatureValues(rule) => {
+          if let Some(index) = font_feature_values_rules
+            .iter()
+            .find(|index| matches!(&rules[**index], CssRule::FontFeatureValues(r) if r.name == rule.name))
+          {
+            if let CssRule::FontFeatureValues(existing) = &mut rules[*index] {
+              existing.merge(rule);
+            }
+            continue;
+          } else {
+            font_feature_values_rules.push(rules.len());
+          }
+        }
         CssRule::Property(property) => {
           if context.unused_symbols.contains(property.name.0.as_ref()) {
             continue;
           }
 
-          if let Some(index) = property_rules.get_mut(&property.name) {
+          if let Some(index) = property_rules.get(&property.name) {
             rules[*index] = rule;
             continue;
           } else {
