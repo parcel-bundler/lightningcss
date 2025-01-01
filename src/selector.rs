@@ -1,7 +1,7 @@
 //! CSS selectors.
 
 use crate::compat::Feature;
-use crate::error::{ParserError, PrinterError};
+use crate::error::{ParserError, PrinterError, SelectorError};
 use crate::parser::ParserFlags;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
@@ -21,6 +21,7 @@ use parcel_selectors::{
   attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity},
   parser::SelectorImpl,
 };
+use smallvec::SmallVec;
 use std::collections::HashSet;
 use std::fmt;
 
@@ -177,6 +178,9 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "-webkit-autofill" => Autofill(VendorPrefix::WebKit),
       "-o-autofill" => Autofill(VendorPrefix::O),
 
+      // https://drafts.csswg.org/css-view-transitions-2/#pseudo-classes-for-selective-vt
+      "active-view-transition" => ActiveViewTransition,
+
       // https://webkit.org/blog/363/styling-scrollbars/
       "horizontal" => WebKitScrollbar(WebKitScrollbarPseudoClass::Horizontal),
       "vertical" => WebKitScrollbar(WebKitScrollbarPseudoClass::Vertical),
@@ -221,6 +225,11 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         Lang { languages }
       },
       "dir" => Dir { direction: Direction::parse(parser)? },
+      // https://drafts.csswg.org/css-view-transitions-2/#the-active-view-transition-type-pseudo
+      "active-view-transition-type" => {
+        let kind = Parse::parse(parser)?;
+        ActiveViewTransitionType { kind }
+      },
       "local" if self.options.css_modules.is_some() => Local { selector: Box::new(Selector::parse(self, parser)?) },
       "global" if self.options.css_modules.is_some() => Global { selector: Box::new(Selector::parse(self, parser)?) },
       _ => {
@@ -303,10 +312,10 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     let pseudo_element = match_ignore_ascii_case! { &name,
       "cue" => CueFunction { selector: Box::new(Selector::parse(self, arguments)?) },
       "cue-region" => CueRegionFunction { selector: Box::new(Selector::parse(self, arguments)?) },
-      "view-transition-group" => ViewTransitionGroup { part_name: ViewTransitionPartName::parse(arguments)? },
-      "view-transition-image-pair" => ViewTransitionImagePair { part_name: ViewTransitionPartName::parse(arguments)? },
-      "view-transition-old" => ViewTransitionOld { part_name: ViewTransitionPartName::parse(arguments)? },
-      "view-transition-new" => ViewTransitionNew { part_name: ViewTransitionPartName::parse(arguments)? },
+      "view-transition-group" => ViewTransitionGroup { part: ViewTransitionPartSelector::parse(arguments)? },
+      "view-transition-image-pair" => ViewTransitionImagePair { part: ViewTransitionPartSelector::parse(arguments)? },
+      "view-transition-old" => ViewTransitionOld { part: ViewTransitionPartSelector::parse(arguments)? },
+      "view-transition-new" => ViewTransitionNew { part: ViewTransitionPartSelector::parse(arguments)? },
       _ => {
         if !name.starts_with('-') {
           self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name.clone())));
@@ -506,6 +515,15 @@ pub enum PseudoClass<'i> {
   /// The [:autofill](https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill) pseudo class.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Autofill(VendorPrefix),
+
+  /// The [:active-view-transition](https://drafts.csswg.org/css-view-transitions-2/#the-active-view-transition-pseudo) pseudo class.
+  ActiveViewTransition,
+  /// The [:active-view-transition-type()](https://drafts.csswg.org/css-view-transitions-2/#the-active-view-transition-type-pseudo) pseudo class.
+  ActiveViewTransitionType {
+    /// A view transition type.
+    #[cfg_attr(feature = "serde", serde(rename = "type"))]
+    kind: SmallVec<[CustomIdent<'i>; 1]>,
+  },
 
   // CSS modules
   /// The CSS modules :local() pseudo class.
@@ -763,6 +781,13 @@ where
     // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
     Autofill(prefix) => write_prefixed!(prefix, "autofill"),
 
+    ActiveViewTransition => dest.write_str(":active-view-transition"),
+    ActiveViewTransitionType { kind } => {
+      dest.write_str(":active-view-transition-type(")?;
+      kind.to_css(dest)?;
+      dest.write_char(')')
+    }
+
     Local { selector } => serialize_selector(selector, dest, context, false),
     Global { selector } => {
       let css_module = std::mem::take(&mut dest.css_module);
@@ -902,25 +927,25 @@ pub enum PseudoElement<'i> {
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   ViewTransitionGroup {
     /// A part name selector.
-    part_name: ViewTransitionPartName<'i>,
+    part: ViewTransitionPartSelector<'i>,
   },
   /// The [::view-transition-image-pair()](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#view-transition-image-pair-pt-name-selector) functional pseudo element.
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   ViewTransitionImagePair {
     /// A part name selector.
-    part_name: ViewTransitionPartName<'i>,
+    part: ViewTransitionPartSelector<'i>,
   },
   /// The [::view-transition-old()](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#view-transition-old-pt-name-selector) functional pseudo element.
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   ViewTransitionOld {
     /// A part name selector.
-    part_name: ViewTransitionPartName<'i>,
+    part: ViewTransitionPartSelector<'i>,
   },
   /// The [::view-transition-new()](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#view-transition-new-pt-name-selector) functional pseudo element.
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   ViewTransitionNew {
     /// A part name selector.
-    part_name: ViewTransitionPartName<'i>,
+    part: ViewTransitionPartSelector<'i>,
   },
   /// An unknown pseudo element.
   Custom {
@@ -965,42 +990,15 @@ pub enum WebKitScrollbarPseudoElement {
 
 /// A [view transition part name](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#typedef-pt-name-selector).
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum ViewTransitionPartName<'i> {
   /// *
+  #[cfg_attr(feature = "serde", serde(rename = "*"))]
   All,
   /// <custom-ident>
+  #[cfg_attr(feature = "serde", serde(borrow, untagged))]
   Name(CustomIdent<'i>),
-}
-
-#[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-impl<'i> serde::Serialize for ViewTransitionPartName<'i> {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    match self {
-      ViewTransitionPartName::All => serializer.serialize_str("*"),
-      ViewTransitionPartName::Name(name) => serializer.serialize_str(&name.0),
-    }
-  }
-}
-
-#[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-impl<'i, 'de: 'i> serde::Deserialize<'de> for ViewTransitionPartName<'i> {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: serde::Deserializer<'de>,
-  {
-    let s = CowArcStr::deserialize(deserializer)?;
-    if s == "*" {
-      Ok(ViewTransitionPartName::All)
-    } else {
-      Ok(ViewTransitionPartName::Name(CustomIdent(s)))
-    }
-  }
 }
 
 #[cfg(feature = "jsonschema")]
@@ -1038,6 +1036,55 @@ impl<'i> ToCss for ViewTransitionPartName<'i> {
       ViewTransitionPartName::All => dest.write_char('*'),
       ViewTransitionPartName::Name(name) => name.to_css(dest),
     }
+  }
+}
+
+/// A [view transition part selector](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#typedef-pt-name-selector).
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct ViewTransitionPartSelector<'i> {
+  /// The view transition part name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  name: Option<ViewTransitionPartName<'i>>,
+  /// A list of view transition classes.
+  classes: Vec<CustomIdent<'i>>,
+}
+
+impl<'i> Parse<'i> for ViewTransitionPartSelector<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.skip_whitespace();
+    let name = input.try_parse(ViewTransitionPartName::parse).ok();
+    let mut classes = Vec::new();
+    while let Ok(token) = input.next_including_whitespace() {
+      if matches!(token, Token::Delim('.')) {
+        match input.next_including_whitespace() {
+          Ok(Token::Ident(id)) => classes.push(CustomIdent(id.into())),
+          _ => return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState))),
+        }
+      } else {
+        return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState)));
+      }
+    }
+
+    Ok(ViewTransitionPartSelector { name, classes })
+  }
+}
+
+impl<'i> ToCss for ViewTransitionPartSelector<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if let Some(name) = &self.name {
+      name.to_css(dest)?;
+    }
+    for class in &self.classes {
+      dest.write_char('.')?;
+      class.to_css(dest)?;
+    }
+    Ok(())
   }
 }
 
@@ -1138,24 +1185,24 @@ where
       })
     }
     ViewTransition => dest.write_str("::view-transition"),
-    ViewTransitionGroup { part_name } => {
+    ViewTransitionGroup { part } => {
       dest.write_str("::view-transition-group(")?;
-      part_name.to_css(dest)?;
+      part.to_css(dest)?;
       dest.write_char(')')
     }
-    ViewTransitionImagePair { part_name } => {
+    ViewTransitionImagePair { part } => {
       dest.write_str("::view-transition-image-pair(")?;
-      part_name.to_css(dest)?;
+      part.to_css(dest)?;
       dest.write_char(')')
     }
-    ViewTransitionOld { part_name } => {
+    ViewTransitionOld { part } => {
       dest.write_str("::view-transition-old(")?;
-      part_name.to_css(dest)?;
+      part.to_css(dest)?;
       dest.write_char(')')
     }
-    ViewTransitionNew { part_name } => {
+    ViewTransitionNew { part } => {
       dest.write_str("::view-transition-new(")?;
-      part_name.to_css(dest)?;
+      part.to_css(dest)?;
       dest.write_char(')')
     }
     Custom { name: val } => {
@@ -1836,7 +1883,9 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
             | PseudoClass::Blank
             | PseudoClass::UserInvalid
             | PseudoClass::UserValid
-            | PseudoClass::Defined => return false,
+            | PseudoClass::Defined
+            | PseudoClass::ActiveViewTransition
+            | PseudoClass::ActiveViewTransitionType { .. } => return false,
 
             PseudoClass::Custom { .. } | _ => return false,
           }
@@ -1852,6 +1901,11 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           PseudoElement::Backdrop(prefix) if *prefix == VendorPrefix::None => Feature::Dialog,
           PseudoElement::Cue => Feature::Cue,
           PseudoElement::CueFunction { selector: _ } => Feature::CueFunction,
+          PseudoElement::ViewTransition
+          | PseudoElement::ViewTransitionNew { .. }
+          | PseudoElement::ViewTransitionOld { .. }
+          | PseudoElement::ViewTransitionGroup { .. }
+          | PseudoElement::ViewTransitionImagePair { .. } => Feature::ViewTransition,
           PseudoElement::Custom { name: _ } | _ => return false,
         },
 

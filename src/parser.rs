@@ -9,6 +9,7 @@ use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::property::PropertyRule;
 use crate::rules::scope::ScopeRule;
 use crate::rules::starting_style::StartingStyleRule;
+use crate::rules::view_transition::ViewTransitionRule;
 use crate::rules::viewport::ViewportRule;
 
 use crate::rules::{
@@ -214,6 +215,8 @@ pub enum AtRulePrelude<'i, T> {
   StartingStyle,
   /// A @scope rule prelude.
   Scope(Option<SelectorList<'i>>, Option<SelectorList<'i>>),
+  /// A @view-transition rule prelude.
+  ViewTransition,
   /// An unknown prelude.
   Unknown(CowArcStr<'i>, TokenList<'i>),
   /// A custom prelude.
@@ -249,7 +252,8 @@ impl<'i, T> AtRulePrelude<'i, T> {
       | Self::Import(..)
       | Self::CustomMedia(..)
       | Self::Viewport(..)
-      | Self::Charset => false,
+      | Self::Charset
+      | Self::ViewTransition => false,
     }
   }
 }
@@ -669,6 +673,9 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
 
         AtRulePrelude::Scope(scope_start, scope_end)
       },
+      "view-transition" => {
+        AtRulePrelude::ViewTransition
+      },
       "nest" if self.is_in_style_rule => {
         self.options.warn(input.new_custom_error(ParserError::DeprecatedNestRule));
         let selector_parser = SelectorParser {
@@ -831,6 +838,13 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       AtRulePrelude::StartingStyle => {
         let rules = self.parse_style_block(input)?;
         self.rules.0.push(CssRule::StartingStyle(StartingStyleRule { rules, loc }));
+        Ok(())
+      }
+      AtRulePrelude::ViewTransition => {
+        self
+          .rules
+          .0
+          .push(CssRule::ViewTransition(ViewTransitionRule::parse(input, loc)?));
         Ok(())
       }
       AtRulePrelude::Nest(selectors) => {

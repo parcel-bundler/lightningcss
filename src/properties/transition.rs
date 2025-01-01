@@ -10,6 +10,7 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::masking::get_webkit_mask_property;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
+use crate::values::ident::CustomIdent;
 use crate::values::{easing::EasingFunction, time::Time};
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -104,6 +105,50 @@ impl<'i> ToCss for Transition<'i> {
 
     Ok(())
   }
+}
+
+/// A value for the [view-transition-name](https://drafts.csswg.org/css-view-transitions-1/#view-transition-name-prop) property.
+#[derive(Debug, Clone, PartialEq, Default, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ViewTransitionName<'i> {
+  /// The element will not participate independently in a view transition.
+  #[default]
+  None,
+  /// The `auto` keyword.
+  Auto,
+  /// A custom name.
+  #[cfg_attr(feature = "serde", serde(borrow, untagged))]
+  Custom(CustomIdent<'i>),
+}
+
+/// A value for the [view-transition-group](https://drafts.csswg.org/css-view-transitions-2/#view-transition-group-prop) property.
+#[derive(Debug, Clone, PartialEq, Default, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ViewTransitionGroup<'i> {
+  /// The `normal` keyword.
+  #[default]
+  Normal,
+  /// The `contain` keyword.
+  Contain,
+  /// The `nearest` keyword.
+  Nearest,
+  /// A custom group.
+  #[cfg_attr(feature = "serde", serde(borrow, untagged))]
+  Custom(CustomIdent<'i>),
 }
 
 #[derive(Default)]
