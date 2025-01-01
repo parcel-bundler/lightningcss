@@ -13,7 +13,7 @@ use crate::rules::starting_style::StartingStyleRule;
 use crate::rules::view_transition::ViewTransitionRule;
 use crate::rules::viewport::ViewportRule;
 
-use crate::properties::font::FontFamily;
+use crate::properties::font::FamilyName;
 use crate::rules::{
   counter_style::CounterStyleRule,
   custom_media::CustomMediaRule,
@@ -175,7 +175,7 @@ pub enum AtRulePrelude<'i, T> {
   /// A @font-face rule prelude.
   FontFace,
   /// A @font-feature-values rule prelude, with its FamilyName list.
-  FontFeatureValues(Vec<FontFamily<'i>>),
+  FontFeatureValues(Vec<FamilyName<'i>>),
   /// A @font-palette-values rule prelude, with its name.
   FontPaletteValues(DashedIdent<'i>),
   /// A @counter-style rule prelude, with its counter style name.
@@ -577,7 +577,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::FontFeatureValues(family_names)))
       // },
       "font-feature-values" => {
-        let names = match Vec::<FontFamily>::parse(input) {
+        let names = match Vec::<FamilyName>::parse(input) {
           Ok(names) => names,
           Err(e) => return Err(e)
         };

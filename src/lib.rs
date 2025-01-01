@@ -13732,11 +13732,38 @@ mod tests {
       r#"
       @font-feature-values "Fancy Font Name" {
         @styleset { cursive: 1; swoopy: 7 16; }
-        font-display: swap;
         @character-variant { ampersand: 1; capital-q: 2; }
       }
       "#,
-      r#"@font-feature-values Fancy Font Name{font-display:swap;@styleset{cursive:1;swoopy:7 16}@character-variant{ampersand:1;capital-q:2}}"#,
+      r#"@font-feature-values Fancy Font Name{@styleset{cursive:1;swoopy:7 16}@character-variant{ampersand:1;capital-q:2}}"#,
+    );
+    minify_test(
+      r#"
+      @font-feature-values foo {
+          @swash { pretty: 0; pretty: 1; cool: 2; }
+      }
+      "#,
+      "@font-feature-values foo{@swash{pretty:1;cool:2}}",
+    );
+    minify_test(
+      r#"
+      @font-feature-values foo {
+          @swash { pretty: 1; }
+          @swash { cool: 2; }
+      }
+      "#,
+      "@font-feature-values foo{@swash{pretty:1;cool:2}}",
+    );
+    minify_test(
+      r#"
+      @font-feature-values foo {
+          @swash { pretty: 1; }
+      }
+      @font-feature-values foo {
+          @swash { cool: 2; }
+      }
+      "#,
+      "@font-feature-values foo{@swash{pretty:1;cool:2}}",
     );
   }
 

@@ -518,6 +518,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
     let mut keyframe_rules = HashMap::new();
     let mut layer_rules = HashMap::new();
     let mut property_rules = HashMap::new();
+    let mut font_feature_values_rules = Vec::new();
     let mut style_rules =
       HashMap::with_capacity_and_hasher(self.0.len(), BuildHasherDefault::<PrecomputedHasher>::default());
     let mut rules = Vec::new();
@@ -831,12 +832,25 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           rules.extend(fallbacks);
           continue;
         }
+        CssRule::FontFeatureValues(rule) => {
+          if let Some(index) = font_feature_values_rules
+            .iter()
+            .find(|index| matches!(&rules[**index], CssRule::FontFeatureValues(r) if r.name == rule.name))
+          {
+            if let CssRule::FontFeatureValues(existing) = &mut rules[*index] {
+              existing.merge(rule);
+            }
+            continue;
+          } else {
+            font_feature_values_rules.push(rules.len());
+          }
+        }
         CssRule::Property(property) => {
           if context.unused_symbols.contains(property.name.0.as_ref()) {
             continue;
           }
 
-          if let Some(index) = property_rules.get_mut(&property.name) {
+          if let Some(index) = property_rules.get(&property.name) {
             rules[*index] = rule;
             continue;
           } else {

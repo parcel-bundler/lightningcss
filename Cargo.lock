@@ -1339,6 +1339,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09c024468a378b7e36765cd36702b7a90cc3cba11654f6685c8f233408e89e92"
 dependencies = [
  "dyn-clone",
+ "indexmap 2.7.0",
  "schemars_derive",
  "serde",
  "serde_json",
@@ -1477,6 +1478,7 @@ dependencies = [
 name = "static-self"
 version = "0.1.1"
 dependencies = [
+ "indexmap 2.7.0",
  "smallvec",
  "static-self-derive",
 ]

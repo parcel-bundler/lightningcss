@@ -1,16 +1,18 @@
 //! The `@font-feature-values` rule.
 
 use super::Location;
-use crate::declaration::{parse_declaration, DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::enum_property;
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
-use crate::properties::font::FontFamily;
+use crate::properties::font::FamilyName;
 use crate::traits::{Parse, ToCss};
+use crate::values::ident::Ident;
+use crate::values::number::CSSInteger;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use indexmap::IndexMap;
+use smallvec::SmallVec;
 use std::fmt::Write;
 
 /// A [@font-feature-values](https://drafts.csswg.org/css-fonts/#font-feature-values) rule.
@@ -21,12 +23,10 @@ use std::fmt::Write;
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct FontFeatureValuesRule<'i> {
   /// The name of the font feature values.
-  pub name: Vec<FontFamily<'i>>,
-  /// The declarations within the `@font-feature-values` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub declarations: DeclarationBlock<'i>,
+  pub name: Vec<FamilyName<'i>>,
   /// The rules within the `@font-feature-values` rule.
-  pub rules: Vec<FontFeatureSubrule<'i>>,
+  pub rules: IndexMap<FontFeatureSubruleType, FontFeatureSubrule<'i>>,
   /// The location of the rule in the source file.
   #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
@@ -34,15 +34,13 @@ pub struct FontFeatureValuesRule<'i> {
 
 impl<'i> FontFeatureValuesRule<'i> {
   pub(crate) fn parse<'t, 'o>(
-    family_names: Vec<FontFamily<'i>>,
+    family_names: Vec<FamilyName<'i>>,
     input: &mut Parser<'i, 't>,
     loc: Location,
     options: &ParserOptions<'o, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let mut declarations = DeclarationBlock::new();
-    let mut rules = Vec::new();
+    let mut rules = IndexMap::new();
     let mut rule_parser = FontFeatureValuesRuleParser {
-      declarations: &mut declarations,
       rules: &mut rules,
       options,
     };
@@ -58,57 +56,22 @@ impl<'i> FontFeatureValuesRule<'i> {
       }
     }
 
-    declarations
-      .declarations
-      .retain(|decl| decl.property_id().name() == "font-display");
-    declarations
-      .important_declarations
-      .retain(|decl| decl.property_id().name() == "font-display");
-
     Ok(FontFeatureValuesRule {
       name: family_names,
-      declarations,
       rules,
       loc,
     })
   }
 }
 
-pub(crate) struct FontFeatureValuesRuleParser<'a, 'o, 'i> {
-  declarations: &'a mut DeclarationBlock<'i>,
-  rules: &'a mut Vec<FontFeatureSubrule<'i>>,
+struct FontFeatureValuesRuleParser<'a, 'o, 'i> {
+  rules: &'a mut IndexMap<FontFeatureSubruleType, FontFeatureSubrule<'i>>,
   options: &'a ParserOptions<'o, 'i>,
 }
 
 impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for FontFeatureValuesRuleParser<'a, 'o, 'i> {
   type Declaration = ();
   type Error = ParserError<'i>;
-
-  fn parse_value(
-    &mut self,
-    name: CowRcStr<'i>,
-    input: &mut cssparser::Parser<'i, '_>,
-  ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
-    let mut declarations = DeclarationList::new();
-    let mut important_decls = DeclarationList::new();
-    parse_declaration(name, input, &mut declarations, &mut important_decls, self.options)?;
-
-    declarations
-      .iter()
-      .filter(|it| it.property_id().name() == "font-display")
-      .for_each(|decl| {
-        self.declarations.declarations.push(decl.clone());
-      });
-
-    important_decls
-      .iter()
-      .filter(|it| it.property_id().name() == "font-display")
-      .for_each(|decl| {
-        self.declarations.important_declarations.push(decl.clone());
-      });
-
-    Ok(())
-  }
 }
 
 impl<'a, 'o, 'i> cssparser::AtRuleParser<'i> for FontFeatureValuesRuleParser<'a, 'o, 'i> {
@@ -133,16 +96,40 @@ impl<'a, 'o, 'i> cssparser::AtRuleParser<'i> for FontFeatureValuesRuleParser<'a,
     input: &mut Parser<'i, 't>,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
     let loc = start.source_location();
-    let declarations = DeclarationBlock::parse(input, self.options)?;
-    self.rules.push(FontFeatureSubrule {
-      name: prelude,
-      declarations,
-      loc: Location {
-        source_index: self.options.source_index,
-        line: loc.line,
-        column: loc.column,
-      },
-    });
+    let mut decls = IndexMap::new();
+    let mut has_existing = false;
+    let declarations = if let Some(rule) = self.rules.get_mut(&prelude) {
+      has_existing = true;
+      &mut rule.declarations
+    } else {
+      &mut decls
+    };
+    let mut decl_parser = FontFeatureDeclarationParser { declarations };
+    let mut parser = RuleBodyParser::new(input, &mut decl_parser);
+    while let Some(decl) = parser.next() {
+      if let Err((err, _)) = decl {
+        if self.options.error_recovery {
+          self.options.warn(err);
+          continue;
+        }
+        return Err(err);
+      }
+    }
+
+    if !has_existing {
+      self.rules.insert(
+        prelude,
+        FontFeatureSubrule {
+          name: prelude,
+          declarations: decls,
+          loc: Location {
+            source_index: self.options.source_index,
+            line: loc.line,
+            column: loc.column,
+          },
+        },
+      );
+    }
 
     Ok(())
   }
@@ -156,7 +143,7 @@ impl<'a, 'o, 'i> QualifiedRuleParser<'i> for FontFeatureValuesRuleParser<'a, 'o,
 
 impl<'a, 'o, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for FontFeatureValuesRuleParser<'a, 'o, 'i> {
   fn parse_declarations(&self) -> bool {
-    true
+    false
   }
 
   fn parse_qualified(&self) -> bool {
@@ -169,32 +156,15 @@ impl<'i> ToCss for FontFeatureValuesRule<'i> {
   where
     W: std::fmt::Write,
   {
-    let mut i = 0;
-    let len = self.declarations.len() + self.rules.len();
-
-    macro_rules! write {
-      ($decls: expr, $important: literal) => {
-        for decl in &$decls {
-          dest.newline()?;
-          decl.to_css(dest, $important)?;
-          if i != len - 1 || !dest.minify {
-            dest.write_char(';')?;
-          }
-          i += 1;
-        }
-      };
-    }
-
     #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@font-feature-values ")?;
     self.name.to_css(dest)?;
+    dest.whitespace()?;
     dest.write_char('{')?;
-    if !self.declarations.is_empty() || !self.rules.is_empty() {
+    if !self.rules.is_empty() {
       dest.newline()?;
-      write!(self.declarations.declarations, false);
-      write!(self.declarations.important_declarations, true);
-      for rule in &self.rules {
+      for rule in self.rules.values() {
         rule.to_css(dest)?;
         dest.newline()?;
       }
@@ -203,28 +173,51 @@ impl<'i> ToCss for FontFeatureValuesRule<'i> {
   }
 }
 
-enum_property! {
-    /// The name of the `@font-feature-values` sub-rule.
-    /// font-feature-value-type = <@stylistic> | <@historical-forms> | <@styleset> | <@character-variant>
-    ///   | <@swash> | <@ornaments> | <@annotation>
-    pub enum FontFeatureSubruleType {
-        /// @stylistic = @stylistic { <declaration-list> }
-        Stylistic ,
-        /// @historical-forms = @historical-forms { <declaration-list> }
-        HistoricalForms,
-        /// @styleset = @styleset { <declaration-list> }
-        Styleset,
-        /// @character-variant = @character-variant { <declaration-list> }
-        CharacterVariant,
-        /// @swash = @swash { <declaration-list> }
-        Swash,
-        /// @ornaments = @ornaments { <declaration-list> }
-        Ornaments,
-        /// @annotation = @annotation { <declaration-list> }
-        Annotation,
+impl<'i> FontFeatureValuesRule<'i> {
+  pub(crate) fn merge(&mut self, other: &FontFeatureValuesRule<'i>) {
+    debug_assert_eq!(self.name, other.name);
+    for (prelude, rule) in &other.rules {
+      if let Some(existing) = self.rules.get_mut(prelude) {
+        existing
+          .declarations
+          .extend(rule.declarations.iter().map(|(k, v)| (k.clone(), v.clone())));
+      } else {
+        self.rules.insert(*prelude, rule.clone());
+      }
     }
+  }
 }
 
+/// The name of the `@font-feature-values` sub-rule.
+/// font-feature-value-type = <@stylistic> | <@historical-forms> | <@styleset> | <@character-variant>
+///   | <@swash> | <@ornaments> | <@annotation>
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum FontFeatureSubruleType {
+  /// @stylistic = @stylistic { <declaration-list> }
+  Stylistic,
+  /// @historical-forms = @historical-forms { <declaration-list> }
+  HistoricalForms,
+  /// @styleset = @styleset { <declaration-list> }
+  Styleset,
+  /// @character-variant = @character-variant { <declaration-list> }
+  CharacterVariant,
+  /// @swash = @swash { <declaration-list> }
+  Swash,
+  /// @ornaments = @ornaments { <declaration-list> }
+  Ornaments,
+  /// @annotation = @annotation { <declaration-list> }
+  Annotation,
+}
+
+/// A sub-rule of `@font-feature-values`
 /// https://drafts.csswg.org/css-fonts/#font-feature-values-syntax
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
@@ -240,7 +233,7 @@ pub struct FontFeatureSubrule<'i> {
   pub name: FontFeatureSubruleType,
   /// The declarations within the `@font-feature-values` sub-rules.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub declarations: DeclarationBlock<'i>,
+  pub declarations: IndexMap<Ident<'i>, SmallVec<[CSSInteger; 1]>>,
   /// The location of the rule in the source file.
   #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
@@ -255,6 +248,84 @@ impl<'i> ToCss for FontFeatureSubrule<'i> {
     dest.add_mapping(self.loc);
     dest.write_char('@')?;
     self.name.to_css(dest)?;
-    self.declarations.to_css_block(dest)
+    dest.write_char('{')?;
+    dest.indent();
+    let len = self.declarations.len();
+    for (i, (name, value)) in self.declarations.iter().enumerate() {
+      dest.newline()?;
+      name.to_css(dest)?;
+      dest.delim(':', false)?;
+
+      let mut first = true;
+      for index in value {
+        if first {
+          first = false;
+        } else {
+          dest.write_char(' ')?;
+        }
+        index.to_css(dest)?;
+      }
+
+      if i != len - 1 || !dest.minify {
+        dest.write_char(';')?;
+      }
+    }
+    dest.dedent();
+    dest.newline()?;
+    dest.write_char('}')
+  }
+}
+
+struct FontFeatureDeclarationParser<'a, 'i> {
+  declarations: &'a mut IndexMap<Ident<'i>, SmallVec<[CSSInteger; 1]>>,
+}
+
+impl<'a, 'i> cssparser::DeclarationParser<'i> for FontFeatureDeclarationParser<'a, 'i> {
+  type Declaration = ();
+  type Error = ParserError<'i>;
+
+  fn parse_value<'t>(
+    &mut self,
+    name: CowRcStr<'i>,
+    input: &mut cssparser::Parser<'i, 't>,
+  ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
+    let mut indices = SmallVec::new();
+    loop {
+      if let Ok(value) = CSSInteger::parse(input) {
+        indices.push(value);
+      } else {
+        break;
+      }
+    }
+
+    if indices.is_empty() {
+      return Err(input.new_custom_error(ParserError::InvalidValue));
+    }
+
+    self.declarations.insert(Ident(name.into()), indices);
+    Ok(())
+  }
+}
+
+/// Default methods reject all at rules.
+impl<'a, 'i> AtRuleParser<'i> for FontFeatureDeclarationParser<'a, 'i> {
+  type Prelude = ();
+  type AtRule = ();
+  type Error = ParserError<'i>;
+}
+
+impl<'a, 'i> QualifiedRuleParser<'i> for FontFeatureDeclarationParser<'a, 'i> {
+  type Prelude = ();
+  type QualifiedRule = ();
+  type Error = ParserError<'i>;
+}
+
+impl<'a, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for FontFeatureDeclarationParser<'a, 'i> {
+  fn parse_qualified(&self) -> bool {
+    false
+  }
+
+  fn parse_declarations(&self) -> bool {
+    true
   }
 }
