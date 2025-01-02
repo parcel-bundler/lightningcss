@@ -1,4 +1,4 @@
-import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock, ParsedComponent, Multiplier, StyleSheet } from './ast';
+import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock, ParsedComponent, Multiplier, StyleSheet, Location2 } from './ast';
 import { Targets, Features } from './targets';
 
 export * from './ast';
@@ -138,7 +138,7 @@ interface CustomAtRule<N, R extends CustomAtRuleDefinition> {
   name: N,
   prelude: R['prelude'] extends keyof MappedPrelude ? MappedPrelude[R['prelude']] : ParsedComponent,
   body: FindByType<CustomAtRuleBody, MappedBody<R['body']>>,
-  loc: Location
+  loc: Location2
 }
 
 type CustomAtRuleBody = {
