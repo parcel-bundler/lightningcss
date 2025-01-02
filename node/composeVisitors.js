@@ -13,8 +13,10 @@ function composeVisitors(visitors) {
 
   /** @type Visitor */
   let res = {};
-  composeObjectVisitors(res, visitors, 'Rule', ruleVisitor, wrapUnknownAtRule);
-  composeObjectVisitors(res, visitors, 'RuleExit', ruleVisitor, wrapUnknownAtRule);
+  composeSimpleVisitors(res, visitors, 'StyleSheet');
+  composeSimpleVisitors(res, visitors, 'StyleSheetExit');
+  composeObjectVisitors(res, visitors, 'Rule', ruleVisitor, wrapCustomAndUnknownAtRule);
+  composeObjectVisitors(res, visitors, 'RuleExit', ruleVisitor, wrapCustomAndUnknownAtRule);
   composeObjectVisitors(res, visitors, 'Declaration', declarationVisitor, wrapCustomProperty);
   composeObjectVisitors(res, visitors, 'DeclarationExit', declarationVisitor, wrapCustomProperty);
   composeSimpleVisitors(res, visitors, 'Url');
@@ -45,8 +47,14 @@ function composeVisitors(visitors) {
 
 module.exports = composeVisitors;
 
-function wrapUnknownAtRule(k, f) {
-  return k === 'unknown' ? (value => f({ type: 'unknown', value })) : f;
+function wrapCustomAndUnknownAtRule(k, f) {
+  if (k === 'unknown') {
+    return (value => f({ type: 'unknown', value }));
+  }
+  if (k === 'custom') {
+    return (value => f({ type: 'custom', value }));
+  }
+  return f;
 }
 
 function wrapCustomProperty(k, f) {
@@ -61,6 +69,13 @@ function ruleVisitor(f, item) {
   if (typeof f === 'object') {
     if (item.type === 'unknown') {
       let v = f.unknown;
+      if (typeof v === 'object') {
+        v = v[item.value.name];
+      }
+      return v?.(item.value);
+    }
+    if (item.type === 'custom') {
+      let v = f.custom;
       if (typeof v === 'object') {
         v = v[item.value.name];
       }

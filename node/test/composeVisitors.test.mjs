@@ -513,6 +513,87 @@ test('unknown rules', () => {
   assert.equal(res.code.toString(), '.menu_link{background:#056ef0}');
 });
 
+test('custom at rules', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @testA;
+      @testB;
+    `),
+    customAtRules: {
+      testA: {},
+      testB: {}
+    },
+    visitor: composeVisitors([
+      {
+        Rule: {
+          custom: {
+            testA(rule) {
+              return {
+                type: 'style',
+                value: {
+                  loc: rule.loc,
+                  selectors: [
+                    [{ type: 'class', name: 'testA' }]
+                  ],
+                  declarations: {
+                    declarations: [
+                      {
+                        property: 'color',
+                        value: {
+                          type: 'rgb',
+                          r: 0xff,
+                          g: 0x00,
+                          b: 0x00,
+                          alpha: 1,
+                        }
+                      }
+                    ]
+                  }
+                }
+              };
+            }
+          }
+        }
+      },
+      {
+        Rule: {
+          custom: {
+            testB(rule) {
+              return {
+                type: 'style',
+                value: {
+                  loc: rule.loc,
+                  selectors: [
+                    [{ type: 'class', name: 'testB' }]
+                  ],
+                  declarations: {
+                    declarations: [
+                      {
+                        property: 'color',
+                        value: {
+                          type: 'rgb',
+                          r: 0x00,
+                          g: 0xff,
+                          b: 0x00,
+                          alpha: 1,
+                        }
+                      }
+                    ]
+                  }
+                }
+              };
+            }
+          }
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), '.testA{color:red}.testB{color:#0f0}');
+});
+
 test('known rules', () => {
   let declared = new Map();
   let res = transform({
@@ -684,6 +765,39 @@ test('variables', () => {
   });
 
   assert.equal(res.code.toString(), 'body{padding:20px;width:600px}');
+});
+
+test('StyleSheet', () => {
+  let styleSheetCalledCount = 0;
+  let styleSheetExitCalledCount = 0;
+  transform({
+    filename: 'test.css',
+    code: Buffer.from(`
+      body {
+        color: blue;
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        StyleSheet() {
+          styleSheetCalledCount++
+        },
+        StyleSheetExit() {
+          styleSheetExitCalledCount++
+        }
+      },
+      {
+        StyleSheet() {
+          styleSheetCalledCount++
+        },
+        StyleSheetExit() {
+          styleSheetExitCalledCount++
+        }
+      }
+    ])
+  });
+  assert.equal(styleSheetCalledCount, 2);
+  assert.equal(styleSheetExitCalledCount, 2);
 });
 
 test.run();
