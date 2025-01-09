@@ -298,6 +298,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
             CssRule::Keyframes(..) => "keyframes",
             CssRule::FontFace(..) => "font-face",
             CssRule::FontPaletteValues(..) => "font-palette-values",
+            CssRule::FontFeatureValues(..) => "font-feature-values",
             CssRule::Page(..) => "page",
             CssRule::Supports(..) => "supports",
             CssRule::CounterStyle(..) => "counter-style",
@@ -312,6 +313,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
             CssRule::Nesting(..) => "nesting",
             CssRule::Viewport(..) => "viewport",
             CssRule::StartingStyle(..) => "starting-style",
+            CssRule::ViewTransition(..) => "view-transition",
             CssRule::Unknown(v) => {
               let name = v.name.as_ref();
               if let Some(visit) = rule_map.custom(stage, "unknown", name) {

@@ -122,6 +122,20 @@ where
   }
 }
 
+#[cfg(feature = "indexmap")]
+impl<'any, K, V> IntoOwned<'any> for indexmap::IndexMap<K, V>
+where
+  K: IntoOwned<'any>,
+  V: IntoOwned<'any>,
+  <K as IntoOwned<'any>>::Owned: Eq + std::hash::Hash,
+{
+  type Owned = indexmap::IndexMap<<K as IntoOwned<'any>>::Owned, <V as IntoOwned<'any>>::Owned>;
+
+  fn into_owned(self) -> Self::Owned {
+    self.into_iter().map(|(k, v)| (k.into_owned(), v.into_owned())).collect()
+  }
+}
+
 impl<'any, T, const N: usize> IntoOwned<'any> for [T; N]
 where
   T: IntoOwned<'any>,

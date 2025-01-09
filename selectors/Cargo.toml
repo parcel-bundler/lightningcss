@@ -1,6 +1,6 @@
 [package]
 name = "parcel_selectors"
-version = "0.28.0"
+version = "0.28.1"
 authors = ["The Servo Project Developers"]
 documentation = "https://docs.rs/parcel_selectors/"
 description = "CSS Selectors matching for Rust - forked for lightningcss"
@@ -32,7 +32,7 @@ precomputed-hash = "0.1"
 smallvec = "1.0"
 serde = { version = "1.0.201", features = ["derive"], optional = true }
 schemars = { version = "0.8.19", features = ["smallvec"], optional = true }
-static-self = { version = "0.1.0", path = "../static-self", optional = true }
+static-self = { version = "0.1.2", path = "../static-self", optional = true }
 
 [build-dependencies]
 phf_codegen = "0.11"
