@@ -155,7 +155,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> TopLevelRuleParser<'a, 
     }
   }
 
-  pub fn nested<'x: 'b>(&'x mut self) -> NestedRuleParser<'_, 'o, 'i, T> {
+  pub fn nested<'x: 'b>(&'x mut self) -> NestedRuleParser<'x, 'o, 'i, T> {
     NestedRuleParser {
       options: &self.options,
       at_rule_parser: self.at_rule_parser,
