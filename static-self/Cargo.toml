@@ -1,6 +1,6 @@
 [package]
 name = "static-self"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Devon Govett <devongovett@gmail.com>","Donny <kdy1997.dev@gmail.com>"]
 description = "A trait for values that can be cloned with a static lifetime"
