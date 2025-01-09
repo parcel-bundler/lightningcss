@@ -329,7 +329,7 @@ enum_property! {
   }
 }
 
-shorthand_property! {
+define_shorthand! {
   /// A value for the [list-style](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-property) shorthand property.
   pub struct ListStyle<'i> {
     /// The position of the list marker.
@@ -339,6 +339,110 @@ shorthand_property! {
     image: ListStyleImage(Image<'i>),
     /// The list style type.
     list_style_type: ListStyleType(ListStyleType<'i>),
+  }
+}
+
+impl<'i> Parse<'i> for ListStyle<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut position = None;
+    let mut image = None;
+    let mut list_style_type = None;
+    let mut nones = 0;
+
+    loop {
+      // `none` is ambiguous - both list-style-image and list-style-type support it.
+      if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
+        nones += 1;
+        if nones > 2 {
+          return Err(input.new_custom_error(ParserError::InvalidValue));
+        }
+        continue;
+      }
+
+      if image.is_none() {
+        if let Ok(val) = input.try_parse(Image::parse) {
+          image = Some(val);
+          continue;
+        }
+      }
+
+      if position.is_none() {
+        if let Ok(val) = input.try_parse(ListStylePosition::parse) {
+          position = Some(val);
+          continue;
+        }
+      }
+
+      if list_style_type.is_none() {
+        if let Ok(val) = input.try_parse(ListStyleType::parse) {
+          list_style_type = Some(val);
+          continue;
+        }
+      }
+
+      break;
+    }
+
+    // Assign the `none` to the opposite property from the one we have a value for,
+    // or both in case neither list-style-image or list-style-type have a value.
+    match (nones, image, list_style_type) {
+      (2, None, None) | (1, None, None) => Ok(ListStyle {
+        position: position.unwrap_or_default(),
+        image: Image::None,
+        list_style_type: ListStyleType::None,
+      }),
+      (1, Some(image), None) => Ok(ListStyle {
+        position: position.unwrap_or_default(),
+        image,
+        list_style_type: ListStyleType::None,
+      }),
+      (1, None, Some(list_style_type)) => Ok(ListStyle {
+        position: position.unwrap_or_default(),
+        image: Image::None,
+        list_style_type,
+      }),
+      (0, image, list_style_type) => Ok(ListStyle {
+        position: position.unwrap_or_default(),
+        image: image.unwrap_or_default(),
+        list_style_type: list_style_type.unwrap_or_default(),
+      }),
+      _ => Err(input.new_custom_error(ParserError::InvalidValue)),
+    }
+  }
+}
+
+impl<'i> ToCss for ListStyle<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    let mut needs_space = false;
+    if self.position != ListStylePosition::default() {
+      self.position.to_css(dest)?;
+      needs_space = true;
+    }
+
+    if self.image != Image::default() {
+      if needs_space {
+        dest.write_char(' ')?;
+      }
+      self.image.to_css(dest)?;
+      needs_space = true;
+    }
+
+    if self.list_style_type != ListStyleType::default() {
+      if needs_space {
+        dest.write_char(' ')?;
+      }
+      self.list_style_type.to_css(dest)?;
+      needs_space = true;
+    }
+
+    if !needs_space {
+      self.position.to_css(dest)?;
+    }
+
+    Ok(())
   }
 }
 

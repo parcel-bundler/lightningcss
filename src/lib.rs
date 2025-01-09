@@ -16652,6 +16652,17 @@ mod tests {
       ".foo { list-style: \"★\" url(ellipse.png) outside; }",
       ".foo{list-style:url(ellipse.png) \"★\"}",
     );
+    minify_test(".foo { list-style: none; }", ".foo{list-style:none}");
+    minify_test(".foo { list-style: none none outside; }", ".foo{list-style:none}");
+    minify_test(".foo { list-style: none none inside; }", ".foo{list-style:inside none}");
+    minify_test(".foo { list-style: none inside; }", ".foo{list-style:inside none}");
+    minify_test(".foo { list-style: none disc; }", ".foo{list-style:outside}");
+    minify_test(".foo { list-style: none inside disc; }", ".foo{list-style:inside}");
+    minify_test(".foo { list-style: none \"★\"; }", ".foo{list-style:\"★\"}");
+    minify_test(
+      ".foo { list-style: none url(foo.png); }",
+      ".foo{list-style:url(foo.png) none}",
+    );
 
     test(
       r#"
