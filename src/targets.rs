@@ -6,7 +6,6 @@ use std::borrow::Borrow;
 
 use crate::vendor_prefix::VendorPrefix;
 use bitflags::bitflags;
-use indexmap::IndexSet;
 #[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::{Deserialize, Serialize};
 
@@ -250,39 +249,63 @@ impl Targets {
 
 #[derive(Debug)]
 pub(crate) struct TargetsWithSupportsScope {
-  input_targets: Targets,
-  supports_scope_features: IndexSet<Features>,
+  stack: Vec<Features>,
   pub(crate) current: Targets,
 }
 
 impl TargetsWithSupportsScope {
   pub fn new(targets: Targets) -> Self {
     Self {
-      input_targets: targets,
-      supports_scope_features: IndexSet::new(),
+      stack: Vec::new(),
       current: targets,
     }
   }
 
-  fn recalculate(&mut self) {
-    self.current.exclude = self.input_targets.exclude | self.supports_scope_features.iter().union_all();
-  }
-
   /// Returns true if inserted
-  pub fn enter_supports(&mut self, supported_features: Features) -> bool {
-    if supported_features.is_empty() {
+  pub fn enter_supports(&mut self, features: Features) -> bool {
+    if features.is_empty() || self.current.exclude.contains(features) {
+      // Already excluding all features
       return false;
     }
-    let inserted = self.supports_scope_features.insert(supported_features);
-    self.recalculate();
-    inserted
+
+    let newly_excluded = features - self.current.exclude;
+    self.stack.push(newly_excluded);
+    self.current.exclude.insert(newly_excluded);
+    true
   }
 
   /// Should be only called if inserted
   pub fn exit_supports(&mut self) {
-    self.supports_scope_features.pop();
-    self.recalculate();
+    if let Some(last) = self.stack.pop() {
+      self.current.exclude.remove(last);
+    }
   }
+}
+
+#[test]
+fn supports_scope_correctly() {
+  let mut targets = TargetsWithSupportsScope::new(Targets::default());
+  assert!(!targets.current.exclude.contains(Features::OklabColors));
+  assert!(!targets.current.exclude.contains(Features::LabColors));
+  assert!(!targets.current.exclude.contains(Features::P3Colors));
+
+  targets.enter_supports(Features::OklabColors | Features::LabColors);
+  assert!(targets.current.exclude.contains(Features::OklabColors));
+  assert!(targets.current.exclude.contains(Features::LabColors));
+
+  targets.enter_supports(Features::P3Colors | Features::LabColors);
+  assert!(targets.current.exclude.contains(Features::OklabColors));
+  assert!(targets.current.exclude.contains(Features::LabColors));
+  assert!(targets.current.exclude.contains(Features::P3Colors));
+
+  targets.exit_supports();
+  assert!(targets.current.exclude.contains(Features::OklabColors));
+  assert!(targets.current.exclude.contains(Features::LabColors));
+  assert!(!targets.current.exclude.contains(Features::P3Colors));
+
+  targets.exit_supports();
+  assert!(!targets.current.exclude.contains(Features::OklabColors));
+  assert!(!targets.current.exclude.contains(Features::LabColors));
 }
 
 macro_rules! should_compile {
