@@ -168,14 +168,6 @@ bitflags! {
 }
 
 pub(crate) trait FeaturesIterator: Sized + Iterator {
-  fn union_all<T>(self) -> Features
-  where
-    Self: Iterator<Item = T>,
-    T: Borrow<Features>,
-  {
-    self.fold(Features::empty(), |a, b| a | *b.borrow())
-  }
-
   fn try_union_all<T>(&mut self) -> Option<Features>
   where
     Self: Iterator<Item = Option<T>>,
