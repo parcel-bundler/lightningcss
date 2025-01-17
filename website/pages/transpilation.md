@@ -286,8 +286,8 @@ compiles to:
 
 ```css
 .foo {
-  background-color: #6a805d;
-  background-color: color(a98-rgb .44091 .49971 .37408);
+  color: #6a805d;
+  color: color(a98-rgb .44091 .49971 .37408);
 }
 ```
 
