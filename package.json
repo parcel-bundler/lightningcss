@@ -39,7 +39,7 @@
     "node/*.flow"
   ],
   "dependencies": {
-    "detect-libc": "^1.0.3"
+    "detect-libc": "^2.0.3"
   },
   "devDependencies": {
     "@babel/parser": "7.21.4",
