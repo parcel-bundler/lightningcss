@@ -112,9 +112,13 @@ impl FeatureToCss for ContainerSizeFeatureId {
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum StyleQuery<'i> {
-  /// A style feature, implicitly parenthesized.
+  /// A property declaration.
   #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<Property>"))]
-  Feature(Property<'i>),
+  Declaration(Property<'i>),
+  /// A property name, without a value.
+  /// This matches if the property value is different from the initial value.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<PropertyId>"))]
+  Property(PropertyId<'i>),
   /// A negation of a condition.
   #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<StyleQuery>>"))]
@@ -170,11 +174,14 @@ impl<'i> QueryCondition<'i> for StyleQuery<'i> {
   #[inline]
   fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let property_id = PropertyId::parse(input)?;
-    input.expect_colon()?;
-    input.skip_whitespace();
-    let feature = Self::Feature(Property::parse(property_id, input, &Default::default())?);
-    let _ = input.try_parse(|input| parse_important(input));
-    Ok(feature)
+    if input.try_parse(|input| input.expect_colon()).is_ok() {
+      input.skip_whitespace();
+      let feature = Self::Declaration(Property::parse(property_id, input, &Default::default())?);
+      let _ = input.try_parse(|input| parse_important(input));
+      Ok(feature)
+    } else {
+      Ok(Self::Property(property_id))
+    }
   }
 
   #[inline]
@@ -191,7 +198,7 @@ impl<'i> QueryCondition<'i> for StyleQuery<'i> {
     match self {
       StyleQuery::Not(_) => true,
       StyleQuery::Operation { operator, .. } => Some(*operator) != parent_operator,
-      StyleQuery::Feature(_) => true,
+      StyleQuery::Declaration(_) | StyleQuery::Property(_) => true,
     }
   }
 }
@@ -232,7 +239,8 @@ impl<'i> ToCss for StyleQuery<'i> {
     W: std::fmt::Write,
   {
     match *self {
-      StyleQuery::Feature(ref f) => f.to_css(dest, false),
+      StyleQuery::Declaration(ref f) => f.to_css(dest, false),
+      StyleQuery::Property(ref f) => f.to_css(dest),
       StyleQuery::Not(ref c) => {
         dest.write_str("not ")?;
         to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))

@@ -28270,6 +28270,26 @@ mod tests {
     "#,
       "@container style(--my-prop:foo - bar ()){.foo{color:red}}",
     );
+    minify_test(
+      r#"
+      @container style(--test) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container style(--test){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style(width) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container style(width){.foo{color:red}}",
+    );
 
     // Disallow 'none', 'not', 'and', 'or' as a `<container-name>`
     // https://github.com/w3c/csswg-drafts/issues/7203#issuecomment-1144257312
@@ -28310,7 +28330,6 @@ mod tests {
     error_test("@container (inline-size <= foo) {}", ParserError::InvalidMediaQuery);
     error_test("@container (orientation <= 10px) {}", ParserError::InvalidMediaQuery);
 
-    error_test("@container style(width) {}", ParserError::EndOfInput);
     error_test(
       "@container style(style(--foo: bar)) {}",
       ParserError::UnexpectedToken(crate::properties::custom::Token::Function("style".into())),

@@ -7453,8 +7453,12 @@ export type ContainerSizeFeatureId = "width" | "height" | "inline-size" | "block
  * Represents a style query within a container condition.
  */
 export type StyleQuery<D = Declaration> = | {
-    type: "feature";
+    type: "declaration";
     value: D;
+  }
+| {
+    type: "property";
+    value: PropertyId;
   }
 | {
     type: "not";
