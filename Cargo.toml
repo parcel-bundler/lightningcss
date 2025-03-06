@@ -12,7 +12,7 @@ members = [
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
 name = "lightningcss"
-version = "1.0.0-alpha.63"
+version = "1.0.0-alpha.64"
 description = "A CSS parser, transformer, and minifier"
 license = "MPL-2.0"
 edition = "2021"
