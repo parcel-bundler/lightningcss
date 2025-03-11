@@ -3929,6 +3929,9 @@ pub mod tests {
     assert!(parse("foo:where()").is_err());
     assert!(parse("foo:where(div, foo, .bar baz)").is_ok());
     assert!(parse("foo:where(::before)").is_err());
+
+    assert!(parse("foo::details-content").is_ok());
+    assert!(parse("foo::target-text").is_ok());
   }
 
   #[test]
