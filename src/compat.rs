@@ -42,6 +42,7 @@ pub enum Feature {
   DecimalLeadingZeroListStyleType,
   DecimalListStyleType,
   DefaultPseudo,
+  DetailsContent,
   DevanagariListStyleType,
   Dialog,
   DirSelector,
@@ -191,6 +192,7 @@ pub enum Feature {
   StringListStyleType,
   SymbolsListStyleType,
   TamilListStyleType,
+  TargetText,
   TeluguListStyleType,
   TextDecorationThicknessPercent,
   TextDecorationThicknessShorthand,
@@ -3502,6 +3504,86 @@ impl Feature {
           }
         }
         if browsers.firefox.is_some() || browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::DetailsContent => {
+        if let Some(version) = browsers.chrome {
+          if version < 8585216 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 8585216 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 5701632 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 1180672 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1180672 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 8585216 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some() || browsers.ie.is_some() || browsers.samsung.is_some() {
+          return false;
+        }
+      }
+      Feature::TargetText => {
+        if let Some(version) = browsers.chrome {
+          if version < 5832704 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5832704 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 8585216 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4128768 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 1180160 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1180160 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 5832704 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
           return false;
         }
       }

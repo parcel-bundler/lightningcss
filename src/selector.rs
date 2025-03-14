@@ -267,6 +267,8 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "after" => After,
       "first-line" => FirstLine,
       "first-letter" => FirstLetter,
+      "details-content" => DetailsContent,
+      "target-text" => TargetText,
       "cue" => Cue,
       "cue-region" => CueRegion,
       "selection" => Selection(VendorPrefix::None),
@@ -887,6 +889,10 @@ pub enum PseudoElement<'i> {
   FirstLine,
   /// The [::first-letter](https://drafts.csswg.org/css-pseudo-4/#first-letter-pseudo) pseudo element.
   FirstLetter,
+  /// The [::details-content](https://drafts.csswg.org/css-pseudo-4/#details-content-pseudo)
+  DetailsContent,
+  /// The [::target-text](https://drafts.csswg.org/css-pseudo-4/#selectordef-target-text)
+  TargetText,
   /// The [::selection](https://drafts.csswg.org/css-pseudo-4/#selectordef-selection) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Selection(VendorPrefix),
@@ -1139,6 +1145,8 @@ where
     Before => dest.write_str(":before"),
     FirstLine => dest.write_str(":first-line"),
     FirstLetter => dest.write_str(":first-letter"),
+    DetailsContent => dest.write_str("::details-content"),
+    TargetText => dest.write_str("::target-text"),
     Marker => dest.write_str("::marker"),
     Selection(prefix) => write_prefixed!(prefix, "selection"),
     Cue => dest.write_str("::cue"),
@@ -1903,6 +1911,8 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           PseudoElement::After | PseudoElement::Before => Feature::Gencontent,
           PseudoElement::FirstLine => Feature::FirstLine,
           PseudoElement::FirstLetter => Feature::FirstLetter,
+          PseudoElement::DetailsContent => Feature::DetailsContent,
+          PseudoElement::TargetText => Feature::TargetText,
           PseudoElement::Selection(prefix) if *prefix == VendorPrefix::None => Feature::Selection,
           PseudoElement::Placeholder(prefix) if *prefix == VendorPrefix::None => Feature::Placeholder,
           PseudoElement::Marker => Feature::MarkerPseudo,

@@ -332,6 +332,8 @@ let mdnFeatures = {
   accentSystemColor: mdn.css.types.color['system-color'].accentcolor_accentcolortext.__compat.support,
   animationTimelineShorthand: mdn.css.properties.animation['animation-timeline_included'].__compat.support,
   viewTransition: mdn.css.selectors['view-transition'].__compat.support,
+  detailsContent: mdn.css.selectors['details-content'].__compat.support,
+  targetText: mdn.css.selectors['target-text'].__compat.support,
 };
 
 for (let key in mdn.css.types.length) {
