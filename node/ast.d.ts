@@ -6861,6 +6861,12 @@ export type PseudoElement =
       kind: "first-letter";
     }
   | {
+      kind: "details-content";
+    }
+  | {
+      kind: "target-text";
+    }
+  | {
       kind: "selection";
       vendorPrefix: VendorPrefix;
     }
