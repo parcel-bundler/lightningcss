@@ -2926,6 +2926,16 @@ impl Feature {
         }
       }
       Feature::AbsFunction | Feature::SignFunction => {
+        if let Some(version) = browsers.chrome {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 8847360 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.firefox {
           if version < 7733248 {
             return false;
@@ -2941,13 +2951,12 @@ impl Feature {
             return false;
           }
         }
-        if browsers.android.is_some()
-          || browsers.chrome.is_some()
-          || browsers.edge.is_some()
-          || browsers.ie.is_some()
-          || browsers.opera.is_some()
-          || browsers.samsung.is_some()
-        {
+        if let Some(version) = browsers.android {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() || browsers.opera.is_some() || browsers.samsung.is_some() {
           return false;
         }
       }

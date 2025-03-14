@@ -562,7 +562,7 @@ impl Feature {
       }
       Feature::Element => {
         if let Some(version) = browsers.firefox {
-          if version >= 131072 && version <= 8912896 {
+          if version >= 131072 {
             prefixes |= VendorPrefix::Moz;
           }
         }
@@ -672,7 +672,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 197120 && version <= 1180416 {
+          if version >= 197120 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -682,7 +682,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 196864 && version <= 1180416 {
+          if version >= 196864 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1190,17 +1190,17 @@ impl Feature {
       }
       Feature::Fill | Feature::FillAvailable => {
         if let Some(version) = browsers.chrome {
-          if version >= 1441792 && version <= 8781824 {
+          if version >= 1441792 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 && version <= 8585216 {
+          if version >= 263168 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 && version <= 8585216 {
+          if version >= 5177344 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1269,27 +1269,27 @@ impl Feature {
       }
       Feature::Stretch => {
         if let Some(version) = browsers.chrome {
-          if version >= 1441792 && version <= 8781824 {
+          if version >= 1441792 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 196608 && version <= 8912896 {
+          if version >= 196608 {
             prefixes |= VendorPrefix::Moz;
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 && version <= 8585216 {
+          if version >= 263168 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 && version <= 8585216 {
+          if version >= 5177344 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 458752 && version <= 1180416 {
+          if version >= 458752 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1299,7 +1299,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 458752 && version <= 1180416 {
+          if version >= 458752 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1374,7 +1374,7 @@ impl Feature {
       }
       Feature::TextDecorationSkip | Feature::TextDecorationSkipInk => {
         if let Some(version) = browsers.ios_saf {
-          if version >= 524288 && version <= 1180416 {
+          if version >= 524288 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1386,12 +1386,12 @@ impl Feature {
       }
       Feature::TextDecoration => {
         if let Some(version) = browsers.ios_saf {
-          if version >= 524288 && version <= 1180416 {
+          if version >= 524288 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 524288 && version <= 1180416 {
+          if version >= 524288 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1414,10 +1414,8 @@ impl Feature {
         }
       }
       Feature::TextSizeAdjust => {
-        if let Some(version) = browsers.firefox {
-          if version <= 8650752 {
-            prefixes |= VendorPrefix::Moz;
-          }
+        if browsers.firefox.is_some() {
+          prefixes |= VendorPrefix::Moz;
         }
         if let Some(version) = browsers.edge {
           if version >= 786432 && version <= 1179648 {
@@ -1430,7 +1428,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 327680 && version <= 1180416 {
+          if version >= 327680 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1534,7 +1532,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 458752 && version <= 1180416 {
+          if version >= 458752 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1544,7 +1542,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 393472 && version <= 1180416 {
+          if version >= 393472 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1921,17 +1919,17 @@ impl Feature {
       }
       Feature::CrossFade => {
         if let Some(version) = browsers.chrome {
-          if version >= 1114112 && version <= 8781824 {
+          if version >= 1114112 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 && version <= 8585216 {
+          if version >= 263168 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 && version <= 8585216 {
+          if version >= 5177344 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -2156,17 +2154,17 @@ impl Feature {
       }
       Feature::PrintColorAdjust | Feature::ColorAdjust => {
         if let Some(version) = browsers.chrome {
-          if version >= 1114112 && version <= 8781824 {
+          if version >= 1114112 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 && version <= 8585216 {
+          if version >= 263168 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 && version <= 8585216 {
+          if version >= 5177344 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
