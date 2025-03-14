@@ -109,6 +109,9 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             strip: llvm-strip
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+          - target: aarch64-linux-android
+            strip: llvm-strip
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
           - target: armv7-unknown-linux-gnueabihf
             strip: llvm-strip
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust@sha256:c22284b2d79092d3e885f64ede00f6afdeb2ccef7e2b6e78be52e7909091cd57
@@ -133,6 +136,14 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup Android NDK
+        if: ${{ matrix.target == 'aarch64-linux-android' }}
+        run: |
+          sudo apt update && sudo apt install unzip -y
+          cd /tmp
+          wget -q https://dl.google.com/android/repository/android-ndk-r28-linux.zip -O /tmp/ndk.zip
+          unzip ndk.zip
+
       - name: Setup cross compile toolchain
         if: ${{ matrix.setup }}
         run: ${{ matrix.setup }}
@@ -144,8 +155,11 @@ jobs:
       - name: Build release
         run: yarn build-release
         env:
+          ANDROID_NDK_LATEST_HOME: /tmp/android-ndk-r28
           RUST_TARGET: ${{ matrix.target }}
       - name: Build CLI
+        env:
+          ANDROID_NDK_LATEST_HOME: /tmp/android-ndk-r28
         run: |
           yarn napi build --bin lightningcss --release --features cli --target ${{ matrix.target }}
           mv target/${{ matrix.target }}/release/lightningcss lightningcss
