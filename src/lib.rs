@@ -2151,7 +2151,7 @@ mod tests {
       indoc! {r#"
       .foo {
         -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
+        -webkit-border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
         border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
@@ -2172,8 +2172,8 @@ mod tests {
       indoc! {r#"
       .foo {
         -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
-        -moz-border-image: -moz-linear-gradient(#ff0f0e, #7773ff) 60;
+        -webkit-border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
+        -moz-border-image: -moz-linear-gradient(top, #ff0f0e, #7773ff) 60;
         border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
@@ -2194,8 +2194,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
-        border-image: -moz-linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
+        border-image: -moz-linear-gradient(top, #ff0f0e, #7773ff) 60;
         border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
@@ -2216,7 +2216,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image-source: -webkit-linear-gradient(#ff0f0e, #7773ff);
+        border-image-source: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
         border-image-source: linear-gradient(#ff0f0e, #7773ff);
         border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
       }
@@ -12934,7 +12934,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(red, #00f);
+        background-image: -webkit-linear-gradient(top, red, #00f);
         background-image: linear-gradient(red, #00f);
       }
       "#},
@@ -12952,7 +12952,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 0 0, 100% 0, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(right, red, #00f);
+        background-image: -webkit-linear-gradient(left, red, #00f);
         background-image: linear-gradient(to right, red, #00f);
       }
       "#},
@@ -12970,7 +12970,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 0 100%, 0 0, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(top, red, #00f);
+        background-image: -webkit-linear-gradient(red, #00f);
         background-image: linear-gradient(to top, red, #00f);
       }
       "#},
@@ -12988,7 +12988,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 100% 0, 0 0, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(left, red, #00f);
+        background-image: -webkit-linear-gradient(right, red, #00f);
         background-image: linear-gradient(to left, red, #00f);
       }
       "#},
@@ -13006,7 +13006,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 100% 0, 0 100%, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(bottom left, red, #00f);
+        background-image: -webkit-linear-gradient(top right, red, #00f);
         background-image: linear-gradient(to bottom left, red, #00f);
       }
       "#},
@@ -13024,7 +13024,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 0 100%, 100% 0, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(top right, red, #00f);
+        background-image: -webkit-linear-gradient(bottom left, red, #00f);
         background-image: linear-gradient(to top right, red, #00f);
       }
       "#},
@@ -13076,7 +13076,7 @@ mod tests {
       "#,
       indoc! {r#"
       .foo {
-        background-image: -webkit-linear-gradient(red, #00f);
+        background-image: -webkit-linear-gradient(top, red, #00f);
         background-image: linear-gradient(red, #00f);
       }
       "#},
@@ -13200,9 +13200,9 @@ mod tests {
       indoc! {r#"
       .foo {
         background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0), to(red)), url("bg.jpg");
-        background: -webkit-radial-gradient(red, #00f), -webkit-linear-gradient(#ff0, red), url("bg.jpg");
-        background: -moz-radial-gradient(red, #00f), -moz-linear-gradient(#ff0, red), url("bg.jpg");
-        background: -o-radial-gradient(red, #00f), -o-linear-gradient(#ff0, red), url("bg.jpg");
+        background: -webkit-radial-gradient(red, #00f), -webkit-linear-gradient(top, #ff0, red), url("bg.jpg");
+        background: -moz-radial-gradient(red, #00f), -moz-linear-gradient(top, #ff0, red), url("bg.jpg");
+        background: -o-radial-gradient(red, #00f), -o-linear-gradient(top, #ff0, red), url("bg.jpg");
         background: radial-gradient(red, #00f), linear-gradient(#ff0, red), url("bg.jpg");
       }
       "#},
@@ -13282,7 +13282,7 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -13298,7 +13298,7 @@ mod tests {
       indoc! { r#"
         .foo {
           background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          background: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -13369,7 +13369,7 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -13385,7 +13385,7 @@ mod tests {
       indoc! { r#"
         .foo {
           background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          background-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -16723,7 +16723,7 @@ mod tests {
       indoc! { r#"
         .foo {
           list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          list-style-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          list-style-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           list-style-image: linear-gradient(#ff0f0e, #7773ff);
           list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -25648,7 +25648,7 @@ mod tests {
       indoc! { r#"
         .foo {
           -webkit-mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          -webkit-mask-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           -webkit-mask-image: linear-gradient(#ff0f0e, #7773ff);
           mask-image: linear-gradient(#ff0f0e, #7773ff);
           -webkit-mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
@@ -25710,7 +25710,7 @@ mod tests {
       indoc! { r#"
         .foo {
           -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
-          -webkit-mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 40px 20px;
           -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
           mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
           -webkit-mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
