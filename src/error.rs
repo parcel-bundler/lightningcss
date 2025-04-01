@@ -410,7 +410,7 @@ pub enum PrinterErrorKind {
   FmtError,
   /// The CSS modules `composes` property cannot be used within nested rules.
   InvalidComposesNesting,
-  /// The CSS modules `composes` property cannot be used with a simple class selector.
+  /// The CSS modules `composes` property can only be used with a simple class selector.
   InvalidComposesSelector,
   /// The CSS modules pattern must end with `[local]` for use in CSS grid.
   InvalidCssModulesPatternInGrid,
