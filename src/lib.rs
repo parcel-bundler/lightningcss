@@ -24392,6 +24392,25 @@ mod tests {
   }
 
   #[test]
+  fn test_nesting_error_recovery() {
+    nesting_test(
+      "
+    .container {
+      padding: 3rem;
+      @media (max-width: --styled-jsx-placeholder-0__) {
+        .responsive {
+          color: purple;
+        }
+      }
+    }
+    ",
+      indoc! {
+        ""
+      },
+    );
+  }
+
+  #[test]
   fn test_css_modules() {
     css_modules_test(
       r#"
