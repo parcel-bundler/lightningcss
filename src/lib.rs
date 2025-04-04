@@ -902,7 +902,7 @@ mod tests {
     test(
       r#"
       .foo {
-        border: 1px solid currentColor;
+        border: 1px solid currentcolor;
       }
     "#,
       indoc! {r#"
@@ -916,7 +916,7 @@ mod tests {
     minify_test(
       r#"
       .foo {
-        border: 1px solid currentColor;
+        border: 1px solid currentcolor;
       }
     "#,
       ".foo{border:1px solid}",
@@ -16998,7 +16998,7 @@ mod tests {
     minify_test(".foo { color: hsla(100, 100%, 50%, .8) }", ".foo{color:#5f0c}");
     minify_test(".foo { color: hsla(100 100% 50% / .8) }", ".foo{color:#5f0c}");
     minify_test(".foo { color: transparent }", ".foo{color:#0000}");
-    minify_test(".foo { color: currentColor }", ".foo{color:currentColor}");
+    minify_test(".foo { color: currentcolor }", ".foo{color:currentcolor}");
     minify_test(".foo { color: ButtonBorder }", ".foo{color:buttonborder}");
     minify_test(".foo { color: hwb(194 0% 0%) }", ".foo{color:#00c4ff}");
     minify_test(".foo { color: hwb(194 0% 0% / 50%) }", ".foo{color:#00c4ff80}");
@@ -17890,8 +17890,8 @@ mod tests {
     test("lch(from indianred l sqrt(c) h)", "lch(53.9252% 7.16084 26.8448)");
     test("lch(from indianred l c sin(h))", "lch(53.9252% 51.2776 .990043)");
     minify_test(
-      ".foo{color:lch(from currentColor l c sin(h))}",
-      ".foo{color:lch(from currentColor l c sin(h))}",
+      ".foo{color:lch(from currentcolor l c sin(h))}",
+      ".foo{color:lch(from currentcolor l c sin(h))}",
     );
 
     // The following tests were converted from WPT: https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/relative-color-valid.html
@@ -19745,12 +19745,12 @@ mod tests {
       },
     );
     minify_test(
-      ".foo { color: color-mix(in srgb, currentColor, blue); }",
-      ".foo{color:color-mix(in srgb,currentColor,blue)}",
+      ".foo { color: color-mix(in srgb, currentcolor, blue); }",
+      ".foo{color:color-mix(in srgb,currentcolor,blue)}",
     );
     minify_test(
-      ".foo { color: color-mix(in srgb, blue, currentColor); }",
-      ".foo{color:color-mix(in srgb,blue,currentColor)}",
+      ".foo { color: color-mix(in srgb, blue, currentcolor); }",
+      ".foo{color:color-mix(in srgb,blue,currentcolor)}",
     );
     minify_test(
       ".foo { color: color-mix(in srgb, accentcolor, blue); }",
@@ -28747,7 +28747,7 @@ mod tests {
       .foo {
         box-shadow:
             oklch(100% 0 0deg / 50%) 0 0.63rem 0.94rem -0.19rem,
-            currentColor 0 0.44rem 0.8rem -0.58rem;
+            currentcolor 0 0.44rem 0.8rem -0.58rem;
       }
     "#,
       indoc! { r#"
@@ -28766,7 +28766,7 @@ mod tests {
       .foo {
         box-shadow:
             oklch(100% 0 0deg / 50%) 0 0.63rem 0.94rem -0.19rem,
-            currentColor 0 0.44rem 0.8rem -0.58rem;
+            currentcolor 0 0.44rem 0.8rem -0.58rem;
       }
     "#,
       indoc! { r#"

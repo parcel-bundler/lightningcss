@@ -44,7 +44,7 @@ use std::fmt::Write;
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum CssColor {
-  /// The [`currentColor`](https://www.w3.org/TR/css-color-4/#currentcolor-color) keyword.
+  /// The [`currentcolor`](https://www.w3.org/TR/css-color-4/#currentcolor-color) keyword.
   #[cfg_attr(feature = "serde", serde(with = "CurrentColor"))]
   CurrentColor,
   /// An value in the RGB color space, including values parsed as hex colors, or the `rgb()`, `hsl()`, and `hwb()` functions.
@@ -318,7 +318,7 @@ impl ColorFallbackKind {
 }
 
 impl CssColor {
-  /// Returns the `currentColor` keyword.
+  /// Returns the `currentcolor` keyword.
   pub fn current_color() -> CssColor {
     CssColor::CurrentColor
   }
@@ -526,7 +526,7 @@ impl ToCss for CssColor {
     W: std::fmt::Write,
   {
     match self {
-      CssColor::CurrentColor => dest.write_str("currentColor"),
+      CssColor::CurrentColor => dest.write_str("currentcolor"),
       CssColor::RGBA(color) => {
         if color.alpha == 255 {
           let hex: u32 = ((color.red as u32) << 16) | ((color.green as u32) << 8) | (color.blue as u32);

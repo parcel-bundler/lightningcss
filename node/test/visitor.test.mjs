@@ -978,13 +978,13 @@ test('supports returning raw values as variables', () => {
   assert.equal(res.code.toString(), '.EgL3uq_foo{color:var(--EgL3uq_foo)}');
 });
 
-test('works with currentColor', () => {
+test('works with currentcolor', () => {
   let res = transform({
     filename: 'test.css',
     minify: true,
     code: Buffer.from(`
       .foo {
-        color: currentColor;
+        color: currentcolor;
       }
     `),
     visitor: {
@@ -994,7 +994,7 @@ test('works with currentColor', () => {
     }
   });
 
-  assert.equal(res.code.toString(), '.foo{color:currentColor}');
+  assert.equal(res.code.toString(), '.foo{color:currentcolor}');
 });
 
 test('nth of S to nth-of-type', () => {
