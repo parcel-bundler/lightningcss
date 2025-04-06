@@ -29404,6 +29404,69 @@ mod tests {
       },
     );
 
+    prefix_test(
+      r#"
+      @supports (color: lab(40% 56.6 39)) {
+        .foo {
+          color: lab(40% 56.6 39);
+        }
+      }
+      "#,
+      indoc! {r#"
+      @supports (color: lab(40% 56.6 39)) {
+        .foo {
+          color: lab(40% 56.6 39);
+        }
+      }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      @supports (background-color: lab(40% 56.6 39)) {
+        .foo {
+          background-color: lab(40% 56.6 39);
+        }
+      }
+      "#,
+      indoc! {r#"
+      @supports (background-color: lab(40% 56.6 39)) {
+        .foo {
+          background-color: lab(40% 56.6 39);
+        }
+      }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      @supports (color: light-dark(#f00, #00f)) {
+        .foo {
+          color: light-dark(#ff0, #0ff);
+        }
+      }
+      "#,
+      indoc! {r#"
+      @supports (color: light-dark(#f00, #00f)) {
+        .foo {
+          color: light-dark(#ff0, #0ff);
+        }
+      }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      },
+    );
+
     // NOTE: fallback for lab is not necessary
     prefix_test(
       r#"

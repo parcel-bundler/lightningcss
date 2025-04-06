@@ -245,7 +245,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
     W: std::fmt::Write,
   {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
-    let supports_nesting = self.rules.0.is_empty() || !should_compile!(dest.targets, Nesting);
+    let supports_nesting = self.rules.0.is_empty() || !should_compile!(dest.targets.current, Nesting);
     let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();
     let has_declarations = supports_nesting || len > 0 || self.rules.0.is_empty();
 

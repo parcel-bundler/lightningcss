@@ -971,7 +971,7 @@ where
 
     // Use double position stop if the last stop is the same color and all targets support it.
     if let Some(prev) = last {
-      if !should_compile!(dest.targets, DoublePositionGradients) {
+      if !should_compile!(dest.targets.current, DoublePositionGradients) {
         match (prev, item) {
           (
             GradientItem::ColorStop(ColorStop {

@@ -218,7 +218,7 @@ impl<'i> ToCss for ContainerCondition<'i> {
       ContainerCondition::Feature(ref f) => f.to_css(dest),
       ContainerCondition::Not(ref c) => {
         dest.write_str("not ")?;
-        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))
+        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets.current))
       }
       ContainerCondition::Operation {
         ref conditions,
@@ -243,7 +243,7 @@ impl<'i> ToCss for StyleQuery<'i> {
       StyleQuery::Property(ref f) => f.to_css(dest),
       StyleQuery::Not(ref c) => {
         dest.write_str("not ")?;
-        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))
+        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets.current))
       }
       StyleQuery::Operation {
         ref conditions,
@@ -313,10 +313,10 @@ impl<'a, 'i, T: ToCss> ToCss for ContainerRule<'i, T> {
     }
 
     // Don't downlevel range syntax in container queries.
-    let exclude = dest.targets.exclude;
-    dest.targets.exclude.insert(Features::MediaQueries);
+    let exclude = dest.targets.current.exclude;
+    dest.targets.current.exclude.insert(Features::MediaQueries);
     self.condition.to_css(dest)?;
-    dest.targets.exclude = exclude;
+    dest.targets.current.exclude = exclude;
 
     dest.whitespace()?;
     dest.write_char('{')?;

@@ -754,12 +754,12 @@ where
 {
   let mut iter = conditions.iter();
   let first = iter.next().unwrap();
-  to_css_with_parens_if_needed(first, dest, first.needs_parens(Some(operator), &dest.targets))?;
+  to_css_with_parens_if_needed(first, dest, first.needs_parens(Some(operator), &dest.targets.current))?;
   for item in iter {
     dest.write_char(' ')?;
     operator.to_css(dest)?;
     dest.write_char(' ')?;
-    to_css_with_parens_if_needed(item, dest, item.needs_parens(Some(operator), &dest.targets))?;
+    to_css_with_parens_if_needed(item, dest, item.needs_parens(Some(operator), &dest.targets.current))?;
   }
 
   Ok(())
@@ -787,7 +787,7 @@ impl<'i> ToCss for MediaCondition<'i> {
           negated.to_css(dest)
         } else {
           dest.write_str("not ")?;
-          to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))
+          to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets.current))
         }
       }
       MediaCondition::Operation {
@@ -1087,7 +1087,7 @@ impl<'i, FeatureId: FeatureToCss> ToCss for QueryFeature<'i, FeatureId> {
       }
       QueryFeature::Range { name, operator, value } => {
         // If range syntax is unsupported, use min/max prefix if possible.
-        if should_compile!(dest.targets, MediaRangeSyntax) {
+        if should_compile!(dest.targets.current, MediaRangeSyntax) {
           return write_min_max(operator, name, value, dest, false);
         }
 
@@ -1103,7 +1103,7 @@ impl<'i, FeatureId: FeatureToCss> ToCss for QueryFeature<'i, FeatureId> {
         end,
         end_operator,
       } => {
-        if should_compile!(dest.targets, MediaIntervalSyntax) {
+        if should_compile!(dest.targets.current, MediaIntervalSyntax) {
           write_min_max(&start_operator.opposite(), name, start, dest, true)?;
           dest.write_str(" and ")?;
           return write_min_max(end_operator, name, end, dest, true);

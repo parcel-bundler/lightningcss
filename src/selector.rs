@@ -1371,7 +1371,7 @@ where
 
   let mut combinators = selector.iter_raw_match_order().rev().filter_map(|x| x.as_combinator());
   let compound_selectors = selector.iter_raw_match_order().as_slice().split(|x| x.is_combinator()).rev();
-  let should_compile_nesting = should_compile!(dest.targets, Nesting);
+  let should_compile_nesting = should_compile!(dest.targets.current, Nesting);
 
   let mut first = true;
   let mut combinators_exhausted = false;
@@ -1681,7 +1681,7 @@ where
   } else {
     // If there is no context, we are at the root if nesting is supported. This is equivalent to :scope.
     // Otherwise, if nesting is supported, serialize the nesting selector directly.
-    if should_compile!(dest.targets, Nesting) {
+    if should_compile!(dest.targets.current, Nesting) {
       dest.write_str(":scope")
     } else {
       dest.write_char('&')

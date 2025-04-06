@@ -161,7 +161,7 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
       }
       MathFunction::Clamp(a, b, c) => {
         // If clamp() is unsupported by targets, output min()/max()
-        if should_compile!(dest.targets, ClampFunction) {
+        if should_compile!(dest.targets.current, ClampFunction) {
           dest.write_str("max(")?;
           a.to_css(dest)?;
           dest.delim(',', false)?;

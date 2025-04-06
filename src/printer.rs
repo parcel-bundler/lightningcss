@@ -5,7 +5,7 @@ use crate::dependencies::{Dependency, DependencyOptions};
 use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
 use crate::rules::{Location, StyleContext};
 use crate::selector::SelectorList;
-use crate::targets::Targets;
+use crate::targets::{Targets, TargetsWithSupportsScope};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::{serialize_identifier, serialize_name};
 #[cfg(feature = "sourcemap")]
@@ -77,7 +77,7 @@ pub struct Printer<'a, 'b, 'c, W> {
   line: u32,
   col: u32,
   pub(crate) minify: bool,
-  pub(crate) targets: Targets,
+  pub(crate) targets: TargetsWithSupportsScope,
   /// Vendor prefix override. When non-empty, it overrides
   /// the vendor prefix of whatever is being printed.
   pub(crate) vendor_prefix: VendorPrefix,
@@ -108,7 +108,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
       line: 0,
       col: 0,
       minify: options.minify,
-      targets: options.targets,
+      targets: TargetsWithSupportsScope::new(options.targets),
       vendor_prefix: VendorPrefix::empty(),
       in_calc: false,
       css_module: None,

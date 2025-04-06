@@ -7,7 +7,7 @@ use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
 use crate::stylesheet::ParserOptions;
-use crate::targets::{should_compile, Targets};
+use crate::targets::{should_compile, Features, Targets};
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::angle::Angle;
 use crate::values::color::{
@@ -1176,6 +1176,44 @@ impl<'i> TokenList<'i> {
     res
   }
 
+  pub(crate) fn get_features(&self) -> Features {
+    let mut features = Features::empty();
+    for token in &self.0 {
+      match token {
+        TokenOrValue::Color(color) => {
+          features |= color.get_features();
+        }
+        TokenOrValue::UnresolvedColor(unresolved_color) => {
+          features |= Features::SpaceSeparatedColorNotation;
+          match unresolved_color {
+            UnresolvedColor::LightDark { light, dark } => {
+              features |= Features::LightDark;
+              features |= light.get_features();
+              features |= dark.get_features();
+            }
+            _ => {}
+          }
+        }
+        TokenOrValue::Function(f) => {
+          features |= f.arguments.get_features();
+        }
+        TokenOrValue::Var(v) => {
+          if let Some(fallback) = &v.fallback {
+            features |= fallback.get_features();
+          }
+        }
+        TokenOrValue::Env(v) => {
+          if let Some(fallback) = &v.fallback {
+            features |= fallback.get_features();
+          }
+        }
+        _ => {}
+      }
+    }
+
+    features
+  }
+
   /// Substitutes variables with the provided values.
   #[cfg(feature = "substitute_variables")]
   #[cfg_attr(docsrs, doc(cfg(feature = "substitute_variables")))]
@@ -1605,7 +1643,7 @@ impl<'i> UnresolvedColor<'i> {
 
     match self {
       UnresolvedColor::RGB { r, g, b, alpha } => {
-        if should_compile!(dest.targets, SpaceSeparatedColorNotation) {
+        if should_compile!(dest.targets.current, SpaceSeparatedColorNotation) {
           dest.write_str("rgba(")?;
           c(r).to_css(dest)?;
           dest.delim(',', false)?;
@@ -1629,7 +1667,7 @@ impl<'i> UnresolvedColor<'i> {
         dest.write_char(')')
       }
       UnresolvedColor::HSL { h, s, l, alpha } => {
-        if should_compile!(dest.targets, SpaceSeparatedColorNotation) {
+        if should_compile!(dest.targets.current, SpaceSeparatedColorNotation) {
           dest.write_str("hsla(")?;
           h.to_css(dest)?;
           dest.delim(',', false)?;
@@ -1653,7 +1691,7 @@ impl<'i> UnresolvedColor<'i> {
         dest.write_char(')')
       }
       UnresolvedColor::LightDark { light, dark } => {
-        if should_compile!(dest.targets, LightDark) {
+        if should_compile!(dest.targets.current, LightDark) {
           dest.write_str("var(--lightningcss-light")?;
           dest.delim(',', false)?;
           light.to_css(dest, is_custom_property)?;

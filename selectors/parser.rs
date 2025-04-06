@@ -3394,7 +3394,7 @@ pub mod tests {
     }
   }
 
-  fn parse<'i>(input: &'i str) -> Result<SelectorList<DummySelectorImpl>, SelectorParseError<'i>> {
+  fn parse<'i>(input: &'i str) -> Result<SelectorList<'i, DummySelectorImpl>, SelectorParseError<'i>> {
     parse_ns(input, &DummyParser::default())
   }
 
