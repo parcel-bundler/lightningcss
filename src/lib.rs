@@ -66,6 +66,7 @@ mod tests {
   use indoc::indoc;
   use pretty_assertions::assert_eq;
   use std::collections::HashMap;
+  use std::sync::{Arc, RwLock};
 
   fn test(source: &str, expected: &str) {
     test_with_options(source, expected, ParserOptions::default())
@@ -233,6 +234,22 @@ mod tests {
     match res {
       Ok(_) => unreachable!(),
       Err(e) => assert_eq!(e.kind, error),
+    }
+  }
+
+  fn error_recovery_test(source: &str) {
+    let warnings = Arc::new(RwLock::default());
+    let res = StyleSheet::parse(
+      &source,
+      ParserOptions {
+        error_recovery: true,
+        warnings: Some(warnings.clone()),
+        ..Default::default()
+      },
+    );
+    match res {
+      Ok(..) => {}
+      Err(e) => unreachable!("parser error should be recovered, but got {e:?}"),
     }
   }
 
@@ -24361,6 +24378,22 @@ mod tests {
         include: Features::Nesting,
         exclude: Features::empty(),
       },
+    );
+  }
+
+  #[test]
+  fn test_nesting_error_recovery() {
+    error_recovery_test(
+      "
+    .container {
+      padding: 3rem;
+      @media (max-width: --styled-jsx-placeholder-0__) {
+        .responsive {
+          color: purple;
+        }
+      }
+    }
+    ",
     );
   }
 
