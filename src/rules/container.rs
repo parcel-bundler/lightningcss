@@ -9,13 +9,13 @@ use crate::media_query::{
   define_query_features, operation_to_css, parse_query_condition, to_css_with_parens_if_needed, FeatureToCss,
   MediaFeatureType, Operator, QueryCondition, QueryConditionFlags, QueryFeature, ValueType,
 };
-use crate::parser::DefaultAtRule;
+use crate::parser::{DefaultAtRule, ParserOptions};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
 use crate::targets::{Features, Targets};
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::ident::CustomIdent;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -135,8 +135,11 @@ pub enum StyleQuery<'i> {
 
 impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
   #[inline]
-  fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let feature = QueryFeature::parse(input)?;
+  fn parse_feature<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let feature = QueryFeature::parse_with_options(input, options)?;
     Ok(Self::Feature(feature))
   }
 
@@ -150,13 +153,18 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
     Self::Operation { operator, conditions }
   }
 
-  fn parse_style_query<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse_style_query<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
-      if let Ok(res) = input.try_parse(|input| parse_query_condition(input, QueryConditionFlags::ALLOW_OR)) {
+      if let Ok(res) =
+        input.try_parse(|input| parse_query_condition(input, QueryConditionFlags::ALLOW_OR, options))
+      {
         return Ok(Self::Style(res));
       }
 
-      Ok(Self::Style(StyleQuery::parse_feature(input)?))
+      Ok(Self::Style(StyleQuery::parse_feature(input, options)?))
     })
   }
 
@@ -172,11 +180,14 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
 
 impl<'i> QueryCondition<'i> for StyleQuery<'i> {
   #[inline]
-  fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse_feature<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let property_id = PropertyId::parse(input)?;
     if input.try_parse(|input| input.expect_colon()).is_ok() {
       input.skip_whitespace();
-      let feature = Self::Declaration(Property::parse(property_id, input, &Default::default())?);
+      let feature = Self::Declaration(Property::parse(property_id, input, options)?);
       let _ = input.try_parse(|input| parse_important(input));
       Ok(feature)
     } else {
@@ -203,9 +214,16 @@ impl<'i> QueryCondition<'i> for StyleQuery<'i> {
   }
 }
 
-impl<'i> Parse<'i> for ContainerCondition<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    parse_query_condition(input, QueryConditionFlags::ALLOW_OR | QueryConditionFlags::ALLOW_STYLE)
+impl<'i> ParseWithOptions<'i> for ContainerCondition<'i> {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    parse_query_condition(
+      input,
+      QueryConditionFlags::ALLOW_OR | QueryConditionFlags::ALLOW_STYLE,
+      options,
+    )
   }
 }
 

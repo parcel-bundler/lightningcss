@@ -242,12 +242,13 @@ mod tests {
     let res = StyleSheet::parse(
       &source,
       ParserOptions {
+        error_recovery: true,
         warnings: Some(warnings.clone()),
         ..Default::default()
       },
     );
     match res {
-      Ok(v) => {}
+      Ok(..) => {}
       Err(e) => unreachable!("parser error should be recovered, but got {e:?}"),
     }
   }
