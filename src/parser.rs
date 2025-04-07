@@ -33,7 +33,7 @@ use crate::rules::{
   CssRule, CssRuleList, Location,
 };
 use crate::selector::{SelectorList, SelectorParser};
-use crate::traits::Parse;
+use crate::traits::{Parse, ParseWithOptions};
 use crate::values::ident::{CustomIdent, DashedIdent};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
@@ -295,7 +295,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for TopLev
         } else {
           None
         };
-        let media = MediaList::parse(input)?;
+        let media = MediaList::parse(input, &self.options)?;
         return Ok(AtRulePrelude::Import(url_string, media, supports, layer));
       },
       "namespace" => {
@@ -317,7 +317,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for TopLev
       },
       "custom-media" if self.options.flags.contains(ParserFlags::CUSTOM_MEDIA) => {
         let name = DashedIdent::parse(input)?;
-        let media = MediaList::parse(input)?;
+        let media = MediaList::parse(input, &self.options)?;
         return Ok(AtRulePrelude::CustomMedia(name, media))
       },
       "property" => {
@@ -553,11 +553,11 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     let result = match_ignore_ascii_case! { &*name,
       "media" => {
-        let media = MediaList::parse(input)?;
+        let media = MediaList::parse(input, &self.options)?;
         AtRulePrelude::Media(media)
       },
       "supports" => {
-        let cond = SupportsCondition::parse(input)?;
+        let cond = SupportsCondition::parse(input, )?;
         AtRulePrelude::Supports(cond)
       },
       "font-face" => {
@@ -645,7 +645,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       },
       "container" => {
         let name = input.try_parse(ContainerName::parse).ok();
-        let condition = ContainerCondition::parse(input)?;
+        let condition = ContainerCondition::parse_with_options(input, &self.options)?;
         AtRulePrelude::Container(name, condition)
       },
       "starting-style" => {
