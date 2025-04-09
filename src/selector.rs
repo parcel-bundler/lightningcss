@@ -292,6 +292,10 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "-webkit-scrollbar-corner" => WebKitScrollbar(WebKitScrollbarPseudoElement::Corner),
       "-webkit-resizer" => WebKitScrollbar(WebKitScrollbarPseudoElement::Resizer),
 
+      "picker" => Picker,
+      "picker-icon" => PickerIcon,
+      "checkmark" => Checkmark,
+
       "view-transition" => ViewTransition,
 
       _ => {
@@ -314,6 +318,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     let pseudo_element = match_ignore_ascii_case! { &name,
       "cue" => CueFunction { selector: Box::new(Selector::parse(self, arguments)?) },
       "cue-region" => CueRegionFunction { selector: Box::new(Selector::parse(self, arguments)?) },
+      "picker" => PickerFunction { identifier: Ident::parse(arguments)? },
       "view-transition-group" => ViewTransitionGroup { part: ViewTransitionPartSelector::parse(arguments)? },
       "view-transition-image-pair" => ViewTransitionImagePair { part: ViewTransitionPartSelector::parse(arguments)? },
       "view-transition-old" => ViewTransitionOld { part: ViewTransitionPartSelector::parse(arguments)? },
@@ -953,6 +958,17 @@ pub enum PseudoElement<'i> {
     /// A part name selector.
     part: ViewTransitionPartSelector<'i>,
   },
+  /// The [::picker](https://drafts.csswg.org/css-forms-1/#the-picker-pseudo-element) pseudo element.
+  Picker,
+  /// The [::picker()](https://drafts.csswg.org/css-forms-1/#the-picker-pseudo-element) functional pseudo element.
+  PickerFunction {
+    /// A form control identifier.
+    identifier: Ident<'i>,
+  },
+  /// The [::picker-icon](https://drafts.csswg.org/css-forms-1/#picker-opener-icon-the-picker-icon-pseudo-element) pseudo element.
+  PickerIcon,
+  /// The [::checkmark](https://drafts.csswg.org/css-forms-1/#styling-checkmarks-the-checkmark-pseudo-element) pseudo element.
+  Checkmark,
   /// An unknown pseudo element.
   Custom {
     /// The name of the pseudo element.
@@ -1213,6 +1229,14 @@ where
       part.to_css(dest)?;
       dest.write_char(')')
     }
+    Picker => dest.write_str("::picker"),
+    PickerFunction { identifier } => {
+      dest.write_str("::picker(")?;
+      identifier.to_css(dest)?;
+      dest.write_char(')')
+    }
+    PickerIcon => dest.write_str("::picker-icon"),
+    Checkmark => dest.write_str("::checkmark"),
     Custom { name: val } => {
       dest.write_str("::")?;
       return dest.write_str(val);
@@ -1924,6 +1948,9 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           | PseudoElement::ViewTransitionOld { .. }
           | PseudoElement::ViewTransitionGroup { .. }
           | PseudoElement::ViewTransitionImagePair { .. } => Feature::ViewTransition,
+          PseudoElement::Picker | PseudoElement::PickerFunction { identifier: _ } => Feature::Picker,
+          PseudoElement::PickerIcon => Feature::PickerIcon,
+          PseudoElement::Checkmark => Feature::Checkmark,
           PseudoElement::Custom { name: _ } | _ => return false,
         },
 
