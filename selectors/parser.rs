@@ -3932,6 +3932,11 @@ pub mod tests {
 
     assert!(parse("foo::details-content").is_ok());
     assert!(parse("foo::target-text").is_ok());
+
+    assert!(parse("select::picker").is_ok());
+    assert!(parse("::picker(select)").is_ok());
+    assert!(parse("select::picker-icon").is_ok());
+    assert!(parse("option::checkmark").is_ok());
   }
 
   #[test]
