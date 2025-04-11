@@ -13422,7 +13422,7 @@ mod tests {
       },
     );
 
-    // Test cases from https://github.com/postcss/autoprefixer/blob/main/test/cases/gradient.css
+    // Test cases from https://github.com/postcss/autoprefixer/blob/541295c0e6dd348db2d3f52772b59cd403c59d29/test/cases/gradient.css
     prefix_test(
       r#"
         a {
