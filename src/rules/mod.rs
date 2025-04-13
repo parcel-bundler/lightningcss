@@ -90,7 +90,7 @@ use itertools::Itertools;
 use keyframes::KeyframesRule;
 use media::MediaRule;
 use namespace::NamespaceRule;
-use nesting::NestingRule;
+use nesting::{NestedDeclarationsRule, NestingRule};
 use page::PageRule;
 use scope::ScopeRule;
 use smallvec::{smallvec, SmallVec};
@@ -164,6 +164,8 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   MozDocument(MozDocumentRule<'i, R>),
   /// A `@nest` rule.
   Nesting(NestingRule<'i, R>),
+  /// A nested declarations rule.
+  NestedDeclarations(NestedDeclarationsRule<'i>),
   /// A `@viewport` rule.
   Viewport(ViewportRule<'i>),
   /// A `@custom-media` rule.
@@ -298,6 +300,10 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         let rule = NestingRule::deserialize(deserializer)?;
         Ok(CssRule::Nesting(rule))
       }
+      "nested-declarations" => {
+        let rule = NestedDeclarationsRule::deserialize(deserializer)?;
+        Ok(CssRule::NestedDeclarations(rule))
+      }
       "viewport" => {
         let rule = ViewportRule::deserialize(deserializer)?;
         Ok(CssRule::Viewport(rule))
@@ -367,6 +373,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
       CssRule::Namespace(namespace) => namespace.to_css(dest),
       CssRule::MozDocument(document) => document.to_css(dest),
       CssRule::Nesting(nesting) => nesting.to_css(dest),
+      CssRule::NestedDeclarations(nested) => nested.to_css(dest),
       CssRule::Viewport(viewport) => viewport.to_css(dest),
       CssRule::CustomMedia(custom_media) => custom_media.to_css(dest),
       CssRule::LayerStatement(layer) => layer.to_css(dest),
@@ -813,6 +820,11 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
         CssRule::Scope(scope) => scope.minify(context)?,
         CssRule::Nesting(nesting) => {
           if nesting.minify(context, parent_is_unused)? {
+            continue;
+          }
+        }
+        CssRule::NestedDeclarations(nested) => {
+          if nested.minify(context, parent_is_unused) {
             continue;
           }
         }

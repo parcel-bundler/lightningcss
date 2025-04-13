@@ -7,6 +7,7 @@ use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
 use crate::rules::font_feature_values::FontFeatureValuesRule;
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
+use crate::rules::nesting::NestedDeclarationsRule;
 use crate::rules::property::PropertyRule;
 use crate::rules::scope::ScopeRule;
 use crate::rules::starting_style::StartingStyleRule;
@@ -31,7 +32,7 @@ use crate::rules::{
   unknown::UnknownAtRule,
   CssRule, CssRuleList, Location,
 };
-use crate::selector::{Component, SelectorList, SelectorParser};
+use crate::selector::{SelectorList, SelectorParser};
 use crate::traits::Parse;
 use crate::values::ident::{CustomIdent, DashedIdent};
 use crate::values::string::CowArcStr;
@@ -517,19 +518,13 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'o
     };
 
     // Declarations can be immediately within @media and @supports blocks that are nested within a parent style rule.
-    // These act the same way as if they were nested within a `& { ... }` block.
+    // These are wrapped in an (invisible) NestedDeclarationsRule.
     let (declarations, mut rules) = self.parse_nested(input, false)?;
 
     if declarations.len() > 0 {
       rules.0.insert(
         0,
-        CssRule::Style(StyleRule {
-          selectors: Component::Nesting.into(),
-          declarations,
-          vendor_prefix: VendorPrefix::empty(),
-          rules: CssRuleList(vec![]),
-          loc,
-        }),
+        CssRule::NestedDeclarations(NestedDeclarationsRule { declarations, loc }),
       )
     }
 
@@ -1002,13 +997,40 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> cssparser::DeclarationParse
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
-    parse_declaration(
-      name,
-      input,
-      &mut self.declarations,
-      &mut self.important_declarations,
-      &self.options,
-    )
+    if self.rules.0.is_empty() {
+      parse_declaration(
+        name,
+        input,
+        &mut self.declarations,
+        &mut self.important_declarations,
+        &self.options,
+      )
+    } else if let Some(CssRule::NestedDeclarations(last)) = self.rules.0.last_mut() {
+      parse_declaration(
+        name,
+        input,
+        &mut last.declarations.declarations,
+        &mut last.declarations.important_declarations,
+        &self.options,
+      )
+    } else {
+      let loc = self.loc(&input.state());
+      let mut nested = NestedDeclarationsRule {
+        declarations: DeclarationBlock::new(),
+        loc,
+      };
+
+      parse_declaration(
+        name,
+        input,
+        &mut nested.declarations.declarations,
+        &mut nested.declarations.important_declarations,
+        &self.options,
+      )?;
+
+      self.rules.0.push(CssRule::NestedDeclarations(nested));
+      Ok(())
+    }
   }
 }
 

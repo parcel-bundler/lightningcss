@@ -311,6 +311,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
             CssRule::Scope(..) => "scope",
             CssRule::MozDocument(..) => "moz-document",
             CssRule::Nesting(..) => "nesting",
+            CssRule::NestedDeclarations(..) => "nested-declarations",
             CssRule::Viewport(..) => "viewport",
             CssRule::StartingStyle(..) => "starting-style",
             CssRule::ViewTransition(..) => "view-transition",

@@ -62,6 +62,10 @@ export type Rule<D = Declaration, M = MediaQuery> = | {
     value: NestingRule<D, M>;
   }
 | {
+    type: "nested-declarations";
+    value: NestedDeclarationsRule<D>;
+  }
+| {
     type: "viewport";
     value: ViewportRule<D>;
   }
@@ -9522,6 +9526,19 @@ export interface NestingRule<D = Declaration, M = MediaQuery> {
    * The style rule that defines the selector and declarations for the `@nest` rule.
    */
   style: StyleRule<D, M>;
+}
+/**
+ * A [nested declarations](https://drafts.csswg.org/css-nesting/#nested-declarations-rule) rule.
+ */
+export interface NestedDeclarationsRule<D = Declaration> {
+  /**
+   * The style rule that defines the selector and declarations for the `@nest` rule.
+   */
+  declarations: DeclarationBlock<D>;
+  /**
+   * The location of the rule in the source file.
+   */
+  loc: Location2;
 }
 /**
  * A [@viewport](https://drafts.csswg.org/css-device-adapt/#atviewport-rule) rule.

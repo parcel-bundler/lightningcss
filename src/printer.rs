@@ -376,6 +376,19 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     res
   }
 
+  pub(crate) fn with_parent_context<T, U, F: FnOnce(&mut Printer<'a, 'b, 'c, W>) -> Result<T, U>>(
+    &mut self,
+    f: F,
+  ) -> Result<T, U> {
+    let parent = std::mem::take(&mut self.context);
+    if let Some(parent) = parent {
+      self.context = parent.parent;
+    }
+    let res = f(self);
+    self.context = parent;
+    res
+  }
+
   pub(crate) fn context(&self) -> Option<&'a StyleContext<'a, 'b>> {
     self.context.clone()
   }

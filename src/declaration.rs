@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::ops::Range;
 
 use crate::context::{DeclarationContext, PropertyHandlerContext};
-use crate::error::{ParserError, PrinterError};
+use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
@@ -34,6 +34,7 @@ use crate::properties::{
   ui::ColorSchemeHandler,
 };
 use crate::properties::{Property, PropertyId};
+use crate::selector::SelectorList;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::values::ident::DashedIdent;
 use crate::values::string::CowArcStr;
@@ -41,6 +42,7 @@ use crate::values::string::CowArcStr;
 use crate::visitor::Visit;
 use cssparser::*;
 use indexmap::IndexMap;
+use smallvec::SmallVec;
 
 /// A CSS declaration block.
 ///
@@ -157,18 +159,70 @@ impl<'i> DeclarationBlock<'i> {
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();
+    dest.newline()?;
 
+    self.to_css_declarations(dest, false, &parcel_selectors::SelectorList(SmallVec::new()), 0)?;
+
+    dest.dedent();
+    dest.newline()?;
+    dest.write_char('}')
+  }
+
+  pub(crate) fn has_printable_declarations(&self) -> bool {
+    if self.len() > 1 {
+      return true;
+    }
+
+    if self.declarations.len() == 1 {
+      !matches!(self.declarations[0], crate::properties::Property::Composes(_))
+    } else if self.important_declarations.len() == 1 {
+      !matches!(self.important_declarations[0], crate::properties::Property::Composes(_))
+    } else {
+      false
+    }
+  }
+
+  /// Writes the declarations to a CSS declaration block.
+  pub fn to_css_declarations<W>(
+    &self,
+    dest: &mut Printer<W>,
+    has_nested_rules: bool,
+    selectors: &SelectorList,
+    source_index: u32,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut i = 0;
     let len = self.len();
 
     macro_rules! write {
       ($decls: expr, $important: literal) => {
         for decl in &$decls {
-          dest.newline()?;
+          // The CSS modules `composes` property is handled specially, and omitted during printing.
+          // We need to add the classes it references to the list for the selectors in this rule.
+          if let crate::properties::Property::Composes(composes) = &decl {
+            if dest.is_nested() && dest.css_module.is_some() {
+              return Err(dest.error(PrinterErrorKind::InvalidComposesNesting, composes.loc));
+            }
+
+            if let Some(css_module) = &mut dest.css_module {
+              css_module
+                .handle_composes(&selectors, &composes, source_index)
+                .map_err(|e| dest.error(e, composes.loc))?;
+              continue;
+            }
+          }
+
+          if i > 0 {
+            dest.newline()?;
+          }
+
           decl.to_css(dest, $important)?;
-          if i != len - 1 || !dest.minify {
+          if i != len - 1 || !dest.minify || has_nested_rules {
             dest.write_char(';')?;
           }
+
           i += 1;
         }
       };
@@ -176,10 +230,7 @@ impl<'i> DeclarationBlock<'i> {
 
     write!(self.declarations, false);
     write!(self.important_declarations, true);
-
-    dest.dedent();
-    dest.newline()?;
-    dest.write_char('}')
+    Ok(())
   }
 }
 

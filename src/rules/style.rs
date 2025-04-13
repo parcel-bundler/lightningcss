@@ -8,7 +8,7 @@ use super::MinifyContext;
 use crate::context::DeclarationContext;
 use crate::declaration::DeclarationBlock;
 use crate::error::ParserError;
-use crate::error::{MinifyError, PrinterError, PrinterErrorKind};
+use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::rules::CssRuleList;
@@ -256,39 +256,16 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
       dest.whitespace()?;
       dest.write_char('{')?;
       dest.indent();
-
-      let mut i = 0;
-      macro_rules! write {
-        ($decls: ident, $important: literal) => {
-          for decl in &self.declarations.$decls {
-            // The CSS modules `composes` property is handled specially, and omitted during printing.
-            // We need to add the classes it references to the list for the selectors in this rule.
-            if let crate::properties::Property::Composes(composes) = &decl {
-              if dest.is_nested() && dest.css_module.is_some() {
-                return Err(dest.error(PrinterErrorKind::InvalidComposesNesting, composes.loc));
-              }
-
-              if let Some(css_module) = &mut dest.css_module {
-                css_module
-                  .handle_composes(&self.selectors, &composes, self.loc.source_index)
-                  .map_err(|e| dest.error(e, composes.loc))?;
-                continue;
-              }
-            }
-
-            dest.newline()?;
-            decl.to_css(dest, $important)?;
-            if i != len - 1 || !dest.minify || (supports_nesting && !self.rules.0.is_empty()) {
-              dest.write_char(';')?;
-            }
-
-            i += 1;
-          }
-        };
+      if len > 0 {
+        dest.newline()?;
       }
 
-      write!(declarations, false);
-      write!(important_declarations, true);
+      self.declarations.to_css_declarations(
+        dest,
+        supports_nesting && !self.rules.0.is_empty(),
+        &self.selectors,
+        self.loc.source_index,
+      )?;
     }
 
     macro_rules! newline {

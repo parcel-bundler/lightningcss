@@ -24052,12 +24052,12 @@ mod tests {
         }
       "#,
       indoc! {r#"
-        .foo {
-          color: red;
-        }
-
         .foo .bar {
           color: #00f;
+        }
+
+        .foo {
+          color: red;
         }
       "#},
     );
@@ -24072,11 +24072,15 @@ mod tests {
       "#,
       indoc! {r#"
         article {
-          color: red;
+          color: green;
         }
 
         article {
           color: #00f;
+        }
+
+        article {
+          color: red;
         }
       "#},
     );
@@ -24188,6 +24192,29 @@ mod tests {
           color: #00f;
           --button: focus { color: red; };
         }
+      "#},
+    );
+    nesting_test(
+      r#"
+      .foo {
+        &::before, &::after {
+          background: blue;
+          @media screen {
+            background: orange;
+          }
+        }
+      }
+      "#,
+      indoc! {r#"
+      .foo:before, .foo:after {
+        background: #00f;
+      }
+
+      @media screen {
+        .foo:before, .foo:after {
+          background: orange;
+        }
+      }
       "#},
     );
 
@@ -25225,9 +25252,7 @@ mod tests {
       indoc! {r#"
       .EgL3uq_box2 {
         @container EgL3uq_main (width >= 0) {
-          & {
-            background-color: #90ee90;
-          }
+          background-color: #90ee90;
         }
       }
     "#},
@@ -25251,9 +25276,7 @@ mod tests {
       indoc! {r#"
       .EgL3uq_box2 {
         @container main (width >= 0) {
-          & {
-            background-color: #90ee90;
-          }
+          background-color: #90ee90;
         }
       }
     "#},
@@ -25460,6 +25483,56 @@ mod tests {
     test_project_root("/foo", "/foo/test.css", "EgL3uq");
     test_project_root("/foo/bar", "/foo/bar/baz/test.css", "xLEkNW");
     test_project_root("/foo", "/foo/baz/test.css", "xLEkNW");
+
+    let mut stylesheet = StyleSheet::parse(
+      r#"
+      .foo {
+        color: red;
+        .bar {
+          color: green;
+        }
+        composes: test from "foo.css";
+      }
+      "#,
+      ParserOptions {
+        filename: "test.css".into(),
+        css_modules: Some(Default::default()),
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    let res = stylesheet
+      .to_css(PrinterOptions {
+        targets: Browsers {
+          chrome: Some(95 << 16),
+          ..Browsers::default()
+        }
+        .into(),
+        ..Default::default()
+      })
+      .unwrap();
+    assert_eq!(
+      res.code,
+      indoc! {r#"
+    .EgL3uq_foo {
+      color: red;
+    }
+
+    .EgL3uq_foo .EgL3uq_bar {
+      color: green;
+    }
+
+
+    "#}
+    );
+    assert_eq!(
+      res.exports.unwrap(),
+      map! {
+        "foo" => "EgL3uq_foo" "test" from "foo.css",
+        "bar" => "EgL3uq_bar"
+      }
+    );
   }
 
   #[test]
@@ -26832,7 +26905,7 @@ mod tests {
         }
       }
       "#,
-      ".foo{@scope(.bar){&{color:#ff0}}}",
+      ".foo{@scope(.bar){color:#ff0}}",
     );
     nesting_test(
       r#"
@@ -26844,9 +26917,7 @@ mod tests {
       "#,
       indoc! {r#"
         @scope (.bar) {
-          :scope {
-            color: #ff0;
-          }
+          color: #ff0;
         }
       "#},
     );
