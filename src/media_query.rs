@@ -10,7 +10,7 @@ use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
 use crate::stylesheet::ParserOptions;
 use crate::targets::{should_compile, Targets};
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::ident::{DashedIdent, Ident};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
@@ -51,10 +51,13 @@ impl<'i> MediaList<'i> {
   }
 
   /// Parse a media query list from CSS.
-  pub fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  pub fn parse<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut media_queries = vec![];
     loop {
-      match input.parse_until_before(Delimiter::Comma, |i| MediaQuery::parse(i)) {
+      match input.parse_until_before(Delimiter::Comma, |i| MediaQuery::parse_with_options(i, options)) {
         Ok(mq) => {
           media_queries.push(mq);
         }
@@ -269,8 +272,11 @@ pub struct MediaQuery<'i> {
   pub condition: Option<MediaCondition<'i>>,
 }
 
-impl<'i> Parse<'i> for MediaQuery<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> ParseWithOptions<'i> for MediaQuery<'i> {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (qualifier, explicit_media_type) = input
       .try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
         let qualifier = input.try_parse(Qualifier::parse).ok();
@@ -280,9 +286,17 @@ impl<'i> Parse<'i> for MediaQuery<'i> {
       .unwrap_or_default();
 
     let condition = if explicit_media_type.is_none() {
-      Some(MediaCondition::parse_with_flags(input, QueryConditionFlags::ALLOW_OR)?)
+      Some(MediaCondition::parse_with_flags(
+        input,
+        QueryConditionFlags::ALLOW_OR,
+        options,
+      )?)
     } else if input.try_parse(|i| i.expect_ident_matching("and")).is_ok() {
-      Some(MediaCondition::parse_with_flags(input, QueryConditionFlags::empty())?)
+      Some(MediaCondition::parse_with_flags(
+        input,
+        QueryConditionFlags::empty(),
+        options,
+      )?)
     } else {
       None
     };
@@ -476,8 +490,8 @@ impl<'i, 'de: 'i> serde::Deserialize<'de> for MediaQuery<'i> {
         condition,
       }),
       MediaQueryOrRaw::Raw { raw } => {
-        let res =
-          MediaQuery::parse_string(raw.as_ref()).map_err(|_| serde::de::Error::custom("Could not parse value"))?;
+        let res = MediaQuery::parse_string_with_options(raw.as_ref(), ParserOptions::default())
+          .map_err(|_| serde::de::Error::custom("Could not parse value"))?;
         Ok(res.into_owned())
       }
     }
@@ -524,10 +538,16 @@ pub enum MediaCondition<'i> {
 
 /// A trait for conditions such as media queries and container queries.
 pub(crate) trait QueryCondition<'i>: Sized {
-  fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>>;
+  fn parse_feature<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
   fn create_negation(condition: Box<Self>) -> Self;
   fn create_operation(operator: Operator, conditions: Vec<Self>) -> Self;
-  fn parse_style_query<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse_style_query<'t>(
+    input: &mut Parser<'i, 't>,
+    _options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Err(input.new_error_for_next_token())
   }
 
@@ -536,8 +556,11 @@ pub(crate) trait QueryCondition<'i>: Sized {
 
 impl<'i> QueryCondition<'i> for MediaCondition<'i> {
   #[inline]
-  fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let feature = MediaFeature::parse(input)?;
+  fn parse_feature<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let feature = MediaFeature::parse_with_options(input, options)?;
     Ok(Self::Feature(feature))
   }
 
@@ -576,8 +599,9 @@ impl<'i> MediaCondition<'i> {
   fn parse_with_flags<'t>(
     input: &mut Parser<'i, 't>,
     flags: QueryConditionFlags,
+    options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    parse_query_condition(input, flags)
+    parse_query_condition(input, flags, options)
   }
 
   fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
@@ -633,9 +657,12 @@ impl<'i> MediaCondition<'i> {
   }
 }
 
-impl<'i> Parse<'i> for MediaCondition<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    Self::parse_with_flags(input, QueryConditionFlags::ALLOW_OR)
+impl<'i> ParseWithOptions<'i> for MediaCondition<'i> {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_with_flags(input, QueryConditionFlags::ALLOW_OR, options)
   }
 }
 
@@ -643,6 +670,7 @@ impl<'i> Parse<'i> for MediaCondition<'i> {
 pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
   input: &mut Parser<'i, 't>,
   flags: QueryConditionFlags,
+  options: &ParserOptions<'_, 'i>,
 ) -> Result<P, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   let (is_negation, is_style) = match *input.next()? {
@@ -658,15 +686,15 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
 
   let first_condition = match (is_negation, is_style) {
     (true, false) => {
-      let inner_condition = parse_parens_or_function(input, flags)?;
+      let inner_condition = parse_parens_or_function(input, flags, options)?;
       return Ok(P::create_negation(Box::new(inner_condition)));
     }
     (true, true) => {
-      let inner_condition = P::parse_style_query(input)?;
+      let inner_condition = P::parse_style_query(input, options)?;
       return Ok(P::create_negation(Box::new(inner_condition)));
     }
-    (false, false) => parse_paren_block(input, flags)?,
-    (false, true) => P::parse_style_query(input)?,
+    (false, false) => parse_paren_block(input, flags, options)?,
+    (false, true) => P::parse_style_query(input, options)?,
   };
 
   let operator = match input.try_parse(Operator::parse) {
@@ -680,7 +708,7 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
 
   let mut conditions = vec![];
   conditions.push(first_condition);
-  conditions.push(parse_parens_or_function(input, flags)?);
+  conditions.push(parse_parens_or_function(input, flags, options)?);
 
   let delim = match operator {
     Operator::And => "and",
@@ -692,7 +720,7 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
       return Ok(P::create_operation(operator, conditions));
     }
 
-    conditions.push(parse_parens_or_function(input, flags)?);
+    conditions.push(parse_parens_or_function(input, flags, options)?);
   }
 }
 
@@ -700,14 +728,15 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
 fn parse_parens_or_function<'t, 'i, P: QueryCondition<'i>>(
   input: &mut Parser<'i, 't>,
   flags: QueryConditionFlags,
+  options: &ParserOptions<'_, 'i>,
 ) -> Result<P, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   match *input.next()? {
-    Token::ParenthesisBlock => parse_paren_block(input, flags),
+    Token::ParenthesisBlock => parse_paren_block(input, flags, options),
     Token::Function(ref f)
       if flags.contains(QueryConditionFlags::ALLOW_STYLE) && f.eq_ignore_ascii_case("style") =>
     {
-      P::parse_style_query(input)
+      P::parse_style_query(input, options)
     }
     ref t => return Err(location.new_unexpected_token_error(t.clone())),
   }
@@ -716,13 +745,16 @@ fn parse_parens_or_function<'t, 'i, P: QueryCondition<'i>>(
 fn parse_paren_block<'t, 'i, P: QueryCondition<'i>>(
   input: &mut Parser<'i, 't>,
   flags: QueryConditionFlags,
+  options: &ParserOptions<'_, 'i>,
 ) -> Result<P, ParseError<'i, ParserError<'i>>> {
   input.parse_nested_block(|input| {
-    if let Ok(inner) = input.try_parse(|i| parse_query_condition(i, flags | QueryConditionFlags::ALLOW_OR)) {
+    if let Ok(inner) =
+      input.try_parse(|i| parse_query_condition(i, flags | QueryConditionFlags::ALLOW_OR, options))
+    {
       return Ok(inner);
     }
 
-    P::parse_feature(input)
+    P::parse_feature(input, options)
   })
 }
 
@@ -924,12 +956,15 @@ pub enum QueryFeature<'i, FeatureId> {
 /// A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
 pub type MediaFeature<'i> = QueryFeature<'i, MediaFeatureId>;
 
-impl<'i, FeatureId> Parse<'i> for QueryFeature<'i, FeatureId>
+impl<'i, FeatureId> ParseWithOptions<'i> for QueryFeature<'i, FeatureId>
 where
   FeatureId: for<'x> Parse<'x> + std::fmt::Debug + PartialEq + ValueType + Clone,
 {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    match input.try_parse(Self::parse_name_first) {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    match input.try_parse(|input| Self::parse_name_first(input, options)) {
       Ok(res) => Ok(res),
       Err(
         err @ ParseError {
@@ -946,7 +981,10 @@ impl<'i, FeatureId> QueryFeature<'i, FeatureId>
 where
   FeatureId: for<'x> Parse<'x> + std::fmt::Debug + PartialEq + ValueType + Clone,
 {
-  fn parse_name_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse_name_first<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (name, legacy_op) = MediaFeatureName::parse(input)?;
 
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
@@ -956,16 +994,26 @@ where
     };
 
     if operator.is_some() && legacy_op.is_some() {
+      dbg!();
       return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
     }
 
     let value = MediaFeatureValue::parse(input, name.value_type())?;
     if !value.check_type(name.value_type()) {
-      return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
+      if options.error_recovery {
+        options.warn(ParseError {
+          kind: ParseErrorKind::Custom(ParserError::InvalidMediaQuery),
+          location: input.current_source_location(),
+        });
+      } else {
+        return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
+      }
     }
 
     if let Some(operator) = operator.or(legacy_op) {
       if !name.value_type().allows_ranges() {
+        dbg!();
+
         return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
       }
 
@@ -981,11 +1029,15 @@ where
     let name = loop {
       if let Ok((name, legacy_op)) = MediaFeatureName::parse(input) {
         if legacy_op.is_some() {
+          dbg!();
+
           return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
         }
         break name;
       }
       if input.is_exhausted() {
+        dbg!();
+
         return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
       }
     };
@@ -1003,6 +1055,7 @@ where
     }
 
     if !name.value_type().allows_ranges() || !value.check_type(name.value_type()) {
+      dbg!();
       return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
     }
 
@@ -1802,7 +1855,7 @@ mod tests {
   fn parse(s: &str) -> MediaQuery {
     let mut input = ParserInput::new(&s);
     let mut parser = Parser::new(&mut input);
-    MediaQuery::parse(&mut parser).unwrap()
+    MediaQuery::parse_with_options(&mut parser, &ParserOptions::default()).unwrap()
   }
 
   fn and(a: &str, b: &str) -> String {
