@@ -83,14 +83,24 @@ impl Gradient {
   /// Returns a copy of the gradient with the given vendor prefix.
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> Gradient {
     match self {
-      Gradient::Linear(linear) => Gradient::Linear(LinearGradient {
-        vendor_prefix: prefix,
-        ..linear.clone()
-      }),
-      Gradient::RepeatingLinear(linear) => Gradient::RepeatingLinear(LinearGradient {
-        vendor_prefix: prefix,
-        ..linear.clone()
-      }),
+      Gradient::Linear(linear) => {
+        let mut new_linear = linear.clone();
+        let needs_legacy_direction = linear.vendor_prefix == VendorPrefix::None && prefix != VendorPrefix::None;
+        if needs_legacy_direction {
+          new_linear.direction = convert_to_legacy_direction(&new_linear.direction);
+        }
+        new_linear.vendor_prefix = prefix;
+        Gradient::Linear(new_linear)
+      }
+      Gradient::RepeatingLinear(linear) => {
+        let mut new_linear = linear.clone();
+        let needs_legacy_direction = linear.vendor_prefix == VendorPrefix::None && prefix != VendorPrefix::None;
+        if needs_legacy_direction {
+          new_linear.direction = convert_to_legacy_direction(&new_linear.direction);
+        }
+        new_linear.vendor_prefix = prefix;
+        Gradient::RepeatingLinear(new_linear)
+      }
       Gradient::Radial(radial) => Gradient::Radial(RadialGradient {
         vendor_prefix: prefix,
         ..radial.clone()
@@ -525,6 +535,52 @@ impl LineDirection {
         vertical.to_css(dest)?;
         dest.write_char(' ')?;
         horizontal.to_css(dest)
+      }
+    }
+  }
+}
+
+/// Converts a standard gradient direction to its legacy vendor-prefixed form.
+///
+/// Inverts keyword-based directions (e.g., `to bottom` → `top`) for compatibility
+/// with legacy prefixed syntaxes.
+///
+/// See: https://github.com/parcel-bundler/lightningcss/issues/918
+fn convert_to_legacy_direction(direction: &LineDirection) -> LineDirection {
+  match direction {
+    LineDirection::Horizontal(HorizontalPositionKeyword::Left) => {
+      LineDirection::Horizontal(HorizontalPositionKeyword::Right)
+    }
+    LineDirection::Horizontal(HorizontalPositionKeyword::Right) => {
+      LineDirection::Horizontal(HorizontalPositionKeyword::Left)
+    }
+    LineDirection::Vertical(VerticalPositionKeyword::Top) => {
+      LineDirection::Vertical(VerticalPositionKeyword::Bottom)
+    }
+    LineDirection::Vertical(VerticalPositionKeyword::Bottom) => {
+      LineDirection::Vertical(VerticalPositionKeyword::Top)
+    }
+    LineDirection::Corner { horizontal, vertical } => LineDirection::Corner {
+      horizontal: match horizontal {
+        HorizontalPositionKeyword::Left => HorizontalPositionKeyword::Right,
+        HorizontalPositionKeyword::Right => HorizontalPositionKeyword::Left,
+      },
+      vertical: match vertical {
+        VerticalPositionKeyword::Top => VerticalPositionKeyword::Bottom,
+        VerticalPositionKeyword::Bottom => VerticalPositionKeyword::Top,
+      },
+    },
+    LineDirection::Angle(angle) => {
+      let angle = angle.clone();
+      match angle {
+        Angle::Deg(number) => {
+          // Add 90 degrees
+          let number = (450.0 - number).abs() % 360.0;
+          // Round the number to 3 decimal places
+          let number = (number * 1000.0).round() / 1000.0;
+          LineDirection::Angle(Angle::Deg(number))
+        }
+        Angle::Rad(_) | Angle::Grad(_) | Angle::Turn(_) => LineDirection::Angle(angle),
       }
     }
   }
