@@ -24473,6 +24473,25 @@ mod tests {
   }
 
   #[test]
+  fn test_css_variable_error_recovery() {
+    error_recovery_test("
+    .container {
+      --local-var: --styled-jsx-placeholder-0__;
+      color: var(--text-color);
+      background: linear-gradient(to right, --styled-jsx-placeholder-1__, --styled-jsx-placeholder-2__);
+
+      .item {
+        transform: translate(calc(var(--x) + --styled-jsx-placeholder-3__px), calc(var(--y) + --styled-jsx-placeholder-4__px));
+      }
+
+      div {
+        margin: calc(10px + --styled-jsx-placeholder-5__px);
+      }
+    }
+  ");
+  }
+
+  #[test]
   fn test_css_modules() {
     css_modules_test(
       r#"
