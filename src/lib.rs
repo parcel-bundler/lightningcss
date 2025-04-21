@@ -24456,6 +24456,23 @@ mod tests {
   }
 
   #[test]
+  fn test_nesting_selector_error_recovery() {
+    error_recovery_test(
+      "
+    .scope---styled-jsx-placeholder-0__ {
+      --styled-jsx-placeholder-1__: 0 button {
+        color: --styled-jsx-placeholder-2__;
+      }
+
+      div {
+        background-color: --styled-jsx-placeholder-3__;
+      }
+    }
+    ",
+    );
+  }
+
+  #[test]
   fn test_css_modules() {
     css_modules_test(
       r#"
