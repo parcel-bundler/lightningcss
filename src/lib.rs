@@ -24425,6 +24425,37 @@ mod tests {
   }
 
   #[test]
+  fn test_keyframes_error_recovery() {
+    error_recovery_test(
+      "
+    .wrapper {
+      @keyframes customAnimation {
+        0% {
+          opacity: 0;
+          transform: scale(0);
+        }
+
+        50% {
+          opacity: --styled-jsx-placeholder-0__;
+          transform: rotate(--styled-jsx-placeholder-1__deg);
+        }
+
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .animated {
+        animation: customAnimation --styled-jsx-placeholder-2__ms --styled-jsx-placeholder-3__ forwards;
+        animation-delay: --styled-jsx-placeholder-4__ms;
+      }
+    }
+    ",
+    );
+  }
+
+  #[test]
   fn test_css_modules() {
     css_modules_test(
       r#"
