@@ -292,7 +292,6 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "-webkit-scrollbar-corner" => WebKitScrollbar(WebKitScrollbarPseudoElement::Corner),
       "-webkit-resizer" => WebKitScrollbar(WebKitScrollbarPseudoElement::Resizer),
 
-      "picker" => Picker,
       "picker-icon" => PickerIcon,
       "checkmark" => Checkmark,
 
@@ -958,8 +957,6 @@ pub enum PseudoElement<'i> {
     /// A part name selector.
     part: ViewTransitionPartSelector<'i>,
   },
-  /// The [::picker](https://drafts.csswg.org/css-forms-1/#the-picker-pseudo-element) pseudo element.
-  Picker,
   /// The [::picker()](https://drafts.csswg.org/css-forms-1/#the-picker-pseudo-element) functional pseudo element.
   PickerFunction {
     /// A form control identifier.
@@ -1229,7 +1226,6 @@ where
       part.to_css(dest)?;
       dest.write_char(')')
     }
-    Picker => dest.write_str("::picker"),
     PickerFunction { identifier } => {
       dest.write_str("::picker(")?;
       identifier.to_css(dest)?;
@@ -1948,7 +1944,7 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           | PseudoElement::ViewTransitionOld { .. }
           | PseudoElement::ViewTransitionGroup { .. }
           | PseudoElement::ViewTransitionImagePair { .. } => Feature::ViewTransition,
-          PseudoElement::Picker | PseudoElement::PickerFunction { identifier: _ } => Feature::Picker,
+          PseudoElement::PickerFunction { identifier: _ } => Feature::Picker,
           PseudoElement::PickerIcon => Feature::PickerIcon,
           PseudoElement::Checkmark => Feature::Checkmark,
           PseudoElement::Custom { name: _ } | _ => return false,
