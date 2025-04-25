@@ -18,6 +18,7 @@ use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::f32::consts::PI;
 
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
@@ -572,18 +573,31 @@ fn convert_to_legacy_direction(direction: &LineDirection) -> LineDirection {
     },
     LineDirection::Angle(angle) => {
       let angle = angle.clone();
-      match angle {
-        Angle::Deg(number) => {
-          // Add 90 degrees
-          let number = (450.0 - number).abs() % 360.0;
-          // Round the number to 3 decimal places
-          let number = (number * 1000.0).round() / 1000.0;
-          LineDirection::Angle(Angle::Deg(number))
+      let deg = match angle {
+        Angle::Deg(n) => convert_to_legacy_degree(n),
+        Angle::Rad(n) => {
+          let n = n / (2.0 * PI) * 360.0;
+          convert_to_legacy_degree(n)
         }
-        Angle::Rad(_) | Angle::Grad(_) | Angle::Turn(_) => LineDirection::Angle(angle),
-      }
+        Angle::Grad(n) => {
+          let n = n / 400.0 * 360.0;
+          convert_to_legacy_degree(n)
+        }
+        Angle::Turn(n) => {
+          let n = n * 360.0;
+          convert_to_legacy_degree(n)
+        }
+      };
+      LineDirection::Angle(Angle::Deg(deg))
     }
   }
+}
+
+fn convert_to_legacy_degree(degree: f32) -> f32 {
+  // Add 90 degrees
+  let n = (450.0 - degree).abs() % 360.0;
+  // Round the number to 3 decimal places
+  (n * 1000.0).round() / 1000.0
 }
 
 /// A `radial-gradient()` [ending shape](https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape).

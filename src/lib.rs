@@ -13660,20 +13660,20 @@ mod tests {
         }
 
         .grad {
-          background: -webkit-linear-gradient(1grad, #fff, #000);
-          background: -o-linear-gradient(1grad, #fff, #000);
+          background: -webkit-linear-gradient(89.1deg, #fff, #000);
+          background: -o-linear-gradient(89.1deg, #fff, #000);
           background: linear-gradient(1grad, #fff, #000);
         }
 
         .rad {
-          background: -webkit-linear-gradient(57.2958deg, #fff, #000);
-          background: -o-linear-gradient(57.2958deg, #fff, #000);
+          background: -webkit-linear-gradient(32.704deg, #fff, #000);
+          background: -o-linear-gradient(32.704deg, #fff, #000);
           background: linear-gradient(57.2958deg, #fff, #000);
         }
 
         .turn {
-          background: -webkit-linear-gradient(.3turn, #fff, #000);
-          background: -o-linear-gradient(.3turn, #fff, #000);
+          background: -webkit-linear-gradient(342deg, #fff, #000);
+          background: -o-linear-gradient(342deg, #fff, #000);
           background: linear-gradient(.3turn, #fff, #000);
         }
 
@@ -13752,16 +13752,16 @@ mod tests {
 
         .zero-grad {
           background: -webkit-gradient(linear, 0 100%, 0 0, from(green), to(#00f));
-          background: -webkit-linear-gradient(0grad, green, #00f);
-          background: -o-linear-gradient(0grad, green, #00f);
+          background: -webkit-linear-gradient(90deg, green, #00f);
+          background: -o-linear-gradient(90deg, green, #00f);
           background: linear-gradient(0grad, green, #00f);
           background-image: repeating-linear-gradient(0grad, #00f, red 33.3%);
         }
 
         .zero-rad, .zero-turn {
           background: -webkit-gradient(linear, 0 100%, 0 0, from(green), to(#00f));
-          background: -webkit-linear-gradient(0deg, green, #00f);
-          background: -o-linear-gradient(0deg, green, #00f);
+          background: -webkit-linear-gradient(90deg, green, #00f);
+          background: -o-linear-gradient(90deg, green, #00f);
           background: linear-gradient(0deg, green, #00f);
         }
       "#},
