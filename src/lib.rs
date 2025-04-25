@@ -2195,7 +2195,7 @@ mod tests {
       indoc! {r#"
       .foo {
         -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
+        -webkit-border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
         border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
@@ -2216,8 +2216,8 @@ mod tests {
       indoc! {r#"
       .foo {
         -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
-        -moz-border-image: -moz-linear-gradient(#ff0f0e, #7773ff) 60;
+        -webkit-border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
+        -moz-border-image: -moz-linear-gradient(top, #ff0f0e, #7773ff) 60;
         border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
@@ -2238,8 +2238,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
-        border-image: -moz-linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
+        border-image: -moz-linear-gradient(top, #ff0f0e, #7773ff) 60;
         border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
@@ -2260,7 +2260,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image-source: -webkit-linear-gradient(#ff0f0e, #7773ff);
+        border-image-source: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
         border-image-source: linear-gradient(#ff0f0e, #7773ff);
         border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
       }
@@ -12978,7 +12978,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(red, #00f);
+        background-image: -webkit-linear-gradient(top, red, #00f);
         background-image: linear-gradient(red, #00f);
       }
       "#},
@@ -12996,7 +12996,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 0 0, 100% 0, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(right, red, #00f);
+        background-image: -webkit-linear-gradient(left, red, #00f);
         background-image: linear-gradient(to right, red, #00f);
       }
       "#},
@@ -13014,7 +13014,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 0 100%, 0 0, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(top, red, #00f);
+        background-image: -webkit-linear-gradient(red, #00f);
         background-image: linear-gradient(to top, red, #00f);
       }
       "#},
@@ -13032,7 +13032,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 100% 0, 0 0, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(left, red, #00f);
+        background-image: -webkit-linear-gradient(right, red, #00f);
         background-image: linear-gradient(to left, red, #00f);
       }
       "#},
@@ -13050,7 +13050,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 100% 0, 0 100%, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(bottom left, red, #00f);
+        background-image: -webkit-linear-gradient(top right, red, #00f);
         background-image: linear-gradient(to bottom left, red, #00f);
       }
       "#},
@@ -13068,7 +13068,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 0 100%, 100% 0, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(top right, red, #00f);
+        background-image: -webkit-linear-gradient(bottom left, red, #00f);
         background-image: linear-gradient(to top right, red, #00f);
       }
       "#},
@@ -13086,7 +13086,7 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(linear, 0 0, 100% 0, from(red), to(#00f));
-        background-image: -webkit-linear-gradient(90deg, red, #00f);
+        background-image: -webkit-linear-gradient(0deg, red, #00f);
         background-image: linear-gradient(90deg, red, #00f);
       }
       "#},
@@ -13120,7 +13120,7 @@ mod tests {
       "#,
       indoc! {r#"
       .foo {
-        background-image: -webkit-linear-gradient(red, #00f);
+        background-image: -webkit-linear-gradient(top, red, #00f);
         background-image: linear-gradient(red, #00f);
       }
       "#},
@@ -13244,9 +13244,9 @@ mod tests {
       indoc! {r#"
       .foo {
         background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0), to(red)), url("bg.jpg");
-        background: -webkit-radial-gradient(red, #00f), -webkit-linear-gradient(#ff0, red), url("bg.jpg");
-        background: -moz-radial-gradient(red, #00f), -moz-linear-gradient(#ff0, red), url("bg.jpg");
-        background: -o-radial-gradient(red, #00f), -o-linear-gradient(#ff0, red), url("bg.jpg");
+        background: -webkit-radial-gradient(red, #00f), -webkit-linear-gradient(top, #ff0, red), url("bg.jpg");
+        background: -moz-radial-gradient(red, #00f), -moz-linear-gradient(top, #ff0, red), url("bg.jpg");
+        background: -o-radial-gradient(red, #00f), -o-linear-gradient(top, #ff0, red), url("bg.jpg");
         background: radial-gradient(red, #00f), linear-gradient(#ff0, red), url("bg.jpg");
       }
       "#},
@@ -13326,7 +13326,7 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -13342,7 +13342,7 @@ mod tests {
       indoc! { r#"
         .foo {
           background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          background: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -13413,7 +13413,7 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -13429,7 +13429,7 @@ mod tests {
       indoc! { r#"
         .foo {
           background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          background-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -13462,6 +13462,357 @@ mod tests {
       "#},
       Browsers {
         safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Test cases from https://github.com/postcss/autoprefixer/blob/541295c0e6dd348db2d3f52772b59cd403c59d29/test/cases/gradient.css
+    prefix_test(
+      r#"
+        a {
+          background: linear-gradient(350.5deg, white, black), linear-gradient(-130deg, black, white), linear-gradient(45deg, black, white);
+        }
+        b {
+          background-image: linear-gradient(rgba(0,0,0,1), white), linear-gradient(white, black);
+        }
+        strong {
+          background: linear-gradient(to top, transparent, rgba(0, 0, 0, 0.8) 20px, #000 30px, #000) no-repeat;
+        }
+        div {
+          background-image: radial-gradient(to left, white, black), repeating-linear-gradient(to bottom right, black, white), repeating-radial-gradient(to top, aqua, red);
+        }
+        .old-radial {
+          background: radial-gradient(0 50%, ellipse farthest-corner, black, white);
+        }
+        .simple1 {
+          background: linear-gradient(black, white);
+        }
+        .simple2 {
+          background: linear-gradient(to left, black 0%, rgba(0, 0, 0, 0.5)50%, white 100%);
+        }
+        .simple3 {
+          background: linear-gradient(to left, black 50%, white 100%);
+        }
+        .simple4 {
+          background: linear-gradient(to right top, black, white);
+        }
+        .direction {
+          background: linear-gradient(top left, black, rgba(0, 0, 0, 0.5), white);
+        }
+        .silent {
+          background: -webkit-linear-gradient(top left, black, white);
+        }
+        .radial {
+          background: radial-gradient(farthest-side at 0 50%, white, black);
+        }
+        .second {
+          background: red linear-gradient(red, blue);
+          background: url('logo.png'), linear-gradient(#fff, #000);
+        }
+        .px {
+          background: linear-gradient(black 0, white 100px);
+        }
+        .list {
+          list-style-image: linear-gradient(white, black);
+        }
+        .mask {
+          mask: linear-gradient(white, black);
+        }
+        .newline {
+          background-image:
+              linear-gradient( white, black ),
+              linear-gradient( black, white );
+        }
+        .convert {
+          background: linear-gradient(0deg, white, black);
+          background: linear-gradient(90deg, white, black);
+          background: linear-gradient(180deg, white, black);
+          background: linear-gradient(270deg, white, black);
+        }
+        .grad {
+          background: linear-gradient(1grad, white, black);
+        }
+        .rad {
+          background: linear-gradient(1rad, white, black);
+        }
+        .turn {
+          background: linear-gradient(0.3turn, white, black);
+        }
+        .norm {
+          background: linear-gradient(-90deg, white, black);
+        }
+        .mask {
+          mask-image: radial-gradient(circle at 86% 86%, transparent 8px, black 8px);
+        }
+        .cover {
+          background: radial-gradient(ellipse cover at center, white, black);
+        }
+        .contain {
+          background: radial-gradient(contain at center, white, black);
+        }
+        .no-div {
+          background: linear-gradient(black);
+        }
+        .background-shorthand {
+          background: radial-gradient(#FFF, transparent) 0 0 / cover no-repeat #F0F;
+        }
+        .background-advanced {
+          background: radial-gradient(ellipse farthest-corner at 5px 15px, rgba(214, 168, 18, 0.7) 0%, rgba(255, 21, 177, 0.7) 50%, rgba(210, 7, 148, 0.7) 95%),
+                      radial-gradient(#FFF, transparent),
+                      url(path/to/image.jpg) 50%/cover;
+        }
+        .multiradial {
+          mask-image: radial-gradient(circle closest-corner at 100% 50%, #000, transparent);
+        }
+        .broken {
+          mask-image: radial-gradient(white, black);
+        }
+        .loop {
+          background-image: url("https://test.com/lol(test.png"), radial-gradient(yellow, black, yellow);
+        }
+        .unitless-zero {
+          background-image: linear-gradient(0, green, blue);
+          background: repeating-linear-gradient(0, blue, red 33.3%)
+        }
+        .zero-grad {
+          background: linear-gradient(0grad, green, blue);
+          background-image: repeating-linear-gradient(0grad, blue, red 33.3%)
+        }
+        .zero-rad {
+          background: linear-gradient(0rad, green, blue);
+        }
+        .zero-turn {
+          background: linear-gradient(0turn, green, blue);
+        }
+      "#,
+      indoc! { r#"
+        a {
+          background: -webkit-linear-gradient(99.5deg, #fff, #000), -webkit-linear-gradient(220deg, #000, #fff), -webkit-linear-gradient(45deg, #000, #fff);
+          background: -o-linear-gradient(99.5deg, #fff, #000), -o-linear-gradient(220deg, #000, #fff), -o-linear-gradient(45deg, #000, #fff);
+          background: linear-gradient(350.5deg, #fff, #000), linear-gradient(-130deg, #000, #fff), linear-gradient(45deg, #000, #fff);
+        }
+
+        b {
+          background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#000), to(#fff)), -webkit-gradient(linear, 0 0, 0 100%, from(#fff), to(#000));
+          background-image: -webkit-linear-gradient(top, #000, #fff), -webkit-linear-gradient(top, #fff, #000);
+          background-image: -o-linear-gradient(top, #000, #fff), -o-linear-gradient(top, #fff, #000);
+          background-image: linear-gradient(#000, #fff), linear-gradient(#fff, #000);
+        }
+
+        strong {
+          background: -webkit-linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, .8) 20px, #000 30px, #000) no-repeat;
+          background: -o-linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, .8) 20px, #000 30px, #000) no-repeat;
+          background: linear-gradient(to top, rgba(0, 0, 0, 0), rgba(0, 0, 0, .8) 20px, #000 30px, #000) no-repeat;
+        }
+
+        div {
+          background-image: radial-gradient(to left, white, black), repeating-linear-gradient(to bottom right, black, white), repeating-radial-gradient(to top, aqua, red);
+        }
+
+        .old-radial {
+          background: radial-gradient(0 50%, ellipse farthest-corner, black, white);
+        }
+
+        .simple1 {
+          background: -webkit-gradient(linear, 0 0, 0 100%, from(#000), to(#fff));
+          background: -webkit-linear-gradient(top, #000, #fff);
+          background: -o-linear-gradient(top, #000, #fff);
+          background: linear-gradient(#000, #fff);
+        }
+
+        .simple2 {
+          background: -webkit-gradient(linear, 100% 0, 0 0, from(#000), color-stop(.5, rgba(0, 0, 0, .5)), to(#fff));
+          background: -webkit-linear-gradient(right, #000 0%, rgba(0, 0, 0, .5) 50%, #fff 100%);
+          background: -o-linear-gradient(right, #000 0%, rgba(0, 0, 0, .5) 50%, #fff 100%);
+          background: linear-gradient(to left, #000 0%, rgba(0, 0, 0, .5) 50%, #fff 100%);
+        }
+
+        .simple3 {
+          background: -webkit-gradient(linear, 100% 0, 0 0, color-stop(.5, #000), to(#fff));
+          background: -webkit-linear-gradient(right, #000 50%, #fff 100%);
+          background: -o-linear-gradient(right, #000 50%, #fff 100%);
+          background: linear-gradient(to left, #000 50%, #fff 100%);
+        }
+
+        .simple4 {
+          background: -webkit-gradient(linear, 0 100%, 100% 0, from(#000), to(#fff));
+          background: -webkit-linear-gradient(bottom left, #000, #fff);
+          background: -o-linear-gradient(bottom left, #000, #fff);
+          background: linear-gradient(to top right, #000, #fff);
+        }
+
+        .direction {
+          background: linear-gradient(top left, black, rgba(0, 0, 0, .5), white);
+        }
+
+        .silent {
+          background: -webkit-gradient(linear, 100% 100%, 0 0, from(#000), to(#fff));
+          background: -webkit-linear-gradient(top left, #000, #fff);
+        }
+
+        .radial {
+          background: -webkit-radial-gradient(farthest-side at 0, #fff, #000);
+          background: -o-radial-gradient(farthest-side at 0, #fff, #000);
+          background: radial-gradient(farthest-side at 0, #fff, #000);
+        }
+
+        .second {
+          background: red -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#00f));
+          background: red -webkit-linear-gradient(top, red, #00f);
+          background: red -o-linear-gradient(top, red, #00f);
+          background: red linear-gradient(red, #00f);
+          background: url("logo.png"), linear-gradient(#fff, #000);
+        }
+
+        .px {
+          background: -webkit-linear-gradient(top, #000 0, #fff 100px);
+          background: -o-linear-gradient(top, #000 0, #fff 100px);
+          background: linear-gradient(#000 0, #fff 100px);
+        }
+
+        .list {
+          list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(#fff), to(#000));
+          list-style-image: -webkit-linear-gradient(top, #fff, #000);
+          list-style-image: -o-linear-gradient(top, #fff, #000);
+          list-style-image: linear-gradient(#fff, #000);
+        }
+
+        .mask {
+          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#fff), to(#000));
+          -webkit-mask: -webkit-linear-gradient(top, #fff, #000);
+          -webkit-mask: -o-linear-gradient(top, #fff, #000);
+          mask: -o-linear-gradient(top, #fff, #000);
+          -webkit-mask: linear-gradient(#fff, #000);
+          mask: linear-gradient(#fff, #000);
+        }
+
+        .newline {
+          background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#fff), to(#000)), -webkit-gradient(linear, 0 0, 0 100%, from(#000), to(#fff));
+          background-image: -webkit-linear-gradient(top, #fff, #000), -webkit-linear-gradient(top, #000, #fff);
+          background-image: -o-linear-gradient(top, #fff, #000), -o-linear-gradient(top, #000, #fff);
+          background-image: linear-gradient(#fff, #000), linear-gradient(#000, #fff);
+        }
+
+        .convert {
+          background: -webkit-gradient(linear, 0 100%, 0 0, from(#fff), to(#000));
+          background: -webkit-linear-gradient(90deg, #fff, #000);
+          background: -o-linear-gradient(90deg, #fff, #000);
+          background: linear-gradient(0deg, #fff, #000);
+          background: linear-gradient(90deg, #fff, #000);
+          background: linear-gradient(#fff, #000);
+          background: linear-gradient(270deg, #fff, #000);
+        }
+
+        .grad {
+          background: -webkit-linear-gradient(89.1deg, #fff, #000);
+          background: -o-linear-gradient(89.1deg, #fff, #000);
+          background: linear-gradient(1grad, #fff, #000);
+        }
+
+        .rad {
+          background: -webkit-linear-gradient(32.704deg, #fff, #000);
+          background: -o-linear-gradient(32.704deg, #fff, #000);
+          background: linear-gradient(57.2958deg, #fff, #000);
+        }
+
+        .turn {
+          background: -webkit-linear-gradient(342deg, #fff, #000);
+          background: -o-linear-gradient(342deg, #fff, #000);
+          background: linear-gradient(.3turn, #fff, #000);
+        }
+
+        .norm {
+          background: -webkit-linear-gradient(#fff, #000);
+          background: -o-linear-gradient(#fff, #000);
+          background: linear-gradient(-90deg, #fff, #000);
+        }
+
+        .mask {
+          -webkit-mask-image: -webkit-radial-gradient(circle at 86% 86%, rgba(0, 0, 0, 0) 8px, #000 8px);
+          -webkit-mask-image: -o-radial-gradient(circle at 86% 86%, rgba(0, 0, 0, 0) 8px, #000 8px);
+          mask-image: -o-radial-gradient(circle at 86% 86%, rgba(0, 0, 0, 0) 8px, #000 8px);
+          -webkit-mask-image: radial-gradient(circle at 86% 86%, rgba(0, 0, 0, 0) 8px, #000 8px);
+          mask-image: radial-gradient(circle at 86% 86%, rgba(0, 0, 0, 0) 8px, #000 8px);
+        }
+
+        .cover {
+          background: radial-gradient(ellipse cover at center, white, black);
+        }
+
+        .contain {
+          background: radial-gradient(contain at center, white, black);
+        }
+
+        .no-div {
+          background: -webkit-gradient(linear, 0 0, 0 100%, from(#000));
+          background: -webkit-linear-gradient(top, #000);
+          background: -o-linear-gradient(top, #000);
+          background: linear-gradient(#000);
+        }
+
+        .background-shorthand {
+          background: #f0f -webkit-radial-gradient(#fff, rgba(0, 0, 0, 0)) 0 0 / cover no-repeat;
+          background: #f0f -o-radial-gradient(#fff, rgba(0, 0, 0, 0)) 0 0 / cover no-repeat;
+          background: #f0f radial-gradient(#fff, rgba(0, 0, 0, 0)) 0 0 / cover no-repeat;
+        }
+
+        .background-advanced {
+          background: url("path/to/image.jpg") 50% / cover;
+          background: -webkit-radial-gradient(at 5px 15px, rgba(214, 168, 18, .7) 0%, rgba(255, 21, 177, .7) 50%, rgba(210, 7, 148, .7) 95%), -webkit-radial-gradient(#fff, rgba(0, 0, 0, 0)), url("path/to/image.jpg") 50% / cover;
+          background: -o-radial-gradient(at 5px 15px, rgba(214, 168, 18, .7) 0%, rgba(255, 21, 177, .7) 50%, rgba(210, 7, 148, .7) 95%), -o-radial-gradient(#fff, rgba(0, 0, 0, 0)), url("path/to/image.jpg") 50% / cover;
+          background: radial-gradient(at 5px 15px, rgba(214, 168, 18, .7) 0%, rgba(255, 21, 177, .7) 50%, rgba(210, 7, 148, .7) 95%), radial-gradient(#fff, rgba(0, 0, 0, 0)), url("path/to/image.jpg") 50% / cover;
+        }
+
+        .multiradial {
+          -webkit-mask-image: -webkit-radial-gradient(circle closest-corner at 100%, #000, rgba(0, 0, 0, 0));
+          -webkit-mask-image: -o-radial-gradient(circle closest-corner at 100%, #000, rgba(0, 0, 0, 0));
+          mask-image: -o-radial-gradient(circle closest-corner at 100%, #000, rgba(0, 0, 0, 0));
+          -webkit-mask-image: radial-gradient(circle closest-corner at 100%, #000, rgba(0, 0, 0, 0));
+          mask-image: radial-gradient(circle closest-corner at 100%, #000, rgba(0, 0, 0, 0));
+        }
+
+        .broken {
+          -webkit-mask-image: -webkit-radial-gradient(#fff, #000);
+          -webkit-mask-image: -o-radial-gradient(#fff, #000);
+          mask-image: -o-radial-gradient(#fff, #000);
+          -webkit-mask-image: radial-gradient(#fff, #000);
+          mask-image: radial-gradient(#fff, #000);
+        }
+
+        .loop {
+          background-image: url("https://test.com/lol(test.png");
+          background-image: url("https://test.com/lol(test.png"), -webkit-radial-gradient(#ff0, #000, #ff0);
+          background-image: url("https://test.com/lol(test.png"), -o-radial-gradient(#ff0, #000, #ff0);
+          background-image: url("https://test.com/lol(test.png"), radial-gradient(#ff0, #000, #ff0);
+        }
+
+        .unitless-zero {
+          background-image: -webkit-gradient(linear, 0 100%, 0 0, from(green), to(#00f));
+          background-image: -webkit-linear-gradient(90deg, green, #00f);
+          background-image: -o-linear-gradient(90deg, green, #00f);
+          background-image: linear-gradient(0deg, green, #00f);
+          background: repeating-linear-gradient(0deg, #00f, red 33.3%);
+        }
+
+        .zero-grad {
+          background: -webkit-gradient(linear, 0 100%, 0 0, from(green), to(#00f));
+          background: -webkit-linear-gradient(90deg, green, #00f);
+          background: -o-linear-gradient(90deg, green, #00f);
+          background: linear-gradient(0grad, green, #00f);
+          background-image: repeating-linear-gradient(0grad, #00f, red 33.3%);
+        }
+
+        .zero-rad, .zero-turn {
+          background: -webkit-gradient(linear, 0 100%, 0 0, from(green), to(#00f));
+          background: -webkit-linear-gradient(90deg, green, #00f);
+          background: -o-linear-gradient(90deg, green, #00f);
+          background: linear-gradient(0deg, green, #00f);
+        }
+      "#},
+      Browsers {
+        chrome: Some(25 << 16),
+        opera: Some(12 << 16),
+        android: Some(2 << 16 | 3 << 8),
         ..Browsers::default()
       },
     );
@@ -16872,7 +17223,7 @@ mod tests {
       indoc! { r#"
         .foo {
           list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          list-style-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          list-style-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           list-style-image: linear-gradient(#ff0f0e, #7773ff);
           list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -26179,7 +26530,7 @@ mod tests {
       indoc! { r#"
         .foo {
           -webkit-mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          -webkit-mask-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
           -webkit-mask-image: linear-gradient(#ff0f0e, #7773ff);
           mask-image: linear-gradient(#ff0f0e, #7773ff);
           -webkit-mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
@@ -26241,7 +26592,7 @@ mod tests {
       indoc! { r#"
         .foo {
           -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
-          -webkit-mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 40px 20px;
           -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
           mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
           -webkit-mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
