@@ -28,6 +28,7 @@ pub enum Feature {
   CapUnit,
   CaseInsensitive,
   ChUnit,
+  Checkmark,
   CircleListStyleType,
   CjkDecimalListStyleType,
   CjkEarthlyBranchListStyleType,
@@ -158,6 +159,8 @@ pub enum Feature {
   P3Colors,
   PartPseudo,
   PersianListStyleType,
+  Picker,
+  PickerIcon,
   PlaceContent,
   PlaceItems,
   PlaceSelf,
@@ -3593,6 +3596,32 @@ impl Feature {
           }
         }
         if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::Picker | Feature::PickerIcon | Feature::Checkmark => {
+        if let Some(version) = browsers.chrome {
+          if version < 8781824 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 8781824 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 8781824 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
           return false;
         }
       }
