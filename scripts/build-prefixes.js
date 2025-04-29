@@ -288,6 +288,7 @@ let mdnFeatures = {
   oklabColors: mdn.css.types.color.oklab.__compat.support,
   colorFunction: mdn.css.types.color.color.__compat.support,
   spaceSeparatedColorNotation: mdn.css.types.color.rgb.space_separated_parameters.__compat.support,
+  highlight: mdn.css.selectors.highlight.__compat.support,
   textDecorationThicknessPercent: mdn.css.properties['text-decoration-thickness'].percentage.__compat.support,
   textDecorationThicknessShorthand: mdn.css.properties['text-decoration'].includes_thickness.__compat.support,
   cue: mdn.css.selectors.cue.__compat.support,

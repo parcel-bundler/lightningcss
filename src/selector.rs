@@ -317,6 +317,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     let pseudo_element = match_ignore_ascii_case! { &name,
       "cue" => CueFunction { selector: Box::new(Selector::parse(self, arguments)?) },
       "cue-region" => CueRegionFunction { selector: Box::new(Selector::parse(self, arguments)?) },
+      "highlight" => HighlightFunction { name: CustomIdent::parse(arguments)? },
       "picker" => PickerFunction { identifier: Ident::parse(arguments)? },
       "view-transition-group" => ViewTransitionGroup { part: ViewTransitionPartSelector::parse(arguments)? },
       "view-transition-image-pair" => ViewTransitionImagePair { part: ViewTransitionPartSelector::parse(arguments)? },
@@ -903,6 +904,11 @@ pub enum PseudoElement<'i> {
   /// The [::placeholder](https://drafts.csswg.org/css-pseudo-4/#placeholder-pseudo) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Placeholder(VendorPrefix),
+  /// The [::highlight()](https://drafts.csswg.org/css-highlight-api/#custom-highlight-pseudo) functional pseudo element.
+  HighlightFunction {
+    /// A custom highlight name.
+    name: CustomIdent<'i>,
+  },
   ///  The [::marker](https://drafts.csswg.org/css-pseudo-4/#marker-pseudo) pseudo element.
   Marker,
   /// The [::backdrop](https://fullscreen.spec.whatwg.org/#::backdrop-pseudo-element) pseudo element.
@@ -1160,6 +1166,11 @@ where
     FirstLetter => dest.write_str(":first-letter"),
     DetailsContent => dest.write_str("::details-content"),
     TargetText => dest.write_str("::target-text"),
+    HighlightFunction { name } => {
+      dest.write_str("::highlight(")?;
+      name.to_css(dest)?;
+      dest.write_char(')')
+    }
     Marker => dest.write_str("::marker"),
     Selection(prefix) => write_prefixed!(prefix, "selection"),
     Cue => dest.write_str("::cue"),
@@ -1935,6 +1946,7 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           PseudoElement::TargetText => Feature::TargetText,
           PseudoElement::Selection(prefix) if *prefix == VendorPrefix::None => Feature::Selection,
           PseudoElement::Placeholder(prefix) if *prefix == VendorPrefix::None => Feature::Placeholder,
+          PseudoElement::HighlightFunction { name: _ } => Feature::Highlight,
           PseudoElement::Marker => Feature::MarkerPseudo,
           PseudoElement::Backdrop(prefix) if *prefix == VendorPrefix::None => Feature::Dialog,
           PseudoElement::Cue => Feature::Cue,
