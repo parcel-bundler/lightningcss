@@ -92,6 +92,7 @@ pub enum Feature {
   HasSelector,
   HebrewListStyleType,
   HexAlphaColors,
+  Highlight,
   HiraganaIrohaListStyleType,
   HiraganaListStyleType,
   HypotFunction,
@@ -2445,6 +2446,46 @@ impl Feature {
           }
         }
         if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::Highlight => {
+        if let Some(version) = browsers.chrome {
+          if version < 6881280 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 6881280 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4718592 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 1114624 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1114624 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 1310720 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 6881280 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some() || browsers.ie.is_some() {
           return false;
         }
       }
