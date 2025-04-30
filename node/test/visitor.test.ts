@@ -1,42 +1,59 @@
-// @ts-check
+/// <reference types="vite/types/importMeta.d.ts" />
 
-import { test } from 'uvu';
-import * as assert from 'uvu/assert';
-import fs from 'fs';
-import {webcrypto as crypto} from 'node:crypto';
+import fs from 'node:fs';
+import {beforeAll, expect, test} from 'vitest';
+import type {
+  bundle as Bundle,
+  bundleAsync as BundleAsync,
+  ReturnedRule,
+  Rule,
+  Selector,
+  SelectorList,
+  Size,
+  TokenOrValue,
+  transform as Transform,
+  transformStyleAttribute as TransformStyleAttribute,
+} from '../index.js';
 
-let bundle, bundleAsync, transform, transformStyleAttribute;
-if (process.env.TEST_WASM === 'node') {
-  ({ bundle, bundleAsync, transform, transformStyleAttribute } = await import('../../wasm/wasm-node.mjs'));
-} else if (process.env.TEST_WASM === 'browser') {
-  // Define crypto globally for old node.
-  // @ts-ignore
-  globalThis.crypto ??= crypto;
-  let wasm = await import('../../wasm/index.mjs');
-  await wasm.default();
-  ({ transform, transformStyleAttribute } = wasm);
-  bundle = function(options) {
-    return wasm.bundle({
-      ...options,
-      resolver: {
-        read: (filePath) => fs.readFileSync(filePath, 'utf8')
+let bundle: typeof Bundle;
+let bundleAsync: typeof BundleAsync;
+let transform: typeof Transform;
+let transformStyleAttribute: typeof TransformStyleAttribute;
+
+beforeAll(async () => {
+  if (import.meta.env.TEST_WASM === 'node') {
+    ({bundle, bundleAsync, transform, transformStyleAttribute} = await import(
+      '../../wasm/wasm-node.mjs'
+    ));
+  } else if (import.meta.env.TEST_WASM === 'browser') {
+    let wasm = await import('../../wasm/index.mjs');
+    await wasm.default();
+    ({transform, transformStyleAttribute} = wasm);
+    bundle = function (options) {
+      return wasm.bundle({
+        ...options,
+        resolver: {
+          read: (filePath) => fs.readFileSync(filePath, 'utf8'),
+        },
+      });
+    };
+
+    bundleAsync = function (options) {
+      if (!options.resolver?.read) {
+        options.resolver = {
+          ...options.resolver,
+          read: (filePath) => fs.readFileSync(filePath, 'utf8'),
+        };
       }
-    });
-  }
 
-  bundleAsync = function (options) {
-    if (!options.resolver?.read) {
-      options.resolver = {
-        ...options.resolver,
-        read: (filePath) => fs.readFileSync(filePath, 'utf8')
-      };
-    }
-
-    return wasm.bundleAsync(options);
+      return wasm.bundleAsync(options);
+    };
+  } else {
+    ({bundle, bundleAsync, transform, transformStyleAttribute} = await import(
+      '../index.mjs'
+    ));
   }
-} else {
-  ({ bundle, bundleAsync, transform, transformStyleAttribute } = await import('../index.mjs'));
-}
+});
 
 test('px to rem', () => {
   // Similar to https://github.com/cuth/postcss-pxtorem
@@ -55,14 +72,16 @@ test('px to rem', () => {
         if (length.unit === 'px') {
           return {
             unit: 'rem',
-            value: length.value / 16
+            value: length.value / 16,
           };
         }
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{--custom:calc(var(--foo) + 2rem);width:2rem;height:calc(100vh - 4rem)}');
+  expect(res.code.toString()).toBe(
+    '.foo{--custom:calc(var(--foo) + 2rem);width:2rem;height:calc(100vh - 4rem)}',
+  );
 });
 
 test('custom units', () => {
@@ -89,34 +108,36 @@ test('custom units', () => {
                     type: 'token',
                     value: {
                       type: 'number',
-                      value: token.value
-                    }
+                      value: token.value,
+                    },
                   },
                   {
                     type: 'token',
                     value: {
                       type: 'delim',
-                      value: '*'
-                    }
+                      value: '*',
+                    },
                   },
                   {
                     type: 'var',
                     value: {
                       name: {
-                        ident: token.unit
-                      }
-                    }
-                  }
-                ]
-              }
-            }
+                        ident: token.unit,
+                      },
+                    },
+                  },
+                ],
+              },
+            };
           }
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{--step:.25rem;font-size:calc(3*var(--step))}');
+  expect(res.code.toString()).toBe(
+    '.foo{--step:.25rem;font-size:calc(3*var(--step))}',
+  );
 });
 
 test('design tokens', () => {
@@ -129,16 +150,16 @@ test('design tokens', () => {
         r: 255,
         g: 0,
         b: 0,
-        alpha: 1
-      }
+        alpha: 1,
+      },
     },
     'size.spacing.small': {
       type: 'length',
       value: {
         unit: 'px',
-        value: 16
-      }
-    }
+        value: 16,
+      },
+    },
   };
 
   let res = transform({
@@ -153,35 +174,38 @@ test('design tokens', () => {
     visitor: {
       Function: {
         'design-token'(fn) {
-          if (fn.arguments.length === 1 && fn.arguments[0].type === 'token' && fn.arguments[0].value.type === 'string') {
+          if (
+            fn.arguments.length === 1 &&
+            fn.arguments[0].type === 'token' &&
+            fn.arguments[0].value.type === 'string'
+          ) {
             return tokens[fn.arguments[0].value.value];
           }
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{color:red;padding:16px}');
+  expect(res.code.toString()).toBe('.foo{color:red;padding:16px}');
 });
 
 test('env function', () => {
   // https://www.npmjs.com/package/postcss-env-function
-  /** @type {Record<string, import('../ast').TokenOrValue>} */
-  let tokens = {
+  let tokens: Record<string, TokenOrValue> = {
     '--branding-small': {
       type: 'length',
       value: {
         unit: 'px',
-        value: 600
-      }
+        value: 600,
+      },
     },
     '--branding-padding': {
       type: 'length',
       value: {
         unit: 'px',
-        value: 20
-      }
-    }
+        value: 20,
+      },
+    },
   };
 
   let res = transform({
@@ -200,31 +224,30 @@ test('env function', () => {
         if (env.name.type === 'custom') {
           return tokens[env.name.ident];
         }
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '@media (width<=600px){body{padding:20px}}');
+  expect(res.code.toString()).toBe('@media (width<=600px){body{padding:20px}}');
 });
 
 test('specific environment variables', () => {
   // https://www.npmjs.com/package/postcss-env-function
-  /** @type {Record<string, import('../ast').TokenOrValue>} */
-  let tokens = {
+  let tokens: Record<string, TokenOrValue> = {
     '--branding-small': {
       type: 'length',
       value: {
         unit: 'px',
-        value: 600
-      }
+        value: 600,
+      },
     },
     '--branding-padding': {
       type: 'length',
       value: {
         unit: 'px',
-        value: 20
-      }
-    }
+        value: 20,
+      },
+    },
   };
 
   let res = transform({
@@ -241,12 +264,12 @@ test('specific environment variables', () => {
     visitor: {
       EnvironmentVariable: {
         '--branding-small': () => tokens['--branding-small'],
-        '--branding-padding': () => tokens['--branding-padding']
-      }
-    }
+        '--branding-padding': () => tokens['--branding-padding'],
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '@media (width<=600px){body{padding:20px}}');
+  expect(res.code.toString()).toBe('@media (width<=600px){body{padding:20px}}');
 });
 
 test('url', () => {
@@ -263,11 +286,13 @@ test('url', () => {
       Url(url) {
         url.url = 'https://mywebsite.com/' + url.url;
         return url;
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{background:url(https://mywebsite.com/foo.png)}');
+  expect(res.code.toString()).toBe(
+    '.foo{background:url(https://mywebsite.com/foo.png)}',
+  );
 });
 
 test('static vars', () => {
@@ -288,19 +313,19 @@ test('static vars', () => {
         unknown(rule) {
           declared.set(rule.name, rule.prelude);
           return [];
-        }
+        },
       },
       Token: {
         'at-keyword'(token) {
           if (declared.has(token.value)) {
             return declared.get(token.value);
           }
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.menu_link{background:#056ef0}');
+  expect(res.code.toString()).toBe('.menu_link{background:#056ef0}');
 });
 
 test('selector prefix', () => {
@@ -315,12 +340,16 @@ test('selector prefix', () => {
     `),
     visitor: {
       Selector(selector) {
-        return [{ type: 'class', name: 'prefix' }, { type: 'combinator', value: 'descendant' }, ...selector];
-      }
-    }
+        return [
+          {type: 'class', name: 'prefix'},
+          {type: 'combinator', value: 'descendant'},
+          ...selector,
+        ];
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.prefix .a,.prefix .b{color:red}');
+  expect(res.code.toString()).toBe('.prefix .a,.prefix .b{color:red}');
 });
 
 test('apply', () => {
@@ -343,13 +372,17 @@ test('apply', () => {
       Rule: {
         style(rule) {
           for (let selector of rule.value.selectors) {
-            if (selector.length === 1 && selector[0].type === 'type' && selector[0].name.startsWith('--')) {
+            if (
+              selector.length === 1 &&
+              selector[0].type === 'type' &&
+              selector[0].name.startsWith('--')
+            ) {
               defined.set(selector[0].name, rule.value.declarations);
-              return { type: 'ignored', value: null };
+              return {type: 'ignored', value: null};
             }
           }
 
-          rule.value.rules = rule.value.rules.filter(child => {
+          rule.value.rules = rule.value.rules.filter((child) => {
             if (child.type === 'unknown' && child.value.name === 'apply') {
               for (let token of child.value.prelude) {
                 if (token.type === 'dashed-ident' && defined.has(token.value)) {
@@ -365,12 +398,14 @@ test('apply', () => {
           });
 
           return rule;
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.toolbar{color:#fff;border:1px solid green}');
+  expect(res.code.toString()).toBe(
+    '.toolbar{color:#fff;border:1px solid green}',
+  );
 });
 
 test('property lookup', () => {
@@ -389,37 +424,43 @@ test('property lookup', () => {
         style(rule) {
           let valuesByProperty = new Map();
           for (let decl of rule.value.declarations.declarations) {
-            /** @type string */
             let name = decl.property;
             if (decl.property === 'unparsed') {
-              name = decl.value.propertyId.property;
+              name = decl.value.propertyId.property as typeof name;
             }
             valuesByProperty.set(name, decl);
           }
 
-          rule.value.declarations.declarations = rule.value.declarations.declarations.map(decl => {
-            // Only single value supported. Would need a way to convert parsed values to unparsed tokens otherwise.
-            if (decl.property === 'unparsed' && decl.value.value.length === 1) {
-              let token = decl.value.value[0];
-              if (token.type === 'token' && token.value.type === 'at-keyword' && valuesByProperty.has(token.value.value)) {
-                let v = valuesByProperty.get(token.value.value);
-                return {
-                  /** @type any */
-                  property: decl.value.propertyId.property,
-                  value: v.value
-                };
+          rule.value.declarations.declarations =
+            rule.value.declarations.declarations.map((decl) => {
+              // Only single value supported. Would need a way to convert parsed values to unparsed tokens otherwise.
+              if (
+                decl.property === 'unparsed' &&
+                decl.value.value.length === 1
+              ) {
+                let token = decl.value.value[0];
+                if (
+                  token.type === 'token' &&
+                  token.value.type === 'at-keyword' &&
+                  valuesByProperty.has(token.value.value)
+                ) {
+                  let v = valuesByProperty.get(token.value.value);
+                  return {
+                    property: decl.value.propertyId.property,
+                    value: v.value,
+                  };
+                }
               }
-            }
-            return decl;
-          });
+              return decl;
+            }) as typeof rule.value.declarations.declarations;
 
           return rule;
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.test{margin-left:20px;margin-right:20px}');
+  expect(res.code.toString()).toBe('.test{margin-left:20px;margin-right:20px}');
 });
 
 test('focus visible', () => {
@@ -433,33 +474,41 @@ test('focus visible', () => {
       }
     `),
     targets: {
-      safari: 14 << 16
+      safari: 14 << 16,
     },
     visitor: {
       Rule: {
         style(rule) {
-          let clone = null;
+          let clone: SelectorList | null = null;
           for (let selector of rule.value.selectors) {
             for (let [i, component] of selector.entries()) {
-              if (component.type === 'pseudo-class' && component.kind === 'focus-visible') {
+              if (
+                component.type === 'pseudo-class' &&
+                component.kind === 'focus-visible'
+              ) {
                 if (clone == null) {
-                  clone = [...rule.value.selectors.map(s => [...s])];
+                  clone = [...rule.value.selectors.map((s) => [...s])];
                 }
 
-                selector[i] = { type: 'class', name: 'focus-visible' };
+                selector[i] = {type: 'class', name: 'focus-visible'};
               }
             }
           }
 
           if (clone) {
-            return [rule, { type: 'style', value: { ...rule.value, selectors: clone } }];
+            return [
+              rule,
+              {type: 'style', value: {...rule.value, selectors: clone}},
+            ];
           }
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.test.focus-visible{color:red}.test:focus-visible{color:red}');
+  expect(res.code.toString()).toBe(
+    '.test.focus-visible{color:red}.test:focus-visible{color:red}',
+  );
 });
 
 test('dark theme class', () => {
@@ -478,45 +527,63 @@ test('dark theme class', () => {
       Rule: {
         media(rule) {
           let q = rule.value.query.mediaQueries[0];
-          if (q.condition?.type === 'feature' && q.condition.value.type === 'plain' && q.condition.value.name === 'prefers-color-scheme' && q.condition.value.value.value === 'dark') {
-            /** @type {import('../ast').Rule[]} */
-            let clonedRules = [rule];
+          if (
+            q.condition?.type === 'feature' &&
+            q.condition.value.type === 'plain' &&
+            q.condition.value.name === 'prefers-color-scheme' &&
+            q.condition.value.value.value === 'dark'
+          ) {
+            let clonedRules: Rule[] = [rule];
             for (let r of rule.value.rules) {
               if (r.type === 'style') {
-                /** @type {import('../ast').Selector[]} */
-                let clonedSelectors = [];
+                let clonedSelectors: Selector[] = [];
                 for (let selector of r.value.selectors) {
                   clonedSelectors.push([
-                    { type: 'type', name: 'html' },
-                    { type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'dark' } },
-                    { type: 'combinator', value: 'descendant' },
-                    ...selector
+                    {type: 'type', name: 'html'},
+                    {
+                      type: 'attribute',
+                      name: 'theme',
+                      operation: {operator: 'equal', value: 'dark'},
+                    },
+                    {type: 'combinator', value: 'descendant'},
+                    ...selector,
                   ]);
                   selector.unshift(
-                    { type: 'type', name: 'html' },
+                    {type: 'type', name: 'html'},
                     {
                       type: 'pseudo-class',
                       kind: 'not',
                       selectors: [
-                        [{ type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'light' } }]
-                      ]
+                        [
+                          {
+                            type: 'attribute',
+                            name: 'theme',
+                            operation: {operator: 'equal', value: 'light'},
+                          },
+                        ],
+                      ],
                     },
-                    { type: 'combinator', value: 'descendant' }
+                    {type: 'combinator', value: 'descendant'},
                   );
                 }
 
-                clonedRules.push({ type: 'style', value: { ...r.value, selectors: clonedSelectors } });
+                clonedRules.push({
+                  type: 'style',
+                  value: {...r.value, selectors: clonedSelectors},
+                });
               }
             }
 
             return clonedRules;
           }
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '@media (prefers-color-scheme:dark){html:not([theme=light]) body{background:#000}}html[theme=dark] body{background:#000}');
+  expect(res.code.toString()).toBe(
+    '@media (prefers-color-scheme:dark){html:not([theme=light]) body{background:#000}}html[theme=dark] body{background:#000}',
+  );
 });
 
 test('100vh fix', () => {
@@ -535,7 +602,13 @@ test('100vh fix', () => {
         style(style) {
           let cloned;
           for (let property of style.value.declarations.declarations) {
-            if (property.property === 'height' && property.value.type === 'length-percentage' && property.value.value.type === 'dimension' && property.value.value.value.unit === 'vh' && property.value.value.value.value === 100) {
+            if (
+              property.property === 'height' &&
+              property.value.type === 'length-percentage' &&
+              property.value.value.type === 'dimension' &&
+              property.value.value.value.unit === 'vh' &&
+              property.value.value.value.value === 100
+            ) {
               if (!cloned) {
                 cloned = structuredClone(style);
                 cloned.value.declarations.declarations = [];
@@ -544,34 +617,39 @@ test('100vh fix', () => {
                 ...property,
                 value: {
                   type: 'stretch',
-                  vendorPrefix: ['webkit']
-                }
+                  vendorPrefix: ['webkit'],
+                },
               });
             }
           }
 
           if (cloned) {
-            return [style, {
-              type: 'supports',
-              value: {
-                condition: {
-                  type: 'declaration',
-                  propertyId: {
-                    property: '-webkit-touch-callout'
+            return [
+              style,
+              {
+                type: 'supports',
+                value: {
+                  condition: {
+                    type: 'declaration',
+                    propertyId: {
+                      property: '-webkit-touch-callout',
+                    },
+                    value: 'none',
                   },
-                  value: 'none'
+                  loc: style.value.loc,
+                  rules: [cloned],
                 },
-                loc: style.value.loc,
-                rules: [cloned]
-              }
-            }];
+              },
+            ];
           }
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{color:red;height:100vh}@supports (-webkit-touch-callout:none){.foo{height:-webkit-fill-available}}')
+  expect(res.code.toString()).toBe(
+    '.foo{color:red;height:100vh}@supports (-webkit-touch-callout:none){.foo{height:-webkit-fill-available}}',
+  );
 });
 
 test('logical transforms', () => {
@@ -595,11 +673,10 @@ test('logical transforms', () => {
     visitor: {
       Rule: {
         style(style) {
-          /** @type any */
-          let cloned;
+          let cloned: any;
           for (let property of style.value.declarations.declarations) {
             if (property.property === 'transform') {
-              let clonedTransforms = property.value.map(transform => {
+              let clonedTransforms = property.value.map((transform) => {
                 if (transform.type !== 'translateX') {
                   return transform;
                 }
@@ -612,27 +689,41 @@ test('logical transforms', () => {
                 let value;
                 switch (transform.value.type) {
                   case 'dimension':
-                    value = { type: 'dimension', value: { unit: transform.value.value.unit, value: -transform.value.value.value } };
+                    value = {
+                      type: 'dimension',
+                      value: {
+                        unit: transform.value.value.unit,
+                        value: -transform.value.value.value,
+                      },
+                    };
                     break;
                   case 'percentage':
-                    value = { type: 'percentage', value: -transform.value.value };
+                    value = {type: 'percentage', value: -transform.value.value};
                     break;
                   case 'calc':
-                    value = { type: 'calc', value: { type: 'product', value: [-1, transform.value.value] } };
+                    value = {
+                      type: 'calc',
+                      value: {
+                        type: 'product',
+                        value: [-1, transform.value.value],
+                      },
+                    };
                     break;
                 }
 
                 return {
                   type: 'translateX',
-                  value
-                }
+                  value,
+                };
               });
 
               if (cloned) {
-                cloned.value.selectors.at(-1).push({ type: 'pseudo-class', kind: 'dir', direction: 'rtl' });
+                cloned.value.selectors
+                  .at(-1)
+                  .push({type: 'pseudo-class', kind: 'dir', direction: 'rtl'});
                 cloned.value.declarations.declarations.push({
                   ...property,
-                  value: clonedTransforms
+                  value: clonedTransforms,
                 });
               }
             }
@@ -641,12 +732,14 @@ test('logical transforms', () => {
           if (cloned) {
             return [style, cloned];
           }
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{transform:translate(50px)}.foo:dir(rtl){transform:translate(-50px)}.bar{transform:translate(20%)}.bar:dir(rtl){transform:translate(-20%)}.baz{transform:translate(calc(100vw - 20px))}.baz:dir(rtl){transform:translate(-1*calc(100vw - 20px))}');
+  expect(res.code.toString()).toBe(
+    '.foo{transform:translate(50px)}.foo:dir(rtl){transform:translate(-50px)}.bar{transform:translate(20%)}.bar:dir(rtl){transform:translate(-20%)}.baz{transform:translate(calc(100vw - 20px))}.baz:dir(rtl){transform:translate(-1*calc(100vw - 20px))}',
+  );
 });
 
 test('hover media query', () => {
@@ -675,26 +768,32 @@ test('hover media query', () => {
             for (let rule of media.value.rules) {
               if (rule.type === 'style') {
                 for (let selector of rule.value.selectors) {
-                  selector.unshift({ type: 'class', name: 'hoverable' }, { type: 'combinator', value: 'descendant' });
+                  selector.unshift(
+                    {type: 'class', name: 'hoverable'},
+                    {type: 'combinator', value: 'descendant'},
+                  );
                 }
               }
             }
-            return media.value.rules
+            return media.value.rules;
           }
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.hoverable .foo{color:red}');
+  expect(res.code.toString()).toBe('.hoverable .foo{color:red}');
 });
 
 test('momentum scrolling', () => {
   // Similar to https://github.com/yunusga/postcss-momentum-scrolling
-  let visitOverflow = decl => [decl, {
-    property: '-webkit-overflow-scrolling',
-    raw: 'touch'
-  }];
+  let visitOverflow = (decl) => [
+    decl,
+    {
+      property: '-webkit-overflow-scrolling',
+      raw: 'touch',
+    },
+  ];
 
   let res = transform({
     filename: 'test.css',
@@ -708,12 +807,14 @@ test('momentum scrolling', () => {
       Declaration: {
         overflow: visitOverflow,
         'overflow-x': visitOverflow,
-        'overflow-y': visitOverflow
-      }
-    }
+        'overflow-y': visitOverflow,
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{-webkit-overflow-scrolling:touch;overflow:auto}');
+  expect(res.code.toString()).toBe(
+    '.foo{-webkit-overflow-scrolling:touch;overflow:auto}',
+  );
 });
 
 test('size', () => {
@@ -731,20 +832,22 @@ test('size', () => {
         custom: {
           size(property) {
             if (property.value[0].type === 'length') {
-              /** @type {import('../ast').Size} */
-              let value = { type: 'length-percentage', value: { type: 'dimension', value: property.value[0].value } };
+              let value: Size = {
+                type: 'length-percentage',
+                value: {type: 'dimension', value: property.value[0].value},
+              };
               return [
-                { property: 'width', value },
-                { property: 'height', value }
+                {property: 'width', value},
+                {property: 'height', value},
               ];
             }
-          }
-        }
-      }
-    }
+          },
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{width:12px;height:12px}');
+  expect(res.code.toString()).toBe('.foo{width:12px;height:12px}');
 });
 
 test('works with style attributes', () => {
@@ -757,14 +860,14 @@ test('works with style attributes', () => {
         if (length.unit === 'px') {
           return {
             unit: 'rem',
-            value: length.value / 16
+            value: length.value / 16,
           };
         }
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), 'height:calc(100vh - 4rem)');
+  expect(res.code.toString()).toBe('height:calc(100vh - 4rem)');
 });
 
 test('works with bundler', () => {
@@ -776,14 +879,16 @@ test('works with bundler', () => {
         if (length.unit === 'px') {
           return {
             unit: 'rem',
-            value: length.value / 16
+            value: length.value / 16,
           };
         }
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.b{height:calc(100vh - 4rem)}.a{width:2rem}');
+  expect(res.code.toString()).toBe(
+    '.b{height:calc(100vh - 4rem)}.a{width:2rem}',
+  );
 });
 
 test('works with async bundler', async () => {
@@ -795,14 +900,16 @@ test('works with async bundler', async () => {
         if (length.unit === 'px') {
           return {
             unit: 'rem',
-            value: length.value / 16
+            value: length.value / 16,
           };
         }
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.b{height:calc(100vh - 4rem)}.a{width:2rem}');
+  expect(res.code.toString()).toBe(
+    '.b{height:calc(100vh - 4rem)}.a{width:2rem}',
+  );
 });
 
 test('dashed idents', () => {
@@ -818,11 +925,13 @@ test('dashed idents', () => {
     visitor: {
       DashedIdent(ident) {
         return `--prefix-${ident.slice(2)}`;
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{--prefix-foo:#ff0;color:var(--prefix-foo)}');
+  expect(res.code.toString()).toBe(
+    '.foo{--prefix-foo:#ff0;color:var(--prefix-foo)}',
+  );
 });
 
 test('custom idents', () => {
@@ -841,11 +950,13 @@ test('custom idents', () => {
     visitor: {
       CustomIdent(ident) {
         return `prefix-${ident}`;
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '@keyframes prefix-test{0%{color:red}to{color:green}}.foo{animation:prefix-test}');
+  expect(res.code.toString()).toBe(
+    '@keyframes prefix-test{0%{color:red}to{color:green}}.foo{animation:prefix-test}',
+  );
 });
 
 test('returning string values', () => {
@@ -862,46 +973,46 @@ test('returning string values', () => {
             type: 'style',
             value: {
               loc: rule.loc,
-              selectors: [
-                [{ type: 'universal' }]
-              ],
+              selectors: [[{type: 'universal'}]],
               declarations: {
                 declarations: [
                   {
                     property: 'visibility',
-                    raw: 'hi\\64 den' // escapes work for raw but not value
+                    raw: 'hi\\64 den', // escapes work for raw but not value
                   },
                   {
                     property: 'background',
-                    raw: 'yellow'
+                    raw: 'yellow',
                   },
                   {
                     property: '--custom',
-                    raw: 'hi'
+                    raw: 'hi',
                   },
                   {
                     property: 'transition',
                     vendorPrefix: ['moz'],
-                    raw: '200ms test'
+                    raw: '200ms test',
                   },
                   {
                     property: '-webkit-animation',
-                    raw: '3s cubic-bezier(0.25, 0.1, 0.25, 1) foo'
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    }
+                    raw: '3s cubic-bezier(0.25, 0.1, 0.25, 1) foo',
+                  },
+                ],
+              },
+            },
+          };
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '*{visibility:hidden;--custom:hi;background:#ff0;-moz-transition:test .2s;-webkit-animation:3s foo}');
+  expect(res.code.toString()).toBe(
+    '*{visibility:hidden;--custom:hi;background:#ff0;-moz-transition:test .2s;-webkit-animation:3s foo}',
+  );
 });
 
 test('errors on invalid dashed idents', () => {
-  assert.throws(() => {
+  expect(() =>
     transform({
       filename: 'test.css',
       minify: true,
@@ -912,25 +1023,28 @@ test('errors on invalid dashed idents', () => {
       `),
       visitor: {
         Function(fn) {
-          if (fn.arguments[0].type === 'token' && fn.arguments[0].value.type === 'ident') {
+          if (
+            fn.arguments[0].type === 'token' &&
+            fn.arguments[0].value.type === 'ident'
+          ) {
             fn.arguments = [
               {
                 type: 'var',
                 value: {
-                  name: { ident: fn.arguments[0].value.value }
-                }
-              }
+                  name: {ident: fn.arguments[0].value.value},
+                },
+              },
             ];
           }
 
           return {
             type: 'function',
-            value: fn
-          }
-        }
-      }
-    })
-  }, 'Dashed idents must start with --');
+            value: fn,
+          };
+        },
+      },
+    }),
+  ).toThrowError('Dashed idents must start with --');
 });
 
 test('supports returning raw values for tokens', () => {
@@ -945,13 +1059,13 @@ test('supports returning raw values for tokens', () => {
     visitor: {
       Function: {
         theme() {
-          return { raw: 'rgba(255, 0, 0)' };
-        }
-      }
-    }
+          return {raw: 'rgba(255, 0, 0)'};
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{color:red}');
+  expect(res.code.toString()).toBe('.foo{color:red}');
 });
 
 test('supports returning raw values as variables', () => {
@@ -959,7 +1073,7 @@ test('supports returning raw values as variables', () => {
     filename: 'test.css',
     minify: true,
     cssModules: {
-      dashedIdents: true
+      dashedIdents: true,
     },
     code: Buffer.from(`
       .foo {
@@ -969,13 +1083,13 @@ test('supports returning raw values as variables', () => {
     visitor: {
       Function: {
         theme() {
-          return { raw: 'var(--foo)' };
-        }
-      }
-    }
+          return {raw: 'var(--foo)'};
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.EgL3uq_foo{color:var(--EgL3uq_foo)}');
+  expect(res.code.toString()).toBe('.EgL3uq_foo{color:var(--EgL3uq_foo)}');
 });
 
 test('works with currentColor', () => {
@@ -990,11 +1104,11 @@ test('works with currentColor', () => {
     visitor: {
       Rule(rule) {
         return rule;
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.foo{color:currentColor}');
+  expect(res.code.toString()).toBe('.foo{color:currentColor}');
 });
 
 test('nth of S to nth-of-type', () => {
@@ -1009,17 +1123,22 @@ test('nth of S to nth-of-type', () => {
     visitor: {
       Selector(selector) {
         for (let component of selector) {
-          if (component.type === 'pseudo-class' && component.kind === 'nth-child' && component.of) {
+          if (
+            component.type === 'pseudo-class' &&
+            component.kind === 'nth-child' &&
+            component.of
+          ) {
             delete component.of;
+            // @ts-ignore
             component.kind = 'nth-of-type';
           }
         }
         return selector;
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), 'a:nth-of-type(2n){color:red}');
+  expect(res.code.toString()).toBe('a:nth-of-type(2n){color:red}');
 });
 
 test('media query raw', () => {
@@ -1036,15 +1155,14 @@ test('media query raw', () => {
     customAtRules: {
       breakpoints: {
         prelude: null,
-        body: "rule-list",
+        body: 'rule-list',
       },
     },
     visitor: {
       Rule: {
         custom: {
-          breakpoints({ body, loc }) {
-            /** @type {import('lightningcss').ReturnedRule[]} */
-            const value = [];
+          breakpoints({body, loc}) {
+            const value: ReturnedRule[] = [];
 
             for (let rule of body.value) {
               if (rule.type !== 'style') {
@@ -1061,27 +1179,27 @@ test('media query raw', () => {
 
               value.push(rule);
               value.push({
-                type: "media",
+                type: 'media',
                 value: {
                   rules: [clone],
                   loc,
                   query: {
-                    mediaQueries: [
-                      { raw: '(min-width: 500px)' }
-                    ]
-                  }
-                }
+                    mediaQueries: [{raw: '(min-width: 500px)'}],
+                  },
+                },
               });
             }
 
             return value;
-          }
-        }
-      }
-    }
+          },
+        },
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.m-1{margin:10px}@media (width>=500px){.sm\\:m-1{margin:10px}}');
+  expect(res.code.toString()).toBe(
+    '.m-1{margin:10px}@media (width>=500px){.sm\\:m-1{margin:10px}}',
+  );
 });
 
 test('visit stylesheet', () => {
@@ -1099,13 +1217,17 @@ test('visit stylesheet', () => {
     `),
     visitor: {
       StyleSheetExit(stylesheet) {
-        stylesheet.rules.sort((a, b) => a.value.selectors[0][0].name.localeCompare(b.value.selectors[0][0].name));
+        stylesheet.rules.sort((a, b) =>
+          // @ts-expect-error TODO: fix type error
+          a.value.selectors[0][0].name.localeCompare(
+            // @ts-expect-error TODO: fix type error
+            b.value.selectors[0][0].name,
+          ),
+        );
         return stylesheet;
-      }
-    }
+      },
+    },
   });
 
-  assert.equal(res.code.toString(), '.bar{width:80px}.foo{width:32px}');
+  expect(res.code.toString()).toBe('.bar{width:80px}.foo{width:32px}');
 });
-
-test.run();
