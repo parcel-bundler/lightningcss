@@ -21690,7 +21690,6 @@ mod tests {
     }
   }
 
-  #[cfg(feature = "grid")]
   #[test]
   fn test_grid() {
     minify_test(
@@ -24982,7 +24981,6 @@ mod tests {
       false,
     );
 
-    #[cfg(feature = "grid")]
     css_modules_test(
       r#"
       body {
@@ -25027,7 +25025,6 @@ mod tests {
       false,
     );
 
-    #[cfg(feature = "grid")]
     css_modules_test(
       r#"
         .grid {
@@ -25066,7 +25063,6 @@ mod tests {
       false,
     );
 
-    #[cfg(feature = "grid")]
     css_modules_test(
       r#"
         .grid {
