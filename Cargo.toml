@@ -34,11 +34,10 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [features]
-default = ["bundler", "grid", "nodejs", "sourcemap"]
+default = ["bundler", "nodejs", "sourcemap"]
 browserslist = ["browserslist-rs"]
 bundler = ["dashmap", "sourcemap", "rayon"]
 cli = ["atty", "clap", "serde_json", "browserslist", "jemallocator"]
-grid = []
 jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
 nodejs = ["dep:serde"]
 serde = [
