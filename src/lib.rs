@@ -28739,6 +28739,48 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "sourcemap")]
+  fn test_source_maps_with_license_comments() {
+    let source = r#"/*! a single line comment */
+    /*!
+      a comment
+      containing
+      multiple
+      lines
+    */
+    .a {
+      display: flex;
+    }
+
+    .b {
+      display: hidden;
+    }
+    "#;
+
+    let mut sm = parcel_sourcemap::SourceMap::new("/");
+    let source_index = sm.add_source("input.css");
+    sm.set_source_content(source_index as usize, source).unwrap();
+
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions {
+      source_index,
+      ..Default::default()
+    }).unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    stylesheet
+      .to_css(PrinterOptions {
+        source_map: Some(&mut sm),
+        minify: true,
+        ..PrinterOptions::default()
+      })
+      .unwrap();
+    let map = sm.to_json(None).unwrap();
+    assert_eq!(
+      map,
+      r#"{"version":3,"sourceRoot":null,"mappings":";;;;;;;AAOI,gBAIA","sources":["input.css"],"sourcesContent":["/*! a single line comment */\n    /*!\n      a comment\n      containing\n      multiple\n      lines\n    */\n    .a {\n      display: flex;\n    }\n\n    .b {\n      display: hidden;\n    }\n    "],"names":[]}"#
+    );
+  }
+
+  #[test]
   fn test_error_recovery() {
     use std::sync::{Arc, RwLock};
     let warnings = Some(Arc::new(RwLock::new(Vec::new())));
