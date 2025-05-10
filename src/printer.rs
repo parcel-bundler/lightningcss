@@ -137,7 +137,17 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
   }
 
   /// Writes a raw string to the underlying destination.
+  ///
+  /// NOTE: Is is assumed that the string does not contain any newline characters.
+  /// If such a string is written, it will break source maps.
   pub fn write_str(&mut self, s: &str) -> Result<(), PrinterError> {
+    self.col += s.len() as u32;
+    self.dest.write_str(s)?;
+    Ok(())
+  }
+
+  /// Writes a raw string which may contain newlines to the underlying destination.
+  pub fn write_str_with_newlines(&mut self, s: &str) -> Result<(), PrinterError> {
     let mut last_line_start: usize = 0;
 
     for (idx, n) in s.char_indices() {
@@ -146,7 +156,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
         self.col = 0;
 
         // Keep track of where the *next* line starts
-        last_line_start = idx+1;
+        last_line_start = idx + 1;
       }
     }
 
