@@ -104,7 +104,6 @@ pub mod display;
 pub mod effects;
 pub mod flex;
 pub mod font;
-#[cfg(feature = "grid")]
 pub mod grid;
 pub mod list;
 pub(crate) mod margin_padding;
@@ -154,7 +153,6 @@ use display::*;
 use effects::*;
 use flex::*;
 use font::*;
-#[cfg(feature = "grid")]
 use grid::*;
 use list::*;
 use margin_padding::*;
@@ -1372,50 +1370,20 @@ define_properties! {
   "flex-negative": FlexNegative(CSSNumber, VendorPrefix) / Ms unprefixed: false,
   "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / Ms unprefixed: false,
 
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-columns": GridTemplateColumns(TrackSizing<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-rows": GridTemplateRows(TrackSizing<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-columns": GridAutoColumns(TrackSizeList),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-rows": GridAutoRows(TrackSizeList),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-flow": GridAutoFlow(GridAutoFlow),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-areas": GridTemplateAreas(GridTemplateAreas),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template": GridTemplate(GridTemplate<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid": Grid(Grid<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row-start": GridRowStart(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row-end": GridRowEnd(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column-start": GridColumnStart(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column-end": GridColumnEnd(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row": GridRow(GridRow<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column": GridColumn(GridColumn<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-area": GridArea(GridArea<'i>) shorthand: true,
 
   "margin-top": MarginTop(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
