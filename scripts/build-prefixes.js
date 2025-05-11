@@ -71,6 +71,10 @@ prefixes['any-pseudo'] = {
     })
 }
 
+// Safari 4-13 supports background-clip: text with a prefix.
+prefixes['background-clip'].browsers.push('safari 13');
+prefixes['background-clip'].browsers.push('ios_saf 4', 'ios_saf 13');
+
 let flexSpec = {};
 let oldGradient = {};
 let p = new Map();
