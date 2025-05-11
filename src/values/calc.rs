@@ -314,8 +314,9 @@ impl<
       + TrySign
       + std::cmp::PartialOrd<V>
       + Into<Calc<V>>
-      + From<Calc<V>>
+      + TryFrom<Calc<V>>
       + TryFrom<Angle>
+      + TryInto<Angle>
       + Clone
       + std::fmt::Debug,
   > Parse<'i> for Calc<V>
@@ -335,8 +336,9 @@ impl<
       + TrySign
       + std::cmp::PartialOrd<V>
       + Into<Calc<V>>
-      + From<Calc<V>>
+      + TryFrom<Calc<V>>
       + TryFrom<Angle>
+      + TryInto<Angle>
       + Clone
       + std::fmt::Debug,
   > Calc<V>
@@ -550,12 +552,12 @@ impl<
           match *input.next()? {
             Token::Delim('+') => {
               let next = Calc::parse_product(input, parse_ident)?;
-              cur = cur.add(next);
+              cur = cur.add(next).map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
             }
             Token::Delim('-') => {
               let mut rhs = Calc::parse_product(input, parse_ident)?;
               rhs = rhs * -1.0;
-              cur = cur.add(rhs);
+              cur = cur.add(rhs).map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
             }
             ref t => {
               let t = t.clone();
@@ -744,9 +746,12 @@ impl<
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
       let v: Calc<Angle> = Calc::parse_sum(input, |v| {
-        parse_ident(v).and_then(|v| match v {
-          Calc::Number(v) => Some(Calc::Number(v)),
-          _ => None,
+        parse_ident(v).and_then(|v| -> Option<Calc<Angle>> {
+          match v {
+            Calc::Number(v) => Some(Calc::Number(v)),
+            Calc::Value(v) => (*v).try_into().ok().map(|v| Calc::Value(Box::new(v))),
+            _ => None,
+          }
         })
       })?;
       let rad = match v {
@@ -903,11 +908,9 @@ impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
   }
 }
 
-impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> AddInternal
-  for Calc<V>
-{
-  fn add(self, other: Calc<V>) -> Calc<V> {
-    match (self, other) {
+impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V>> + std::fmt::Debug> Calc<V> {
+  pub(crate) fn add(self, other: Calc<V>) -> Result<Calc<V>, <V as TryFrom<Calc<V>>>::Error> {
+    Ok(match (self, other) {
       (Calc::Value(a), Calc::Value(b)) => (a.add(*b)).into(),
       (Calc::Number(a), Calc::Number(b)) => Calc::Number(a + b),
       (Calc::Sum(a, b), Calc::Number(c)) => {
@@ -934,10 +937,10 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> 
       | (a, b @ Calc::Product(..)) => Calc::Sum(Box::new(a), Box::new(b)),
       (Calc::Function(a), b) => Calc::Sum(Box::new(Calc::Function(a)), Box::new(b)),
       (a, Calc::Function(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Function(b))),
-      (Calc::Value(a), b) => (a.add(V::from(b))).into(),
-      (a, Calc::Value(b)) => (V::from(a).add(*b)).into(),
-      (a @ Calc::Sum(..), b @ Calc::Sum(..)) => V::from(a).add(V::from(b)).into(),
-    }
+      (Calc::Value(a), b) => (a.add(V::try_from(b)?)).into(),
+      (a, Calc::Value(b)) => (V::try_from(a)?.add(*b)).into(),
+      (a @ Calc::Sum(..), b @ Calc::Sum(..)) => V::try_from(a)?.add(V::try_from(b)?).into(),
+    })
   }
 }
 

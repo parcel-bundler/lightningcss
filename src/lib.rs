@@ -17514,6 +17514,7 @@ mod tests {
     minify_test(".foo { color: hsl(100deg, 100%, 50%) }", ".foo{color:#5f0}");
     minify_test(".foo { color: hsl(100, 100%, 50%) }", ".foo{color:#5f0}");
     minify_test(".foo { color: hsl(100 100% 50%) }", ".foo{color:#5f0}");
+    minify_test(".foo { color: hsl(100 100 50) }", ".foo{color:#5f0}");
     minify_test(".foo { color: hsl(100, 100%, 50%, .8) }", ".foo{color:#5f0c}");
     minify_test(".foo { color: hsl(100 100% 50% / .8) }", ".foo{color:#5f0c}");
     minify_test(".foo { color: hsla(100, 100%, 50%, .8) }", ".foo{color:#5f0c}");
@@ -17525,6 +17526,7 @@ mod tests {
     minify_test(".foo { color: hwb(194 0% 0% / 50%) }", ".foo{color:#00c4ff80}");
     minify_test(".foo { color: hwb(194 0% 50%) }", ".foo{color:#006280}");
     minify_test(".foo { color: hwb(194 50% 0%) }", ".foo{color:#80e1ff}");
+    minify_test(".foo { color: hwb(194 50 0) }", ".foo{color:#80e1ff}");
     minify_test(".foo { color: hwb(194 50% 50%) }", ".foo{color:gray}");
     // minify_test(".foo { color: ActiveText }", ".foo{color:ActiveTet}");
     minify_test(
@@ -18495,6 +18497,7 @@ mod tests {
     test(
       "lch(from indianred l c calc(10deg + 0.35rad))",
       "lch(53.9252% 51.2776 30.0535)",
+    );
     minify_test(
       ".foo{color:lch(from currentColor l c sin(h))}",
       ".foo{color:lch(from currentColor l c sin(h))}",
@@ -18740,17 +18743,29 @@ mod tests {
 
     // Testing valid permutation (types match).
     test("hsl(from rebeccapurple h l s)", "rgb(128, 77, 179)");
-    test("hsl(from rebeccapurple h alpha l / s)", "rgba(102, 0, 204, 0.5)");
-    test("hsl(from rebeccapurple h l l / l)", "rgba(102, 61, 143, 0.4)");
-    test("hsl(from rebeccapurple h alpha alpha / alpha)", "rgb(255, 255, 255)");
+    test(
+      "hsl(from rebeccapurple h calc(alpha * 100) l / calc(s / 100))",
+      "rgba(102, 0, 204, 0.5)",
+    );
+    test(
+      "hsl(from rebeccapurple h l l / calc(l / 100))",
+      "rgba(102, 61, 143, 0.4)",
+    );
+    test(
+      "hsl(from rebeccapurple h calc(alpha * 100) calc(alpha * 100) / calc(alpha * 100))",
+      "rgb(255, 255, 255)",
+    );
     test("hsl(from rgb(20%, 40%, 60%, 80%) h l s)", "rgb(77, 128, 179)");
     test(
-      "hsl(from rgb(20%, 40%, 60%, 80%) h alpha l / s)",
+      "hsl(from rgb(20%, 40%, 60%, 80%) h calc(alpha * 100) l / calc(s / 100))",
       "rgba(20, 102, 184, 0.5)",
     );
-    test("hsl(from rgb(20%, 40%, 60%, 80%) h l l / l)", "rgba(61, 102, 143, 0.4)");
     test(
-      "hsl(from rgb(20%, 40%, 60%, 80%) h alpha alpha / alpha)",
+      "hsl(from rgb(20%, 40%, 60%, 80%) h l l / calc(l / 100))",
+      "rgba(61, 102, 143, 0.4)",
+    );
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) h calc(alpha * 100) calc(alpha * 100) / alpha)",
       "rgba(163, 204, 245, 0.8)",
     );
 
@@ -18878,17 +18893,29 @@ mod tests {
 
     // Testing valid permutation (types match).
     test("hwb(from rebeccapurple h b w)", "rgb(153, 102, 204)");
-    test("hwb(from rebeccapurple h alpha w / b)", "rgba(213, 213, 213, 0.4)");
-    test("hwb(from rebeccapurple h w w / w)", "rgba(128, 51, 204, 0.2)");
-    test("hwb(from rebeccapurple h alpha alpha / alpha)", "rgb(128, 128, 128)");
+    test(
+      "hwb(from rebeccapurple h calc(alpha * 100) w / calc(b / 100))",
+      "rgba(213, 213, 213, 0.4)",
+    );
+    test(
+      "hwb(from rebeccapurple h w w / calc(w / 100))",
+      "rgba(128, 51, 204, 0.2)",
+    );
+    test(
+      "hwb(from rebeccapurple h calc(alpha * 100) calc(alpha * 100) / alpha)",
+      "rgb(128, 128, 128)",
+    );
     test("hwb(from rgb(20%, 40%, 60%, 80%) h b w)", "rgb(102, 153, 204)");
     test(
-      "hwb(from rgb(20%, 40%, 60%, 80%) h alpha w / b)",
+      "hwb(from rgb(20%, 40%, 60%, 80%) h calc(alpha * 100) w / calc(b / 100))",
       "rgba(204, 204, 204, 0.4)",
     );
-    test("hwb(from rgb(20%, 40%, 60%, 80%) h w w / w)", "rgba(51, 128, 204, 0.2)");
     test(
-      "hwb(from rgb(20%, 40%, 60%, 80%) h alpha alpha / alpha)",
+      "hwb(from rgb(20%, 40%, 60%, 80%) h w w / calc(w / 100))",
+      "rgba(51, 128, 204, 0.2)",
+    );
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) h calc(alpha * 100) calc(alpha * 100) / alpha)",
       "rgba(128, 128, 128, 0.8)",
     );
 
@@ -20245,12 +20272,9 @@ mod tests {
         ".foo{color:hsl(from rebeccapurple s h l)}",
         ".foo{color:hsl(from rebeccapurple s h l)}",
       );
+      minify_test(".foo{color:hsl(from rebeccapurple s s s / s)}", ".foo{color:#bfaa40}");
       minify_test(
-        ".foo{color:hsl(from rebeccapurple s s s / s)}",
-        ".foo{color:hsl(from rebeccapurple s s s/s)}",
-      );
-      minify_test(
-        ".foo{color:hsl(from rebeccapurple alpha alpha alpha / alpha)}",
+        ".foo{color:hsl(from rebeccapurple calc(alpha * 100) calc(alpha * 100) calc(alpha * 100) / alpha)}",
         ".foo{color:#fff}",
       );
     }
@@ -28805,10 +28829,14 @@ mod tests {
     let source_index = sm.add_source("input.css");
     sm.set_source_content(source_index as usize, source).unwrap();
 
-    let mut stylesheet = StyleSheet::parse(&source, ParserOptions {
-      source_index,
-      ..Default::default()
-    }).unwrap();
+    let mut stylesheet = StyleSheet::parse(
+      &source,
+      ParserOptions {
+        source_index,
+        ..Default::default()
+      },
+    )
+    .unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     stylesheet
       .to_css(PrinterOptions {
