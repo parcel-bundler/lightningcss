@@ -5,6 +5,7 @@
     "moduleResolution": "node",
     "isolatedModules": true,
     "noEmit": true,
-    "strict": true
+    "strict": true,
+    "skipLibCheck": true
   }
 }
