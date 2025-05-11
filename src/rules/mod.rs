@@ -524,6 +524,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
   ) -> Result<(), MinifyError> {
     let mut keyframe_rules = HashMap::new();
     let mut layer_rules = HashMap::new();
+    let mut has_layers = false;
     let mut property_rules = HashMap::new();
     let mut font_feature_values_rules = Vec::new();
     let mut style_rules =
@@ -629,6 +630,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             }
 
             layer_rules.insert(name.clone(), rules.len());
+            has_layers = true;
           }
         }
         CssRule::LayerStatement(layer) => {
@@ -637,6 +639,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           for name in &layer.names {
             if !layer_rules.contains_key(name) {
               layer_rules.insert(name.clone(), rules.len());
+              has_layers = true;
               rules.push(CssRule::LayerBlock(LayerBlockRule {
                 name: Some(name.clone()),
                 rules: CssRuleList(vec![]),
@@ -870,6 +873,10 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             property_rules.insert(property.name.clone(), rules.len());
           }
         }
+        CssRule::Import(_) => {
+          // @layer blocks can't be inlined into layers declared before imports.
+          layer_rules.clear();
+        }
         _ => {}
       }
 
@@ -878,7 +885,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
 
     // Optimize @layer rules. Combine subsequent empty layer blocks into a single @layer statement
     // so that layers are declared in the correct order.
-    if !layer_rules.is_empty() {
+    if has_layers {
       let mut declared_layers = HashSet::new();
       let mut layer_statement = None;
       for index in 0..rules.len() {

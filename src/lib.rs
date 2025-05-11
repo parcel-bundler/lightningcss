@@ -9309,6 +9309,29 @@ mod tests {
       @layer b, c;
     "#},
     );
+
+    test(
+      r#"
+      @layer a;
+      @import "foo.css";
+
+      @layer a {
+        foo {
+          color: red;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @layer a;
+      @import "foo.css";
+
+      @layer a {
+        foo {
+          color: red;
+        }
+      }
+    "#},
+    );
   }
 
   #[test]
