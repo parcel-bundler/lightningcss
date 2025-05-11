@@ -11,7 +11,6 @@ use lightningcss::{
     string::CowArcStr,
     syntax::{ParsedComponent, SyntaxString},
   },
-  visitor::{Visit, VisitTypes, Visitor},
 };
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -49,7 +48,7 @@ pub struct Prelude<'i> {
   prelude: Option<ParsedComponent<'i>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct AtRule<'i> {
   #[serde(borrow)]
   pub name: CowArcStr<'i>,
@@ -58,7 +57,7 @@ pub struct AtRule<'i> {
   pub loc: Location,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type", content = "value", rename_all = "kebab-case")]
 pub enum AtRuleBody<'i> {
   #[serde(borrow)]
@@ -103,6 +102,7 @@ impl<'i> AtRuleParser<'i> for CustomAtRuleParser {
     start: &ParserState,
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
+    is_nested: bool,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
     let config = self.configs.get(prelude.name.as_ref()).unwrap();
     let body = if let Some(body) = &config.body {
@@ -114,7 +114,7 @@ impl<'i> AtRuleParser<'i> for CustomAtRuleParser {
           Some(AtRuleBody::RuleList(CssRuleList::parse_with(input, options, self)?))
         }
         CustomAtRuleBodyType::StyleBlock => Some(AtRuleBody::RuleList(CssRuleList::parse_style_block_with(
-          input, options, self,
+          input, options, self, is_nested,
         )?)),
       }
     } else {
@@ -139,6 +139,7 @@ impl<'i> AtRuleParser<'i> for CustomAtRuleParser {
     prelude: Self::Prelude,
     start: &ParserState,
     options: &ParserOptions<'_, 'i>,
+    _is_nested: bool,
   ) -> Result<Self::AtRule, ()> {
     let config = self.configs.get(prelude.name.as_ref()).unwrap();
     if config.body.is_some() {
@@ -196,6 +197,10 @@ impl<'i> ToCss for AtRule<'i> {
   }
 }
 
+#[cfg(feature = "visitor")]
+use lightningcss::visitor::{Visit, VisitTypes, Visitor};
+
+#[cfg(feature = "visitor")]
 impl<'i, V: Visitor<'i, AtRule<'i>>> Visit<'i, AtRule<'i>, V> for AtRule<'i> {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
 

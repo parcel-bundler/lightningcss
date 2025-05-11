@@ -1,16 +1,20 @@
 //! CSS properties related to keyframe animations.
 
+use std::borrow::Cow;
+
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
-use crate::properties::{Property, PropertyId, VendorPrefix};
-use crate::targets::Browsers;
+use crate::properties::{Property, PropertyId, TokenOrValue, VendorPrefix};
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
+use crate::values::ident::DashedIdent;
 use crate::values::number::CSSNumber;
-use crate::values::string::CowArcStr;
+use crate::values::percentage::Percentage;
+use crate::values::size::Size2D;
+use crate::values::string::CSSString;
 use crate::values::{easing::EasingFunction, ident::CustomIdent, time::Time};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -18,10 +22,12 @@ use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
 
+use super::{LengthPercentage, LengthPercentageOrAuto};
+
 /// A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -36,22 +42,7 @@ pub enum AnimationName<'i> {
   Ident(CustomIdent<'i>),
   /// A `<string>` name of a `@keyframes` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  String(CowArcStr<'i>),
-}
-
-impl<'i> Parse<'i> for AnimationName<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(AnimationName::None);
-    }
-
-    if let Ok(s) = input.try_parse(|input| input.expect_string_cloned()) {
-      return Ok(AnimationName::String(s.into()));
-    }
-
-    let ident = CustomIdent::parse(input)?;
-    Ok(AnimationName::Ident(ident))
-  }
+  String(CSSString<'i>),
 }
 
 impl<'i> ToCss for AnimationName<'i> {
@@ -59,17 +50,24 @@ impl<'i> ToCss for AnimationName<'i> {
   where
     W: std::fmt::Write,
   {
+    let css_module_animation_enabled =
+      dest.css_module.as_ref().map_or(false, |css_module| css_module.config.animation);
+
     match self {
       AnimationName::None => dest.write_str("none"),
       AnimationName::Ident(s) => {
-        if let Some(css_module) = &mut dest.css_module {
-          css_module.reference(&s.0, dest.loc.source_index)
+        if css_module_animation_enabled {
+          if let Some(css_module) = &mut dest.css_module {
+            css_module.reference(&s.0, dest.loc.source_index)
+          }
         }
-        s.to_css(dest)
+        s.to_css_with_options(dest, css_module_animation_enabled)
       }
       AnimationName::String(s) => {
-        if let Some(css_module) = &mut dest.css_module {
-          css_module.reference(&s, dest.loc.source_index)
+        if css_module_animation_enabled {
+          if let Some(css_module) = &mut dest.css_module {
+            css_module.reference(&s, dest.loc.source_index)
+          }
         }
 
         // CSS-wide keywords and `none` cannot remove quotes.
@@ -79,7 +77,7 @@ impl<'i> ToCss for AnimationName<'i> {
             Ok(())
           },
           _ => {
-            dest.write_ident(s.as_ref())
+            dest.write_ident(s.as_ref(), css_module_animation_enabled)
           }
         }
       }
@@ -91,7 +89,7 @@ impl<'i> ToCss for AnimationName<'i> {
 pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 
 /// A value for the [animation-iteration-count](https://drafts.csswg.org/css-animations/#animation-iteration-count) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -99,6 +97,7 @@ pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum AnimationIterationCount {
   /// The animation will repeat the specified number of times.
   Number(CSSNumber),
@@ -112,40 +111,17 @@ impl Default for AnimationIterationCount {
   }
 }
 
-impl<'i> Parse<'i> for AnimationIterationCount {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("infinite")).is_ok() {
-      return Ok(AnimationIterationCount::Infinite);
-    }
-
-    let number = CSSNumber::parse(input)?;
-    return Ok(AnimationIterationCount::Number(number));
-  }
-}
-
-impl ToCss for AnimationIterationCount {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      AnimationIterationCount::Number(val) => val.to_css(dest),
-      AnimationIterationCount::Infinite => dest.write_str("infinite"),
-    }
-  }
-}
-
 enum_property! {
   /// A value for the [animation-direction](https://drafts.csswg.org/css-animations/#animation-direction) property.
   pub enum AnimationDirection {
     /// The animation is played as specified
-    "normal": Normal,
+    Normal,
     /// The animation is played in reverse.
-    "reverse": Reverse,
+    Reverse,
     /// The animation iterations alternate between forward and reverse.
-    "alternate": Alternate,
+    Alternate,
     /// The animation iterations alternate between forward and reverse, with reverse occurring first.
-    "alternate-reverse": AlternateReverse,
+    AlternateReverse,
   }
 }
 
@@ -191,9 +167,422 @@ impl Default for AnimationFillMode {
   }
 }
 
+enum_property! {
+  /// A value for the [animation-composition](https://drafts.csswg.org/css-animations-2/#animation-composition) property.
+  pub enum AnimationComposition {
+    /// The result of compositing the effect value with the underlying value is simply the effect value.
+    Replace,
+    /// The effect value is added to the underlying value.
+    Add,
+    /// The effect value is accumulated onto the underlying value.
+    Accumulate,
+  }
+}
+
+/// A value for the [animation-timeline](https://drafts.csswg.org/css-animations-2/#animation-timeline) property.
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum AnimationTimeline<'i> {
+  /// The animation’s timeline is a DocumentTimeline, more specifically the default document timeline.
+  Auto,
+  /// The animation is not associated with a timeline.
+  None,
+  /// A timeline referenced by name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  DashedIdent(DashedIdent<'i>),
+  /// The scroll() function.
+  Scroll(ScrollTimeline),
+  /// The view() function.
+  View(ViewTimeline),
+}
+
+impl<'i> Default for AnimationTimeline<'i> {
+  fn default() -> Self {
+    AnimationTimeline::Auto
+  }
+}
+
+/// The [scroll()](https://drafts.csswg.org/scroll-animations-1/#scroll-notation) function.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct ScrollTimeline {
+  /// Specifies which element to use as the scroll container.
+  pub scroller: Scroller,
+  /// Specifies which axis of the scroll container to use as the progress for the timeline.
+  pub axis: ScrollAxis,
+}
+
+impl<'i> Parse<'i> for ScrollTimeline {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.expect_function_matching("scroll")?;
+    input.parse_nested_block(|input| {
+      let mut scroller = None;
+      let mut axis = None;
+      loop {
+        if scroller.is_none() {
+          scroller = input.try_parse(Scroller::parse).ok();
+        }
+
+        if axis.is_none() {
+          axis = input.try_parse(ScrollAxis::parse).ok();
+          if axis.is_some() {
+            continue;
+          }
+        }
+        break;
+      }
+
+      Ok(ScrollTimeline {
+        scroller: scroller.unwrap_or_default(),
+        axis: axis.unwrap_or_default(),
+      })
+    })
+  }
+}
+
+impl ToCss for ScrollTimeline {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.write_str("scroll(")?;
+
+    let mut needs_space = false;
+    if self.scroller != Scroller::default() {
+      self.scroller.to_css(dest)?;
+      needs_space = true;
+    }
+
+    if self.axis != ScrollAxis::default() {
+      if needs_space {
+        dest.write_char(' ')?;
+      }
+      self.axis.to_css(dest)?;
+    }
+
+    dest.write_char(')')
+  }
+}
+
+enum_property! {
+  /// A scroller, used in the `scroll()` function.
+  pub enum Scroller {
+    /// Specifies to use the document viewport as the scroll container.
+    "root": Root,
+    /// Specifies to use the nearest ancestor scroll container.
+    "nearest": Nearest,
+    /// Specifies to use the element’s own principal box as the scroll container.
+    "self": SelfElement,
+  }
+}
+
+impl Default for Scroller {
+  fn default() -> Self {
+    Scroller::Nearest
+  }
+}
+
+enum_property! {
+  /// A scroll axis, used in the `scroll()` function.
+  pub enum ScrollAxis {
+    /// Specifies to use the measure of progress along the block axis of the scroll container.
+    Block,
+    /// Specifies to use the measure of progress along the inline axis of the scroll container.
+    Inline,
+    /// Specifies to use the measure of progress along the horizontal axis of the scroll container.
+    X,
+    /// Specifies to use the measure of progress along the vertical axis of the scroll container.
+    Y,
+  }
+}
+
+impl Default for ScrollAxis {
+  fn default() -> Self {
+    ScrollAxis::Block
+  }
+}
+
+/// The [view()](https://drafts.csswg.org/scroll-animations-1/#view-notation) function.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct ViewTimeline {
+  /// Specifies which axis of the scroll container to use as the progress for the timeline.
+  pub axis: ScrollAxis,
+  /// Provides an adjustment of the view progress visibility range.
+  pub inset: Size2D<LengthPercentageOrAuto>,
+}
+
+impl<'i> Parse<'i> for ViewTimeline {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.expect_function_matching("view")?;
+    input.parse_nested_block(|input| {
+      let mut axis = None;
+      let mut inset = None;
+      loop {
+        if axis.is_none() {
+          axis = input.try_parse(ScrollAxis::parse).ok();
+        }
+
+        if inset.is_none() {
+          inset = input.try_parse(Size2D::parse).ok();
+          if inset.is_some() {
+            continue;
+          }
+        }
+        break;
+      }
+
+      Ok(ViewTimeline {
+        axis: axis.unwrap_or_default(),
+        inset: inset.unwrap_or(Size2D(LengthPercentageOrAuto::Auto, LengthPercentageOrAuto::Auto)),
+      })
+    })
+  }
+}
+
+impl ToCss for ViewTimeline {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.write_str("view(")?;
+    let mut needs_space = false;
+    if self.axis != ScrollAxis::default() {
+      self.axis.to_css(dest)?;
+      needs_space = true;
+    }
+
+    if self.inset.0 != LengthPercentageOrAuto::Auto || self.inset.1 != LengthPercentageOrAuto::Auto {
+      if needs_space {
+        dest.write_char(' ')?;
+      }
+      self.inset.to_css(dest)?;
+    }
+
+    dest.write_char(')')
+  }
+}
+
+/// A [view progress timeline range](https://drafts.csswg.org/scroll-animations/#view-timelines-ranges)
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum TimelineRangeName {
+  /// Represents the full range of the view progress timeline.
+  Cover,
+  /// Represents the range during which the principal box is either fully contained by,
+  /// or fully covers, its view progress visibility range within the scrollport.
+  Contain,
+  /// Represents the range during which the principal box is entering the view progress visibility range.
+  Entry,
+  /// Represents the range during which the principal box is exiting the view progress visibility range.
+  Exit,
+  /// Represents the range during which the principal box crosses the end border edge.
+  EntryCrossing,
+  /// Represents the range during which the principal box crosses the start border edge.
+  ExitCrossing,
+}
+
+/// A value for the [animation-range-start](https://drafts.csswg.org/scroll-animations/#animation-range-start)
+/// or [animation-range-end](https://drafts.csswg.org/scroll-animations/#animation-range-end) property.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum AnimationAttachmentRange {
+  /// The start of the animation’s attachment range is the start of its associated timeline.
+  Normal,
+  /// The animation attachment range starts at the specified point on the timeline measuring from the start of the timeline.
+  #[cfg_attr(feature = "serde", serde(untagged))]
+  LengthPercentage(LengthPercentage),
+  /// The animation attachment range starts at the specified point on the timeline measuring from the start of the specified named timeline range.
+  #[cfg_attr(feature = "serde", serde(untagged))]
+  TimelineRange {
+    /// The name of the timeline range.
+    name: TimelineRangeName,
+    /// The offset from the start of the named timeline range.
+    offset: LengthPercentage,
+  },
+}
+
+impl<'i> AnimationAttachmentRange {
+  fn parse<'t>(input: &mut Parser<'i, 't>, default: f32) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
+      return Ok(AnimationAttachmentRange::Normal);
+    }
+
+    if let Ok(val) = input.try_parse(LengthPercentage::parse) {
+      return Ok(AnimationAttachmentRange::LengthPercentage(val));
+    }
+
+    let name = TimelineRangeName::parse(input)?;
+    let offset = input
+      .try_parse(LengthPercentage::parse)
+      .unwrap_or(LengthPercentage::Percentage(Percentage(default)));
+    Ok(AnimationAttachmentRange::TimelineRange { name, offset })
+  }
+
+  fn to_css<W>(&self, dest: &mut Printer<W>, default: f32) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      Self::Normal => dest.write_str("normal"),
+      Self::LengthPercentage(val) => val.to_css(dest),
+      Self::TimelineRange { name, offset } => {
+        name.to_css(dest)?;
+        if *offset != LengthPercentage::Percentage(Percentage(default)) {
+          dest.write_char(' ')?;
+          offset.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  }
+}
+
+impl Default for AnimationAttachmentRange {
+  fn default() -> Self {
+    AnimationAttachmentRange::Normal
+  }
+}
+
+/// A value for the [animation-range-start](https://drafts.csswg.org/scroll-animations/#animation-range-start) property.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct AnimationRangeStart(pub AnimationAttachmentRange);
+
+impl<'i> Parse<'i> for AnimationRangeStart {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let range = AnimationAttachmentRange::parse(input, 0.0)?;
+    Ok(Self(range))
+  }
+}
+
+impl ToCss for AnimationRangeStart {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    self.0.to_css(dest, 0.0)
+  }
+}
+
+/// A value for the [animation-range-end](https://drafts.csswg.org/scroll-animations/#animation-range-end) property.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct AnimationRangeEnd(pub AnimationAttachmentRange);
+
+impl<'i> Parse<'i> for AnimationRangeEnd {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let range = AnimationAttachmentRange::parse(input, 1.0)?;
+    Ok(Self(range))
+  }
+}
+
+impl ToCss for AnimationRangeEnd {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    self.0.to_css(dest, 1.0)
+  }
+}
+
+/// A value for the [animation-range](https://drafts.csswg.org/scroll-animations/#animation-range) shorthand property.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct AnimationRange {
+  /// The start of the animation's attachment range.
+  pub start: AnimationRangeStart,
+  /// The end of the animation's attachment range.
+  pub end: AnimationRangeEnd,
+}
+
+impl<'i> Parse<'i> for AnimationRange {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let start = AnimationRangeStart::parse(input)?;
+    let end = input
+      .try_parse(AnimationRangeStart::parse)
+      .map(|r| AnimationRangeEnd(r.0))
+      .unwrap_or_else(|_| {
+        // If <'animation-range-end'> is omitted and <'animation-range-start'> includes a <timeline-range-name> component, then
+        // animation-range-end is set to that same <timeline-range-name> and 100%. Otherwise, any omitted longhand is set to its initial value.
+        match &start.0 {
+          AnimationAttachmentRange::TimelineRange { name, .. } => {
+            AnimationRangeEnd(AnimationAttachmentRange::TimelineRange {
+              name: name.clone(),
+              offset: LengthPercentage::Percentage(Percentage(1.0)),
+            })
+          }
+          _ => AnimationRangeEnd(AnimationAttachmentRange::default()),
+        }
+      });
+    Ok(AnimationRange { start, end })
+  }
+}
+
+impl ToCss for AnimationRange {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    self.start.to_css(dest)?;
+
+    let omit_end = match (&self.start.0, &self.end.0) {
+      (
+        AnimationAttachmentRange::TimelineRange { name: start_name, .. },
+        AnimationAttachmentRange::TimelineRange {
+          name: end_name,
+          offset: end_offset,
+        },
+      ) => start_name == end_name && *end_offset == LengthPercentage::Percentage(Percentage(1.0)),
+      (_, end) => *end == AnimationAttachmentRange::default(),
+    };
+
+    if !omit_end {
+      dest.write_char(' ')?;
+      self.end.to_css(dest)?;
+    }
+    Ok(())
+  }
+}
+
 define_list_shorthand! {
   /// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Animation<'i>(VendorPrefix) {
     /// The animation name.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -212,6 +601,8 @@ define_list_shorthand! {
     delay: AnimationDelay(Time, VendorPrefix),
     /// The animation fill mode.
     fill_mode: AnimationFillMode(AnimationFillMode, VendorPrefix),
+    /// The animation timeline.
+    timeline: AnimationTimeline(AnimationTimeline<'i>),
   }
 }
 
@@ -225,6 +616,7 @@ impl<'i> Parse<'i> for Animation<'i> {
     let mut play_state = None;
     let mut delay = None;
     let mut fill_mode = None;
+    let mut timeline = None;
 
     macro_rules! parse_prop {
       ($var: ident, $type: ident) => {
@@ -246,6 +638,7 @@ impl<'i> Parse<'i> for Animation<'i> {
       parse_prop!(fill_mode, AnimationFillMode);
       parse_prop!(play_state, AnimationPlayState);
       parse_prop!(name, AnimationName);
+      parse_prop!(timeline, AnimationTimeline);
       break;
     }
 
@@ -258,6 +651,7 @@ impl<'i> Parse<'i> for Animation<'i> {
       play_state: play_state.unwrap_or(AnimationPlayState::Running),
       delay: delay.unwrap_or(Time::Seconds(0.0)),
       fill_mode: fill_mode.unwrap_or(AnimationFillMode::None),
+      timeline: timeline.unwrap_or(AnimationTimeline::Auto),
     })
   }
 }
@@ -269,7 +663,7 @@ impl<'i> ToCss for Animation<'i> {
   {
     match &self.name {
       AnimationName::None => {}
-      AnimationName::Ident(CustomIdent(name)) | AnimationName::String(name) => {
+      AnimationName::Ident(CustomIdent(name)) | AnimationName::String(CSSString(name)) => {
         if !self.duration.is_zero() || !self.delay.is_zero() {
           self.duration.to_css(dest)?;
           dest.write_char(' ')?;
@@ -313,6 +707,11 @@ impl<'i> ToCss for Animation<'i> {
     // Chrome does not yet support strings, however.
     self.name.to_css(dest)?;
 
+    if self.name != AnimationName::None && self.timeline != AnimationTimeline::default() {
+      dest.write_char(' ')?;
+      self.timeline.to_css(dest)?;
+    }
+
     Ok(())
   }
 }
@@ -322,7 +721,6 @@ pub type AnimationList<'i> = SmallVec<[Animation<'i>; 1]>;
 
 #[derive(Default)]
 pub(crate) struct AnimationHandler<'i> {
-  targets: Option<Browsers>,
   names: Option<(SmallVec<[AnimationName<'i>; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
@@ -331,16 +729,10 @@ pub(crate) struct AnimationHandler<'i> {
   play_states: Option<(SmallVec<[AnimationPlayState; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   fill_modes: Option<(SmallVec<[AnimationFillMode; 1]>, VendorPrefix)>,
+  timelines: Option<SmallVec<[AnimationTimeline<'i>; 1]>>,
+  range_starts: Option<SmallVec<[AnimationRangeStart; 1]>>,
+  range_ends: Option<SmallVec<[AnimationRangeEnd; 1]>>,
   has_any: bool,
-}
-
-impl<'i> AnimationHandler<'i> {
-  pub fn new(targets: Option<Browsers>) -> Self {
-    AnimationHandler {
-      targets,
-      ..AnimationHandler::default()
-    }
-  }
 }
 
 impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
@@ -348,17 +740,15 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    _: &mut PropertyHandlerContext<'i, '_>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
-    use Property::*;
-
     macro_rules! maybe_flush {
       ($prop: ident, $val: expr, $vp: ident) => {{
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush(dest);
+            self.flush(dest, context);
           }
         }
       }};
@@ -380,15 +770,32 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
     }
 
     match property {
-      AnimationName(val, vp) => property!(names, val, vp),
-      AnimationDuration(val, vp) => property!(durations, val, vp),
-      AnimationTimingFunction(val, vp) => property!(timing_functions, val, vp),
-      AnimationIterationCount(val, vp) => property!(iteration_counts, val, vp),
-      AnimationDirection(val, vp) => property!(directions, val, vp),
-      AnimationPlayState(val, vp) => property!(play_states, val, vp),
-      AnimationDelay(val, vp) => property!(delays, val, vp),
-      AnimationFillMode(val, vp) => property!(fill_modes, val, vp),
-      Animation(val, vp) => {
+      Property::AnimationName(val, vp) => property!(names, val, vp),
+      Property::AnimationDuration(val, vp) => property!(durations, val, vp),
+      Property::AnimationTimingFunction(val, vp) => property!(timing_functions, val, vp),
+      Property::AnimationIterationCount(val, vp) => property!(iteration_counts, val, vp),
+      Property::AnimationDirection(val, vp) => property!(directions, val, vp),
+      Property::AnimationPlayState(val, vp) => property!(play_states, val, vp),
+      Property::AnimationDelay(val, vp) => property!(delays, val, vp),
+      Property::AnimationFillMode(val, vp) => property!(fill_modes, val, vp),
+      Property::AnimationTimeline(val) => {
+        self.timelines = Some(val.clone());
+        self.has_any = true;
+      }
+      Property::AnimationRangeStart(val) => {
+        self.range_starts = Some(val.clone());
+        self.has_any = true;
+      }
+      Property::AnimationRangeEnd(val) => {
+        self.range_ends = Some(val.clone());
+        self.has_any = true;
+      }
+      Property::AnimationRange(val) => {
+        self.range_starts = Some(val.iter().map(|v| v.start.clone()).collect());
+        self.range_ends = Some(val.iter().map(|v| v.end.clone()).collect());
+        self.has_any = true;
+      }
+      Property::Animation(val, vp) => {
         let names = val.iter().map(|b| b.name.clone()).collect();
         maybe_flush!(names, &names, vp);
 
@@ -413,6 +820,8 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         let fill_modes = val.iter().map(|b| b.fill_mode.clone()).collect();
         maybe_flush!(fill_modes, &fill_modes, vp);
 
+        self.timelines = Some(val.iter().map(|b| b.timeline.clone()).collect());
+
         property!(names, &names, vp);
         property!(durations, &durations, vp);
         property!(timing_functions, &timing_functions, vp);
@@ -421,10 +830,47 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         property!(play_states, &play_states, vp);
         property!(delays, &delays, vp);
         property!(fill_modes, &fill_modes, vp);
+
+        // The animation shorthand resets animation-range
+        // https://drafts.csswg.org/scroll-animations/#named-range-animation-declaration
+        self.range_starts = None;
+        self.range_ends = None;
       }
-      Unparsed(val) if is_animation_property(&val.property_id) => {
-        self.flush(dest);
-        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::Animation)));
+      Property::Unparsed(val) if is_animation_property(&val.property_id) => {
+        let mut val = Cow::Borrowed(val);
+        if matches!(val.property_id, PropertyId::Animation(_)) {
+          use crate::properties::custom::Token;
+
+          // Find an identifier that isn't a keyword and replace it with an
+          // AnimationName token so it is scoped in CSS modules.
+          for token in &mut val.to_mut().value.0 {
+            match token {
+              TokenOrValue::Token(Token::Ident(id)) => {
+                if AnimationDirection::parse_string(&id).is_err()
+                  && AnimationPlayState::parse_string(&id).is_err()
+                  && AnimationFillMode::parse_string(&id).is_err()
+                  && !EasingFunction::is_ident(&id)
+                  && id.as_ref() != "infinite"
+                  && id.as_ref() != "auto"
+                {
+                  *token = TokenOrValue::AnimationName(AnimationName::Ident(CustomIdent(id.clone())));
+                }
+              }
+              TokenOrValue::Token(Token::String(s)) => {
+                *token = TokenOrValue::AnimationName(AnimationName::String(CSSString(s.clone())));
+              }
+              _ => {}
+            }
+          }
+
+          self.range_starts = None;
+          self.range_ends = None;
+        }
+
+        self.flush(dest, context);
+        dest.push(Property::Unparsed(
+          val.get_prefixed(context.targets, Feature::Animation),
+        ));
       }
       _ => return false,
     }
@@ -432,13 +878,13 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
-    self.flush(dest);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+    self.flush(dest, context);
   }
 }
 
 impl<'i> AnimationHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList<'i>) {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -453,6 +899,9 @@ impl<'i> AnimationHandler<'i> {
     let mut play_states = std::mem::take(&mut self.play_states);
     let mut delays = std::mem::take(&mut self.delays);
     let mut fill_modes = std::mem::take(&mut self.fill_modes);
+    let mut timelines_value = std::mem::take(&mut self.timelines);
+    let range_starts = std::mem::take(&mut self.range_starts);
+    let range_ends = std::mem::take(&mut self.range_ends);
 
     if let (
       Some((names, names_vp)),
@@ -483,6 +932,15 @@ impl<'i> AnimationHandler<'i> {
         & *play_states_vp
         & *delays_vp
         & *fill_modes_vp;
+      let mut timelines = if let Some(timelines) = &mut timelines_value {
+        Cow::Borrowed(timelines)
+      } else if !intersection.contains(VendorPrefix::None) {
+        // Prefixed animation shorthand does not support animation-timeline
+        Cow::Owned(std::iter::repeat(AnimationTimeline::Auto).take(len).collect())
+      } else {
+        Cow::Owned(SmallVec::new())
+      };
+
       if !intersection.is_empty()
         && durations.len() == len
         && timing_functions.len() == len
@@ -491,7 +949,19 @@ impl<'i> AnimationHandler<'i> {
         && play_states.len() == len
         && delays.len() == len
         && fill_modes.len() == len
+        && timelines.len() == len
       {
+        let timeline_property = if timelines.iter().any(|t| *t != AnimationTimeline::Auto)
+          && (intersection != VendorPrefix::None
+            || !context
+              .targets
+              .is_compatible(crate::compat::Feature::AnimationTimelineShorthand))
+        {
+          Some(Property::AnimationTimeline(timelines.clone().into_owned()))
+        } else {
+          None
+        };
+
         let animations = izip!(
           names.drain(..),
           durations.drain(..),
@@ -500,10 +970,21 @@ impl<'i> AnimationHandler<'i> {
           directions.drain(..),
           play_states.drain(..),
           delays.drain(..),
-          fill_modes.drain(..)
+          fill_modes.drain(..),
+          timelines.to_mut().drain(..)
         )
         .map(
-          |(name, duration, timing_function, iteration_count, direction, play_state, delay, fill_mode)| {
+          |(
+            name,
+            duration,
+            timing_function,
+            iteration_count,
+            direction,
+            play_state,
+            delay,
+            fill_mode,
+            timeline,
+          )| {
             Animation {
               name,
               duration,
@@ -513,16 +994,16 @@ impl<'i> AnimationHandler<'i> {
               play_state,
               delay,
               fill_mode,
+              timeline: if timeline_property.is_some() {
+                AnimationTimeline::Auto
+              } else {
+                timeline
+              },
             }
           },
         )
         .collect();
-        let mut prefix = intersection;
-        if prefix.contains(VendorPrefix::None) {
-          if let Some(targets) = self.targets {
-            prefix = Feature::Animation.prefixes_for(targets)
-          }
-        }
+        let prefix = context.targets.prefixes(intersection, Feature::Animation);
         dest.push(Property::Animation(animations, prefix));
         names_vp.remove(intersection);
         durations_vp.remove(intersection);
@@ -532,6 +1013,11 @@ impl<'i> AnimationHandler<'i> {
         play_states_vp.remove(intersection);
         delays_vp.remove(intersection);
         fill_modes_vp.remove(intersection);
+
+        if let Some(p) = timeline_property {
+          dest.push(p);
+        }
+        timelines_value = None;
       }
     }
 
@@ -539,12 +1025,7 @@ impl<'i> AnimationHandler<'i> {
       ($var: ident, $property: ident) => {
         if let Some((val, vp)) = $var {
           if !vp.is_empty() {
-            let mut prefix = vp;
-            if prefix.contains(VendorPrefix::None) {
-              if let Some(targets) = self.targets {
-                prefix = Feature::$property.prefixes_for(targets)
-              }
-            }
+            let prefix = context.targets.prefixes(vp, Feature::$property);
             dest.push(Property::$property(val, prefix))
           }
         }
@@ -559,6 +1040,36 @@ impl<'i> AnimationHandler<'i> {
     prop!(play_states, AnimationPlayState);
     prop!(delays, AnimationDelay);
     prop!(fill_modes, AnimationFillMode);
+
+    if let Some(val) = timelines_value {
+      dest.push(Property::AnimationTimeline(val));
+    }
+
+    match (range_starts, range_ends) {
+      (Some(range_starts), Some(range_ends)) => {
+        if range_starts.len() == range_ends.len() {
+          dest.push(Property::AnimationRange(
+            range_starts
+              .into_iter()
+              .zip(range_ends.into_iter())
+              .map(|(start, end)| AnimationRange { start, end })
+              .collect(),
+          ));
+        } else {
+          dest.push(Property::AnimationRangeStart(range_starts));
+          dest.push(Property::AnimationRangeEnd(range_ends));
+        }
+      }
+      (range_starts, range_ends) => {
+        if let Some(range_starts) = range_starts {
+          dest.push(Property::AnimationRangeStart(range_starts));
+        }
+
+        if let Some(range_ends) = range_ends {
+          dest.push(Property::AnimationRangeEnd(range_ends));
+        }
+      }
+    }
   }
 }
 
@@ -573,6 +1084,11 @@ fn is_animation_property(property_id: &PropertyId) -> bool {
     | PropertyId::AnimationPlayState(_)
     | PropertyId::AnimationDelay(_)
     | PropertyId::AnimationFillMode(_)
+    | PropertyId::AnimationComposition
+    | PropertyId::AnimationTimeline
+    | PropertyId::AnimationRange
+    | PropertyId::AnimationRangeStart
+    | PropertyId::AnimationRangeEnd
     | PropertyId::Animation(_) => true,
     _ => false,
   }

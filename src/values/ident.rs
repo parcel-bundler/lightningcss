@@ -21,7 +21,7 @@ use super::string::impl_string_type;
 /// They may be renamed to include a hash when compiled as part of a CSS module.
 #[derive(Debug, Clone, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "visitor", visit(visit_custom_ident, CUSTOM_IDENTS))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
@@ -49,12 +49,94 @@ impl<'i> ToCss for CustomIdent<'i> {
   where
     W: std::fmt::Write,
   {
-    dest.write_ident(&self.0)
+    self.to_css_with_options(dest, true)
+  }
+}
+
+impl<'i> CustomIdent<'i> {
+  /// Write the custom ident to CSS.
+  pub(crate) fn to_css_with_options<W>(
+    &self,
+    dest: &mut Printer<W>,
+    enabled_css_modules: bool,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    let css_module_custom_idents_enabled = enabled_css_modules
+      && dest
+        .css_module
+        .as_mut()
+        .map_or(false, |css_module| css_module.config.custom_idents);
+    dest.write_ident(&self.0, css_module_custom_idents_enabled)
   }
 }
 
 /// A list of CSS [`<custom-ident>`](https://www.w3.org/TR/css-values-4/#custom-idents) values.
 pub type CustomIdentList<'i> = SmallVec<[CustomIdent<'i>; 1]>;
+
+/// The `none` keyword, or a space-separated list of custom idents.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum NoneOrCustomIdentList<'i> {
+  /// None.
+  #[default]
+  None,
+  /// A list of idents.
+  #[cfg_attr(feature = "serde", serde(borrow, untagged))]
+  Idents(SmallVec<[CustomIdent<'i>; 1]>),
+}
+
+impl<'i> Parse<'i> for NoneOrCustomIdentList<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut types = SmallVec::new();
+    loop {
+      if let Ok(ident) = input.try_parse(CustomIdent::parse) {
+        if ident == "none" {
+          if types.is_empty() {
+            return Ok(NoneOrCustomIdentList::None);
+          } else {
+            return Err(input.new_custom_error(ParserError::InvalidValue));
+          }
+        }
+
+        types.push(ident);
+      } else {
+        return Ok(NoneOrCustomIdentList::Idents(types));
+      }
+    }
+  }
+}
+
+impl<'i> ToCss for NoneOrCustomIdentList<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      NoneOrCustomIdentList::None => dest.write_str("none"),
+      NoneOrCustomIdentList::Idents(types) => {
+        let mut first = true;
+        for ident in types {
+          if !first {
+            dest.write_char(' ')?;
+          } else {
+            first = false;
+          }
+          ident.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  }
+}
 
 /// A CSS [`<dashed-ident>`](https://www.w3.org/TR/css-values-4/#dashed-idents) declaration.
 ///
@@ -62,7 +144,7 @@ pub type CustomIdentList<'i> = SmallVec<[CustomIdent<'i>; 1]>;
 /// Author defined idents must start with two dash characters ("--") or parsing will fail.
 #[derive(Debug, Clone, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "visitor", visit(visit_dashed_ident, DASHED_IDENTS))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
@@ -113,7 +195,7 @@ impl<'i, 'de: 'i> serde::Deserialize<'de> for DashedIdent<'i> {
 /// `from` keyword and an argument indicating where the referenced identifier is declared (e.g. a filename).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DashedIdentReference<'i> {
@@ -170,7 +252,7 @@ impl<'i> ToCss for DashedIdentReference<'i> {
 /// A CSS [`<ident>`](https://www.w3.org/TR/css-values-4/#css-css-identifier).
 #[derive(Debug, Clone, Eq, Hash, Default)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Ident<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);

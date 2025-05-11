@@ -4,6 +4,8 @@ use super::ident::Ident;
 use super::number::{CSSInteger, CSSNumber};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
+use crate::properties::custom::TokenList;
+use crate::stylesheet::ParserOptions;
 use crate::traits::{Parse, ToCss};
 use crate::values;
 #[cfg(feature = "visitor")]
@@ -19,6 +21,7 @@ use cssparser::*;
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum SyntaxString {
   /// A list of syntax components.
   Components(Vec<SyntaxComponent>),
@@ -34,6 +37,7 @@ pub enum SyntaxString {
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct SyntaxComponent {
   /// The kind of component.
   pub kind: SyntaxComponentKind,
@@ -49,6 +53,7 @@ pub struct SyntaxComponent {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum SyntaxComponentKind {
   /// A `<length>` component.
   Length,
@@ -92,6 +97,7 @@ pub enum SyntaxComponentKind {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Multiplier {
   /// The component may not be repeated.
   None,
@@ -104,7 +110,7 @@ pub enum Multiplier {
 /// A parsed value for a [SyntaxComponent](SyntaxComponent).
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -151,8 +157,8 @@ pub enum ParsedComponent<'i> {
     /// A multiplier describing how the components repeat.
     multiplier: Multiplier,
   },
-  /// A raw token.
-  Token(crate::properties::custom::Token<'i>),
+  /// A raw token stream.
+  TokenList(crate::properties::custom::TokenList<'i>),
 }
 
 impl<'i> SyntaxString {
@@ -195,9 +201,11 @@ impl<'i> SyntaxString {
     input: &mut Parser<'i, 't>,
   ) -> Result<ParsedComponent<'i>, ParseError<'i, ParserError<'i>>> {
     match self {
-      SyntaxString::Universal => Ok(ParsedComponent::Token(crate::properties::custom::Token::from(
-        input.next()?,
-      ))),
+      SyntaxString::Universal => Ok(ParsedComponent::TokenList(TokenList::parse(
+        input,
+        &ParserOptions::default(),
+        0,
+      )?)),
       SyntaxString::Components(components) => {
         // Loop through each component, and return the first one that parses successfully.
         for component in components {
@@ -487,13 +495,15 @@ impl<'i> ToCss for ParsedComponent<'i> {
         }
         Ok(())
       }
-      Token(t) => t.to_css(dest),
+      TokenList(t) => t.to_css(dest, false),
     }
   }
 }
 
 #[cfg(test)]
 mod tests {
+  use crate::values::color::RGBA;
+
   use super::*;
 
   fn test(source: &str, test: &str, expected: ParsedComponent) {

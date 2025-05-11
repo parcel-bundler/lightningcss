@@ -41,6 +41,7 @@ pub mod counter_style;
 pub mod custom_media;
 pub mod document;
 pub mod font_face;
+pub mod font_feature_values;
 pub mod font_palette_values;
 pub mod import;
 pub mod keyframes;
@@ -50,27 +51,29 @@ pub mod namespace;
 pub mod nesting;
 pub mod page;
 pub mod property;
+pub mod scope;
+pub mod starting_style;
 pub mod style;
 pub mod supports;
 pub mod unknown;
+pub mod view_transition;
 pub mod viewport;
 
+use self::font_feature_values::FontFeatureValuesRule;
 use self::font_palette_values::FontPaletteValuesRule;
 use self::layer::{LayerBlockRule, LayerStatementRule};
 use self::property::PropertyRule;
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationHandler;
+use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::{
-  parse_nested_at_rule, DefaultAtRule, DefaultAtRuleParser, NestedRuleParser, TopLevelRuleParser,
-};
+use crate::parser::{parse_rule_list, parse_style_block, DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
-use crate::selector::{downlevel_selectors, get_prefix, is_equivalent, SelectorList};
+use crate::selector::{is_compatible, is_equivalent, Component, Selector, SelectorList};
 use crate::stylesheet::ParserOptions;
-use crate::targets::Browsers;
+use crate::targets::TargetsWithSupportsScope;
 use crate::traits::{AtRuleParser, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
@@ -83,16 +86,21 @@ use custom_media::CustomMediaRule;
 use document::MozDocumentRule;
 use font_face::FontFaceRule;
 use import::ImportRule;
+use itertools::Itertools;
 use keyframes::KeyframesRule;
 use media::MediaRule;
 use namespace::NamespaceRule;
-use nesting::NestingRule;
+use nesting::{NestedDeclarationsRule, NestingRule};
 use page::PageRule;
+use scope::ScopeRule;
+use smallvec::{smallvec, SmallVec};
+use starting_style::StartingStyleRule;
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};
 use style::StyleRule;
 use supports::SupportsRule;
 use unknown::UnknownAtRule;
+use view_transition::ViewTransitionRule;
 use viewport::ViewportRule;
 
 #[derive(Clone)]
@@ -106,6 +114,7 @@ pub(crate) struct StyleContext<'a, 'i> {
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct Location {
   /// The index of the source file within the source map.
   pub source_index: u32,
@@ -126,6 +135,7 @@ pub struct Location {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema), schemars(rename = "Rule"))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum CssRule<'i, R = DefaultAtRule> {
   /// A `@media` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -140,6 +150,8 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   FontFace(FontFaceRule<'i>),
   /// A `@font-palette-values` rule.
   FontPaletteValues(FontPaletteValuesRule<'i>),
+  /// A `@font-feature-values` rule.
+  FontFeatureValues(FontFeatureValuesRule<'i>),
   /// A `@page` rule.
   Page(PageRule<'i>),
   /// A `@supports` rule.
@@ -152,6 +164,8 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   MozDocument(MozDocumentRule<'i, R>),
   /// A `@nest` rule.
   Nesting(NestingRule<'i, R>),
+  /// A nested declarations rule.
+  NestedDeclarations(NestedDeclarationsRule<'i>),
   /// A `@viewport` rule.
   Viewport(ViewportRule<'i>),
   /// A `@custom-media` rule.
@@ -164,6 +178,12 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   Property(PropertyRule<'i>),
   /// A `@container` rule.
   Container(ContainerRule<'i, R>),
+  /// A `@scope` rule.
+  Scope(ScopeRule<'i, R>),
+  /// A `@starting-style` rule.
+  StartingStyle(StartingStyleRule<'i, R>),
+  /// A `@view-transition` rule.
+  ViewTransition(ViewTransitionRule<'i>),
   /// A placeholder for a rule that was removed.
   Ignored,
   /// An unknown at-rule.
@@ -252,6 +272,10 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         let rule = FontPaletteValuesRule::deserialize(deserializer)?;
         Ok(CssRule::FontPaletteValues(rule))
       }
+      "font-feature-values" => {
+        let rule = FontFeatureValuesRule::deserialize(deserializer)?;
+        Ok(CssRule::FontFeatureValues(rule))
+      }
       "page" => {
         let rule = PageRule::deserialize(deserializer)?;
         Ok(CssRule::Page(rule))
@@ -276,6 +300,10 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         let rule = NestingRule::deserialize(deserializer)?;
         Ok(CssRule::Nesting(rule))
       }
+      "nested-declarations" => {
+        let rule = NestedDeclarationsRule::deserialize(deserializer)?;
+        Ok(CssRule::NestedDeclarations(rule))
+      }
       "viewport" => {
         let rule = ViewportRule::deserialize(deserializer)?;
         Ok(CssRule::Viewport(rule))
@@ -299,6 +327,18 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
       "container" => {
         let rule = ContainerRule::deserialize(deserializer)?;
         Ok(CssRule::Container(rule))
+      }
+      "scope" => {
+        let rule = ScopeRule::deserialize(deserializer)?;
+        Ok(CssRule::Scope(rule))
+      }
+      "starting-style" => {
+        let rule = StartingStyleRule::deserialize(deserializer)?;
+        Ok(CssRule::StartingStyle(rule))
+      }
+      "view-transition" => {
+        let rule = ViewTransitionRule::deserialize(deserializer)?;
+        Ok(CssRule::ViewTransition(rule))
       }
       "ignored" => Ok(CssRule::Ignored),
       "unknown" => {
@@ -326,18 +366,23 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
       CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
       CssRule::FontFace(font_face) => font_face.to_css(dest),
       CssRule::FontPaletteValues(f) => f.to_css(dest),
+      CssRule::FontFeatureValues(font_feature_values) => font_feature_values.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
       CssRule::Supports(supports) => supports.to_css(dest),
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
       CssRule::Namespace(namespace) => namespace.to_css(dest),
       CssRule::MozDocument(document) => document.to_css(dest),
       CssRule::Nesting(nesting) => nesting.to_css(dest),
+      CssRule::NestedDeclarations(nested) => nested.to_css(dest),
       CssRule::Viewport(viewport) => viewport.to_css(dest),
       CssRule::CustomMedia(custom_media) => custom_media.to_css(dest),
       CssRule::LayerStatement(layer) => layer.to_css(dest),
       CssRule::LayerBlock(layer) => layer.to_css(dest),
       CssRule::Property(property) => property.to_css(dest),
+      CssRule::StartingStyle(rule) => rule.to_css(dest),
       CssRule::Container(container) => container.to_css(dest),
+      CssRule::Scope(scope) => scope.to_css(dest),
+      CssRule::ViewTransition(rule) => rule.to_css(dest),
       CssRule::Unknown(unknown) => unknown.to_css(dest),
       CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError {
         kind: PrinterErrorKind::FmtError,
@@ -373,8 +418,9 @@ impl<'i, T> CssRule<'i, T> {
     options: &ParserOptions<'_, 'i>,
     at_rule_parser: &mut P,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let (_, rule) = parse_one_rule(input, &mut TopLevelRuleParser::new(options, at_rule_parser))?;
-    Ok(rule)
+    let mut rules = CssRuleList(Vec::new());
+    parse_one_rule(input, &mut TopLevelRuleParser::new(options, at_rule_parser, &mut rules))?;
+    Ok(rules.0.pop().unwrap())
   }
 
   /// Parse a single rule from a string.
@@ -393,6 +439,7 @@ impl<'i, T> CssRule<'i, T> {
 #[derive(Debug, PartialEq, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct CssRuleList<'i, R = DefaultAtRule>(
   #[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
 );
@@ -411,8 +458,9 @@ impl<'i> CssRuleList<'i, DefaultAtRule> {
   pub fn parse_style_block<'t>(
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
+    is_nested: bool,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    Self::parse_style_block_with(input, options, &mut DefaultAtRuleParser)
+    Self::parse_style_block_with(input, options, &mut DefaultAtRuleParser, is_nested)
   }
 }
 
@@ -423,11 +471,7 @@ impl<'i, T> CssRuleList<'i, T> {
     options: &ParserOptions<'_, 'i>,
     at_rule_parser: &mut P,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let mut nested_parser = NestedRuleParser {
-      options,
-      at_rule_parser,
-    };
-    nested_parser.parse_nested_rules(input)
+    parse_rule_list(input, options, at_rule_parser)
   }
 
   /// Parse a style block, with both declarations and rules.
@@ -436,15 +480,16 @@ impl<'i, T> CssRuleList<'i, T> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
     at_rule_parser: &mut P,
+    is_nested: bool,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    parse_nested_at_rule(input, options, at_rule_parser)
+    parse_style_block(input, options, at_rule_parser, is_nested)
   }
 }
 
 // Manually implemented to avoid circular child types.
 #[cfg(feature = "visitor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
-impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
+impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 
   fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
@@ -461,16 +506,17 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<
 }
 
 pub(crate) struct MinifyContext<'a, 'i> {
-  pub targets: &'a Option<Browsers>,
+  pub targets: TargetsWithSupportsScope,
   pub handler: &'a mut DeclarationHandler<'i>,
   pub important_handler: &'a mut DeclarationHandler<'i>,
-  pub handler_context: &'a mut PropertyHandlerContext<'i, 'a>,
+  pub handler_context: PropertyHandlerContext<'i, 'a>,
   pub unused_symbols: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>,
   pub css_modules: bool,
+  pub pure_css_modules: bool,
 }
 
-impl<'i, T> CssRuleList<'i, T> {
+impl<'i, T: Clone> CssRuleList<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
@@ -478,6 +524,8 @@ impl<'i, T> CssRuleList<'i, T> {
   ) -> Result<(), MinifyError> {
     let mut keyframe_rules = HashMap::new();
     let mut layer_rules = HashMap::new();
+    let mut property_rules = HashMap::new();
+    let mut font_feature_values_rules = Vec::new();
     let mut style_rules =
       HashMap::with_capacity_and_hasher(self.0.len(), BuildHasherDefault::<PrecomputedHasher>::default());
     let mut rules = Vec::new();
@@ -494,18 +542,20 @@ impl<'i, T> CssRuleList<'i, T> {
 
           macro_rules! set_prefix {
             ($keyframes: ident) => {
-              if $keyframes.vendor_prefix.contains(VendorPrefix::None) {
-                if let Some(targets) = context.targets {
-                  $keyframes.vendor_prefix = Feature::AtKeyframes.prefixes_for(*targets)
-                }
-              }
+              $keyframes.vendor_prefix =
+                context.targets.current.prefixes($keyframes.vendor_prefix, Feature::AtKeyframes);
             };
           }
 
-          // If there is an existing rule with the same name and identical keyframes,
-          // merge the vendor prefixes from this rule into it.
+          // Merge @keyframes rules with the same name.
           if let Some(existing_idx) = keyframe_rules.get(&keyframes.name) {
             if let Some(CssRule::Keyframes(existing)) = &mut rules.get_mut(*existing_idx) {
+              // If the existing rule has the same vendor prefixes, replace it with this rule.
+              if existing.vendor_prefix == keyframes.vendor_prefix {
+                *existing = keyframes.clone();
+                continue;
+              }
+              // Otherwise, if the keyframes are identical, merge the prefixes.
               if existing.keyframes == keyframes.keyframes {
                 existing.vendor_prefix |= keyframes.vendor_prefix;
                 set_prefix!(existing);
@@ -517,12 +567,10 @@ impl<'i, T> CssRuleList<'i, T> {
           set_prefix!(keyframes);
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
 
-          if let Some(targets) = context.targets {
-            let fallbacks = keyframes.get_fallbacks(*targets);
-            rules.push(rule);
-            rules.extend(fallbacks);
-            continue;
-          }
+          let fallbacks = keyframes.get_fallbacks(&context.targets.current);
+          rules.push(rule);
+          rules.extend(fallbacks);
+          continue;
         }
         CssRule::CustomMedia(_) => {
           if context.custom_media.is_some() {
@@ -576,16 +624,27 @@ impl<'i, T> CssRuleList<'i, T> {
             if let Some(idx) = layer_rules.get(name) {
               if let Some(CssRule::LayerBlock(last_rule)) = rules.get_mut(*idx) {
                 last_rule.rules.0.extend(layer.rules.0.drain(..));
-                last_rule.minify(context, parent_is_unused)?;
                 continue;
               }
             }
 
             layer_rules.insert(name.clone(), rules.len());
           }
-          if layer.minify(context, parent_is_unused)? {
-            continue;
+        }
+        CssRule::LayerStatement(layer) => {
+          // Create @layer block rules for each declared layer name,
+          // so we can merge other blocks into it later on.
+          for name in &layer.names {
+            if !layer_rules.contains_key(name) {
+              layer_rules.insert(name.clone(), rules.len());
+              rules.push(CssRule::LayerBlock(LayerBlockRule {
+                name: Some(name.clone()),
+                rules: CssRuleList(vec![]),
+                loc: layer.loc.clone(),
+              }));
+            }
           }
+          continue;
         }
         CssRule::MozDocument(document) => document.minify(context)?,
         CssRule::Style(style) => {
@@ -593,12 +652,45 @@ impl<'i, T> CssRuleList<'i, T> {
             continue;
           }
 
-          if let Some(targets) = context.targets {
-            style.vendor_prefix = get_prefix(&style.selectors);
-            if style.vendor_prefix.contains(VendorPrefix::None) {
-              style.vendor_prefix = downlevel_selectors(style.selectors.0.as_mut_slice(), *targets);
+          // If some of the selectors in this rule are not compatible with the targets,
+          // we need to either wrap in :is() or split them into multiple rules.
+          let incompatible = if style.selectors.0.len() > 1
+            && context.targets.current.should_compile_selectors()
+            && !style.is_compatible(context.targets.current)
+          {
+            // The :is() selector accepts a forgiving selector list, so use that if possible.
+            // Note that :is() does not allow pseudo elements, so we need to check for that.
+            // In addition, :is() takes the highest specificity of its arguments, so if the selectors
+            // have different weights, we need to split them into separate rules as well.
+            if context.targets.current.is_compatible(crate::compat::Feature::IsSelector)
+              && !style.selectors.0.iter().any(|selector| selector.has_pseudo_element())
+              && style.selectors.0.iter().map(|selector| selector.specificity()).all_equal()
+            {
+              style.selectors =
+                SelectorList::new(smallvec![
+                  Component::Is(style.selectors.0.clone().into_boxed_slice()).into()
+                ]);
+              smallvec![]
+            } else {
+              // Otherwise, partition the selectors and keep the compatible ones in this rule.
+              // We will generate additional rules for incompatible selectors later.
+              let (compatible, incompatible) = style
+                .selectors
+                .0
+                .iter()
+                .cloned()
+                .partition::<SmallVec<[Selector; 1]>, _>(|selector| {
+                  let list = SelectorList::new(smallvec![selector.clone()]);
+                  is_compatible(&list.0, context.targets.current)
+                });
+              style.selectors = SelectorList::new(compatible);
+              incompatible
             }
-          }
+          } else {
+            smallvec![]
+          };
+
+          style.update_prefix(context);
 
           // Attempt to merge the new rule with the last rule we added.
           let mut merged = false;
@@ -624,8 +716,49 @@ impl<'i, T> CssRuleList<'i, T> {
             }
           }
 
+          // Create additional rules for logical properties, @supports overrides, and incompatible selectors.
           let supports = context.handler_context.get_supports_rules(&style);
-          let logical = context.handler_context.get_logical_rules(&style);
+          let logical = context.handler_context.get_additional_rules(&style);
+
+          let incompatible_rules = incompatible
+            .into_iter()
+            .map(|selector| {
+              // Create a clone of the rule with only the one incompatible selector.
+              let list = SelectorList::new(smallvec![selector]);
+              let mut clone = style.clone();
+              clone.selectors = list;
+              clone.update_prefix(context);
+
+              // Also add rules for logical properties and @supports overrides.
+              let supports = context.handler_context.get_supports_rules(&clone);
+              let logical = context.handler_context.get_additional_rules(&clone);
+              (clone, logical, supports)
+            })
+            .collect::<Vec<_>>();
+
+          context.handler_context.reset();
+
+          // If the rule has nested rules, and we have extra rules to insert such as for logical properties,
+          // we need to split the rule in two so we can insert the extra rules in between the declarations from
+          // the main rule and the nested rules.
+          let nested_rule = if !style.rules.0.is_empty()
+            // can happen if there are no compatible rules, above.
+            && !style.selectors.0.is_empty()
+            && (!logical.is_empty() || !supports.is_empty() || !incompatible_rules.is_empty())
+          {
+            let mut rules = CssRuleList(vec![]);
+            std::mem::swap(&mut style.rules, &mut rules);
+            Some(StyleRule {
+              selectors: style.selectors.clone(),
+              declarations: DeclarationBlock::default(),
+              rules,
+              vendor_prefix: style.vendor_prefix,
+              loc: style.loc,
+            })
+          } else {
+            None
+          };
+
           if !merged && !style.is_empty() {
             let source_index = style.loc.source_index;
             let has_no_rules = style.rules.0.is_empty();
@@ -640,7 +773,7 @@ impl<'i, T> CssRuleList<'i, T> {
               let key = StyleRuleKey::new(unsafe { &*(&rules as *const _) }, idx);
               if idx > 0 {
                 if let Some(i) = style_rules.remove(&key) {
-                  if let CssRule::Style(other) = &rules[0] {
+                  if let CssRule::Style(other) = &rules[i] {
                     // Don't remove the rule if this is a CSS module and the other rule came from a different file.
                     if !context.css_modules || source_index == other.loc.source_index {
                       // Only mark the rule as ignored so we don't need to change all of the indices.
@@ -661,6 +794,22 @@ impl<'i, T> CssRuleList<'i, T> {
           }
 
           rules.extend(supports);
+          for (rule, logical, supports) in incompatible_rules {
+            if !rule.is_empty() {
+              rules.push(CssRule::Style(rule));
+            }
+            if !logical.is_empty() {
+              let mut logical = CssRuleList(logical);
+              logical.minify(context, parent_is_unused)?;
+              rules.extend(logical.0)
+            }
+            rules.extend(supports);
+          }
+
+          if let Some(nested_rule) = nested_rule {
+            rules.push(CssRule::Style(nested_rule));
+          }
+
           continue;
         }
         CssRule::CounterStyle(counter_style) => {
@@ -668,8 +817,19 @@ impl<'i, T> CssRuleList<'i, T> {
             continue;
           }
         }
+        CssRule::Scope(scope) => scope.minify(context)?,
         CssRule::Nesting(nesting) => {
           if nesting.minify(context, parent_is_unused)? {
+            continue;
+          }
+        }
+        CssRule::NestedDeclarations(nested) => {
+          if nested.minify(context, parent_is_unused) {
+            continue;
+          }
+        }
+        CssRule::StartingStyle(rule) => {
+          if rule.minify(context, parent_is_unused)? {
             continue;
           }
         }
@@ -680,22 +840,96 @@ impl<'i, T> CssRuleList<'i, T> {
 
           f.minify(context, parent_is_unused);
 
-          if let Some(targets) = context.targets {
-            let fallbacks = f.get_fallbacks(*targets);
-            rules.push(rule);
-            rules.extend(fallbacks);
+          let fallbacks = f.get_fallbacks(context.targets.current);
+          rules.push(rule);
+          rules.extend(fallbacks);
+          continue;
+        }
+        CssRule::FontFeatureValues(rule) => {
+          if let Some(index) = font_feature_values_rules
+            .iter()
+            .find(|index| matches!(&rules[**index], CssRule::FontFeatureValues(r) if r.name == rule.name))
+          {
+            if let CssRule::FontFeatureValues(existing) = &mut rules[*index] {
+              existing.merge(rule);
+            }
             continue;
+          } else {
+            font_feature_values_rules.push(rules.len());
           }
         }
         CssRule::Property(property) => {
           if context.unused_symbols.contains(property.name.0.as_ref()) {
             continue;
           }
+
+          if let Some(index) = property_rules.get(&property.name) {
+            rules[*index] = rule;
+            continue;
+          } else {
+            property_rules.insert(property.name.clone(), rules.len());
+          }
         }
         _ => {}
       }
 
       rules.push(rule)
+    }
+
+    // Optimize @layer rules. Combine subsequent empty layer blocks into a single @layer statement
+    // so that layers are declared in the correct order.
+    if !layer_rules.is_empty() {
+      let mut declared_layers = HashSet::new();
+      let mut layer_statement = None;
+      for index in 0..rules.len() {
+        match &mut rules[index] {
+          CssRule::LayerBlock(layer) => {
+            if layer.minify(context, parent_is_unused)? {
+              if let Some(name) = &layer.name {
+                if declared_layers.contains(name) {
+                  // Remove empty layer that has already been declared.
+                  rules[index] = CssRule::Ignored;
+                  continue;
+                }
+
+                let name = name.clone();
+                declared_layers.insert(name.clone());
+
+                if let Some(layer_index) = layer_statement {
+                  if let CssRule::LayerStatement(layer) = &mut rules[layer_index] {
+                    // Add name to previous layer statement rule and remove this one.
+                    layer.names.push(name);
+                    rules[index] = CssRule::Ignored;
+                  }
+                } else {
+                  // Create a new layer statement rule to declare the name.
+                  rules[index] = CssRule::LayerStatement(LayerStatementRule {
+                    names: vec![name],
+                    loc: layer.loc,
+                  });
+                  layer_statement = Some(index);
+                }
+              } else {
+                // Remove empty anonymous layer.
+                rules[index] = CssRule::Ignored;
+              }
+            } else {
+              // Non-empty @layer block. Start a new statement.
+              layer_statement = None;
+            }
+          }
+          CssRule::Import(import) => {
+            if let Some(layer) = &import.layer {
+              // Start a new @layer statement so the import layer is in the right order.
+              layer_statement = None;
+              if let Some(name) = layer {
+                declared_layers.insert(name.clone());
+              }
+            }
+          }
+          _ => {}
+        }
+      }
     }
 
     self.0 = rules;
@@ -710,8 +944,8 @@ fn merge_style_rules<'i, T>(
 ) -> bool {
   // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
   if style.selectors == last_style_rule.selectors
-    && style.is_compatible(*context.targets)
-    && last_style_rule.is_compatible(*context.targets)
+    && style.is_compatible(context.targets.current)
+    && last_style_rule.is_compatible(context.targets.current)
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
     && (!context.css_modules || style.loc.source_index == last_style_rule.loc.source_index)
@@ -726,28 +960,32 @@ fn merge_style_rules<'i, T>(
       .extend(style.declarations.important_declarations.drain(..));
     last_style_rule
       .declarations
-      .minify(context.handler, context.important_handler, context.handler_context);
+      .minify(context.handler, context.important_handler, &mut context.handler_context);
     return true;
   } else if style.declarations == last_style_rule.declarations
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
   {
-    // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
-    if style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) {
-      last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
-      return true;
-    }
-
     // If both selectors are potentially vendor prefixable, and they are
     // equivalent minus prefixes, add the prefix to the last rule.
     if !style.vendor_prefix.is_empty()
       && !last_style_rule.vendor_prefix.is_empty()
-      && !last_style_rule.vendor_prefix.contains(style.vendor_prefix)
-      && is_equivalent(&style.selectors, &last_style_rule.selectors)
+      && is_equivalent(&style.selectors.0, &last_style_rule.selectors.0)
     {
       // If the new rule is unprefixed, replace the prefixes of the last rule.
       // Otherwise, add the new prefix.
-      if style.vendor_prefix.contains(VendorPrefix::None) {
+      if style.vendor_prefix.contains(VendorPrefix::None) && context.targets.current.should_compile_selectors() {
+        last_style_rule.vendor_prefix = style.vendor_prefix;
+      } else {
+        last_style_rule.vendor_prefix |= style.vendor_prefix;
+      }
+      return true;
+    }
+
+    // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
+    if style.is_compatible(context.targets.current) && last_style_rule.is_compatible(context.targets.current) {
+      last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
+      if style.vendor_prefix.contains(VendorPrefix::None) && context.targets.current.should_compile_selectors() {
         last_style_rule.vendor_prefix = style.vendor_prefix;
       } else {
         last_style_rule.vendor_prefix |= style.vendor_prefix;

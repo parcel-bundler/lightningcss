@@ -12,12 +12,13 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
-use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss, TrySign, Zero};
+use crate::targets::{should_compile, Browsers, Targets};
+use crate::traits::{IsCompatible, Parse, ToCss, TrySign, Zero};
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::f32::consts::PI;
 
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
@@ -31,6 +32,7 @@ use crate::serialization::ValueWrapper;
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Gradient {
   /// A `linear-gradient()`, and its vendor prefix.
   Linear(LinearGradient),
@@ -63,14 +65,10 @@ impl Gradient {
   }
 
   /// Returns the vendor prefixes needed for the given browser targets.
-  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
     macro_rules! get_prefixes {
       ($feature: ident, $prefix: expr) => {
-        if $prefix == VendorPrefix::None {
-          Feature::$feature.prefixes_for(targets)
-        } else {
-          $prefix
-        }
+        targets.prefixes($prefix, Feature::$feature)
       };
     }
 
@@ -86,14 +84,24 @@ impl Gradient {
   /// Returns a copy of the gradient with the given vendor prefix.
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> Gradient {
     match self {
-      Gradient::Linear(linear) => Gradient::Linear(LinearGradient {
-        vendor_prefix: prefix,
-        ..linear.clone()
-      }),
-      Gradient::RepeatingLinear(linear) => Gradient::RepeatingLinear(LinearGradient {
-        vendor_prefix: prefix,
-        ..linear.clone()
-      }),
+      Gradient::Linear(linear) => {
+        let mut new_linear = linear.clone();
+        let needs_legacy_direction = linear.vendor_prefix == VendorPrefix::None && prefix != VendorPrefix::None;
+        if needs_legacy_direction {
+          new_linear.direction = convert_to_legacy_direction(&new_linear.direction);
+        }
+        new_linear.vendor_prefix = prefix;
+        Gradient::Linear(new_linear)
+      }
+      Gradient::RepeatingLinear(linear) => {
+        let mut new_linear = linear.clone();
+        let needs_legacy_direction = linear.vendor_prefix == VendorPrefix::None && prefix != VendorPrefix::None;
+        if needs_legacy_direction {
+          new_linear.direction = convert_to_legacy_direction(&new_linear.direction);
+        }
+        new_linear.vendor_prefix = prefix;
+        Gradient::RepeatingLinear(new_linear)
+      }
       Gradient::Radial(radial) => Gradient::Radial(RadialGradient {
         vendor_prefix: prefix,
         ..radial.clone()
@@ -114,7 +122,7 @@ impl Gradient {
   }
 
   /// Returns the color fallback types needed for the given browser targets.
-  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  pub fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     match self {
       Gradient::Linear(LinearGradient { items, .. })
       | Gradient::Radial(RadialGradient { items, .. })
@@ -225,6 +233,7 @@ impl ToCss for Gradient {
   serde(rename_all = "camelCase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct LinearGradient {
   /// The vendor prefixes for the gradient.
   pub vendor_prefix: VendorPrefix,
@@ -328,6 +337,12 @@ impl LinearGradient {
   }
 }
 
+impl IsCompatible for LinearGradient {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.items.iter().all(|item| item.is_compatible(browsers))
+  }
+}
+
 /// A CSS [`radial-gradient()`](https://www.w3.org/TR/css-images-3/#radial-gradients) or `repeating-radial-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
@@ -337,6 +352,7 @@ impl LinearGradient {
   serde(rename_all = "camelCase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct RadialGradient {
   /// The vendor prefixes for the gradient.
   pub vendor_prefix: VendorPrefix,
@@ -407,6 +423,12 @@ impl RadialGradient {
       items: self.items.iter().map(|item| item.get_fallback(kind)).collect(),
       vendor_prefix: self.vendor_prefix,
     }
+  }
+}
+
+impl IsCompatible for RadialGradient {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.items.iter().all(|item| item.is_compatible(browsers))
   }
 }
 
@@ -519,10 +541,69 @@ impl LineDirection {
   }
 }
 
+/// Converts a standard gradient direction to its legacy vendor-prefixed form.
+///
+/// Inverts keyword-based directions (e.g., `to bottom` → `top`) for compatibility
+/// with legacy prefixed syntaxes.
+///
+/// See: https://github.com/parcel-bundler/lightningcss/issues/918
+fn convert_to_legacy_direction(direction: &LineDirection) -> LineDirection {
+  match direction {
+    LineDirection::Horizontal(HorizontalPositionKeyword::Left) => {
+      LineDirection::Horizontal(HorizontalPositionKeyword::Right)
+    }
+    LineDirection::Horizontal(HorizontalPositionKeyword::Right) => {
+      LineDirection::Horizontal(HorizontalPositionKeyword::Left)
+    }
+    LineDirection::Vertical(VerticalPositionKeyword::Top) => {
+      LineDirection::Vertical(VerticalPositionKeyword::Bottom)
+    }
+    LineDirection::Vertical(VerticalPositionKeyword::Bottom) => {
+      LineDirection::Vertical(VerticalPositionKeyword::Top)
+    }
+    LineDirection::Corner { horizontal, vertical } => LineDirection::Corner {
+      horizontal: match horizontal {
+        HorizontalPositionKeyword::Left => HorizontalPositionKeyword::Right,
+        HorizontalPositionKeyword::Right => HorizontalPositionKeyword::Left,
+      },
+      vertical: match vertical {
+        VerticalPositionKeyword::Top => VerticalPositionKeyword::Bottom,
+        VerticalPositionKeyword::Bottom => VerticalPositionKeyword::Top,
+      },
+    },
+    LineDirection::Angle(angle) => {
+      let angle = angle.clone();
+      let deg = match angle {
+        Angle::Deg(n) => convert_to_legacy_degree(n),
+        Angle::Rad(n) => {
+          let n = n / (2.0 * PI) * 360.0;
+          convert_to_legacy_degree(n)
+        }
+        Angle::Grad(n) => {
+          let n = n / 400.0 * 360.0;
+          convert_to_legacy_degree(n)
+        }
+        Angle::Turn(n) => {
+          let n = n * 360.0;
+          convert_to_legacy_degree(n)
+        }
+      };
+      LineDirection::Angle(Angle::Deg(deg))
+    }
+  }
+}
+
+fn convert_to_legacy_degree(degree: f32) -> f32 {
+  // Add 90 degrees
+  let n = (450.0 - degree).abs() % 360.0;
+  // Round the number to 3 decimal places
+  (n * 1000.0).round() / 1000.0
+}
+
 /// A `radial-gradient()` [ending shape](https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape).
 ///
 /// See [RadialGradient](RadialGradient).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -531,42 +612,16 @@ impl LineDirection {
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum EndingShape {
-  /// A circle.
-  Circle(Circle),
+  // Note: Ellipse::parse MUST run before Circle::parse for this to be correct.
   /// An ellipse.
   Ellipse(Ellipse),
+  /// A circle.
+  Circle(Circle),
 }
 
 impl Default for EndingShape {
   fn default() -> EndingShape {
     EndingShape::Ellipse(Ellipse::Extent(ShapeExtent::FarthestCorner))
-  }
-}
-
-impl<'i> Parse<'i> for EndingShape {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    // Note: Ellipse::parse MUST run before Circle::parse for this to be correct.
-    if let Ok(ellipse) = input.try_parse(Ellipse::parse) {
-      return Ok(EndingShape::Ellipse(ellipse));
-    }
-
-    if let Ok(circle) = input.try_parse(Circle::parse) {
-      return Ok(EndingShape::Circle(circle));
-    }
-
-    return Err(input.new_error_for_next_token());
-  }
-}
-
-impl ToCss for EndingShape {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      EndingShape::Circle(circle) => circle.to_css(dest),
-      EndingShape::Ellipse(ellipse) => ellipse.to_css(dest),
-    }
   }
 }
 
@@ -723,13 +778,13 @@ enum_property! {
   /// See [RadialGradient](RadialGradient).
   pub enum ShapeExtent {
     /// The closest side of the box to the gradient's center.
-    "closest-side": ClosestSide,
+    ClosestSide,
     /// The farthest side of the box from the gradient's center.
-    "farthest-side": FarthestSide,
+    FarthestSide,
     /// The closest cornder of the box to the gradient's center.
-    "closest-corner": ClosestCorner,
+    ClosestCorner,
     /// The farthest corner of the box from the gradient's center.
-    "farthest-corner": FarthestCorner,
+    FarthestCorner,
   }
 }
 
@@ -738,6 +793,7 @@ enum_property! {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct ConicGradient {
   /// The angle of the gradient.
   pub angle: Angle,
@@ -807,6 +863,12 @@ impl ConicGradient {
       position: self.position.clone(),
       items: self.items.iter().map(|item| item.get_fallback(kind)).collect(),
     }
+  }
+}
+
+impl IsCompatible for ConicGradient {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.items.iter().all(|item| item.is_compatible(browsers))
   }
 }
 
@@ -887,7 +949,7 @@ impl<D: ToCss> ToCss for GradientItem<D> {
 
 impl<D: Clone> GradientItem<D> {
   /// Returns the color fallback types needed for the given browser targets.
-  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  pub fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     match self {
       GradientItem::ColorStop(stop) => stop.color.get_necessary_fallbacks(targets),
       GradientItem::Hint(..) => ColorFallbackKind::empty(),
@@ -902,6 +964,15 @@ impl<D: Clone> GradientItem<D> {
         position: stop.position.clone(),
       }),
       GradientItem::Hint(..) => self.clone(),
+    }
+  }
+}
+
+impl<D> IsCompatible for GradientItem<D> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      GradientItem::ColorStop(c) => c.color.is_compatible(browsers),
+      GradientItem::Hint(..) => compat::Feature::GradientInterpolationHints.is_compatible(browsers),
     }
   }
 }
@@ -970,7 +1041,7 @@ where
 
     // Use double position stop if the last stop is the same color and all targets support it.
     if let Some(prev) = last {
-      if dest.targets.is_none() || compat::Feature::DoublePositionGradients.is_compatible(dest.targets.unwrap()) {
+      if !should_compile!(dest.targets.current, DoublePositionGradients) {
         match (prev, item) {
           (
             GradientItem::ColorStop(ColorStop {
@@ -1012,6 +1083,7 @@ where
   serde(tag = "kind", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum WebKitGradient {
   /// A linear `-webkit-gradient()`.
   Linear {
@@ -1217,6 +1289,7 @@ impl WebKitColorStop {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct WebKitGradientPoint {
   /// The x-position.
   pub x: WebKitGradientPointComponent<HorizontalPositionKeyword>,
@@ -1252,6 +1325,7 @@ impl ToCss for WebKitGradientPoint {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum WebKitGradientPointComponent<S> {
   /// The `center` keyword.
   Center,

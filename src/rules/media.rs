@@ -15,6 +15,7 @@ use crate::visitor::Visit;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct MediaRule<'i, R = DefaultAtRule> {
   /// The media query list.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -26,7 +27,7 @@ pub struct MediaRule<'i, R = DefaultAtRule> {
   pub loc: Location,
 }
 
-impl<'i, T> MediaRule<'i, T> {
+impl<'i, T: Clone> MediaRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
@@ -38,6 +39,7 @@ impl<'i, T> MediaRule<'i, T> {
       self.query.transform_custom_media(self.loc, custom_media)?;
     }
 
+    self.query.transform_resolution(context.targets.current);
     Ok(self.rules.0.is_empty() || self.query.never_matches())
   }
 }

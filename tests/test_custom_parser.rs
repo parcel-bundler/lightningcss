@@ -101,6 +101,7 @@ impl<'i> AtRuleParser<'i> for TestAtRuleParser {
     prelude: Self::Prelude,
     _start: &ParserState,
     _options: &ParserOptions<'_, 'i>,
+    _is_nested: bool,
   ) -> Result<Self::AtRule, ()> {
     match prelude {
       Prelude::Inline(name) => Ok(AtRule::Inline(InlineRule { name })),
@@ -114,6 +115,7 @@ impl<'i> AtRuleParser<'i> for TestAtRuleParser {
     _start: &ParserState,
     input: &mut Parser<'i, 't>,
     _options: &ParserOptions<'_, 'i>,
+    _is_nested: bool,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
     match prelude {
       Prelude::Block(name) => Ok(AtRule::Block(BlockRule {

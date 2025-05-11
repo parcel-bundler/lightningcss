@@ -25,13 +25,41 @@ use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 /// Configuration for CSS modules.
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Config<'i> {
   /// The name pattern to use when renaming class names and other identifiers.
   /// Default is `[hash]_[local]`.
   pub pattern: Pattern<'i>,
   /// Whether to rename dashed identifiers, e.g. custom properties.
   pub dashed_idents: bool,
+  /// Whether to scope animation names.
+  /// Default is `true`.
+  pub animation: bool,
+  /// Whether to scope grid names.
+  /// Default is `true`.
+  pub grid: bool,
+  /// Whether to scope custom identifiers
+  /// Default is `true`.
+  pub custom_idents: bool,
+  /// Whether to scope container names.
+  /// Default is `true`.
+  pub container: bool,
+  /// Whether to check for pure CSS modules.
+  pub pure: bool,
+}
+
+impl<'i> Default for Config<'i> {
+  fn default() -> Self {
+    Config {
+      pattern: Default::default(),
+      dashed_idents: Default::default(),
+      animation: true,
+      grid: true,
+      container: true,
+      custom_idents: true,
+      pure: false,
+    }
+  }
 }
 
 /// A CSS modules class name pattern.
@@ -86,6 +114,7 @@ impl<'i> Pattern<'i> {
             "[name]" => Segment::Name,
             "[local]" => Segment::Local,
             "[hash]" => Segment::Hash,
+            "[content-hash]" => Segment::ContentHash,
             s => return Err(PatternParseError::UnknownPlaceholder(s.into(), start_idx)),
           };
           segments.push(segment);
@@ -105,8 +134,20 @@ impl<'i> Pattern<'i> {
     Ok(Pattern { segments })
   }
 
+  /// Whether the pattern contains any `[content-hash]` segments.
+  pub fn has_content_hash(&self) -> bool {
+    self.segments.iter().any(|s| matches!(s, Segment::ContentHash))
+  }
+
   /// Write the substituted pattern to a destination.
-  pub fn write<W, E>(&self, hash: &str, path: &Path, local: &str, mut write: W) -> Result<(), E>
+  pub fn write<W, E>(
+    &self,
+    hash: &str,
+    path: &Path,
+    local: &str,
+    content_hash: &str,
+    mut write: W,
+  ) -> Result<(), E>
   where
     W: FnMut(&str) -> Result<(), E>,
   {
@@ -129,6 +170,9 @@ impl<'i> Pattern<'i> {
         Segment::Hash => {
           write(hash)?;
         }
+        Segment::ContentHash => {
+          write(content_hash)?;
+        }
       }
     }
     Ok(())
@@ -141,8 +185,9 @@ impl<'i> Pattern<'i> {
     hash: &str,
     path: &Path,
     local: &str,
+    content_hash: &str,
   ) -> Result<String, std::fmt::Error> {
-    self.write(hash, path, local, |s| res.write_str(s))?;
+    self.write(hash, path, local, content_hash, |s| res.write_str(s))?;
     Ok(res)
   }
 }
@@ -160,6 +205,8 @@ pub enum Segment<'i> {
   Local,
   /// A hash of the file name.
   Hash,
+  /// A hash of the file contents.
+  ContentHash,
 }
 
 /// A referenced name within a CSS module, e.g. via the `composes` property.
@@ -224,6 +271,7 @@ pub(crate) struct CssModule<'a, 'b, 'c> {
   pub config: &'a Config<'b>,
   pub sources: Vec<&'c Path>,
   pub hashes: Vec<String>,
+  pub content_hashes: &'a Option<Vec<String>>,
   pub exports_by_source_index: Vec<CssModuleExports>,
   pub references: &'a mut HashMap<String, CssModuleReference>,
 }
@@ -234,6 +282,7 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
     sources: &'c Vec<String>,
     project_root: Option<&'c str>,
     references: &'a mut HashMap<String, CssModuleReference>,
+    content_hashes: &'a Option<Vec<String>>,
   ) -> Self {
     let project_root = project_root.map(|p| Path::new(p));
     let sources: Vec<&Path> = sources.iter().map(|filename| Path::new(filename)).collect();
@@ -258,6 +307,7 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
       exports_by_source_index: sources.iter().map(|_| HashMap::new()).collect(),
       sources,
       hashes,
+      content_hashes,
       references,
     }
   }
@@ -274,6 +324,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
             &self.hashes[source_index as usize],
             &self.sources[source_index as usize],
             local,
+            if let Some(content_hashes) = &self.content_hashes {
+              &content_hashes[source_index as usize]
+            } else {
+              ""
+            },
           )
           .unwrap(),
         composes: vec![],
@@ -293,6 +348,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
             &self.hashes[source_index as usize],
             &self.sources[source_index as usize],
             &local[2..],
+            if let Some(content_hashes) = &self.content_hashes {
+              &content_hashes[source_index as usize]
+            } else {
+              ""
+            },
           )
           .unwrap(),
         composes: vec![],
@@ -315,6 +375,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
               &self.hashes[source_index as usize],
               &self.sources[source_index as usize],
               name,
+              if let Some(content_hashes) = &self.content_hashes {
+                &content_hashes[source_index as usize]
+              } else {
+                ""
+              },
             )
             .unwrap(),
           composes: vec![],
@@ -344,6 +409,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
               &self.hashes[*source_index as usize],
               &self.sources[*source_index as usize],
               &name[2..],
+              if let Some(content_hashes) = &self.content_hashes {
+                &content_hashes[*source_index as usize]
+              } else {
+                ""
+              },
             )
             .unwrap(),
         )
@@ -364,6 +434,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
                   &self.hashes[source_index as usize],
                   &self.sources[source_index as usize],
                   &name[2..],
+                  if let Some(content_hashes) = &self.content_hashes {
+                    &content_hashes[source_index as usize]
+                  } else {
+                    ""
+                  },
                 )
                 .unwrap(),
               composes: vec![],
@@ -406,6 +481,11 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
                       &self.hashes[source_index as usize],
                       &self.sources[source_index as usize],
                       name.0.as_ref(),
+                      if let Some(content_hashes) = &self.content_hashes {
+                        &content_hashes[source_index as usize]
+                      } else {
+                        ""
+                      },
                     )
                     .unwrap(),
                 },

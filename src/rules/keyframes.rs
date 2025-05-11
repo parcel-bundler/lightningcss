@@ -8,9 +8,10 @@ use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
+use crate::properties::animation::TimelineRangeName;
 use crate::properties::custom::{CustomProperty, UnparsedProperty};
 use crate::properties::Property;
-use crate::targets::Browsers;
+use crate::targets::Targets;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::ColorFallbackKind;
 use crate::values::ident::CustomIdent;
@@ -24,7 +25,7 @@ use cssparser::*;
 /// A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -49,7 +50,7 @@ pub struct KeyframesRule<'i> {
 /// KeyframesName
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -92,9 +93,12 @@ impl<'i> ToCss for KeyframesName<'i> {
   where
     W: std::fmt::Write,
   {
+    let css_module_animation_enabled =
+      dest.css_module.as_ref().map_or(false, |css_module| css_module.config.animation);
+
     match self {
       KeyframesName::Ident(ident) => {
-        dest.write_ident(ident.0.as_ref())?;
+        dest.write_ident(ident.0.as_ref(), css_module_animation_enabled)?;
       }
       KeyframesName::Custom(s) => {
         // CSS-wide keywords and `none` cannot remove quotes.
@@ -103,7 +107,7 @@ impl<'i> ToCss for KeyframesName<'i> {
             serialize_string(&s, dest)?;
           },
           _ => {
-            dest.write_ident(s.as_ref())?;
+            dest.write_ident(s.as_ref(), css_module_animation_enabled)?;
           }
         }
       }
@@ -119,19 +123,19 @@ impl<'i> KeyframesRule<'i> {
     for keyframe in &mut self.keyframes {
       keyframe
         .declarations
-        .minify(context.handler, context.important_handler, context.handler_context)
+        .minify(context.handler, context.important_handler, &mut context.handler_context)
     }
 
     context.handler_context.context = DeclarationContext::None;
   }
 
-  pub(crate) fn get_fallbacks<T>(&mut self, targets: Browsers) -> Vec<CssRule<'i, T>> {
+  pub(crate) fn get_fallbacks<T>(&mut self, targets: &Targets) -> Vec<CssRule<'i, T>> {
     let mut fallbacks = ColorFallbackKind::empty();
     for keyframe in &self.keyframes {
       for property in &keyframe.declarations.declarations {
         match property {
           Property::Custom(CustomProperty { value, .. }) | Property::Unparsed(UnparsedProperty { value, .. }) => {
-            fallbacks |= value.get_necessary_fallbacks(targets);
+            fallbacks |= value.get_necessary_fallbacks(*targets);
           }
           _ => {}
         }
@@ -262,9 +266,34 @@ impl<'i> ToCss for KeyframesRule<'i> {
   }
 }
 
+/// A percentage of a given timeline range
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct TimelineRangePercentage {
+  /// The name of the timeline range.
+  name: TimelineRangeName,
+  /// The percentage progress between the start and end of the range.
+  percentage: Percentage,
+}
+
+impl<'i> Parse<'i> for TimelineRangePercentage {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let name = TimelineRangeName::parse(input)?;
+    let percentage = Percentage::parse(input)?;
+    Ok(TimelineRangePercentage { name, percentage })
+  }
+}
+
 /// A [keyframe selector](https://drafts.csswg.org/css-animations/#typedef-keyframe-selector)
 /// within an `@keyframes` rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Parse)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -272,6 +301,7 @@ impl<'i> ToCss for KeyframesRule<'i> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum KeyframeSelector {
   /// An explicit percentage.
   Percentage(Percentage),
@@ -279,24 +309,8 @@ pub enum KeyframeSelector {
   From,
   /// The `to` keyword. Equivalent to 100%.
   To,
-}
-
-impl<'i> Parse<'i> for KeyframeSelector {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(Percentage::parse) {
-      return Ok(KeyframeSelector::Percentage(val));
-    }
-
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "from" => Ok(KeyframeSelector::From),
-      "to" => Ok(KeyframeSelector::To),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(ident.clone())
-      ))
-    }
-  }
+  /// A [named timeline range selector](https://drafts.csswg.org/scroll-animations-1/#named-range-keyframes)
+  TimelineRangePercentage(TimelineRangePercentage),
 }
 
 impl ToCss for KeyframeSelector {
@@ -320,6 +334,14 @@ impl ToCss for KeyframeSelector {
         }
       }
       KeyframeSelector::To => dest.write_str("to"),
+      KeyframeSelector::TimelineRangePercentage(TimelineRangePercentage {
+        name: timeline_range_name,
+        percentage,
+      }) => {
+        timeline_range_name.to_css(dest)?;
+        dest.write_char(' ')?;
+        percentage.to_css(dest)
+      }
     }
   }
 }
@@ -329,7 +351,7 @@ impl ToCss for KeyframeSelector {
 /// See [KeyframesRule](KeyframesRule).
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Keyframe<'i> {
@@ -390,5 +412,20 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
       selectors,
       declarations: DeclarationBlock::parse(input, &options)?,
     })
+  }
+}
+
+impl<'i> DeclarationParser<'i> for KeyframeListParser {
+  type Declaration = Keyframe<'i>;
+  type Error = ParserError<'i>;
+}
+
+impl<'i> RuleBodyItemParser<'i, Keyframe<'i>, ParserError<'i>> for KeyframeListParser {
+  fn parse_qualified(&self) -> bool {
+    true
+  }
+
+  fn parse_declarations(&self) -> bool {
+    false
   }
 }

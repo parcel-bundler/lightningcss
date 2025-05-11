@@ -1,30 +1,36 @@
-import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock, ParsedComponent, Multiplier } from './ast';
-import type { Targets } from './targets';
+import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock, ParsedComponent, Multiplier, StyleSheet, Location2 } from './ast';
+import { Targets, Features } from './targets';
 
 export * from './ast';
 
-export { Targets };
+export { Targets, Features };
 
 export interface TransformOptions<C extends CustomAtRules> {
   /** The filename being transformed. Used for error messages and source maps. */
   filename: string,
   /** The source code to transform. */
-  code: Buffer,
+  code: Uint8Array,
   /** Whether to enable minification. */
   minify?: boolean,
   /** Whether to output a source map. */
   sourceMap?: boolean,
   /** An input source map to extend. */
   inputSourceMap?: string,
-  /** 
+  /**
    * An optional project root path, used as the source root in the output source map.
    * Also used to generate relative paths for sources used in CSS module hashes.
    */
   projectRoot?: string,
   /** The browser targets for the generated code. */
   targets?: Targets,
-  /** Whether to enable various draft syntax. */
+  /** Features that should always be compiled, even when supported by targets. */
+  include?: number,
+  /** Features that should never be compiled, even when unsupported by targets. */
+  exclude?: number,
+  /** Whether to enable parsing various draft syntax. */
   drafts?: Drafts,
+  /** Whether to enable various non-standard syntax. */
+  nonStandard?: NonStandard,
   /** Whether to compile this file as a CSS module. */
   cssModules?: boolean | CSSModulesConfig,
   /**
@@ -34,7 +40,7 @@ export interface TransformOptions<C extends CustomAtRules> {
    * urls later (after bundling). Dependencies are returned as part of the result.
    */
   analyzeDependencies?: boolean | DependencyOptions,
-  /** 
+  /**
    * Replaces user action pseudo classes with class names that can be applied from JavaScript.
    * This is useful for polyfills, for example.
    */
@@ -69,15 +75,20 @@ export interface TransformOptions<C extends CustomAtRules> {
 
 // This is a hack to make TS still provide autocomplete for `property` vs. just making it `string`.
 type PropertyStart = '-' | '_' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z';
-type ReturnedDeclaration = Declaration | {
+export type ReturnedDeclaration = Declaration | {
   /** The property name. */
   property: `${PropertyStart}${string}`,
   /** The raw string value for the declaration. */
   raw: string
 };
 
+export type ReturnedMediaQuery = MediaQuery | {
+  /** The raw string value for the media query. */
+  raw: string
+};
+
 type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
-type ReturnedRule = Rule<ReturnedDeclaration>;
+export type ReturnedRule = Rule<ReturnedDeclaration, ReturnedMediaQuery>;
 type RequiredValue<Rule> = Rule extends { value: object }
   ? Rule['value'] extends StyleRule
   ? Rule & { value: Required<StyleRule> & { declarations: Required<DeclarationBlock> } }
@@ -127,7 +138,7 @@ interface CustomAtRule<N, R extends CustomAtRuleDefinition> {
   name: N,
   prelude: R['prelude'] extends keyof MappedPrelude ? MappedPrelude[R['prelude']] : ParsedComponent,
   body: FindByType<CustomAtRuleBody, MappedBody<R['body']>>,
-  loc: Location
+  loc: Location2
 }
 
 type CustomAtRuleBody = {
@@ -171,6 +182,8 @@ type EnvironmentVariableVisitors = {
 };
 
 export interface Visitor<C extends CustomAtRules> {
+  StyleSheet?(stylesheet: StyleSheet): StyleSheet<ReturnedDeclaration, ReturnedMediaQuery> | void;
+  StyleSheetExit?(stylesheet: StyleSheet): StyleSheet<ReturnedDeclaration, ReturnedMediaQuery> | void;
   Rule?: RuleVisitor | RuleVisitors<C>;
   RuleExit?: RuleVisitor | RuleVisitors<C>;
   Declaration?: DeclarationVisitor | DeclarationVisitors;
@@ -186,8 +199,8 @@ export interface Visitor<C extends CustomAtRules> {
   Time?(time: Time): Time | void;
   CustomIdent?(ident: string): string | void;
   DashedIdent?(ident: string): string | void;
-  MediaQuery?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
-  MediaQueryExit?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
+  MediaQuery?(query: MediaQuery): ReturnedMediaQuery | ReturnedMediaQuery[] | void;
+  MediaQueryExit?(query: MediaQuery): ReturnedMediaQuery | ReturnedMediaQuery[] | void;
   SupportsCondition?(condition: SupportsCondition): SupportsCondition;
   SupportsConditionExit?(condition: SupportsCondition): SupportsCondition;
   Selector?(selector: Selector): Selector | Selector[] | void;
@@ -248,10 +261,13 @@ export interface Resolver {
 }
 
 export interface Drafts {
-  /** Whether to enable CSS nesting. */
-  nesting?: boolean,
   /** Whether to enable @custom-media rules. */
   customMedia?: boolean
+}
+
+export interface NonStandard {
+  /** Whether to enable the non-standard >>> and /deep/ selector combinators used by Angular and Vue. */
+  deepSelectorCombinator?: boolean
 }
 
 export interface PseudoClasses {
@@ -264,9 +280,9 @@ export interface PseudoClasses {
 
 export interface TransformResult {
   /** The transformed code. */
-  code: Buffer,
+  code: Uint8Array,
   /** The generated source map, if enabled. */
-  map: Buffer | void,
+  map: Uint8Array | void,
   /** CSS module exports, if enabled. */
   exports: CSSModuleExports | void,
   /** CSS module references, if `dashedIdents` is enabled. */
@@ -288,7 +304,17 @@ export interface CSSModulesConfig {
   /** The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`. */
   pattern?: string,
   /** Whether to rename dashed identifiers, e.g. custom properties. */
-  dashedIdents?: boolean
+  dashedIdents?: boolean,
+  /** Whether to enable hashing for `@keyframes`. */
+  animation?: boolean,
+  /** Whether to enable hashing for CSS grid identifiers. */
+  grid?: boolean,
+  /** Whether to enable hashing for `@container` names. */
+  container?: boolean,
+  /** Whether to enable hashing for custom identifiers. */
+  customIdents?: boolean,
+  /** Whether to require at least one class or id selector in each rule. */
+  pure?: boolean
 }
 
 export type CSSModuleExports = {
@@ -343,7 +369,9 @@ export interface ImportDependency {
   /** The `supports()` query for the `@import` rule. */
   supports: string | null,
   /** The source location where the `@import` rule was found. */
-  loc: SourceLocation
+  loc: SourceLocation,
+  /** The placeholder that the import was replaced with. */
+  placeholder: string
 }
 
 export interface UrlDependency {
@@ -386,14 +414,14 @@ export interface TransformAttributeOptions {
   /** The filename in which the style attribute appeared. Used for error messages and dependencies. */
   filename?: string,
   /** The source code to transform. */
-  code: Buffer,
+  code: Uint8Array,
   /** Whether to enable minification. */
   minify?: boolean,
   /** The browser targets for the generated code. */
   targets?: Targets,
   /**
    * Whether to analyze `url()` dependencies.
-   * When enabled, `url()` dependencies are replaced with hashed placeholders 
+   * When enabled, `url()` dependencies are replaced with hashed placeholders
    * that can be replaced with the final urls later (after bundling).
    * Dependencies are returned as part of the result.
    */
@@ -415,7 +443,7 @@ export interface TransformAttributeOptions {
 
 export interface TransformAttributeResult {
   /** The transformed code. */
-  code: Buffer,
+  code: Uint8Array,
   /** `@import` and `url()` dependencies, if enabled. */
   dependencies: Dependency[] | void,
   /** Warnings that occurred during compilation. */

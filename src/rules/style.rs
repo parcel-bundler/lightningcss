@@ -5,16 +5,17 @@ use std::ops::Range;
 
 use super::Location;
 use super::MinifyContext;
-use crate::compat::Feature;
 use crate::context::DeclarationContext;
 use crate::declaration::DeclarationBlock;
 use crate::error::ParserError;
-use crate::error::{MinifyError, PrinterError, PrinterErrorKind};
+use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::rules::CssRuleList;
-use crate::selector::{is_compatible, is_unused, SelectorList};
-use crate::targets::Browsers;
+use crate::selector::{
+  downlevel_selectors, get_prefix, is_compatible, is_pure_css_modules_selector, is_unused, SelectorList,
+};
+use crate::targets::{should_compile, Targets};
 use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -26,6 +27,7 @@ use cssparser::*;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct StyleRule<'i, R = DefaultAtRule> {
   /// The selectors for the style rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -50,7 +52,7 @@ fn default_rule_list<'i, R>() -> CssRuleList<'i, R> {
   CssRuleList(Vec::new())
 }
 
-impl<'i, T> StyleRule<'i, T> {
+impl<'i, T: Clone> StyleRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
@@ -69,19 +71,36 @@ impl<'i, T> StyleRule<'i, T> {
       }
     }
 
+    let pure_css_modules = context.pure_css_modules;
+    if context.pure_css_modules {
+      if !self.selectors.0.iter().all(is_pure_css_modules_selector) {
+        return Err(MinifyError {
+          kind: crate::error::MinifyErrorKind::ImpureCSSModuleSelector,
+          loc: self.loc,
+        });
+      }
+
+      // Parent rule contained id or class, so child rules don't need to.
+      context.pure_css_modules = false;
+    }
+
     context.handler_context.context = DeclarationContext::StyleRule;
     self
       .declarations
-      .minify(context.handler, context.important_handler, context.handler_context);
+      .minify(context.handler, context.important_handler, &mut context.handler_context);
     context.handler_context.context = DeclarationContext::None;
 
     if !self.rules.0.is_empty() {
+      let mut handler_context = context.handler_context.child(DeclarationContext::StyleRule);
+      std::mem::swap(&mut context.handler_context, &mut handler_context);
       self.rules.minify(context, unused)?;
+      context.handler_context = handler_context;
       if unused && self.rules.0.is_empty() {
         return Ok(true);
       }
     }
 
+    context.pure_css_modules = pure_css_modules;
     Ok(false)
   }
 }
@@ -89,13 +108,13 @@ impl<'i, T> StyleRule<'i, T> {
 impl<'i, T> StyleRule<'i, T> {
   /// Returns whether the rule is empty.
   pub fn is_empty(&self) -> bool {
-    self.declarations.is_empty() && self.rules.0.is_empty()
+    self.selectors.0.is_empty() || (self.declarations.is_empty() && self.rules.0.is_empty())
   }
 
   /// Returns whether the selectors in the rule are compatible
   /// with all of the given browser targets.
-  pub fn is_compatible(&self, targets: Option<Browsers>) -> bool {
-    is_compatible(&self.selectors, targets)
+  pub fn is_compatible(&self, targets: Targets) -> bool {
+    is_compatible(&self.selectors.0, targets)
   }
 
   /// Returns the line and column range of the property key and value at the given index in this style rule.
@@ -151,6 +170,13 @@ impl<'i, T> StyleRule<'i, T> {
         .zip(other_rule.declarations.iter())
         .all(|((a, _), (b, _))| a.property_id() == b.property_id())
   }
+
+  pub(crate) fn update_prefix(&mut self, context: &mut MinifyContext<'_, 'i>) {
+    self.vendor_prefix = get_prefix(&self.selectors);
+    if self.vendor_prefix.contains(VendorPrefix::None) && context.targets.current.should_compile_selectors() {
+      self.vendor_prefix = downlevel_selectors(self.selectors.0.as_mut_slice(), context.targets.current);
+    }
+  }
 }
 
 fn parse_at<'i, 't, T, F>(
@@ -194,29 +220,18 @@ impl<'a, 'i, T: ToCss> ToCss for StyleRule<'i, T> {
       self.to_css_base(dest)
     } else {
       let mut first_rule = true;
-      macro_rules! prefix {
-        ($prefix: ident) => {
-          if self.vendor_prefix.contains(VendorPrefix::$prefix) {
-            #[allow(unused_assignments)]
-            if first_rule {
-              first_rule = false;
-            } else {
-              if !dest.minify {
-                dest.write_char('\n')?; // no indent
-              }
-              dest.newline()?;
-            }
-            dest.vendor_prefix = VendorPrefix::$prefix;
-            self.to_css_base(dest)?;
+      for prefix in self.vendor_prefix {
+        if first_rule {
+          first_rule = false;
+        } else {
+          if !dest.minify {
+            dest.write_char('\n')?; // no indent
           }
-        };
+          dest.newline()?;
+        }
+        dest.vendor_prefix = prefix;
+        self.to_css_base(dest)?;
       }
-
-      prefix!(WebKit);
-      prefix!(Moz);
-      prefix!(Ms);
-      prefix!(O);
-      prefix!(None);
 
       dest.vendor_prefix = VendorPrefix::empty();
       Ok(())
@@ -230,9 +245,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
     W: std::fmt::Write,
   {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
-    let supports_nesting = self.rules.0.is_empty()
-      || dest.targets.is_none()
-      || Feature::CssNesting.is_compatible(dest.targets.unwrap());
+    let supports_nesting = self.rules.0.is_empty() || !should_compile!(dest.targets.current, Nesting);
     let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();
     let has_declarations = supports_nesting || len > 0 || self.rules.0.is_empty();
 
@@ -243,39 +256,16 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
       dest.whitespace()?;
       dest.write_char('{')?;
       dest.indent();
-
-      let mut i = 0;
-      macro_rules! write {
-        ($decls: ident, $important: literal) => {
-          for decl in &self.declarations.$decls {
-            // The CSS modules `composes` property is handled specially, and omitted during printing.
-            // We need to add the classes it references to the list for the selectors in this rule.
-            if let crate::properties::Property::Composes(composes) = &decl {
-              if dest.is_nested() && dest.css_module.is_some() {
-                return Err(dest.error(PrinterErrorKind::InvalidComposesNesting, composes.loc));
-              }
-
-              if let Some(css_module) = &mut dest.css_module {
-                css_module
-                  .handle_composes(&self.selectors, &composes, self.loc.source_index)
-                  .map_err(|e| dest.error(e, composes.loc))?;
-                continue;
-              }
-            }
-
-            dest.newline()?;
-            decl.to_css(dest, $important)?;
-            if i != len - 1 || !dest.minify {
-              dest.write_char(';')?;
-            }
-
-            i += 1;
-          }
-        };
+      if len > 0 {
+        dest.newline()?;
       }
 
-      write!(declarations, false);
-      write!(important_declarations, true);
+      self.declarations.to_css_declarations(
+        dest,
+        supports_nesting && !self.rules.0.is_empty(),
+        &self.selectors,
+        self.loc.source_index,
+      )?;
     }
 
     macro_rules! newline {

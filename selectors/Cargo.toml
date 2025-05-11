@@ -1,6 +1,6 @@
 [package]
 name = "parcel_selectors"
-version = "0.25.2"
+version = "0.28.1"
 authors = ["The Servo Project Developers"]
 documentation = "https://docs.rs/parcel_selectors/"
 description = "CSS Selectors matching for Rust - forked for lightningcss"
@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["css", "selectors"]
 license = "MPL-2.0"
 build = "build.rs"
+edition = "2021"
 
 [lib]
 name = "parcel_selectors"
@@ -17,17 +18,21 @@ path = "lib.rs"
 [features]
 bench = []
 jsonschema = ["serde", "schemars"]
+into_owned = ["static-self"]
+smallvec = ["static-self/smallvec"]
+serde = ["dep:serde", "smallvec/serde"]
 
 [dependencies]
-bitflags = "1.0"
-cssparser = "0.29"
-fxhash = "0.2"
+bitflags = "2.2.1"
+cssparser = "0.33.0"
+rustc-hash = "2"
 log = "0.4"
-phf = "0.10"
+phf = "0.11.2"
 precomputed-hash = "0.1"
 smallvec = "1.0"
-serde = { version = "1.0.123", features = ["derive"], optional = true }
-schemars = { version = "0.8.11", features = ["smallvec"], optional = true }
+serde = { version = "1.0.201", features = ["derive"], optional = true }
+schemars = { version = "0.8.19", features = ["smallvec"], optional = true }
+static-self = { version = "0.1.2", path = "../static-self", optional = true }
 
 [build-dependencies]
-phf_codegen = "0.10"
+phf_codegen = "0.11"

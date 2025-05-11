@@ -7,7 +7,7 @@ use crate::printer::Printer;
 use crate::properties::custom::CustomProperty;
 use crate::properties::font::FontFamily;
 use crate::stylesheet::ParserOptions;
-use crate::targets::Browsers;
+use crate::targets::Targets;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::ident::DashedIdent;
@@ -19,7 +19,7 @@ use cssparser::*;
 /// A [@font-palette-values](https://drafts.csswg.org/css-fonts-4/#font-palette-values) rule.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct FontPaletteValuesRule<'i> {
@@ -38,7 +38,7 @@ pub struct FontPaletteValuesRule<'i> {
 ///  See [FontPaletteValuesRule](FontPaletteValuesRule).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -67,6 +67,7 @@ pub enum FontPaletteValuesProperty<'i> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum BasePalette {
   /// A light color palette as defined within the font.
   Light,
@@ -82,6 +83,7 @@ pub enum BasePalette {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct OverrideColors {
   /// The index of the color within the palette to override.
   index: u16,
@@ -142,13 +144,32 @@ impl<'i> AtRuleParser<'i> for FontPaletteValuesDeclarationParser {
   type Error = ParserError<'i>;
 }
 
+impl<'i> QualifiedRuleParser<'i> for FontPaletteValuesDeclarationParser {
+  type Prelude = ();
+  type QualifiedRule = FontPaletteValuesProperty<'i>;
+  type Error = ParserError<'i>;
+}
+
+impl<'i> RuleBodyItemParser<'i, FontPaletteValuesProperty<'i>, ParserError<'i>>
+  for FontPaletteValuesDeclarationParser
+{
+  fn parse_qualified(&self) -> bool {
+    false
+  }
+
+  fn parse_declarations(&self) -> bool {
+    true
+  }
+}
+
 impl<'i> FontPaletteValuesRule<'i> {
   pub(crate) fn parse<'t>(
     name: DashedIdent<'i>,
     input: &mut Parser<'i, 't>,
     loc: Location,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let mut parser = DeclarationListParser::new(input, FontPaletteValuesDeclarationParser);
+    let mut decl_parser = FontPaletteValuesDeclarationParser;
+    let mut parser = RuleBodyParser::new(input, &mut decl_parser);
     let mut properties = vec![];
     while let Some(decl) = parser.next() {
       if let Ok(decl) = decl {
@@ -238,34 +259,30 @@ impl<'i> FontPaletteValuesRule<'i> {
       match property {
         FontPaletteValuesProperty::OverrideColors(override_colors) => {
           // Generate color fallbacks.
-          if let Some(targets) = context.targets {
-            let mut fallbacks = ColorFallbackKind::empty();
-            for o in override_colors {
-              fallbacks |= o.color.get_necessary_fallbacks(*targets);
-            }
-
-            if fallbacks.contains(ColorFallbackKind::RGB) {
-              properties.push(FontPaletteValuesProperty::OverrideColors(
-                override_colors.iter().map(|o| o.get_fallback(ColorFallbackKind::RGB)).collect(),
-              ));
-            }
-
-            if fallbacks.contains(ColorFallbackKind::P3) {
-              properties.push(FontPaletteValuesProperty::OverrideColors(
-                override_colors.iter().map(|o| o.get_fallback(ColorFallbackKind::P3)).collect(),
-              ));
-            }
-
-            let override_colors = if fallbacks.contains(ColorFallbackKind::LAB) {
-              override_colors.iter().map(|o| o.get_fallback(ColorFallbackKind::P3)).collect()
-            } else {
-              override_colors.clone()
-            };
-
-            properties.push(FontPaletteValuesProperty::OverrideColors(override_colors));
-          } else {
-            properties.push(property.clone())
+          let mut fallbacks = ColorFallbackKind::empty();
+          for o in override_colors {
+            fallbacks |= o.color.get_necessary_fallbacks(context.targets.current);
           }
+
+          if fallbacks.contains(ColorFallbackKind::RGB) {
+            properties.push(FontPaletteValuesProperty::OverrideColors(
+              override_colors.iter().map(|o| o.get_fallback(ColorFallbackKind::RGB)).collect(),
+            ));
+          }
+
+          if fallbacks.contains(ColorFallbackKind::P3) {
+            properties.push(FontPaletteValuesProperty::OverrideColors(
+              override_colors.iter().map(|o| o.get_fallback(ColorFallbackKind::P3)).collect(),
+            ));
+          }
+
+          let override_colors = if fallbacks.contains(ColorFallbackKind::LAB) {
+            override_colors.iter().map(|o| o.get_fallback(ColorFallbackKind::P3)).collect()
+          } else {
+            override_colors.clone()
+          };
+
+          properties.push(FontPaletteValuesProperty::OverrideColors(override_colors));
         }
         _ => properties.push(property.clone()),
       }
@@ -274,7 +291,7 @@ impl<'i> FontPaletteValuesRule<'i> {
     self.properties = properties;
   }
 
-  pub(crate) fn get_fallbacks<T>(&mut self, targets: Browsers) -> Vec<CssRule<'i, T>> {
+  pub(crate) fn get_fallbacks<T>(&mut self, targets: Targets) -> Vec<CssRule<'i, T>> {
     // Get fallbacks for unparsed properties. These will generate @supports rules
     // containing duplicate @font-palette-values rules.
     let mut fallbacks = ColorFallbackKind::empty();

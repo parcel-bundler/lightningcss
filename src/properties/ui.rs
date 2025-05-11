@@ -1,20 +1,25 @@
 //! CSS properties related to user interface.
 
-use crate::declaration::DeclarationBlock;
+use crate::context::PropertyHandlerContext;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_shorthand, enum_property, shorthand_property};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
-use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, Shorthand, ToCss};
+use crate::targets::{should_compile, Browsers, Targets};
+use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::CssColor;
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use bitflags::bitflags;
 use cssparser::*;
 use smallvec::SmallVec;
+
+use super::custom::Token;
+use super::{CustomProperty, CustomPropertyName, TokenList, TokenOrValue};
 
 enum_property! {
   /// A value for the [resize](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize) property.
@@ -39,7 +44,7 @@ enum_property! {
 /// See [Cursor](Cursor).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CursorImage<'i> {
@@ -88,49 +93,49 @@ enum_property! {
   /// See [Cursor](Cursor).
   #[allow(missing_docs)]
   pub enum CursorKeyword {
-    "auto": Auto,
-    "default": Default,
-    "none": None,
-    "context-menu": ContextMenu,
-    "help": Help,
-    "pointer": Pointer,
-    "progress": Progress,
-    "wait": Wait,
-    "cell": Cell,
-    "crosshair": Crosshair,
-    "text": Text,
-    "vertical-text": VerticalText,
-    "alias": Alias,
-    "copy": Copy,
-    "move": Move,
-    "no-drop": NoDrop,
-    "not-allowed": NotAllowed,
-    "grab": Grab,
-    "grabbing": Grabbing,
-    "e-resize": EResize,
-    "n-resize": NResize,
-    "ne-resize": NeResize,
-    "nw-resize": NwResize,
-    "s-resize": SResize,
-    "se-resize": SeResize,
-    "sw-resize": SwResize,
-    "w-resize": WResize,
-    "ew-resize": EwResize,
-    "ns-resize": NsResize,
-    "nesw-resize": NeswResize,
-    "nwse-resize": NwseResize,
-    "col-resize": ColResize,
-    "row-resize": RowResize,
-    "all-scroll": AllScroll,
-    "zoom-in": ZoomIn,
-    "zoom-out": ZoomOut,
+    Auto,
+    Default,
+    None,
+    ContextMenu,
+    Help,
+    Pointer,
+    Progress,
+    Wait,
+    Cell,
+    Crosshair,
+    Text,
+    VerticalText,
+    Alias,
+    Copy,
+    Move,
+    NoDrop,
+    NotAllowed,
+    Grab,
+    Grabbing,
+    EResize,
+    NResize,
+    NeResize,
+    NwResize,
+    SResize,
+    SeResize,
+    SwResize,
+    WResize,
+    EwResize,
+    NsResize,
+    NeswResize,
+    NwseResize,
+    ColResize,
+    RowResize,
+    AllScroll,
+    ZoomIn,
+    ZoomOut,
   }
 }
 
 /// A value for the [cursor](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Cursor<'i> {
@@ -173,7 +178,7 @@ impl<'i> ToCss for Cursor<'i> {
 }
 
 /// A value for the [caret-color](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-color) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -181,6 +186,7 @@ impl<'i> ToCss for Cursor<'i> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum ColorOrAuto {
   /// The `currentColor`, adjusted by the UA to ensure contrast against the background.
   Auto,
@@ -194,31 +200,8 @@ impl Default for ColorOrAuto {
   }
 }
 
-impl<'i> Parse<'i> for ColorOrAuto {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
-      return Ok(ColorOrAuto::Auto);
-    }
-
-    let color = CssColor::parse(input)?;
-    Ok(ColorOrAuto::Color(color))
-  }
-}
-
-impl ToCss for ColorOrAuto {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      ColorOrAuto::Auto => dest.write_str("auto"),
-      ColorOrAuto::Color(color) => color.to_css(dest),
-    }
-  }
-}
-
 impl FallbackValues for ColorOrAuto {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     match self {
       ColorOrAuto::Color(color) => color
         .get_fallbacks(targets)
@@ -226,6 +209,15 @@ impl FallbackValues for ColorOrAuto {
         .map(|color| ColorOrAuto::Color(color))
         .collect(),
       ColorOrAuto::Auto => Vec::new(),
+    }
+  }
+}
+
+impl IsCompatible for ColorOrAuto {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      ColorOrAuto::Color(color) => color.is_compatible(browsers),
+      ColorOrAuto::Auto => true,
     }
   }
 }
@@ -261,7 +253,7 @@ shorthand_property! {
 }
 
 impl FallbackValues for Caret {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     self
       .color
       .get_fallbacks(targets)
@@ -271,6 +263,12 @@ impl FallbackValues for Caret {
         shape: self.shape.clone(),
       })
       .collect()
+  }
+}
+
+impl IsCompatible for Caret {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.color.is_compatible(browsers)
   }
 }
 
@@ -293,7 +291,7 @@ enum_property! {
 /// A value for the [appearance](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[allow(missing_docs)]
 pub enum Appearance<'i> {
   None,
@@ -414,4 +412,169 @@ impl<'a> schemars::JsonSchema for Appearance<'a> {
   fn schema_name() -> String {
     "Appearance".into()
   }
+}
+
+bitflags! {
+  /// A value for the [color-scheme](https://drafts.csswg.org/css-color-adjust/#color-scheme-prop) property.
+  #[cfg_attr(feature = "visitor", derive(Visit))]
+  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedColorScheme", into = "SerializedColorScheme"))]
+  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+  #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
+  pub struct ColorScheme: u8 {
+    /// Indicates that the element supports a light color scheme.
+    const Light    = 0b01;
+    /// Indicates that the element supports a dark color scheme.
+    const Dark     = 0b10;
+    /// Forbids the user agent from overriding the color scheme for the element.
+    const Only     = 0b100;
+  }
+}
+
+impl<'i> Parse<'i> for ColorScheme {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut res = ColorScheme::empty();
+    let ident = input.expect_ident()?;
+    match_ignore_ascii_case! { &ident,
+      "normal" => return Ok(res),
+      "only" => res |= ColorScheme::Only,
+      "light" => res |= ColorScheme::Light,
+      "dark" => res |= ColorScheme::Dark,
+      _ => {}
+    };
+
+    while let Ok(ident) = input.try_parse(|input| input.expect_ident_cloned()) {
+      match_ignore_ascii_case! { &ident,
+        "normal" => return Err(input.new_custom_error(ParserError::InvalidValue)),
+        "only" => {
+          // Only must be at the start or the end, not in the middle.
+          if res.contains(ColorScheme::Only) {
+            return Err(input.new_custom_error(ParserError::InvalidValue));
+          }
+          res |= ColorScheme::Only;
+          return Ok(res);
+        },
+        "light" => res |= ColorScheme::Light,
+        "dark" => res |= ColorScheme::Dark,
+        _ => {}
+      };
+    }
+
+    Ok(res)
+  }
+}
+
+impl ToCss for ColorScheme {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if self.is_empty() {
+      return dest.write_str("normal");
+    }
+
+    if self.contains(ColorScheme::Light) {
+      dest.write_str("light")?;
+      if self.contains(ColorScheme::Dark) {
+        dest.write_char(' ')?;
+      }
+    }
+
+    if self.contains(ColorScheme::Dark) {
+      dest.write_str("dark")?;
+    }
+
+    if self.contains(ColorScheme::Only) {
+      dest.write_str(" only")?;
+    }
+
+    Ok(())
+  }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+struct SerializedColorScheme {
+  light: bool,
+  dark: bool,
+  only: bool,
+}
+
+impl From<ColorScheme> for SerializedColorScheme {
+  fn from(color_scheme: ColorScheme) -> Self {
+    Self {
+      light: color_scheme.contains(ColorScheme::Light),
+      dark: color_scheme.contains(ColorScheme::Dark),
+      only: color_scheme.contains(ColorScheme::Only),
+    }
+  }
+}
+
+impl From<SerializedColorScheme> for ColorScheme {
+  fn from(s: SerializedColorScheme) -> ColorScheme {
+    let mut color_scheme = ColorScheme::empty();
+    color_scheme.set(ColorScheme::Light, s.light);
+    color_scheme.set(ColorScheme::Dark, s.dark);
+    color_scheme.set(ColorScheme::Only, s.only);
+    color_scheme
+  }
+}
+
+#[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
+impl<'a> schemars::JsonSchema for ColorScheme {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    SerializedColorScheme::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "ColorScheme".into()
+  }
+}
+
+#[derive(Default)]
+pub(crate) struct ColorSchemeHandler;
+
+impl<'i> PropertyHandler<'i> for ColorSchemeHandler {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
+  ) -> bool {
+    match property {
+      Property::ColorScheme(color_scheme) => {
+        if should_compile!(context.targets, LightDark) {
+          if color_scheme.contains(ColorScheme::Light) {
+            dest.push(define_var("--lightningcss-light", Token::Ident("initial".into())));
+            dest.push(define_var("--lightningcss-dark", Token::WhiteSpace(" ".into())));
+
+            if color_scheme.contains(ColorScheme::Dark) {
+              context.add_dark_rule(define_var("--lightningcss-light", Token::WhiteSpace(" ".into())));
+              context.add_dark_rule(define_var("--lightningcss-dark", Token::Ident("initial".into())));
+            }
+          } else if color_scheme.contains(ColorScheme::Dark) {
+            dest.push(define_var("--lightningcss-light", Token::WhiteSpace(" ".into())));
+            dest.push(define_var("--lightningcss-dark", Token::Ident("initial".into())));
+          }
+        }
+        dest.push(property.clone());
+        true
+      }
+      _ => false,
+    }
+  }
+
+  fn finalize(&mut self, _: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {}
+}
+
+#[inline]
+fn define_var<'i>(name: &'static str, value: Token<'static>) -> Property<'i> {
+  Property::Custom(CustomProperty {
+    name: CustomPropertyName::Custom(name.into()),
+    value: TokenList(vec![TokenOrValue::Token(value)]),
+  })
 }

@@ -7,7 +7,6 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_shorthand, enum_property};
 use crate::printer::Printer;
-use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -74,18 +73,8 @@ enum_property! {
 
 #[derive(Default)]
 pub(crate) struct OverflowHandler {
-  targets: Option<Browsers>,
   x: Option<OverflowKeyword>,
   y: Option<OverflowKeyword>,
-}
-
-impl OverflowHandler {
-  pub fn new(targets: Option<Browsers>) -> OverflowHandler {
-    OverflowHandler {
-      targets,
-      ..OverflowHandler::default()
-    }
-  }
 }
 
 impl<'i> PropertyHandler<'i> for OverflowHandler {
@@ -119,7 +108,7 @@ impl<'i> PropertyHandler<'i> for OverflowHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {
+  fn finalize(&mut self, dest: &mut DeclarationList, context: &mut PropertyHandlerContext<'i, '_>) {
     if self.x.is_none() && self.y.is_none() {
       return;
     }
@@ -130,9 +119,7 @@ impl<'i> PropertyHandler<'i> for OverflowHandler {
     match (x, y) {
       // Only use shorthand syntax if the x and y values are the
       // same or the two-value syntax is supported by all targets.
-      (Some(x), Some(y))
-        if x == y || self.targets.is_none() || Feature::OverflowShorthand.is_compatible(self.targets.unwrap()) =>
-      {
+      (Some(x), Some(y)) if x == y || context.targets.is_compatible(Feature::OverflowShorthand) => {
         dest.push(Property::Overflow(Overflow { x, y }))
       }
       _ => {

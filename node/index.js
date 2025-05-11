@@ -1,6 +1,7 @@
 let parts = [process.platform, process.arch];
 if (process.platform === 'linux') {
-  const { MUSL, family } = require('detect-libc');
+  const { MUSL, familySync } = require('detect-libc');
+  const family = familySync();
   if (family === MUSL) {
     parts.push('musl');
   } else if (process.arch === 'arm') {
@@ -24,3 +25,4 @@ if (process.env.CSS_TRANSFORMER_WASM) {
 
 module.exports.browserslistToTargets = require('./browserslistToTargets');
 module.exports.composeVisitors = require('./composeVisitors');
+module.exports.Features = require('./flags').Features;

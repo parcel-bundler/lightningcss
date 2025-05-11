@@ -12,7 +12,7 @@ Custom transforms have a build time cost: it can be around 2x slower to compile 
 
 ## Visitors
 
-Custom transforms are implemented by passing a `visitor` object to the Lightning CSS Node API. A visitor includes one or more functions which are called for specific value types such as `Rule`, `Property`, or `Length`. In general, you should try to be as specific as possible about the types of values you want to handle. This way, Lightning CSS needs to call into JS as infrequently as possible, with the smallest objects possible, which improves performance. See the [TypeScript definitions](https://github.com/parcel-bundler/lightningcss/blob/master/node/index.d.ts#L101-L129) for a full list of available visitor functions.
+Custom transforms are implemented by passing a `visitor` object to the Lightning CSS Node API. A visitor includes one or more functions which are called for specific value types such as `Rule`, `Property`, or `Length`. In general, you should try to be as specific as possible about the types of values you want to handle. This way, Lightning CSS needs to call into JS as infrequently as possible, with the smallest objects possible, which improves performance. See the [TypeScript definitions](https://github.com/parcel-bundler/lightningcss/blob/eb49015cf887ae720b80a2856ccbdf61bf940ef1/node/index.d.ts#L184-L214) for a full list of available visitor functions.
 
 Visitors can return a new value to update it. Each visitor accepts a different type of value, and usually expects the same type in return. This example multiplies all lengths by 2:
 
@@ -31,7 +31,7 @@ let res = transform({
     Length(length) {
       return {
         unit: length.unit,
-        value: length * 2
+        value: length.value * 2
       }
     }
   }
@@ -123,7 +123,7 @@ let res = transform({
               type: 'length-percentage',
               value: { type: 'dimension', value: property.value[0].value }
             };
-            
+
             return [
               { property: 'width', value },
               { property: 'height', value }
@@ -312,7 +312,6 @@ let mixins = new Map();
 let res = transform({
   filename: 'test.css',
   minify: true,
-  drafts: { nesting: true },
   targets: { chrome: 100 << 16 },
   code: Buffer.from(`
     @mixin color {

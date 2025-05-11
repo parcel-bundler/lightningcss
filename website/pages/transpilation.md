@@ -67,6 +67,58 @@ When using parsed configuration from `browserslist`, `.browserslistrc`, or `pack
 
 If no targets are found for the resulting environment, then the `defaults` configuration section is used.
 
+### Feature flags
+
+In most cases, setting the `targets` option and letting Lightning CSS automatically compile your CSS works great. However, in other cases you might need a little more control over exactly what features are compiled and which are not. That's where the `include` and `exclude` options come in.
+
+The `include` and `exclude` options allow you to explicitly turn on or off certain features. These override the defaults based on the provided browser targets. For example, you might want to only compile colors, and handle auto prefixing or other features with another tool. Or you may want to handle everything except vendor prefixing with Lightning CSS. These options make that possible.
+
+The `include` and `exclude` options are configured using the `Features` enum, which can be imported from `lightningcss`. You can bitwise OR multiple flags together to turn them on or off.
+
+```js
+import { transform, Features } from 'lightningcss';
+
+let { code, map } = transform({
+  // ...
+  targets,
+  // Always compile colors and CSS nesting, regardless of browser targets.
+  include: Features.Colors | Features.Nesting,
+  // Never add any vendor prefixes, regardless of targets.
+  exclude: Features.VendorPrefixes
+});
+```
+
+Here is a full list of available flags, described in the sections below:
+
+<div class="features">
+
+* `Nesting`
+* `NotSelectorList`
+* `DirSelector`
+* `LangSelectorList`
+* `IsSelector`
+* `TextDecorationThicknessPercent`
+* `MediaIntervalSyntax`
+* `MediaRangeSyntax`
+* `CustomMediaQueries`
+* `ClampFunction`
+* `ColorFunction`
+* `OklabColors`
+* `LabColors`
+* `P3Colors`
+* `HexAlphaColors`
+* `SpaceSeparatedColorNotation`
+* `LightDark`
+* `FontFamilySystemUi`
+* `DoublePositionGradients`
+* `VendorPrefixes`
+* `LogicalProperties`
+* `Selectors` – shorthand for `Nesting | NotSelectorList | DirSelector | LangSelectorList | IsSelector`
+* `MediaQueries` – shorthand for `MediaIntervalSyntax | MediaRangeSyntax | CustomMediaQueries`
+* `Colors` – shorthand for `ColorFunction | OklabColors | LabColors | P3Colors | HexAlphaColors | SpaceSeparatedColorNotation | LightDark`
+
+</div>
+
 ## Vendor prefixing
 
 Based on your configured browser targets, Lightning CSS automatically adds vendor prefixed fallbacks for many CSS features. For example, when using the [`image-set()`](https://developer.mozilla.org/en-US/docs/Web/CSS/image/image-set()) function, Lightning CSS will output a fallback `-webkit-image-set()` value as well, since Chrome does not yet support the unprefixed value.
@@ -107,6 +159,58 @@ becomes:
 ## Syntax lowering
 
 Lightning CSS automatically compiles many modern CSS syntax features to more compatible output that is supported in your target browsers.
+
+### Nesting
+
+The [CSS Nesting](https://drafts.csswg.org/css-nesting/) spec enables style rules to be nested, with the selectors of the child rules extending the parent selector in some way. This is very commonly supported by CSS pre-processors like Sass, but with this spec, it will eventually be supported natively in browsers. Lightning CSS compiles this syntax to un-nested style rules that are supported in all browsers today.
+
+```css
+.foo {
+  color: blue;
+
+  .bar {
+    color: red;
+  }
+}
+```
+
+is equivalent to:
+
+```css
+.foo {
+  color: blue;
+}
+
+.foo .bar {
+  color: red;
+}
+```
+
+[Conditional rules](https://drafts.csswg.org/css-nesting/#conditionals) such as `@media` may also be nested within a style rule, without repeating the selector. For example:
+
+```css
+.foo {
+  display: grid;
+
+  @media (orientation: landscape) {
+    grid-auto-flow: column;
+  }
+}
+```
+
+is equivalent to:
+
+```css
+.foo {
+  display: grid;
+}
+
+@media (orientation: landscape) {
+  .foo {
+    grid-auto-flow: column;
+  }
+}
+```
 
 ### Color mix
 
@@ -182,8 +286,8 @@ compiles to:
 
 ```css
 .foo {
-  background-color: #6a805d;
-  background-color: color(a98-rgb .44091 .49971 .37408);
+  color: #6a805d;
+  color: color(a98-rgb .44091 .49971 .37408);
 }
 ```
 
@@ -222,6 +326,63 @@ compiles to:
 .foo {
   color: rgba(123, 255, 255, .5);
   background: #7bffff;
+}
+```
+
+### light-dark() color function
+
+The [`light-dark()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark) function allows you to specify a light mode and dark mode color in a single declaration, without needing to write a separate media query rule. In addition, it uses the [`color-scheme`](https://developer.mozilla.org/en-US/docs/Web/CSS/color-scheme) property to control which theme to use, which allows you to set it programmatically. The `color-scheme` property also inherits so themes can be nested and the nearest ancestor color scheme applies.
+
+Lightning CSS converts the `light-dark()` function to use CSS variable fallback when your browser targets don't support it natively. For this to work, you must set the `color-scheme` property on an ancestor element. The following example shows how you can support both operating system and programmatic overrides for the color scheme.
+
+```css
+html {
+  color-scheme: light dark;
+}
+
+html[data-theme=light] {
+  color-scheme: light;
+}
+
+html[data-theme=dark] {
+  color-scheme: dark;
+}
+
+button {
+  background: light-dark(#aaa, #444);
+}
+```
+
+compiles to:
+
+```css
+html {
+  --lightningcss-light: initial;
+  --lightningcss-dark: ;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    --lightningcss-light: ;
+    --lightningcss-dark: initial;
+  }
+}
+
+html[data-theme="light"] {
+  --lightningcss-light: initial;
+  --lightningcss-dark: ;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --lightningcss-light: ;
+  --lightningcss-dark: initial;
+  color-scheme: dark;
+}
+
+button {
+  background: var(--lightningcss-light, #aaa) var(--lightningcss-dark, #444);
 }
 ```
 
@@ -322,7 +483,7 @@ p:is(:first-child, .lead) {
 
 ### :not() selector
 
-The [`:not()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:not) selector can accept multiple arguments, and matches if none of the arguments match. Some older browsers only support a single argument, so Lightning CSS compiles this when needed.
+The [`:not()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:not) selector can accept multiple arguments, and matches if none of the arguments match. Some older browsers only support a single argument, so Lightning CSS compiles this when needed. The `:is` selector is used to ensure the specificity remains the same, with fallback to `-webkit-any` and `-moz-any` as needed (described above).
 
 ```css
 p:not(:first-child, .lead) {
@@ -333,7 +494,7 @@ p:not(:first-child, .lead) {
 compiles to:
 
 ```css
-p:not(:first-child):not(.lead) {
+p:not(:is(:first-child, .lead)) {
   margin-top: 1em;
 }
 ```
@@ -423,95 +584,6 @@ compiles to:
 
 Lightning CSS can also be configured to compile several draft specs that are not yet available natively in any browser. Because these are drafts and the syntax can still change, they must be enabled manually in your project.
 
-### Nesting
-
-The [CSS Nesting](https://drafts.csswg.org/css-nesting/) draft spec enables style rules to be nested, with the selectors of the child rules extending the parent selector in some way. This is very commonly supported by CSS pre-processors like SASS, but with this spec, it will eventually be supported natively in browsers. Lightning CSS compiles this syntax to un-nested style rules that are supported in all browsers today.
-
-Because nesting is a draft, it is not enabled by default. To use it, enable the `nesting` option under `drafts` when calling the Lightning CSS API. When using the CLI, enable the `--nesting` flag.
-
-```js
-let { code, map } = transform({
-  // ...
-  drafts: {
-    nesting: true
-  }
-});
-```
-
-Once enabled, any CSS file in your project can use nested style rules.
-
-```css
-.foo {
-  color: blue;
-
-  .bar {
-    color: red;
-  }
-}
-```
-
-is equivalent to:
-
-```css
-.foo {
-  color: blue;
-}
-
-.foo .bar {
-  color: red;
-}
-```
-
-[Conditional rules](https://drafts.csswg.org/css-nesting/#conditionals) such as `@media` may also be nested within a style rule, without repeating the selector. For example:
-
-```css
-.foo {
-  display: grid;
-
-  @media (orientation: landscape) {
-    grid-auto-flow: column;
-  }
-}
-```
-
-is equivalent to:
-
-```css
-.foo {
-  display: grid;
-}
-
-@media (orientation: landscape) {
-  .foo {
-    grid-auto-flow: column;
-  }
-}
-```
-
-When a nested rule starts with an element selector, it may be ambiguous with a property. In these cases, the spec requires the selector be prefixed with a [nesting selector](https://drafts.csswg.org/css-nesting/#nest-selector) (`&`).
-
-```css
-.foo {
-  color: red;
-
-  & ul {
-    color: blue;
-  }
-}
-```
-
-is equivalent to:
-
-```css
-.foo {
-  color: red;
-}
-
-.foo ul {
-  color: blue;
-}
-```
-
 ### Custom media queries
 
 Support for [custom media queries](https://drafts.csswg.org/mediaqueries-5/#custom-mq) is included in the Media Queries Level 5 draft spec. This allows you to define media queries that are reused in multiple places within a CSS file. Lightning CSS will perform this substitution ahead of time when this feature is enabled.
@@ -567,3 +639,21 @@ The following pseudo classes may be configured as shown above:
 * `focus` – corresponds to the `:focus` pseudo class
 * `focusVisible` – corresponds to the `:focus-visible` pseudo class
 * `focusWithin` – corresponds to the `:focus-within` pseudo class
+
+## Non-standard syntax
+
+For compatibility with other tools, Lightning CSS supports parsing some non-standard CSS syntax. This must be enabled by turning on a flag under the `nonStandard` option.
+
+```js
+let { code, map } = transform({
+  // ...
+  nonStandard: {
+    deepSelectorCombinator: true
+  }
+});
+
+```
+
+Currently the following features are supported:
+
+* `deepSelectorCombinator` – enables parsing the Vue/Angular `>>>` and `/deep/` selector combinators.

@@ -1,8 +1,31 @@
 import path from 'path';
 import fs from 'fs';
-import { bundleAsync } from '../index.mjs';
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
+import {webcrypto as crypto} from 'node:crypto';
+
+let bundleAsync;
+if (process.env.TEST_WASM === 'node') {
+  bundleAsync = (await import('../../wasm/wasm-node.mjs')).bundleAsync;
+} else if (process.env.TEST_WASM === 'browser') {
+  // Define crypto globally for old node.
+  // @ts-ignore
+  globalThis.crypto ??= crypto;
+  let wasm = await import('../../wasm/index.mjs');
+  await wasm.default();
+  bundleAsync = function (options) {
+    if (!options.resolver?.read) {
+      options.resolver = {
+        ...options.resolver,
+        read: (filePath) => fs.readFileSync(filePath, 'utf8')
+      };
+    }
+
+    return wasm.bundleAsync(options);
+  }
+} else {
+  bundleAsync = (await import('../index.mjs')).bundleAsync;
+}
 
 test('resolver', async () => {
   const inMemoryFs = new Map(Object.entries({
@@ -181,10 +204,8 @@ test('read throw', async () => {
   }
 
   if (!error) throw new Error(`\`testReadThrow()\` failed. Expected \`bundleAsync()\` to throw, but it did not.`);
-  // TODO: need support for napi-rs to propagate errors.
-  // if (!error.message.includes(`\`read()\` threw error:`) || !error.message.includes(`Oh noes! Failed to read \`foo.css\`.`)) {
-  //   throw new Error(`\`testReadThrow()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
-  // }
+  assert.equal(error.message, `Oh noes! Failed to read \`foo.css\`.`);
+  assert.equal(error.loc, undefined); // error occurred when reading initial file, no location info available.
 });
 
 test('async read throw', async () => {
@@ -203,10 +224,62 @@ test('async read throw', async () => {
   }
 
   if (!error) throw new Error(`\`testReadThrow()\` failed. Expected \`bundleAsync()\` to throw, but it did not.`);
-  // TODO: need support for napi-rs to propagate errors.
-  // if (!error.message.includes(`\`read()\` threw error:`) || !error.message.includes(`Oh noes! Failed to read \`foo.css\`.`)) {
-  //   throw new Error(`\`testReadThrow()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
-  // }
+  assert.equal(error.message, `Oh noes! Failed to read \`foo.css\`.`);
+  assert.equal(error.loc, undefined); // error occurred when reading initial file, no location info available.
+});
+
+test('read throw with location info', async () => {
+  let error = undefined;
+  try {
+    await bundleAsync({
+      filename: 'foo.css',
+      resolver: {
+        read(file) {
+          if (file === 'foo.css') {
+            return '@import "bar.css"';
+          }
+          throw new Error(`Oh noes! Failed to read \`${file}\`.`);
+        }
+      },
+    });
+  } catch (err) {
+    error = err;
+  }
+
+  if (!error) throw new Error(`\`testReadThrow()\` failed. Expected \`bundleAsync()\` to throw, but it did not.`);
+  assert.equal(error.message, `Oh noes! Failed to read \`bar.css\`.`);
+  assert.equal(error.fileName, 'foo.css');
+  assert.equal(error.loc, {
+    line: 1,
+    column: 1
+  });
+});
+
+test('async read throw with location info', async () => {
+  let error = undefined;
+  try {
+    await bundleAsync({
+      filename: 'foo.css',
+      resolver: {
+        async read(file) {
+          if (file === 'foo.css') {
+            return '@import "bar.css"';
+          }
+          throw new Error(`Oh noes! Failed to read \`${file}\`.`);
+        }
+      },
+    });
+  } catch (err) {
+    error = err;
+  }
+
+  if (!error) throw new Error(`\`testReadThrow()\` failed. Expected \`bundleAsync()\` to throw, but it did not.`);
+  assert.equal(error.message, `Oh noes! Failed to read \`bar.css\`.`);
+  assert.equal(error.fileName, 'foo.css');
+  assert.equal(error.loc, {
+    line: 1,
+    column: 1
+  });
 });
 
 test('resolve throw', async () => {
@@ -225,10 +298,12 @@ test('resolve throw', async () => {
   }
 
   if (!error) throw new Error(`\`testResolveThrow()\` failed. Expected \`bundleAsync()\` to throw, but it did not.`);
-  // TODO: need support for napi-rs to propagate errors.
-  // if (!error.message.includes(`\`resolve()\` threw error:`) || !error.message.includes(`Oh noes! Failed to resolve \`root:hello/world.css\` from \`tests/testdata/css/foo.css\`.`)) {
-  //   throw new Error(`\`testResolveThrow()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
-  // }
+  assert.equal(error.message, `Oh noes! Failed to resolve \`root:hello/world.css\` from \`tests/testdata/foo.css\`.`);
+  assert.equal(error.fileName, 'tests/testdata/foo.css');
+  assert.equal(error.loc, {
+    line: 1,
+    column: 1
+  });
 });
 
 test('async resolve throw', async () => {
@@ -247,10 +322,12 @@ test('async resolve throw', async () => {
   }
 
   if (!error) throw new Error(`\`testResolveThrow()\` failed. Expected \`bundleAsync()\` to throw, but it did not.`);
-  // TODO: need support for napi-rs to propagate errors.
-  // if (!error.message.includes(`\`resolve()\` threw error:`) || !error.message.includes(`Oh noes! Failed to resolve \`root:hello/world.css\` from \`tests/testdata/css/foo.css\`.`)) {
-  //   throw new Error(`\`testResolveThrow()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
-  // }
+  assert.equal(error.message, `Oh noes! Failed to resolve \`root:hello/world.css\` from \`tests/testdata/foo.css\`.`);
+  assert.equal(error.fileName, 'tests/testdata/foo.css');
+  assert.equal(error.loc, {
+    line: 1,
+    column: 1
+  });
 });
 
 test('read return non-string', async () => {
@@ -269,9 +346,7 @@ test('read return non-string', async () => {
   }
 
   if (!error) throw new Error(`\`testReadReturnNonString()\` failed. Expected \`bundleAsync()\` to throw, but it did not.`);
-  if (!error.message.includes(`InvalidArg, expect String, got: Number`)) {
-    throw new Error(`\`testReadReturnNonString()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
-  }
+  assert.equal(error.message, 'expect String, got: Number');
 });
 
 test('resolve return non-string', async () => {
@@ -290,9 +365,53 @@ test('resolve return non-string', async () => {
   }
 
   if (!error) throw new Error(`\`testResolveReturnNonString()\` failed. Expected \`bundleAsync()\` to throw, but it did not.`);
-  if (!error.message.includes(`InvalidArg, expect String, got: Number`)) {
-    throw new Error(`\`testResolveReturnNonString()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
+  assert.equal(error.message, 'expect String, got: Number');
+  assert.equal(error.fileName, 'tests/testdata/foo.css');
+  assert.equal(error.loc, {
+    line: 1,
+    column: 1
+  });
+});
+
+test('should throw with location info on syntax errors', async () => {
+  let error = undefined;
+  try {
+    await bundleAsync({
+      filename: 'tests/testdata/foo.css',
+      resolver: {
+        read() {
+          return '.foo'
+        }
+      },
+    });
+  } catch (err) {
+    error = err;
   }
+
+  assert.equal(error.message, `Unexpected end of input`);
+  assert.equal(error.fileName, 'tests/testdata/foo.css');
+  assert.equal(error.loc, {
+    line: 1,
+    column: 5
+  });
+});
+
+test('should support throwing in visitors', async () => {
+  let error = undefined;
+  try {
+    await bundleAsync({
+      filename: 'tests/testdata/a.css',
+      visitor: {
+        Rule() {
+          throw new Error('Some error')
+        }
+      }
+    });
+  } catch (err) {
+    error = err;
+  }
+
+  assert.equal(error.message, 'Some error');
 });
 
 test.run();

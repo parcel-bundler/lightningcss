@@ -2,7 +2,21 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import { transform, composeVisitors } from '../index.mjs';
+import {webcrypto as crypto} from 'node:crypto';
+
+let transform, composeVisitors;
+if (process.env.TEST_WASM === 'node') {
+  ({transform, composeVisitors} = await import('../../wasm/wasm-node.mjs'));
+} else if (process.env.TEST_WASM === 'browser') {
+  // Define crypto globally for old node.
+  // @ts-ignore
+  globalThis.crypto ??= crypto;
+  let wasm = await import('../../wasm/index.mjs');
+  await wasm.default();
+  ({transform, composeVisitors} = wasm);
+} else {
+  ({transform, composeVisitors} = await import('../index.mjs'));
+}
 
 test('different types', () => {
   let res = transform({
@@ -41,7 +55,7 @@ test('different types', () => {
     ])
   });
 
-  assert.equal(res.code.toString(), '.foo{width:1rem;color:#0f0}');
+  assert.equal(res.code.toString(), '.foo{color:#0f0;width:1rem}');
 });
 
 test('simple matching types', () => {
@@ -499,6 +513,87 @@ test('unknown rules', () => {
   assert.equal(res.code.toString(), '.menu_link{background:#056ef0}');
 });
 
+test('custom at rules', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @testA;
+      @testB;
+    `),
+    customAtRules: {
+      testA: {},
+      testB: {}
+    },
+    visitor: composeVisitors([
+      {
+        Rule: {
+          custom: {
+            testA(rule) {
+              return {
+                type: 'style',
+                value: {
+                  loc: rule.loc,
+                  selectors: [
+                    [{ type: 'class', name: 'testA' }]
+                  ],
+                  declarations: {
+                    declarations: [
+                      {
+                        property: 'color',
+                        value: {
+                          type: 'rgb',
+                          r: 0xff,
+                          g: 0x00,
+                          b: 0x00,
+                          alpha: 1,
+                        }
+                      }
+                    ]
+                  }
+                }
+              };
+            }
+          }
+        }
+      },
+      {
+        Rule: {
+          custom: {
+            testB(rule) {
+              return {
+                type: 'style',
+                value: {
+                  loc: rule.loc,
+                  selectors: [
+                    [{ type: 'class', name: 'testB' }]
+                  ],
+                  declarations: {
+                    declarations: [
+                      {
+                        property: 'color',
+                        value: {
+                          type: 'rgb',
+                          r: 0x00,
+                          g: 0xff,
+                          b: 0x00,
+                          alpha: 1,
+                        }
+                      }
+                    ]
+                  }
+                }
+              };
+            }
+          }
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), '.testA{color:red}.testB{color:#0f0}');
+});
+
 test('known rules', () => {
   let declared = new Map();
   let res = transform({
@@ -510,6 +605,9 @@ test('known rules', () => {
         margin-right: @margin-left;
       }
     `),
+    targets: {
+      safari: 14 << 16
+    },
     visitor: composeVisitors([
       {
         Rule: {
@@ -616,7 +714,7 @@ test('environment variables', () => {
     ])
   });
 
-  assert.equal(res.code.toString(), '@media (max-width:600px){body{padding:20px}}');
+  assert.equal(res.code.toString(), '@media (width<=600px){body{padding:20px}}');
 });
 
 test('variables', () => {
@@ -667,6 +765,39 @@ test('variables', () => {
   });
 
   assert.equal(res.code.toString(), 'body{padding:20px;width:600px}');
+});
+
+test('StyleSheet', () => {
+  let styleSheetCalledCount = 0;
+  let styleSheetExitCalledCount = 0;
+  transform({
+    filename: 'test.css',
+    code: Buffer.from(`
+      body {
+        color: blue;
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        StyleSheet() {
+          styleSheetCalledCount++
+        },
+        StyleSheetExit() {
+          styleSheetExitCalledCount++
+        }
+      },
+      {
+        StyleSheet() {
+          styleSheetCalledCount++
+        },
+        StyleSheetExit() {
+          styleSheetExitCalledCount++
+        }
+      }
+    ])
+  });
+  assert.equal(styleSheetCalledCount, 2);
+  assert.equal(styleSheetExitCalledCount, 2);
 });
 
 test.run();

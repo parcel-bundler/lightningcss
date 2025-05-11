@@ -9,16 +9,8 @@
 extern crate bitflags;
 #[macro_use]
 extern crate cssparser;
-extern crate fxhash;
 #[macro_use]
 extern crate log;
-extern crate phf;
-extern crate precomputed_hash;
-#[cfg(feature = "jsonschema")]
-extern crate schemars;
-#[cfg(feature = "serde")]
-extern crate serde;
-extern crate smallvec;
 
 pub mod attr;
 pub mod bloom;

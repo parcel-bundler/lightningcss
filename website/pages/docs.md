@@ -67,7 +67,7 @@ See the [Parcel docs](https://parceljs.org/languages/css) for more details.
 The `lightningcss-wasm` package can be used in Deno or directly in browsers. This uses a WebAssembly build of Lightning CSS. Use `TextEncoder` and `TextDecoder` convert code from a string to a typed array and back.
 
 ```js
-import init, { transform } from 'https://unpkg.com/lightningcss-wasm?module';
+import init, { transform } from 'https://esm.run/lightningcss-wasm';
 
 await init();
 
@@ -115,30 +115,31 @@ module.exports = {
 
 ## With Vite
 
-[vite-plugin-lightningcss](https://github.com/lawrencecchen/vite-plugin-lightningcss) provides support for [transpilation](transpilation.html) using Lightning CSS in Vite.
-
-First, install it into your project:
+Vite supports Lightning CSS out of the box. First, install Lightning CSS into your project:
 
 ```shell
-npm install --save-dev vite-plugin-lightningcss
+npm install --save-dev lightningcss
 ```
 
-Then, add it to your Vite config. You can pass options to the `lightningcss` plugin, including a `browserslist` config and other options documented in [Transpilation](transpilation.html).
+Then, set `'lightningcss'` as CSS [transformer](https://vitejs.dev/config/shared-options.html#css-transformer) and [minifier](https://vitejs.dev/config/build-options.html#build-cssminify) in your Vite config. You can also configure Lightning CSS options such as targets and css modules via the [css.lightningcss](https://vitejs.dev/config/shared-options.html#css-lightningcss) option in your Vite config.
 
 ```js
 // vite.config.ts
-import lightningcss from 'vite-plugin-lightningcss';
+import browserslist from 'browserslist';
+import {browserslistToTargets} from 'lightningcss';
 
 export default {
-  plugins: [
-    lightningcss({
-      browserslist: '>= 0.25%',
-    }),
-  ],
+  css: {
+    transformer: 'lightningcss',
+    lightningcss: {
+      targets: browserslistToTargets(browserslist('>= 0.25%'))
+    }
+  },
+  build: {
+    cssMinify: 'lightningcss'
+  }
 };
 ```
-
-Note that Vite uses PostCSS and esbuild internally for processing and minifying CSS even with this plugin, but it can still be a good alterntive to PostCSS plugins like autoprefixer and postcss-preset-env.
 
 ## From the CLI
 
@@ -155,7 +156,7 @@ Then, you can run the `lightningcss` command via `npx`, `yarn`, or by setting up
 ```json
 {
   "scripts": {
-    "build": "lightningcss --minify --bundle --targets '>= 0.25%' input.css -o output.css"
+    "build": "lightningcss --minify --bundle --targets \">= 0.25%\" input.css -o output.css"
   }
 }
 ```
@@ -163,7 +164,7 @@ Then, you can run the `lightningcss` command via `npx`, `yarn`, or by setting up
 To see all of the available options, use the `--help` argument:
 
 ```shell
-npx lightningcss --help
+npx lightningcss-cli --help
 ```
 
 ## Error recovery
@@ -174,6 +175,6 @@ By default, Lightning CSS is strict, and will error when parsing an invalid rule
 
 Lightning CSS supports generating source maps when compiling, minifying, and bundling your source code to make debugging easier. Use the `sourceMap` option to enable it when using the API, or the `--sourcemap` CLI flag.
 
-If the input CSS came from another compiler such as SASS or Less, you can also pass an input source map to Lightning CSS using the `inputSourceMap` API option. This will map compiled locations back to their location in the original source code.
+If the input CSS came from another compiler such as Sass or Less, you can also pass an input source map to Lightning CSS using the `inputSourceMap` API option. This will map compiled locations back to their location in the original source code.
 
 Finally, the `projectRoot` option can be used to make file paths in source maps relative to a root directory. This makes build stable between machines.

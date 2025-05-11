@@ -137,7 +137,7 @@ impl SourceProvider for FileProvider {
   }
 
   fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
-    // Assume the specifier is a releative file path and join it with current path.
+    // Assume the specifier is a relative file path and join it with current path.
     Ok(originating_file.with_file_name(specifier))
   }
 }
@@ -218,7 +218,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P, DefaultAtRuleParser> 
 
 impl<'a, 'o, 's, P: SourceProvider, T: AtRuleParser<'a> + Clone + Sync + Send> Bundler<'a, 'o, 's, P, T>
 where
-  T::AtRule: Sync + Send + ToCss,
+  T::AtRule: Sync + Send + ToCss + Clone,
 {
   /// Creates a new Bundler using the given source provider.
   /// If a source map is given, the content of each source file included in the bundle will
@@ -255,7 +255,7 @@ where
         loc: Location {
           source_index: 0,
           line: 0,
-          column: 1,
+          column: 0,
         },
       },
     )?;
@@ -284,6 +284,31 @@ where
       .iter()
       .flat_map(|s| s.stylesheet.as_ref().unwrap().source_map_urls.iter().cloned())
       .collect();
+
+    stylesheet.license_comments = self
+      .stylesheets
+      .get_mut()
+      .unwrap()
+      .iter()
+      .flat_map(|s| s.stylesheet.as_ref().unwrap().license_comments.iter().cloned())
+      .collect();
+
+    if let Some(config) = &self.options.css_modules {
+      if config.pattern.has_content_hash() {
+        stylesheet.content_hashes = Some(
+          self
+            .stylesheets
+            .get_mut()
+            .unwrap()
+            .iter()
+            .flat_map(|s| {
+              let s = s.stylesheet.as_ref().unwrap();
+              s.content_hashes.as_ref().unwrap().iter().cloned()
+            })
+            .collect(),
+        );
+      }
+    }
 
     Ok(stylesheet)
   }
@@ -369,7 +394,11 @@ where
 
     let code = self.fs.read(file).map_err(|e| Error {
       kind: BundleErrorKind::ResolverError(e),
-      loc: Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index))),
+      loc: if rule.loc.column == 0 {
+        None
+      } else {
+        Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index)))
+      },
     })?;
 
     let mut opts = self.options.clone();
@@ -754,6 +783,10 @@ fn visit_vars<'a, 'b>(
           UnresolvedColor::RGB { alpha, .. } | UnresolvedColor::HSL { alpha, .. } => {
             stack.push(alpha.0.iter_mut());
           }
+          UnresolvedColor::LightDark { light, dark } => {
+            stack.push(light.0.iter_mut());
+            stack.push(dark.0.iter_mut());
+          }
         },
         None => {
           stack.pop();
@@ -771,8 +804,9 @@ mod tests {
   use super::*;
   use crate::{
     css_modules::{self, CssModuleExports, CssModuleReference},
+    parser::ParserFlags,
     stylesheet::{MinifyOptions, PrinterOptions},
-    targets::Browsers,
+    targets::{Browsers, Targets},
   };
   use indoc::indoc;
   use std::collections::HashMap;
@@ -850,12 +884,22 @@ mod tests {
     entry: &str,
     project_root: Option<&str>,
   ) -> (String, CssModuleExports) {
+    bundle_css_module_with_pattern(fs, entry, project_root, "[hash]_[local]")
+  }
+
+  fn bundle_css_module_with_pattern<P: SourceProvider>(
+    fs: P,
+    entry: &str,
+    project_root: Option<&str>,
+    pattern: &'static str,
+  ) -> (String, CssModuleExports) {
     let mut bundler = Bundler::new(
       &fs,
       None,
       ParserOptions {
         css_modules: Some(css_modules::Config {
           dashed_idents: true,
+          pattern: css_modules::Pattern::parse(pattern).unwrap(),
           ..Default::default()
         }),
         ..ParserOptions::default()
@@ -877,15 +921,18 @@ mod tests {
       &fs,
       None,
       ParserOptions {
-        custom_media: true,
+        flags: ParserFlags::CUSTOM_MEDIA,
         ..ParserOptions::default()
       },
     );
     let mut stylesheet = bundler.bundle(Path::new(entry)).unwrap();
-    let targets = Some(Browsers {
-      safari: Some(13 << 16),
-      ..Browsers::default()
-    });
+    let targets = Targets {
+      browsers: Some(Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      }),
+      ..Default::default()
+    };
     stylesheet
       .minify(MinifyOptions {
         targets,
@@ -957,7 +1004,7 @@ mod tests {
       .b {
         color: green;
       }
-      
+
       .a {
         color: red;
       }
@@ -986,7 +1033,7 @@ mod tests {
           color: green;
         }
       }
-      
+
       .a {
         color: red;
       }
@@ -1015,7 +1062,7 @@ mod tests {
           color: green;
         }
       }
-      
+
       .a {
         color: red;
       }
@@ -1046,7 +1093,7 @@ mod tests {
           }
         }
       }
-      
+
       .a {
         color: red;
       }
@@ -1076,7 +1123,7 @@ mod tests {
           color: green;
         }
       }
-      
+
       .a {
         color: red;
       }
@@ -1106,7 +1153,7 @@ mod tests {
           color: green;
         }
       }
-      
+
       .a {
         color: red;
       }
@@ -1139,7 +1186,7 @@ mod tests {
           color: green;
         }
       }
-      
+
       @media print {
         .b {
           color: #ff0;
@@ -1203,7 +1250,7 @@ mod tests {
       .b {
         color: green;
       }
-      
+
       .a {
         color: red;
       }
@@ -1230,7 +1277,7 @@ mod tests {
       .b {
         color: green;
       }
-      
+
       .a {
         color: red;
       }
@@ -1294,7 +1341,7 @@ mod tests {
           color: green;
         }
       }
-      
+
       .a {
         color: red;
       }
@@ -1323,7 +1370,7 @@ mod tests {
           color: green;
         }
       }
-      
+
       .a {
         color: red;
       }
@@ -1362,7 +1409,7 @@ mod tests {
           color: green;
         }
       }
-      
+
       .a {
         color: red;
       }
@@ -1400,7 +1447,7 @@ mod tests {
           "/a.css": r#"
           @layer bar, foo;
           @import "b.css" layer(foo);
-          
+
           @layer bar {
             div {
               background: red;
@@ -1410,7 +1457,7 @@ mod tests {
           "/b.css": r#"
           @layer qux, baz;
           @import "c.css" layer(baz);
-          
+
           @layer qux {
             div {
               background: green;
@@ -1420,7 +1467,7 @@ mod tests {
           "/c.css": r#"
           div {
             background: yellow;
-          }      
+          }
         "#
         },
       },
@@ -1445,7 +1492,7 @@ mod tests {
           }
         }
       }
-      
+
       @layer bar {
         div {
           background: red;
@@ -1479,20 +1526,20 @@ mod tests {
     assert_eq!(
       res,
       indoc! { r#"
-      @media (min-width: 1000px) {
+      @media (width >= 1000px) {
         @layer bar {
           #box {
             background: green;
           }
         }
       }
-      
+
       @layer baz {
         #box {
           background: purple;
         }
       }
-      
+
       @layer bar {
         #box {
           background: #ff0;
@@ -1599,7 +1646,7 @@ mod tests {
           "/c.css": r#"
           body {
             background: white;
-            color: black; 
+            color: black;
           }
         "#
         },
@@ -1886,7 +1933,7 @@ mod tests {
         --_8Cs9ZG_fallback: yellow;
         --_8Cs9ZG_opacity: .5;
       }
-      
+
       .GbJUva_env {
         --GbJUva_env-fallback: 20px;
       }
@@ -1958,6 +2005,35 @@ mod tests {
       Some("/x/y/z"),
     );
     assert_eq!(code, expected);
+
+    let (code, _) = bundle_css_module_with_pattern(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css";
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .a { color: green }
+        "#
+        },
+      },
+      "/a.css",
+      None,
+      "[content-hash]-[local]",
+    );
+    assert_eq!(
+      code,
+      indoc! { r#"
+      .do5n2W-a {
+        color: green;
+      }
+
+      .pP97eq-a {
+        color: red;
+      }
+    "#}
+    );
   }
 
   #[test]
@@ -1965,16 +2041,16 @@ mod tests {
     let source = r#".imported {
       content: "yay, file support!";
     }
-    
+
     .selector {
       margin: 1em;
       background-color: #f60;
     }
-    
+
     .selector .nested {
       margin: 0.5em;
     }
-    
+
     /*# sourceMappingURL=data:application/json;base64,ewoJInZlcnNpb24iOiAzLAoJInNvdXJjZVJvb3QiOiAicm9vdCIsCgkiZmlsZSI6ICJzdGRvdXQiLAoJInNvdXJjZXMiOiBbCgkJInN0ZGluIiwKCQkic2Fzcy9fdmFyaWFibGVzLnNjc3MiLAoJCSJzYXNzL19kZW1vLnNjc3MiCgldLAoJInNvdXJjZXNDb250ZW50IjogWwoJCSJAaW1wb3J0IFwiX3ZhcmlhYmxlc1wiO1xuQGltcG9ydCBcIl9kZW1vXCI7XG5cbi5zZWxlY3RvciB7XG4gIG1hcmdpbjogJHNpemU7XG4gIGJhY2tncm91bmQtY29sb3I6ICRicmFuZENvbG9yO1xuXG4gIC5uZXN0ZWQge1xuICAgIG1hcmdpbjogJHNpemUgLyAyO1xuICB9XG59IiwKCQkiJGJyYW5kQ29sb3I6ICNmNjA7XG4kc2l6ZTogMWVtOyIsCgkJIi5pbXBvcnRlZCB7XG4gIGNvbnRlbnQ6IFwieWF5LCBmaWxlIHN1cHBvcnQhXCI7XG59IgoJXSwKCSJtYXBwaW5ncyI6ICJBRUFBLFNBQVMsQ0FBQztFQUNSLE9BQU8sRUFBRSxvQkFBcUI7Q0FDL0I7O0FGQ0QsU0FBUyxDQUFDO0VBQ1IsTUFBTSxFQ0hELEdBQUc7RURJUixnQkFBZ0IsRUNMTCxJQUFJO0NEVWhCOztBQVBELFNBQVMsQ0FJUCxPQUFPLENBQUM7RUFDTixNQUFNLEVDUEgsS0FBRztDRFFQIiwKCSJuYW1lcyI6IFtdCn0= */"#;
 
     let fs = TestProvider {
@@ -2002,6 +2078,40 @@ mod tests {
     assert_eq!(
       map,
       r#"{"version":3,"sourceRoot":null,"mappings":"ACAA,uCCGA,2CAAA,8BFDQ","sources":["a.css","sass/_demo.scss","stdin"],"sourcesContent":["\n        @import \"/b.css\";\n        .a { color: red; }\n      ",".imported {\n  content: \"yay, file support!\";\n}","@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}"],"names":[]}"#
+    );
+  }
+
+  #[test]
+  fn test_license_comments() {
+    let res = bundle(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          /*! Copyright 2023 Someone awesome */
+          @import "b.css";
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          /*! Copyright 2023 Someone else */
+          .b { color: green }
+        "#
+        },
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
+      /*! Copyright 2023 Someone awesome */
+      /*! Copyright 2023 Someone else */
+      .b {
+        color: green;
+      }
+
+      .a {
+        color: red;
+      }
+    "#}
     );
   }
 }

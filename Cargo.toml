@@ -1,19 +1,22 @@
 [workspace]
 members = [
   "node",
+  "napi",
   "selectors",
   "c",
-  "derive"
+  "derive",
+  "static-self",
+  "static-self-derive",
 ]
 
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
 name = "lightningcss"
-version = "1.0.0-alpha.40"
+version = "1.0.0-alpha.65"
 description = "A CSS parser, transformer, and minifier"
 license = "MPL-2.0"
 edition = "2021"
-keywords = [ "CSS", "minifier", "Parcel" ]
+keywords = ["CSS", "minifier", "Parcel"]
 repository = "https://github.com/parcel-bundler/lightningcss"
 
 [package.metadata.docs.rs]
@@ -31,44 +34,63 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [features]
-default = ["bundler", "grid", "nodejs", "sourcemap"]
+default = ["bundler", "nodejs", "sourcemap"]
 browserslist = ["browserslist-rs"]
 bundler = ["dashmap", "sourcemap", "rayon"]
 cli = ["atty", "clap", "serde_json", "browserslist", "jemallocator"]
-grid = []
 jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
 nodejs = ["dep:serde"]
-serde = ["dep:serde", "smallvec/serde", "cssparser/serde", "parcel_selectors/serde", "into_owned"]
+serde = [
+  "dep:serde",
+  "smallvec/serde",
+  "cssparser/serde",
+  "parcel_selectors/serde",
+  "into_owned",
+]
 sourcemap = ["parcel_sourcemap"]
-visitor = ["lightningcss-derive"]
-into_owned = ["lightningcss-derive"]
+visitor = []
+into_owned = [
+  "static-self",
+  "static-self/smallvec",
+  "static-self/indexmap",
+  "parcel_selectors/into_owned",
+]
 substitute_variables = ["visitor", "into_owned"]
 
 [dependencies]
-serde = { version = "1.0.123", features = ["derive"], optional = true }
-cssparser = "0.29.1"
-parcel_selectors = { version = "0.25.2", path = "./selectors" }
+serde = { version = "1.0.201", features = ["derive"], optional = true }
+cssparser = "0.33.0"
+cssparser-color = "0.1.0"
+parcel_selectors = { version = "0.28.1", path = "./selectors" }
 itertools = "0.10.1"
 smallvec = { version = "1.7.0", features = ["union"] }
-bitflags = "1.3.2"
+bitflags = "2.2.1"
 parcel_sourcemap = { version = "2.1.1", features = ["json"], optional = true }
 data-encoding = "2.3.2"
 lazy_static = "1.4.0"
 const-str = "0.3.1"
 pathdiff = "0.2.1"
-ahash = "0.7.6"
+ahash = "0.8.7"
+paste = "1.0.12"
+indexmap = { version = "2.2.6", features = ["serde"] }
 # CLI deps
 atty = { version = "0.2", optional = true }
 clap = { version = "3.0.6", features = ["derive"], optional = true }
-browserslist-rs = { version = "0.7.0", optional = true }
+browserslist-rs = { version = "0.18.1", optional = true }
 rayon = { version = "1.5.1", optional = true }
 dashmap = { version = "5.0.0", optional = true }
 serde_json = { version = "1.0.78", optional = true }
-lightningcss-derive = { version = "1.0.0-alpha.37", path = "./derive", optional = true }
-schemars = { version = "0.8.11", features = ["smallvec"], optional = true }
+lightningcss-derive = { version = "=1.0.0-alpha.43", path = "./derive" }
+schemars = { version = "0.8.19", features = ["smallvec", "indexmap2"], optional = true }
+static-self = { version = "0.1.2", path = "static-self", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"], optional = true }
+jemallocator = { version = "0.3.2", features = [
+  "disable_initial_exec_tls",
+], optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["custom"], default-features = false }
 
 [dev-dependencies]
 indoc = "1.0.3"
@@ -76,6 +98,7 @@ assert_cmd = "2.0"
 assert_fs = "1.0"
 predicates = "2.1"
 serde_json = "1"
+pretty_assertions = "1.4.0"
 
 [[test]]
 name = "cli_integration_tests"

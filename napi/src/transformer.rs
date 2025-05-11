@@ -19,14 +19,16 @@ use lightningcss::{
   },
   visitor::{Visit, VisitTypes, Visitor},
 };
+use lightningcss::{stylesheet::StyleSheet, traits::IntoOwned};
 use napi::{Env, JsFunction, JsObject, JsUnknown, Ref, ValueType};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::at_rule_parser::AtRule;
+use crate::{at_rule_parser::AtRule, utils::get_named_property};
 
 pub struct JsVisitor {
   env: Env,
+  visit_stylesheet: VisitorsRef,
   visit_rule: VisitorsRef,
   rule_map: VisitorsRef,
   property_map: VisitorsRef,
@@ -97,7 +99,7 @@ impl Visitors<JsObject> {
   fn named(&self, stage: VisitStage, name: &str) -> Option<JsFunction> {
     self
       .for_stage(stage)
-      .and_then(|m| m.get_named_property::<JsFunction>(name).ok())
+      .and_then(|m| get_named_property::<JsFunction>(m, name).ok())
   }
 
   fn custom(&self, stage: VisitStage, obj: &str, name: &str) -> Option<JsFunction> {
@@ -110,7 +112,7 @@ impl Visitors<JsObject> {
           Ok(ValueType::Object) => {
             let o: napi::Result<JsObject> = v.try_into();
             if let Ok(o) = o {
-              return o.get_named_property::<JsFunction>(name).ok();
+              return get_named_property::<JsFunction>(&o, name).ok();
             }
           }
           _ => {}
@@ -142,6 +144,7 @@ impl Drop for JsVisitor {
       };
     }
 
+    drop_tuple!(visit_stylesheet);
     drop_tuple!(visit_rule);
     drop_tuple!(rule_map);
     drop_tuple!(visit_declaration);
@@ -174,7 +177,8 @@ impl JsVisitor {
     let mut types = VisitTypes::empty();
     macro_rules! get {
       ($name: literal, $( $t: ident )|+) => {{
-        let res: Option<JsFunction> = visitor.get_named_property($name).ok();
+        let res: Option<JsFunction> = get_named_property(&visitor, $name).ok();
+
         if res.is_some() {
           types |= $( VisitTypes::$t )|+;
         }
@@ -187,17 +191,19 @@ impl JsVisitor {
 
     macro_rules! map {
       ($name: literal, $( $t: ident )|+) => {{
-        if let Ok(obj) = visitor.get_named_property::<JsObject>($name) {
+        let obj: Option<JsObject> = get_named_property(&visitor, $name).ok();
+
+        if obj.is_some() {
           types |= $( VisitTypes::$t )|+;
-          env.create_reference(obj).ok()
-        } else {
-          None
         }
+
+        obj.and_then(|obj| env.create_reference(obj).ok())
       }};
     }
 
     Self {
       env,
+      visit_stylesheet: VisitorsRef::new(get!("StyleSheet", RULES), get!("StyleSheetExit", RULES)),
       visit_rule: VisitorsRef::new(get!("Rule", RULES), get!("RuleExit", RULES)),
       rule_map: VisitorsRef::new(map!("Rule", RULES), get!("RuleExit", RULES)),
       visit_declaration: VisitorsRef::new(get!("Declaration", PROPERTIES), get!("DeclarationExit", PROPERTIES)),
@@ -248,10 +254,28 @@ impl JsVisitor {
 impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
   type Error = napi::Error;
 
-  const TYPES: lightningcss::visitor::VisitTypes = VisitTypes::all();
-
   fn visit_types(&self) -> VisitTypes {
     self.types
+  }
+
+  fn visit_stylesheet<'o>(&mut self, stylesheet: &mut StyleSheet<'i, 'o, AtRule<'i>>) -> Result<(), Self::Error> {
+    if self.types.contains(VisitTypes::RULES) {
+      let env = self.env;
+      let visit_stylesheet = self.visit_stylesheet.get::<JsFunction>(&env);
+      if let Some(visit) = visit_stylesheet.for_stage(VisitStage::Enter) {
+        call_visitor(&env, stylesheet, visit)?
+      }
+
+      stylesheet.visit_children(self)?;
+
+      if let Some(visit) = visit_stylesheet.for_stage(VisitStage::Exit) {
+        call_visitor(&env, stylesheet, visit)?
+      }
+
+      Ok(())
+    } else {
+      stylesheet.visit_children(self)
+    }
   }
 
   fn visit_rule_list(
@@ -274,6 +298,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
             CssRule::Keyframes(..) => "keyframes",
             CssRule::FontFace(..) => "font-face",
             CssRule::FontPaletteValues(..) => "font-palette-values",
+            CssRule::FontFeatureValues(..) => "font-feature-values",
             CssRule::Page(..) => "page",
             CssRule::Supports(..) => "supports",
             CssRule::CounterStyle(..) => "counter-style",
@@ -283,9 +308,13 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
             CssRule::LayerStatement(..) => "layer-statement",
             CssRule::Property(..) => "property",
             CssRule::Container(..) => "container",
+            CssRule::Scope(..) => "scope",
             CssRule::MozDocument(..) => "moz-document",
             CssRule::Nesting(..) => "nesting",
+            CssRule::NestedDeclarations(..) => "nested-declarations",
             CssRule::Viewport(..) => "viewport",
+            CssRule::StartingStyle(..) => "starting-style",
+            CssRule::ViewTransition(..) => "view-transition",
             CssRule::Unknown(v) => {
               let name = v.name.as_ref();
               if let Some(visit) = rule_map.custom(stage, "unknown", name) {
@@ -584,13 +613,23 @@ fn visit<V: Serialize + Deserialize<'static>>(
     .as_ref()
     .and_then(|v| env.get_reference_value_unchecked::<JsFunction>(v).ok())
   {
-    let js_value = env.to_js_value(value)?;
-    let res = visit.call(None, &[js_value])?;
-    let new_value: Option<V> = env.from_js_value(res).map(serde_detach::detach)?;
-    match new_value {
-      Some(new_value) => *value = new_value,
-      None => {}
-    }
+    call_visitor(env, value, &visit)?;
+  }
+
+  Ok(())
+}
+
+fn call_visitor<V: Serialize + Deserialize<'static>>(
+  env: &Env,
+  value: &mut V,
+  visit: &JsFunction,
+) -> napi::Result<()> {
+  let js_value = env.to_js_value(value)?;
+  let res = visit.call(None, &[js_value])?;
+  let new_value: Option<V> = env.from_js_value(res).map(serde_detach::detach)?;
+  match new_value {
+    Some(new_value) => *value = new_value,
+    None => {}
   }
 
   Ok(())

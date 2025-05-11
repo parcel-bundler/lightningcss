@@ -27,7 +27,7 @@
 //! use smallvec::smallvec;
 //! use lightningcss::{
 //!   properties::{Property, PropertyId, background::*},
-//!   values::{url::Url, image::Image, color::CssColor, position::*, length::*},
+//!   values::{url::Url, image::Image, color::{CssColor, RGBA}, position::*, length::*},
 //!   stylesheet::{ParserOptions, PrinterOptions},
 //!   dependencies::Location,
 //! };
@@ -45,7 +45,7 @@
 //!       url: "img.png".into(),
 //!       loc: Location { line: 1, column: 1 }
 //!     }),
-//!     color: CssColor::RGBA(cssparser::RGBA {
+//!     color: CssColor::RGBA(RGBA {
 //!       red: 0,
 //!       green: 0,
 //!       blue: 0,
@@ -104,7 +104,6 @@ pub mod display;
 pub mod effects;
 pub mod flex;
 pub mod font;
-#[cfg(feature = "grid")]
 pub mod grid;
 pub mod list;
 pub(crate) mod margin_padding;
@@ -123,17 +122,18 @@ pub mod ui;
 use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::{LogicalGroup, PropertyCategory};
+use crate::macros::enum_property;
 use crate::parser::starts_with_ignore_ascii_case;
 use crate::parser::ParserOptions;
 use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
-use crate::targets::Browsers;
+use crate::targets::Targets;
 use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
 use crate::values::{
-  alpha::*, color::*, easing::EasingFunction, ident::DashedIdentReference, image::*, length::*, position::*,
-  rect::*, shape::FillRule, size::Size2D, time::Time,
+  alpha::*, color::*, easing::EasingFunction, ident::DashedIdentReference, ident::NoneOrCustomIdentList, image::*,
+  length::*, position::*, rect::*, shape::FillRule, size::Size2D, time::Time,
 };
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -153,7 +153,6 @@ use display::*;
 use effects::*;
 use flex::*;
 use font::*;
-#[cfg(feature = "grid")]
 use grid::*;
 use list::*;
 use margin_padding::*;
@@ -162,6 +161,8 @@ use outline::*;
 use overflow::*;
 use size::*;
 use smallvec::{smallvec, SmallVec};
+#[cfg(feature = "into_owned")]
+use static_self::IntoOwned;
 use svg::*;
 use text::*;
 use transform::*;
@@ -178,7 +179,7 @@ macro_rules! define_properties {
     /// A CSS property id.
     #[derive(Debug, Clone, PartialEq, Eq, Hash)]
     #[cfg_attr(feature = "visitor", derive(Visit))]
-    #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+    #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
@@ -320,7 +321,7 @@ macro_rules! define_properties {
         }
       }
 
-      fn with_prefix(&self, prefix: VendorPrefix) -> PropertyId<'i> {
+      pub(crate) fn with_prefix(&self, prefix: VendorPrefix) -> PropertyId<'i> {
         use PropertyId::*;
         match self {
           $(
@@ -342,7 +343,27 @@ macro_rules! define_properties {
         }
       }
 
-      pub(crate) fn set_prefixes_for_targets(&mut self, targets: Browsers) {
+      pub(crate) fn add_prefix(&mut self, prefix: VendorPrefix) {
+        use PropertyId::*;
+        match self {
+          $(
+            $(#[$meta])*
+            $property$((vp_name!($vp, p)))? => {
+              macro_rules! get_prefixed {
+                ($v: ty) => {{
+                  *p |= prefix;
+                }};
+                () => {{}};
+              }
+
+              get_prefixed!($($vp)?)
+            },
+          )+
+          _ => {}
+        }
+      }
+
+      pub(crate) fn set_prefixes_for_targets(&mut self, targets: Targets) {
         match self {
           $(
             $(#[$meta])*
@@ -351,9 +372,7 @@ macro_rules! define_properties {
               macro_rules! get_prefixed {
                 ($v: ty, $u: literal) => {};
                 ($v: ty) => {{
-                  if prefix.contains(VendorPrefix::None) {
-                    *prefix = Feature::$property.prefixes_for(targets);
-                  };
+                  *prefix = targets.prefixes(*prefix, Feature::$property);
                 }};
                 () => {};
               }
@@ -661,13 +680,15 @@ macro_rules! define_properties {
     /// A CSS property.
     #[derive(Debug, Clone, PartialEq)]
     #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_property, PROPERTIES))]
-    #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+    #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
     pub enum Property<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
         $(#[$meta])*
         $property($type, $($vp)?),
       )+
+      /// The [all](https://drafts.csswg.org/css-cascade-5/#all-shorthand) shorthand property.
+      All(CSSWideKeyword),
       /// An unparsed property.
       Unparsed(UnparsedProperty<'i>),
       /// A custom or unknown property.
@@ -690,6 +711,7 @@ macro_rules! define_properties {
               }
             },
           )+
+          PropertyId::All => return Ok(Property::All(CSSWideKeyword::parse(input)?)),
           PropertyId::Custom(name) => return Ok(Property::Custom(CustomProperty::parse(name, input, options)?)),
           _ => {}
         };
@@ -711,6 +733,7 @@ macro_rules! define_properties {
             $(#[$meta])*
             $property(_, $(vp_name!($vp, p))?) => PropertyId::$property$((*vp_name!($vp, p)))?,
           )+
+          All(_) => PropertyId::All,
           Unparsed(unparsed) => unparsed.property_id.clone(),
           Custom(custom) => PropertyId::Custom(custom.name.clone())
         }
@@ -759,6 +782,7 @@ macro_rules! define_properties {
               val.to_css(dest)
             }
           )+
+          All(keyword) => keyword.to_css(dest),
           Unparsed(unparsed) => {
             unparsed.value.to_css(dest, false)
           }
@@ -818,6 +842,7 @@ macro_rules! define_properties {
               ($name, get_prefix!($($vp)?))
             },
           )+
+          All(_) => ("all", VendorPrefix::None),
           Unparsed(unparsed) => {
             let mut prefix = unparsed.property_id.prefix();
             if prefix.is_empty() {
@@ -946,7 +971,10 @@ macro_rules! define_properties {
               s.serialize_field("value", value)?;
             }
           )+
-          _ => unreachable!()
+          All(value) => {
+            s.serialize_field("value", value)?;
+          }
+          Unparsed(_) | Custom(_) => unreachable!()
         }
 
         s.end()
@@ -1052,7 +1080,10 @@ macro_rules! define_properties {
               Ok(Property::Custom(value))
             }
           }
-          PropertyId::All => unreachable!()
+          PropertyId::All => {
+            let value = CSSWideKeyword::deserialize(deserializer)?;
+            Ok(Property::All(value))
+          }
         }
       }
     }
@@ -1114,6 +1145,17 @@ macro_rules! define_properties {
                   with_prefix!($($vp)?)
                 },
               )+
+              {
+                property!("all");
+                #[derive(schemars::JsonSchema)]
+                struct T {
+                  #[schemars(rename = "property", schema_with = "property")]
+                  _property: u8,
+                  #[schemars(rename = "value")]
+                  _value: CSSWideKeyword
+                }
+                T::json_schema(gen)
+              },
               {
                 property!("unparsed");
 
@@ -1186,6 +1228,7 @@ define_properties! {
   "max-block-size": MaxBlockSize(MaxSize) [logical_group: MaxSize, category: Logical],
   "max-inline-size": MaxInlineSize(MaxSize) [logical_group: MaxSize, category: Logical],
   "box-sizing": BoxSizing(BoxSizing, VendorPrefix) / WebKit / Moz,
+  "aspect-ratio": AspectRatio(AspectRatio),
 
   "overflow": Overflow(Overflow) shorthand: true,
   "overflow-x": OverflowX(OverflowKeyword),
@@ -1327,50 +1370,20 @@ define_properties! {
   "flex-negative": FlexNegative(CSSNumber, VendorPrefix) / Ms unprefixed: false,
   "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / Ms unprefixed: false,
 
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-columns": GridTemplateColumns(TrackSizing<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-rows": GridTemplateRows(TrackSizing<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-columns": GridAutoColumns(TrackSizeList),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-rows": GridAutoRows(TrackSizeList),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-flow": GridAutoFlow(GridAutoFlow),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-areas": GridTemplateAreas(GridTemplateAreas),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template": GridTemplate(GridTemplate<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid": Grid(Grid<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row-start": GridRowStart(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row-end": GridRowEnd(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column-start": GridColumnStart(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column-end": GridColumnEnd(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row": GridRow(GridRow<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column": GridColumn(GridColumn<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-area": GridArea(GridArea<'i>) shorthand: true,
 
   "margin-top": MarginTop(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
@@ -1446,6 +1459,11 @@ define_properties! {
   "animation-play-state": AnimationPlayState(SmallVec<[AnimationPlayState; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-delay": AnimationDelay(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-fill-mode": AnimationFillMode(SmallVec<[AnimationFillMode; 1]>, VendorPrefix) / WebKit / Moz / O,
+  "animation-composition": AnimationComposition(SmallVec<[AnimationComposition; 1]>),
+  "animation-timeline": AnimationTimeline(SmallVec<[AnimationTimeline<'i>; 1]>),
+  "animation-range-start": AnimationRangeStart(SmallVec<[AnimationRangeStart; 1]>),
+  "animation-range-end": AnimationRangeEnd(SmallVec<[AnimationRangeEnd; 1]>),
+  "animation-range": AnimationRange(SmallVec<[AnimationRange; 1]>),
   "animation": Animation(AnimationList<'i>, VendorPrefix) / WebKit / Moz / O shorthand: true,
 
   // https://drafts.csswg.org/css-transforms-2/
@@ -1488,6 +1506,13 @@ define_properties! {
   "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit shorthand: true,
   "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / WebKit,
   "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>),
+
+  // https://w3c.github.io/csswg-drafts/css-size-adjust/
+  "text-size-adjust": TextSizeAdjust(TextSizeAdjust, VendorPrefix) / WebKit / Moz / Ms,
+
+  // https://drafts.csswg.org/css-writing-modes-3/
+  "direction": Direction(Direction),
+  "unicode-bidi": UnicodeBidi(UnicodeBidi),
 
   // https://www.w3.org/TR/css-break-3/
   "box-decoration-break": BoxDecorationBreak(BoxDecorationBreak, VendorPrefix) / WebKit,
@@ -1579,6 +1604,15 @@ define_properties! {
   "container-type": ContainerType(ContainerType),
   "container-name": ContainerName(ContainerNameList<'i>),
   "container": Container(Container<'i>) shorthand: true,
+
+  // https://w3c.github.io/csswg-drafts/css-view-transitions-1/
+  "view-transition-name": ViewTransitionName(ViewTransitionName<'i>),
+  // https://drafts.csswg.org/css-view-transitions-2/
+  "view-transition-class": ViewTransitionClass(NoneOrCustomIdentList<'i>),
+  "view-transition-group": ViewTransitionGroup(ViewTransitionGroup<'i>),
+
+  // https://drafts.csswg.org/css-color-adjust/
+  "color-scheme": ColorScheme(ColorScheme),
 }
 
 impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
@@ -1593,7 +1627,7 @@ impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
       }
       match input.next() {
         Err(_) => return Ok(values),
-        Ok(&Token::Comma) => continue,
+        Ok(&cssparser::Token::Comma) => continue,
         Ok(_) => unreachable!(),
       }
     }
@@ -1635,5 +1669,21 @@ impl<T: ToCss> ToCss for Vec<T> {
       }
     }
     Ok(())
+  }
+}
+
+enum_property! {
+  /// A [CSS-wide keyword](https://drafts.csswg.org/css-cascade-5/#defaulting-keywords).
+  pub enum CSSWideKeyword {
+    /// The property's initial value.
+    "initial": Initial,
+    /// The property's computed value on the parent element.
+    "inherit": Inherit,
+    /// Either inherit or initial depending on whether the property is inherited.
+    "unset": Unset,
+    /// Rolls back the cascade to the cascaded value of the earlier origin.
+    "revert": Revert,
+    /// Rolls back the cascade to the value of the previous cascade layer.
+    "revert-layer": RevertLayer,
   }
 }

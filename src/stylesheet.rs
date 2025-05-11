@@ -3,25 +3,25 @@
 //! A [StyleSheet](StyleSheet) represents a `.css` file or `<style>` element in HTML.
 //! A [StyleAttribute](StyleAttribute) represents an inline `style` attribute in HTML.
 
-use crate::compat::Feature;
 use crate::context::{DeclarationContext, PropertyHandlerContext};
-use crate::css_modules::{CssModule, CssModuleExports, CssModuleReferences};
+use crate::css_modules::{hash, CssModule, CssModuleExports, CssModuleReferences};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::{DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
 use crate::printer::Printer;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
-use crate::targets::Browsers;
+use crate::targets::{should_compile, Targets, TargetsWithSupportsScope};
 use crate::traits::{AtRuleParser, ToCss};
+use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
-use cssparser::{Parser, ParserInput, RuleListParser};
+use cssparser::{Parser, ParserInput, StyleSheetParser};
 #[cfg(feature = "sourcemap")]
 use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
 
-pub use crate::parser::ParserOptions;
+pub use crate::parser::{ParserFlags, ParserOptions};
 pub use crate::printer::PrinterOptions;
 pub use crate::printer::PseudoClasses;
 
@@ -79,6 +79,12 @@ pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
   pub sources: Vec<String>,
   /// The source map URL extracted from the original style sheet.
   pub(crate) source_map_urls: Vec<Option<String>>,
+  /// The license comments that appeared at the start of the file.
+  pub license_comments: Vec<CowArcStr<'i>>,
+  /// A list of content hashes for all source files included within the style sheet.
+  /// This is only set if CSS modules are enabled and the pattern includes [content-hash].
+  #[cfg_attr(feature = "serde", serde(skip))]
+  pub(crate) content_hashes: Option<Vec<String>>,
   #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
   options: ParserOptions<'o, 'i>,
@@ -88,8 +94,8 @@ pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
 /// or [StyleAttribute](StyleAttribute).
 #[derive(Default)]
 pub struct MinifyOptions {
-  /// Browser targets to compile the CSS for.
-  pub targets: Option<Browsers>,
+  /// Targets to compile the CSS for.
+  pub targets: Targets,
   /// A list of known unused symbols, including CSS class names,
   /// ids, and `@keyframe` names. The declarations of these will be removed.
   pub unused_symbols: HashSet<String>,
@@ -121,7 +127,7 @@ impl<'i, 'o> StyleSheet<'i, 'o, DefaultAtRule> {
 
 impl<'i, 'o, T> StyleSheet<'i, 'o, T>
 where
-  T: ToCss,
+  T: ToCss + Clone,
 {
   /// Creates a new style sheet with the given source filenames and rules.
   pub fn new(
@@ -132,6 +138,8 @@ where
     StyleSheet {
       sources,
       source_map_urls: Vec::new(),
+      license_comments: Vec::new(),
+      content_hashes: None,
       rules,
       options,
     }
@@ -145,14 +153,43 @@ where
   ) -> Result<Self, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
-    let mut rule_list_parser =
-      RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&mut options, at_rule_parser));
+    let mut license_comments = Vec::new();
 
-    let mut rules = vec![];
+    let mut content_hashes = None;
+    if let Some(config) = &options.css_modules {
+      if config.pattern.has_content_hash() {
+        content_hashes = Some(vec![hash(
+          &code,
+          matches!(config.pattern.segments[0], crate::css_modules::Segment::ContentHash),
+        )]);
+      }
+    }
+
+    let mut state = parser.state();
+    while let Ok(token) = parser.next_including_whitespace_and_comments() {
+      match token {
+        cssparser::Token::WhiteSpace(..) => {}
+        cssparser::Token::Comment(comment) if comment.starts_with('!') => {
+          license_comments.push((*comment).into());
+        }
+        cssparser::Token::Comment(comment) if comment.contains("cssmodules-pure-no-check") => {
+          if let Some(css_modules) = &mut options.css_modules {
+            css_modules.pure = false;
+          }
+        }
+        _ => break,
+      }
+      state = parser.state();
+    }
+    parser.reset(&state);
+
+    let mut rules = CssRuleList(vec![]);
+    let mut rule_parser = TopLevelRuleParser::new(&mut options, at_rule_parser, &mut rules);
+    let mut rule_list_parser = StyleSheetParser::new(&mut parser, &mut rule_parser);
+
     while let Some(rule) = rule_list_parser.next() {
-      let rule = match rule {
-        Ok((_, CssRule::Ignored)) => continue,
-        Ok((_, rule)) => rule,
+      match rule {
+        Ok(()) => {}
         Err((e, _)) => {
           let options = &mut rule_list_parser.parser.options;
           if options.error_recovery {
@@ -162,15 +199,15 @@ where
 
           return Err(Error::from(e, options.filename.clone()));
         }
-      };
-
-      rules.push(rule)
+      }
     }
 
     Ok(StyleSheet {
       sources: vec![options.filename.clone()],
       source_map_urls: vec![parser.current_source_map_url().map(|s| s.to_owned())],
-      rules: CssRuleList(rules),
+      content_hashes,
+      rules,
+      license_comments,
       options,
     })
   }
@@ -189,15 +226,14 @@ where
 
   /// Minify and transform the style sheet for the provided browser targets.
   pub fn minify(&mut self, options: MinifyOptions) -> Result<(), Error<MinifyErrorKind>> {
-    let mut context = PropertyHandlerContext::new(options.targets, &options.unused_symbols);
-    let mut handler = DeclarationHandler::new(options.targets);
-    let mut important_handler = DeclarationHandler::new(options.targets);
+    let context = PropertyHandlerContext::new(options.targets, &options.unused_symbols);
+    let mut handler = DeclarationHandler::default();
+    let mut important_handler = DeclarationHandler::default();
 
     // @custom-media rules may be defined after they are referenced, but may only be defined at the top level
     // of a stylesheet. Do a pre-scan here and create a lookup table by name.
-    let custom_media = if self.options.custom_media
-      && options.targets.is_some()
-      && !Feature::CustomMediaQueries.is_compatible(options.targets.unwrap())
+    let custom_media = if self.options.flags.contains(ParserFlags::CUSTOM_MEDIA)
+      && should_compile!(options.targets, CustomMediaQueries)
     {
       let mut custom_media = HashMap::new();
       for rule in &self.rules.0 {
@@ -211,13 +247,14 @@ where
     };
 
     let mut ctx = MinifyContext {
-      targets: &options.targets,
+      targets: TargetsWithSupportsScope::new(options.targets),
       handler: &mut handler,
       important_handler: &mut important_handler,
-      handler_context: &mut context,
+      handler_context: context,
       unused_symbols: &options.unused_symbols,
       custom_media,
       css_modules: self.options.css_modules.is_some(),
+      pure_css_modules: self.options.css_modules.as_ref().map(|c| c.pure).unwrap_or_default(),
     };
 
     self.rules.minify(&mut ctx, false).map_err(|e| Error {
@@ -248,9 +285,21 @@ where
       printer.source_maps = self.sources.iter().enumerate().map(|(i, _)| self.source_map(i)).collect();
     }
 
+    for comment in &self.license_comments {
+      printer.write_str("/*")?;
+      printer.write_str_with_newlines(comment)?;
+      printer.write_str_with_newlines("*/\n")?;
+    }
+
     if let Some(config) = &self.options.css_modules {
       let mut references = HashMap::new();
-      printer.css_module = Some(CssModule::new(config, &self.sources, project_root, &mut references));
+      printer.css_module = Some(CssModule::new(
+        config,
+        &self.sources,
+        project_root,
+        &mut references,
+        &self.content_hashes,
+      ));
 
       self.rules.to_css(&mut printer)?;
       printer.newline()?;
@@ -282,9 +331,13 @@ where
 impl<'i, 'o, T, V> Visit<'i, T, V> for StyleSheet<'i, 'o, T>
 where
   T: Visit<'i, T, V>,
-  V: Visitor<'i, T>,
+  V: ?Sized + Visitor<'i, T>,
 {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
+
+  fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
+    visitor.visit_stylesheet(self)
+  }
 
   fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
     self.rules.visit(visitor)
@@ -317,7 +370,7 @@ where
 /// assert_eq!(res.code, "color: #ff0; font-family: Helvetica");
 /// ```
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct StyleAttribute<'i> {
   /// The declarations in the style attribute.
   pub declarations: DeclarationBlock<'i>,
@@ -342,8 +395,8 @@ impl<'i> StyleAttribute<'i> {
   /// Minify and transform the style attribute for the provided browser targets.
   pub fn minify(&mut self, options: MinifyOptions) {
     let mut context = PropertyHandlerContext::new(options.targets, &options.unused_symbols);
-    let mut handler = DeclarationHandler::new(options.targets);
-    let mut important_handler = DeclarationHandler::new(options.targets);
+    let mut handler = DeclarationHandler::default();
+    let mut important_handler = DeclarationHandler::default();
     context.context = DeclarationContext::StyleAttribute;
     self.declarations.minify(&mut handler, &mut important_handler, &mut context);
   }

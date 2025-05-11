@@ -60,7 +60,7 @@ impl ElementSelectorFlags {
 }
 
 /// Holds per-compound-selector data.
-struct LocalMatchingContext<'a, 'b: 'a, 'i, Impl: SelectorImpl<'i>> {
+struct LocalMatchingContext<'a, 'b, 'i, Impl: SelectorImpl<'i>> {
   shared: &'a mut MatchingContext<'b, 'i, Impl>,
   matches_hover_and_active_quirk: MatchesHoverAndActiveQuirk,
 }
@@ -180,7 +180,7 @@ enum MatchesHoverAndActiveQuirk {
 /// partial selectors (indexed from the right). We use this API design, rather
 /// than having the callers pass a SelectorIter, because creating a SelectorIter
 /// requires dereferencing the selector to get the length, which adds an
-/// unncessary cache miss for cases when we can fast-reject with AncestorHashes
+/// unnecessary cache miss for cases when we can fast-reject with AncestorHashes
 /// (which the caller can store inline with the selector pointer).
 #[inline(always)]
 pub fn matches_selector<'i, E, F>(
@@ -398,7 +398,7 @@ where
 {
   match combinator {
     Combinator::NextSibling | Combinator::LaterSibling => element.prev_sibling_element(),
-    Combinator::Child | Combinator::Descendant => {
+    Combinator::Child | Combinator::Descendant | Combinator::Deep | Combinator::DeepDescendant => {
       match element.parent_element() {
         Some(e) => return Some(e),
         None => {}
@@ -479,6 +479,8 @@ where
       SelectorMatchingResult::NotMatchedAndRestartFromClosestDescendant
     }
     Combinator::Child
+    | Combinator::Deep
+    | Combinator::DeepDescendant
     | Combinator::Descendant
     | Combinator::SlotAssignment
     | Combinator::Part

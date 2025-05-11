@@ -1,19 +1,40 @@
 import { Environment, napi } from 'napi-wasm';
+import { await_promise_sync, createBundleAsync } from './async.mjs';
 
-let wasm;
+let wasm, initPromise, bundleAsyncInternal;
 
 export default async function init(input) {
+  if (wasm) return;
+  if (initPromise) {
+    await initPromise;
+    return;
+  }
+
   input = input ?? new URL('lightningcss_node.wasm', import.meta.url);
   if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
     input = fetchOrReadFromFs(input);
   }
 
-  const { instance } = await load(await input, {
-    env: napi
-  });
+  let env;
+  initPromise = input
+    .then(input => load(input, {
+      env: {
+        ...napi,
+        await_promise_sync,
+        __getrandom_custom: (ptr, len) => {
+          let buf = env.memory.subarray(ptr, ptr + len);
+          crypto.getRandomValues(buf);
+        },
+      }
+    }))
+    .then(({instance}) => {
+      instance.exports.register_module();
+      env = new Environment(instance);
+      bundleAsyncInternal = createBundleAsync(env);
+      wasm = env.exports;
+    });
 
-  let env = new Environment(instance);
-  wasm = env.exports;
+  await initPromise;
 }
 
 export function transform(options) {
@@ -24,7 +45,17 @@ export function transformStyleAttribute(options) {
   return wasm.transformStyleAttribute(options);
 }
 
-export { browserslistToTargets } from './browserslistToTargets.js'
+export function bundle(options) {
+  return wasm.bundle(options);
+}
+
+export function bundleAsync(options) {
+  return bundleAsyncInternal(options);
+}
+
+export { browserslistToTargets } from './browserslistToTargets.js';
+export { Features } from './flags.js';
+export { composeVisitors } from './composeVisitors.js';
 
 async function load(module, imports) {
   if (typeof Response === 'function' && module instanceof Response) {

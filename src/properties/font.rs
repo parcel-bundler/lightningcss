@@ -9,7 +9,9 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::printer::Printer;
-use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
+use crate::targets::should_compile;
+use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
+use crate::values::length::LengthValue;
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{angle::Angle, length::LengthPercentage, percentage::Percentage};
@@ -18,7 +20,7 @@ use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [font-weight](https://www.w3.org/TR/css-fonts-4/#font-weight-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -26,6 +28,7 @@ use cssparser::*;
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontWeight {
   /// An absolute font weight.
   Absolute(AbsoluteFontWeight),
@@ -41,34 +44,11 @@ impl Default for FontWeight {
   }
 }
 
-impl<'i> Parse<'i> for FontWeight {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(AbsoluteFontWeight::parse) {
-      return Ok(FontWeight::Absolute(val));
-    }
-
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "bolder" => Ok(FontWeight::Bolder),
-      "lighter" => Ok(FontWeight::Lighter),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(ident.clone())
-      ))
-    }
-  }
-}
-
-impl ToCss for FontWeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    use FontWeight::*;
+impl IsCompatible for FontWeight {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
     match self {
-      Absolute(val) => val.to_css(dest),
-      Bolder => dest.write_str("bolder"),
-      Lighter => dest.write_str("lighter"),
+      FontWeight::Absolute(a) => a.is_compatible(browsers),
+      FontWeight::Bolder | FontWeight::Lighter => true,
     }
   }
 }
@@ -77,7 +57,7 @@ impl ToCss for FontWeight {
 /// as used in the `font-weight` property.
 ///
 /// See [FontWeight](FontWeight).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -100,24 +80,6 @@ impl Default for AbsoluteFontWeight {
   }
 }
 
-impl<'i> Parse<'i> for AbsoluteFontWeight {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(CSSNumber::parse) {
-      return Ok(AbsoluteFontWeight::Weight(val));
-    }
-
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "normal" => Ok(AbsoluteFontWeight::Normal),
-      "bold" => Ok(AbsoluteFontWeight::Bold),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(ident.clone())
-      ))
-    }
-  }
-}
-
 impl ToCss for AbsoluteFontWeight {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
@@ -128,6 +90,18 @@ impl ToCss for AbsoluteFontWeight {
       Weight(val) => val.to_css(dest),
       Normal => dest.write_str(if dest.minify { "400" } else { "normal" }),
       Bold => dest.write_str(if dest.minify { "700" } else { "bold" }),
+    }
+  }
+}
+
+impl IsCompatible for AbsoluteFontWeight {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
+    match self {
+      // Older browsers only supported 100, 200, 300, ...900 rather than arbitrary values.
+      AbsoluteFontWeight::Weight(val) if !(*val >= 100.0 && *val <= 900.0 && *val % 100.0 == 0.0) => {
+        Feature::FontWeightNumber.is_compatible(browsers)
+      }
+      _ => true,
     }
   }
 }
@@ -146,6 +120,17 @@ enum_property! {
     "large": Large,
     "x-large": XLarge,
     "xx-large": XXLarge,
+    "xxx-large": XXXLarge,
+  }
+}
+
+impl IsCompatible for AbsoluteFontSize {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
+    use AbsoluteFontSize::*;
+    match self {
+      XXXLarge => Feature::FontSizeXXXLarge.is_compatible(browsers),
+      _ => true,
+    }
   }
 }
 
@@ -162,7 +147,7 @@ enum_property! {
 }
 
 /// A value for the [font-size](https://www.w3.org/TR/css-fonts-4/#font-size-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -170,6 +155,7 @@ enum_property! {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontSize {
   /// An explicit size.
   Length(LengthPercentage),
@@ -179,31 +165,15 @@ pub enum FontSize {
   Relative(RelativeFontSize),
 }
 
-impl<'i> Parse<'i> for FontSize {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(LengthPercentage::parse) {
-      return Ok(FontSize::Length(val));
-    }
-
-    if let Ok(val) = input.try_parse(AbsoluteFontSize::parse) {
-      return Ok(FontSize::Absolute(val));
-    }
-
-    let val = RelativeFontSize::parse(input)?;
-    Ok(FontSize::Relative(val))
-  }
-}
-
-impl ToCss for FontSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    use FontSize::*;
+impl IsCompatible for FontSize {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
     match self {
-      Absolute(val) => val.to_css(dest),
-      Length(val) => val.to_css(dest),
-      Relative(val) => val.to_css(dest),
+      FontSize::Length(LengthPercentage::Dimension(LengthValue::Rem(..))) => {
+        Feature::FontSizeRem.is_compatible(browsers)
+      }
+      FontSize::Length(l) => l.is_compatible(browsers),
+      FontSize::Absolute(a) => a.is_compatible(browsers),
+      FontSize::Relative(..) => true,
     }
   }
 }
@@ -260,7 +230,7 @@ impl Into<Percentage> for &FontStretchKeyword {
 }
 
 /// A value for the [font-stretch](https://www.w3.org/TR/css-fonts-4/#font-stretch-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -268,6 +238,7 @@ impl Into<Percentage> for &FontStretchKeyword {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontStretch {
   /// A font stretch keyword.
   Keyword(FontStretchKeyword),
@@ -278,17 +249,6 @@ pub enum FontStretch {
 impl Default for FontStretch {
   fn default() -> FontStretch {
     FontStretch::Keyword(FontStretchKeyword::default())
-  }
-}
-
-impl<'i> Parse<'i> for FontStretch {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(Percentage::parse) {
-      return Ok(FontStretch::Percentage(val));
-    }
-
-    let keyword = FontStretchKeyword::parse(input)?;
-    Ok(FontStretch::Keyword(keyword))
   }
 }
 
@@ -314,6 +274,15 @@ impl ToCss for FontStretch {
     match self {
       FontStretch::Percentage(val) => val.to_css(dest),
       FontStretch::Keyword(val) => val.to_css(dest),
+    }
+  }
+}
+
+impl IsCompatible for FontStretch {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
+    match self {
+      FontStretch::Percentage(..) => Feature::FontStretchPercentage.is_compatible(browsers),
+      FontStretch::Keyword(..) => true,
     }
   }
 }
@@ -357,10 +326,21 @@ enum_property! {
   }
 }
 
+impl IsCompatible for GenericFontFamily {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
+    use GenericFontFamily::*;
+    match self {
+      SystemUI => Feature::FontFamilySystemUi.is_compatible(browsers),
+      UISerif | UISansSerif | UIMonospace | UIRounded => Feature::ExtendedSystemFonts.is_compatible(browsers),
+      _ => true,
+    }
+  }
+}
+
 /// A value for the [font-family](https://www.w3.org/TR/css-fonts-4/#font-family-prop) property.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFamily<'i> {
@@ -368,17 +348,44 @@ pub enum FontFamily<'i> {
   Generic(GenericFontFamily),
   /// A custom family name.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  FamilyName(CowArcStr<'i>),
+  FamilyName(FamilyName<'i>),
 }
 
 impl<'i> Parse<'i> for FontFamily<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(value) = input.try_parse(|i| i.expect_string_cloned()) {
-      return Ok(FontFamily::FamilyName(value.into()));
-    }
-
     if let Ok(value) = input.try_parse(GenericFontFamily::parse) {
       return Ok(FontFamily::Generic(value));
+    }
+
+    let family = FamilyName::parse(input)?;
+    Ok(FontFamily::FamilyName(family))
+  }
+}
+
+impl<'i> ToCss for FontFamily<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      FontFamily::Generic(val) => val.to_css(dest),
+      FontFamily::FamilyName(val) => val.to_css(dest),
+    }
+  }
+}
+
+/// A font [family name](https://drafts.csswg.org/css-fonts/#family-name-syntax).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct FamilyName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'i>);
+
+impl<'i> Parse<'i> for FamilyName<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(value) = input.try_parse(|i| i.expect_string_cloned()) {
+      return Ok(FamilyName(value.into()));
     }
 
     let value: CowArcStr<'i> = input.expect_ident()?.into();
@@ -400,39 +407,44 @@ impl<'i> Parse<'i> for FontFamily<'i> {
       value
     };
 
-    Ok(FontFamily::FamilyName(value))
+    Ok(FamilyName(value))
   }
 }
 
-impl<'i> ToCss for FontFamily<'i> {
+impl<'i> ToCss for FamilyName<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
-    match self {
-      FontFamily::Generic(val) => val.to_css(dest),
-      FontFamily::FamilyName(val) => {
-        // Generic family names such as sans-serif must be quoted if parsed as a string.
-        // CSS wide keywords, as well as "default", must also be quoted.
-        // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
-        if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() {
-          let mut id = String::new();
-          let mut first = true;
-          for slice in val.split(' ') {
-            if first {
-              first = false;
-            } else {
-              id.push(' ');
-            }
-            serialize_identifier(slice, &mut id)?;
-          }
-          if id.len() < val.len() + 2 {
-            return dest.write_str(&id);
-          }
+    // Generic family names such as sans-serif must be quoted if parsed as a string.
+    // CSS wide keywords, as well as "default", must also be quoted.
+    // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
+    let val = &self.0;
+    if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() {
+      let mut id = String::new();
+      let mut first = true;
+      for slice in val.split(' ') {
+        if first {
+          first = false;
+        } else {
+          id.push(' ');
         }
-        serialize_string(&val, dest)?;
-        Ok(())
+        serialize_identifier(slice, &mut id)?;
       }
+      if id.len() < val.len() + 2 {
+        return dest.write_str(&id);
+      }
+    }
+    serialize_string(&val, dest)?;
+    Ok(())
+  }
+}
+
+impl IsCompatible for FontFamily<'_> {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
+    match self {
+      FontFamily::Generic(g) => g.is_compatible(browsers),
+      FontFamily::FamilyName(..) => true,
     }
   }
 }
@@ -446,6 +458,7 @@ impl<'i> ToCss for FontFamily<'i> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontStyle {
   /// Normal font style.
   Normal,
@@ -506,23 +519,34 @@ impl ToCss for FontStyle {
   }
 }
 
+impl IsCompatible for FontStyle {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
+    match self {
+      FontStyle::Oblique(angle) if *angle != FontStyle::default_oblique_angle() => {
+        Feature::FontStyleObliqueAngle.is_compatible(browsers)
+      }
+      FontStyle::Normal | FontStyle::Italic | FontStyle::Oblique(..) => true,
+    }
+  }
+}
+
 enum_property! {
   /// A value for the [font-variant-caps](https://www.w3.org/TR/css-fonts-4/#font-variant-caps-prop) property.
   pub enum FontVariantCaps {
     /// No special capitalization features are applied.
-    "normal": Normal,
+    Normal,
     /// The small capitals feature is used for lower case letters.
-    "small-caps": SmallCaps,
+    SmallCaps,
     /// Small capitals are used for both upper and lower case letters.
-    "all-small-caps": AllSmallCaps,
+    AllSmallCaps,
     /// Petite capitals are used.
-    "petite-caps": PetiteCaps,
+    PetiteCaps,
     /// Petite capitals are used for both upper and lower case letters.
-    "all-petite-caps": AllPetiteCaps,
+    AllPetiteCaps,
     /// Enables display of mixture of small capitals for uppercase letters with normal lowercase letters.
-    "unicase": Unicase,
+    Unicase,
     /// Uses titling capitals.
-    "titling-caps": TitlingCaps,
+    TitlingCaps,
   }
 }
 
@@ -546,8 +570,14 @@ impl FontVariantCaps {
   }
 }
 
+impl IsCompatible for FontVariantCaps {
+  fn is_compatible(&self, _browsers: crate::targets::Browsers) -> bool {
+    true
+  }
+}
+
 /// A value for the [line-height](https://www.w3.org/TR/2020/WD-css-inline-3-20200827/#propdef-line-height) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -555,6 +585,7 @@ impl FontVariantCaps {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum LineHeight {
   /// The UA sets the line height based on the font.
   Normal,
@@ -570,29 +601,11 @@ impl Default for LineHeight {
   }
 }
 
-impl<'i> Parse<'i> for LineHeight {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(LineHeight::Normal);
-    }
-
-    if let Ok(val) = input.try_parse(CSSNumber::parse) {
-      return Ok(LineHeight::Number(val));
-    }
-
-    Ok(LineHeight::Length(LengthPercentage::parse(input)?))
-  }
-}
-
-impl ToCss for LineHeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+impl IsCompatible for LineHeight {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
     match self {
-      LineHeight::Normal => dest.write_str("normal"),
-      LineHeight::Number(val) => val.to_css(dest),
-      LineHeight::Length(val) => val.to_css(dest),
+      LineHeight::Length(l) => l.is_compatible(browsers),
+      LineHeight::Normal | LineHeight::Number(..) => true,
     }
   }
 }
@@ -601,27 +614,27 @@ enum_property! {
   /// A keyword for the [vertical align](https://drafts.csswg.org/css2/#propdef-vertical-align) property.
   pub enum VerticalAlignKeyword {
     /// Align the baseline of the box with the baseline of the parent box.
-    "baseline": Baseline,
+    Baseline,
     /// Lower the baseline of the box to the proper position for subscripts of the parent’s box.
-    "sub": Sub,
+    Sub,
     /// Raise the baseline of the box to the proper position for superscripts of the parent’s box.
-    "super": Super,
+    Super,
     /// Align the top of the aligned subtree with the top of the line box.
-    "top": Top,
+    Top,
     /// Align the top of the box with the top of the parent’s content area.
-    "text-top": TextTop,
+    TextTop,
     /// Align the vertical midpoint of the box with the baseline of the parent box plus half the x-height of the parent.
-    "middle": Middle,
+    Middle,
     /// Align the bottom of the aligned subtree with the bottom of the line box.
-    "bottom": Bottom,
+    Bottom,
     /// Align the bottom of the box with the bottom of the parent’s content area.
-    "text-bottom": TextBottom,
+    TextBottom,
   }
 }
 
 /// A value for the [vertical align](https://drafts.csswg.org/css2/#propdef-vertical-align) property.
 // TODO: there is a more extensive spec in CSS3 but it doesn't seem any browser implements it? https://www.w3.org/TR/css-inline-3/#transverse-alignment
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -629,6 +642,7 @@ enum_property! {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum VerticalAlign {
   /// A vertical align keyword.
   Keyword(VerticalAlignKeyword),
@@ -636,32 +650,8 @@ pub enum VerticalAlign {
   Length(LengthPercentage),
 }
 
-impl<'i> Parse<'i> for VerticalAlign {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(len) = input.try_parse(LengthPercentage::parse) {
-      return Ok(VerticalAlign::Length(len));
-    }
-
-    let kw = VerticalAlignKeyword::parse(input)?;
-    Ok(VerticalAlign::Keyword(kw))
-  }
-}
-
-impl ToCss for VerticalAlign {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      VerticalAlign::Keyword(kw) => kw.to_css(dest),
-      VerticalAlign::Length(len) => len.to_css(dest),
-    }
-  }
-}
-
 define_shorthand! {
   /// A value for the [font](https://www.w3.org/TR/css-fonts-4/#font-prop) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Font<'i> {
     /// The font family.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -803,6 +793,20 @@ impl<'i> ToCss for Font<'i> {
   }
 }
 
+property_bitflags! {
+  #[derive(Default, Debug)]
+  struct FontProperty: u8 {
+    const FontFamily = 1 << 0;
+    const FontSize = 1 << 1;
+    const FontStyle = 1 << 2;
+    const FontWeight = 1 << 3;
+    const FontStretch = 1 << 4;
+    const LineHeight = 1 << 5;
+    const FontVariantCaps = 1 << 6;
+    const Font = Self::FontFamily.bits() | Self::FontSize.bits() | Self::FontStyle.bits() | Self::FontWeight.bits() | Self::FontStretch.bits() | Self::LineHeight.bits() | Self::FontVariantCaps.bits();
+  }
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct FontHandler<'i> {
   family: Option<Vec<FontFamily<'i>>>,
@@ -812,6 +816,7 @@ pub(crate) struct FontHandler<'i> {
   stretch: Option<FontStretch>,
   line_height: Option<LineHeight>,
   variant_caps: Option<FontVariantCaps>,
+  flushed_properties: FontProperty,
   has_any: bool,
 }
 
@@ -824,8 +829,17 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
   ) -> bool {
     use Property::*;
 
+    macro_rules! flush {
+      ($prop: ident, $val: expr) => {{
+        if self.$prop.is_some() && self.$prop.as_ref().unwrap() != $val && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
+          self.flush(dest, context);
+        }
+      }};
+    }
+
     macro_rules! property {
       ($prop: ident, $val: ident) => {{
+        flush!($prop, $val);
         self.$prop = Some($val.clone());
         self.has_any = true;
       }};
@@ -840,6 +854,13 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
       FontVariantCaps(val) => property!(variant_caps, val),
       LineHeight(val) => property!(line_height, val),
       Font(val) => {
+        flush!(family, &val.family);
+        flush!(size, &val.size);
+        flush!(style, &val.style);
+        flush!(weight, &val.weight);
+        flush!(stretch, &val.stretch);
+        flush!(line_height, &val.line_height);
+        flush!(variant_caps, &val.variant_caps);
         self.family = Some(val.family.clone());
         self.size = Some(val.size.clone());
         self.style = Some(val.style.clone());
@@ -851,7 +872,10 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
         // TODO: reset other properties
       }
       Unparsed(val) if is_font_property(&val.property_id) => {
-        self.finalize(dest, context);
+        self.flush(dest, context);
+        self
+          .flushed_properties
+          .insert(FontProperty::try_from(&val.property_id).unwrap());
         dest.push(property.clone());
       }
       _ => return false,
@@ -861,16 +885,30 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
   }
 
   fn finalize(&mut self, decls: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+    self.flush(decls, context);
+    self.flushed_properties = FontProperty::empty();
+  }
+}
+
+impl<'i> FontHandler<'i> {
+  fn flush(&mut self, decls: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
 
     self.has_any = false;
 
-    let mut family = compatible_font_family(
-      std::mem::take(&mut self.family),
-      context.is_supported(Feature::FontFamilySystemUi),
-    );
+    macro_rules! push {
+      ($prop: ident, $val: expr) => {
+        decls.push(Property::$prop($val));
+        self.flushed_properties.insert(FontProperty::$prop);
+      };
+    }
+
+    let mut family = std::mem::take(&mut self.family);
+    if !self.flushed_properties.contains(FontProperty::FontFamily) {
+      family = compatible_font_family(family, !should_compile!(context.targets, FontFamilySystemUi));
+    }
     let size = std::mem::take(&mut self.size);
     let style = std::mem::take(&mut self.style);
     let weight = std::mem::take(&mut self.weight);
@@ -895,52 +933,55 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
       && variant_caps.is_some()
     {
       let caps = variant_caps.unwrap();
-      decls.push(Property::Font(Font {
-        family: family.unwrap(),
-        size: size.unwrap(),
-        style: style.unwrap(),
-        weight: weight.unwrap(),
-        stretch: stretch.unwrap(),
-        line_height: line_height.unwrap(),
-        variant_caps: if caps.is_css2() {
-          caps
-        } else {
-          FontVariantCaps::default()
-        },
-      }));
+      push!(
+        Font,
+        Font {
+          family: family.unwrap(),
+          size: size.unwrap(),
+          style: style.unwrap(),
+          weight: weight.unwrap(),
+          stretch: stretch.unwrap(),
+          line_height: line_height.unwrap(),
+          variant_caps: if caps.is_css2() {
+            caps
+          } else {
+            FontVariantCaps::default()
+          },
+        }
+      );
 
       // The `font` property only accepts CSS 2.1 values for font-variant caps.
       // If we have a CSS 3+ value, we need to add a separate property.
       if !caps.is_css2() {
-        decls.push(Property::FontVariantCaps(variant_caps.unwrap()))
+        push!(FontVariantCaps, variant_caps.unwrap());
       }
     } else {
       if let Some(val) = family {
-        decls.push(Property::FontFamily(val))
+        push!(FontFamily, val);
       }
 
       if let Some(val) = size {
-        decls.push(Property::FontSize(val))
+        push!(FontSize, val);
       }
 
       if let Some(val) = style {
-        decls.push(Property::FontStyle(val))
+        push!(FontStyle, val);
       }
 
       if let Some(val) = variant_caps {
-        decls.push(Property::FontVariantCaps(val))
+        push!(FontVariantCaps, val);
       }
 
       if let Some(val) = weight {
-        decls.push(Property::FontWeight(val))
+        push!(FontWeight, val);
       }
 
       if let Some(val) = stretch {
-        decls.push(Property::FontStretch(val))
+        push!(FontStretch, val);
       }
 
       if let Some(val) = line_height {
-        decls.push(Property::LineHeight(val))
+        push!(LineHeight, val);
       }
     }
   }
@@ -976,7 +1017,7 @@ fn compatible_font_family(mut family: Option<Vec<FontFamily>>, is_supported: boo
         (position + 1)..(position + 1),
         DEFAULT_SYSTEM_FONTS
           .iter()
-          .map(|name| FontFamily::FamilyName(CowArcStr::from(*name))),
+          .map(|name| FontFamily::FamilyName(FamilyName(CowArcStr::from(*name)))),
       );
     }
   }

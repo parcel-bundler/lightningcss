@@ -20,6 +20,18 @@ fn test_file() -> Result<assert_fs::NamedTempFile, FixtureError> {
   Ok(file)
 }
 
+fn test_file2() -> Result<assert_fs::NamedTempFile, FixtureError> {
+  let file = assert_fs::NamedTempFile::new("test2.css")?;
+  file.write_str(
+    r#"
+      .foo {
+        color: yellow;
+      }
+    "#,
+  )?;
+  Ok(file)
+}
+
 fn css_module_test_vals() -> (String, String, String) {
   let exports: HashMap<&str, CssModuleExport> = HashMap::from([
     (
@@ -68,7 +80,7 @@ fn css_module_test_vals() -> (String, String, String) {
       .foo {
         color: red;
       }
-      
+
       #id {
         animation: 2s test;
       }
@@ -206,6 +218,58 @@ fn output_file_option_create_missing_directories() -> Result<(), Box<dyn std::er
 }
 
 #[test]
+fn multiple_input_files() -> Result<(), Box<dyn std::error::Error>> {
+  let infile = test_file()?;
+  let infile2 = test_file2()?;
+  let outdir = assert_fs::TempDir::new()?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(infile.path());
+  cmd.arg(infile2.path());
+  cmd.arg("--output-dir").arg(outdir.path());
+  cmd.assert().success();
+  outdir
+    .child(infile.file_name().unwrap())
+    .assert(predicate::str::contains(indoc! {r#"
+        .foo {
+          border: none;
+        }"#}));
+  outdir
+    .child(infile2.file_name().unwrap())
+    .assert(predicate::str::contains(indoc! {r#"
+        .foo {
+          color: #ff0;
+        }"#}));
+
+  Ok(())
+}
+
+#[test]
+fn multiple_input_files_out_file() -> Result<(), Box<dyn std::error::Error>> {
+  let infile = test_file()?;
+  let infile2 = test_file2()?;
+  let outdir = assert_fs::TempDir::new()?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(infile.path());
+  cmd.arg(infile2.path());
+  cmd.arg("--output-file").arg(outdir.path());
+  cmd.assert().failure();
+
+  Ok(())
+}
+
+#[test]
+fn multiple_input_files_stdout() -> Result<(), Box<dyn std::error::Error>> {
+  let infile = test_file()?;
+  let infile2 = test_file2()?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(infile.path());
+  cmd.arg(infile2.path());
+  cmd.assert().failure();
+
+  Ok(())
+}
+
+#[test]
 fn minify_option() -> Result<(), Box<dyn std::error::Error>> {
   let infile = test_file()?;
   let mut cmd = Command::cargo_bin("lightningcss")?;
@@ -321,6 +385,37 @@ fn css_modules_pattern() -> Result<(), Box<dyn std::error::Error>> {
   cmd.arg("--css-modules");
   cmd.arg("--css-modules-pattern").arg("[name]-[hash]-[local]");
   cmd.assert().success().stdout(predicate::str::contains("test-EgL3uq-foo"));
+
+  Ok(())
+}
+
+#[test]
+fn css_modules_next_64299() -> Result<(), Box<dyn std::error::Error>> {
+  let file = assert_fs::NamedTempFile::new("test.css")?;
+  file.write_str(
+    "
+  .blue {
+    background: blue;
+
+    :global {
+      .red {
+        background: red;
+      }
+    }
+
+    &:global {
+      &.green {
+        background: green;
+      }
+    }
+  }
+  ",
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(file.path());
+  cmd.arg("--css-modules");
+  cmd.assert().failure();
 
   Ok(())
 }
@@ -692,6 +787,26 @@ fn browserslist_environment_from_browserslist_env() -> Result<(), Box<dyn std::e
       border-radius: 1rem;
     }
   "#}));
+
+  Ok(())
+}
+
+#[test]
+fn next_66191() -> Result<(), Box<dyn std::error::Error>> {
+  let infile = assert_fs::NamedTempFile::new("test.css")?;
+  infile.write_str(
+    r#"
+      .cb:is(input:checked) {
+        margin: 3rem;
+      }
+    "#,
+  )?;
+  let outfile = assert_fs::NamedTempFile::new("test.out")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(infile.path());
+  cmd.arg("--output-file").arg(outfile.path());
+  cmd.assert().success();
+  outfile.assert(predicate::str::contains(indoc! {r#".cb:is(input:checked)"#}));
 
   Ok(())
 }

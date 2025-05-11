@@ -8,7 +8,6 @@ use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::stylesheet::PrinterOptions;
-use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, ToCss, Zero};
 use crate::values::{
   angle::Angle,
@@ -26,6 +25,7 @@ use std::f32::consts::PI;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct TransformList(pub Vec<Transform>);
 
 impl<'i> Parse<'i> for TransformList {
@@ -57,64 +57,80 @@ impl ToCss for TransformList {
       return Ok(());
     }
 
+    // TODO: Re-enable with a better solution
+    //       See: https://github.com/parcel-bundler/lightningcss/issues/288
     if dest.minify {
-      // Combine transforms into a single matrix.
-      if let Some(matrix) = self.to_matrix() {
-        // Generate based on the original transforms.
-        let mut base = String::new();
-        self.to_css_base(&mut Printer::new(
-          &mut base,
-          PrinterOptions {
-            minify: true,
-            ..PrinterOptions::default()
-          },
-        ))?;
+      let mut base = String::new();
+      self.to_css_base(&mut Printer::new(
+        &mut base,
+        PrinterOptions {
+          minify: true,
+          ..PrinterOptions::default()
+        },
+      ))?;
 
-        // Decompose the matrix into transform functions if possible.
-        // If the resulting length is shorter than the original, use it.
-        if let Some(d) = matrix.decompose() {
-          let mut decomposed = String::new();
-          d.to_css_base(&mut Printer::new(
-            &mut decomposed,
-            PrinterOptions {
-              minify: true,
-              ..PrinterOptions::default()
-            },
-          ))?;
-          if decomposed.len() < base.len() {
-            base = decomposed;
-          }
-        }
+      dest.write_str(&base)?;
 
-        // Also generate a matrix() or matrix3d() representation and compare that.
-        let mut mat = String::new();
-        if let Some(matrix) = matrix.to_matrix2d() {
-          Transform::Matrix(matrix).to_css(&mut Printer::new(
-            &mut mat,
-            PrinterOptions {
-              minify: true,
-              ..PrinterOptions::default()
-            },
-          ))?
-        } else {
-          Transform::Matrix3d(matrix).to_css(&mut Printer::new(
-            &mut mat,
-            PrinterOptions {
-              minify: true,
-              ..PrinterOptions::default()
-            },
-          ))?
-        }
-
-        if mat.len() < base.len() {
-          dest.write_str(&mat)?;
-        } else {
-          dest.write_str(&base)?;
-        }
-
-        return Ok(());
-      }
+      return Ok(());
     }
+    // if dest.minify {
+    //   // Combine transforms into a single matrix.
+    //   if let Some(matrix) = self.to_matrix() {
+    //     // Generate based on the original transforms.
+    //     let mut base = String::new();
+    //     self.to_css_base(&mut Printer::new(
+    //       &mut base,
+    //       PrinterOptions {
+    //         minify: true,
+    //         ..PrinterOptions::default()
+    //       },
+    //     ))?;
+    //
+    //     // Decompose the matrix into transform functions if possible.
+    //     // If the resulting length is shorter than the original, use it.
+    //     if let Some(d) = matrix.decompose() {
+    //       let mut decomposed = String::new();
+    //       d.to_css_base(&mut Printer::new(
+    //         &mut decomposed,
+    //         PrinterOptions {
+    //           minify: true,
+    //           ..PrinterOptions::default()
+    //         },
+    //       ))?;
+    //       if decomposed.len() < base.len() {
+    //         base = decomposed;
+    //       }
+    //     }
+    //
+    //     // Also generate a matrix() or matrix3d() representation and compare that.
+    //     let mut mat = String::new();
+    //     if let Some(matrix) = matrix.to_matrix2d() {
+    //       Transform::Matrix(matrix).to_css(&mut Printer::new(
+    //         &mut mat,
+    //         PrinterOptions {
+    //           minify: true,
+    //           ..PrinterOptions::default()
+    //         },
+    //       ))?
+    //     } else {
+    //       Transform::Matrix3d(matrix).to_css(&mut Printer::new(
+    //         &mut mat,
+    //         PrinterOptions {
+    //           minify: true,
+    //           ..PrinterOptions::default()
+    //         },
+    //       ))?
+    //     }
+    //
+    //     if mat.len() < base.len() {
+    //       dest.write_str(&mat)?;
+    //     } else {
+    //       dest.write_str(&base)?;
+    //     }
+    //
+    //     return Ok(());
+    //   }
+    // }
 
     self.to_css_base(dest)
   }
@@ -154,6 +170,7 @@ impl TransformList {
   serde(tag = "type", content = "value", rename_all = "camelCase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Transform {
   /// A 2D translation.
   Translate(LengthPercentage, LengthPercentage),
@@ -205,6 +222,7 @@ pub enum Transform {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[allow(missing_docs)]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct Matrix<T> {
   pub a: T,
   pub b: T,
@@ -1364,8 +1382,8 @@ enum_property! {
   /// A value for the [transform-style](https://drafts.csswg.org/css-transforms-2/#transform-style-property) property.
   #[allow(missing_docs)]
   pub enum TransformStyle {
-    "flat": Flat,
-    "preserve-3d": Preserve3d,
+    Flat,
+    Preserve3d,
   }
 }
 
@@ -1373,15 +1391,15 @@ enum_property! {
   /// A value for the [transform-box](https://drafts.csswg.org/css-transforms-1/#transform-box) property.
   pub enum TransformBox {
     /// Uses the content box as reference box.
-    "content-box": ContentBox,
+    ContentBox,
     /// Uses the border box as reference box.
-    "border-box": BorderBox,
+    BorderBox,
     /// Uses the object bounding box as reference box.
-    "fill-box": FillBox,
+    FillBox,
     /// Uses the stroke bounding box as reference box.
-    "stroke-box": StrokeBox,
+    StrokeBox,
     /// Uses the nearest SVG viewport as reference box.
-    "view-box": ViewBox,
+    ViewBox,
   }
 }
 
@@ -1395,7 +1413,7 @@ enum_property! {
 }
 
 /// A value for the [perspective](https://drafts.csswg.org/css-transforms-2/#perspective-property) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -1403,6 +1421,7 @@ enum_property! {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Perspective {
   /// No perspective transform is applied.
   None,
@@ -1410,50 +1429,36 @@ pub enum Perspective {
   Length(Length),
 }
 
-impl<'i> Parse<'i> for Perspective {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(Perspective::None);
-    }
-
-    Ok(Perspective::Length(Length::parse(input)?))
-  }
-}
-
-impl ToCss for Perspective {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      Perspective::None => dest.write_str("none"),
-      Perspective::Length(len) => len.to_css(dest),
-    }
-  }
-}
-
 /// A value for the [translate](https://drafts.csswg.org/css-transforms-2/#propdef-translate) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-pub struct Translate {
-  /// The x translation.
-  pub x: LengthPercentage,
-  /// The y translation.
-  pub y: LengthPercentage,
-  /// The z translation.
-  pub z: Length,
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum Translate {
+  /// The "none" keyword.
+  None,
+
+  /// The x, y, and z translations.
+  #[cfg_attr(feature = "serde", serde(untagged))]
+  XYZ {
+    /// The x translation.
+    x: LengthPercentage,
+    /// The y translation.
+    y: LengthPercentage,
+    /// The z translation.
+    z: Length,
+  },
 }
 
 impl<'i> Parse<'i> for Translate {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
-      return Ok(Translate {
-        x: LengthPercentage::zero(),
-        y: LengthPercentage::zero(),
-        z: Length::zero(),
-      });
+      return Ok(Translate::None);
     }
 
     let x = LengthPercentage::parse(input)?;
@@ -1464,7 +1469,7 @@ impl<'i> Parse<'i> for Translate {
       None
     };
 
-    Ok(Translate {
+    Ok(Translate::XYZ {
       x,
       y: y.unwrap_or(LengthPercentage::zero()),
       z: z.unwrap_or(Length::zero()),
@@ -1477,15 +1482,23 @@ impl ToCss for Translate {
   where
     W: std::fmt::Write,
   {
-    self.x.to_css(dest)?;
-    if !self.y.is_zero() || !self.z.is_zero() {
-      dest.write_char(' ')?;
-      self.y.to_css(dest)?;
-      if !self.z.is_zero() {
-        dest.write_char(' ')?;
-        self.z.to_css(dest)?;
+    match self {
+      Translate::None => {
+        dest.write_str("none")?;
       }
-    }
+      Translate::XYZ { x, y, z } => {
+        x.to_css(dest)?;
+        if !y.is_zero() || !z.is_zero() {
+          dest.write_char(' ')?;
+          y.to_css(dest)?;
+          if !z.is_zero() {
+            dest.write_char(' ')?;
+            z.to_css(dest)?;
+          }
+        }
+      }
+    };
+
     Ok(())
   }
 }
@@ -1493,7 +1506,12 @@ impl ToCss for Translate {
 impl Translate {
   /// Converts the translation to a transform function.
   pub fn to_transform(&self) -> Transform {
-    Transform::Translate3d(self.x.clone(), self.y.clone(), self.z.clone())
+    match self {
+      Translate::None => {
+        Transform::Translate3d(LengthPercentage::zero(), LengthPercentage::zero(), Length::zero())
+      }
+      Translate::XYZ { x, y, z } => Transform::Translate3d(x.clone(), y.clone(), z.clone()),
+    }
   }
 }
 
@@ -1502,6 +1520,7 @@ impl Translate {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct Rotate {
   /// Rotation around the x axis.
   pub x: f32,
@@ -1586,25 +1605,33 @@ impl Rotate {
 /// A value for the [scale](https://drafts.csswg.org/css-transforms-2/#propdef-scale) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-pub struct Scale {
-  /// Scale on the x axis.
-  pub x: NumberOrPercentage,
-  /// Scale on the y axis.
-  pub y: NumberOrPercentage,
-  /// Scale on the z axis.
-  pub z: NumberOrPercentage,
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum Scale {
+  /// The "none" keyword.
+  None,
+
+  /// Scale on the x, y, and z axis.
+  #[cfg_attr(feature = "serde", serde(untagged))]
+  XYZ {
+    /// Scale on the x axis.
+    x: NumberOrPercentage,
+    /// Scale on the y axis.
+    y: NumberOrPercentage,
+    /// Scale on the z axis.
+    z: NumberOrPercentage,
+  },
 }
 
 impl<'i> Parse<'i> for Scale {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
-      return Ok(Scale {
-        x: NumberOrPercentage::Number(1.0),
-        y: NumberOrPercentage::Number(1.0),
-        z: NumberOrPercentage::Number(1.0),
-      });
+      return Ok(Scale::None);
     }
 
     let x = NumberOrPercentage::parse(input)?;
@@ -1615,7 +1642,7 @@ impl<'i> Parse<'i> for Scale {
       None
     };
 
-    Ok(Scale {
+    Ok(Scale::XYZ {
       x: x.clone(),
       y: y.unwrap_or(x),
       z: z.unwrap_or(NumberOrPercentage::Number(1.0)),
@@ -1628,14 +1655,21 @@ impl ToCss for Scale {
   where
     W: std::fmt::Write,
   {
-    self.x.to_css(dest)?;
-    let zv: f32 = (&self.z).into();
-    if self.y != self.x || zv != 1.0 {
-      dest.write_char(' ')?;
-      self.y.to_css(dest)?;
-      if zv != 1.0 {
-        dest.write_char(' ')?;
-        self.z.to_css(dest)?;
+    match self {
+      Scale::None => {
+        dest.write_str("none")?;
+      }
+      Scale::XYZ { x, y, z } => {
+        x.to_css(dest)?;
+        let zv: f32 = z.into();
+        if y != x || zv != 1.0 {
+          dest.write_char(' ')?;
+          y.to_css(dest)?;
+          if zv != 1.0 {
+            dest.write_char(' ')?;
+            z.to_css(dest)?;
+          }
+        }
       }
     }
 
@@ -1646,13 +1680,19 @@ impl ToCss for Scale {
 impl Scale {
   /// Converts the scale to a transform function.
   pub fn to_transform(&self) -> Transform {
-    Transform::Scale3d(self.x.clone(), self.y.clone(), self.z.clone())
+    match self {
+      Scale::None => Transform::Scale3d(
+        NumberOrPercentage::Number(1.0),
+        NumberOrPercentage::Number(1.0),
+        NumberOrPercentage::Number(1.0),
+      ),
+      Scale::XYZ { x, y, z } => Transform::Scale3d(x.clone(), y.clone(), z.clone()),
+    }
   }
 }
 
 #[derive(Default)]
 pub(crate) struct TransformHandler {
-  targets: Option<Browsers>,
   transform: Option<(TransformList, VendorPrefix)>,
   translate: Option<Translate>,
   rotate: Option<Rotate>,
@@ -1660,21 +1700,12 @@ pub(crate) struct TransformHandler {
   has_any: bool,
 }
 
-impl TransformHandler {
-  pub fn new(targets: Option<Browsers>) -> TransformHandler {
-    TransformHandler {
-      targets,
-      ..TransformHandler::default()
-    }
-  }
-}
-
 impl<'i> PropertyHandler<'i> for TransformHandler {
   fn handle_property(
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    _: &mut PropertyHandlerContext<'i, '_>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     use Property::*;
 
@@ -1695,13 +1726,13 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((cur, prefixes)) = &self.transform {
           if cur != val && !prefixes.contains(*vp) {
-            self.flush(dest);
+            self.flush(dest, context);
           }
         }
 
         // Otherwise, update the value and add the prefix.
-        if let Some((val, prefixes)) = &mut self.transform {
-          *val = val.clone();
+        if let Some((transform, prefixes)) = &mut self.transform {
+          *transform = val.clone();
           *prefixes |= *vp;
         } else {
           self.transform = Some((val.clone(), *vp));
@@ -1721,9 +1752,9 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
           PropertyId::Transform(_) | PropertyId::Translate | PropertyId::Rotate | PropertyId::Scale
         ) =>
       {
-        self.flush(dest);
+        self.flush(dest, context);
         let prop = if matches!(val.property_id, PropertyId::Transform(_)) {
-          Property::Unparsed(val.get_prefixed(self.targets, Feature::Transform))
+          Property::Unparsed(val.get_prefixed(context.targets, Feature::Transform))
         } else {
           property.clone()
         };
@@ -1735,13 +1766,13 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {
-    self.flush(dest);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+    self.flush(dest, context);
   }
 }
 
 impl TransformHandler {
-  fn flush(&mut self, dest: &mut DeclarationList) {
+  fn flush<'i>(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -1754,12 +1785,7 @@ impl TransformHandler {
     let scale = std::mem::take(&mut self.scale);
 
     if let Some((transform, prefix)) = transform {
-      let mut prefix = prefix;
-      if prefix.contains(VendorPrefix::None) {
-        if let Some(targets) = self.targets {
-          prefix = Feature::Transform.prefixes_for(targets)
-        }
-      }
+      let prefix = context.targets.prefixes(prefix, Feature::Transform);
       dest.push(Property::Transform(transform, prefix))
     }
 

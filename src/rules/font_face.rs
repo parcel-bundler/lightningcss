@@ -20,7 +20,7 @@ use std::fmt::Write;
 /// A [@font-face](https://drafts.csswg.org/css-fonts/#font-face-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct FontFaceRule<'i> {
@@ -37,7 +37,7 @@ pub struct FontFaceRule<'i> {
 /// See [FontFaceRule](FontFaceRule).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -66,7 +66,7 @@ pub enum FontFaceProperty<'i> {
 /// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -120,7 +120,7 @@ impl<'i> ToCss for Source<'i> {
 /// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UrlSource<'i> {
@@ -181,7 +181,7 @@ impl<'i> ToCss for UrlSource<'i> {
 /// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -300,6 +300,7 @@ enum_property! {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct UnicodeRange {
   /// Inclusive start of the range. In [0, end].
   pub start: u32,
@@ -379,6 +380,7 @@ impl ToCss for UnicodeRange {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontStyle {
   /// Normal font style.
   Normal,
@@ -488,6 +490,22 @@ impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
   type Prelude = ();
   type AtRule = FontFaceProperty<'i>;
   type Error = ParserError<'i>;
+}
+
+impl<'i> QualifiedRuleParser<'i> for FontFaceDeclarationParser {
+  type Prelude = ();
+  type QualifiedRule = FontFaceProperty<'i>;
+  type Error = ParserError<'i>;
+}
+
+impl<'i> RuleBodyItemParser<'i, FontFaceProperty<'i>, ParserError<'i>> for FontFaceDeclarationParser {
+  fn parse_qualified(&self) -> bool {
+    false
+  }
+
+  fn parse_declarations(&self) -> bool {
+    true
+  }
 }
 
 impl<'i> ToCss for FontFaceRule<'i> {

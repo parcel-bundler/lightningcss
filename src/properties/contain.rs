@@ -16,7 +16,7 @@ use crate::{
   properties::{Property, PropertyId},
   rules::container::ContainerName as ContainerIdent,
   targets::Browsers,
-  traits::{Parse, PropertyHandler, Shorthand, ToCss},
+  traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss},
 };
 
 enum_property! {
@@ -25,11 +25,11 @@ enum_property! {
   pub enum ContainerType {
     /// The element is not a query container for any container size queries,
     /// but remains a query container for container style queries.
-    "normal": Normal,
+    Normal,
     /// Establishes a query container for container size queries on the container’s own inline axis.
-    "inline-size": InlineSize,
+    InlineSize,
     /// Establishes a query container for container size queries on both the inline and block axis.
-    "size": Size,
+    Size,
   }
 }
 
@@ -39,10 +39,16 @@ impl Default for ContainerType {
   }
 }
 
+impl IsCompatible for ContainerType {
+  fn is_compatible(&self, _browsers: Browsers) -> bool {
+    true
+  }
+}
+
 /// A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -105,9 +111,14 @@ impl<'i> ToCss for ContainerNameList<'i> {
   }
 }
 
+impl IsCompatible for ContainerNameList<'_> {
+  fn is_compatible(&self, _browsers: Browsers) -> bool {
+    true
+  }
+}
+
 define_shorthand! {
   /// A value for the [container](https://drafts.csswg.org/css-contain-3/#container-shorthand) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Container<'i> {
     /// The container name.
     #[cfg_attr(feature = "serde", serde(borrow))]

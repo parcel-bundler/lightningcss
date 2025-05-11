@@ -6,16 +6,16 @@ use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::media_query::{
-  operation_to_css, parse_query_condition, to_css_with_parens_if_needed, MediaFeature, Operator, QueryCondition,
-  QueryConditionFlags,
+  define_query_features, operation_to_css, parse_query_condition, to_css_with_parens_if_needed, FeatureToCss,
+  MediaFeatureType, Operator, QueryCondition, QueryConditionFlags, QueryFeature, ValueType,
 };
-use crate::parser::DefaultAtRule;
+use crate::parser::{DefaultAtRule, ParserOptions};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
-use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss};
+use crate::targets::{Features, Targets};
+use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::ident::CustomIdent;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -25,6 +25,7 @@ use crate::visitor::Visit;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct ContainerRule<'i, R = DefaultAtRule> {
   /// The name of the container.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -41,7 +42,7 @@ pub struct ContainerRule<'i, R = DefaultAtRule> {
 /// Represents a container condition.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -50,8 +51,8 @@ pub struct ContainerRule<'i, R = DefaultAtRule> {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ContainerCondition<'i> {
   /// A size container feature, implicitly parenthesized.
-  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<MediaFeature>"))]
-  Feature(MediaFeature<'i>),
+  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<ContainerSizeFeature>"))]
+  Feature(ContainerSizeFeature<'i>),
   /// A negation of a condition.
   #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<ContainerCondition>>"))]
@@ -69,10 +70,41 @@ pub enum ContainerCondition<'i> {
   Style(StyleQuery<'i>),
 }
 
+/// A container query size feature.
+pub type ContainerSizeFeature<'i> = QueryFeature<'i, ContainerSizeFeatureId>;
+
+define_query_features! {
+  /// A container query size feature identifier.
+  pub enum ContainerSizeFeatureId {
+    /// The [width](https://w3c.github.io/csswg-drafts/css-contain-3/#width) size container feature.
+    "width": Width = Length,
+    /// The [height](https://w3c.github.io/csswg-drafts/css-contain-3/#height) size container feature.
+    "height": Height = Length,
+    /// The [inline-size](https://w3c.github.io/csswg-drafts/css-contain-3/#inline-size) size container feature.
+    "inline-size": InlineSize = Length,
+    /// The [block-size](https://w3c.github.io/csswg-drafts/css-contain-3/#block-size) size container feature.
+    "block-size": BlockSize = Length,
+    /// The [aspect-ratio](https://w3c.github.io/csswg-drafts/css-contain-3/#aspect-ratio) size container feature.
+    "aspect-ratio": AspectRatio = Ratio,
+    /// The [orientation](https://w3c.github.io/csswg-drafts/css-contain-3/#orientation) size container feature.
+    "orientation": Orientation = Ident,
+  }
+}
+
+impl FeatureToCss for ContainerSizeFeatureId {
+  fn to_css_with_prefix<W>(&self, prefix: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.write_str(prefix)?;
+    self.to_css(dest)
+  }
+}
+
 /// Represents a style query within a container condition.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -80,9 +112,13 @@ pub enum ContainerCondition<'i> {
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum StyleQuery<'i> {
-  /// A style feature, implicitly parenthesized.
+  /// A property declaration.
   #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<Property>"))]
-  Feature(Property<'i>),
+  Declaration(Property<'i>),
+  /// A property name, without a value.
+  /// This matches if the property value is different from the initial value.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<PropertyId>"))]
+  Property(PropertyId<'i>),
   /// A negation of a condition.
   #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<StyleQuery>>"))]
@@ -99,8 +135,11 @@ pub enum StyleQuery<'i> {
 
 impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
   #[inline]
-  fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let feature = MediaFeature::parse(input)?;
+  fn parse_feature<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let feature = QueryFeature::parse_with_options(input, options)?;
     Ok(Self::Feature(feature))
   }
 
@@ -114,17 +153,22 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
     Self::Operation { operator, conditions }
   }
 
-  fn parse_style_query<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse_style_query<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
-      if let Ok(res) = input.try_parse(|input| parse_query_condition(input, QueryConditionFlags::ALLOW_OR)) {
+      if let Ok(res) =
+        input.try_parse(|input| parse_query_condition(input, QueryConditionFlags::ALLOW_OR, options))
+      {
         return Ok(Self::Style(res));
       }
 
-      Ok(Self::Style(StyleQuery::parse_feature(input)?))
+      Ok(Self::Style(StyleQuery::parse_feature(input, options)?))
     })
   }
 
-  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
+  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool {
     match self {
       ContainerCondition::Not(_) => true,
       ContainerCondition::Operation { operator, .. } => Some(*operator) != parent_operator,
@@ -136,13 +180,19 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
 
 impl<'i> QueryCondition<'i> for StyleQuery<'i> {
   #[inline]
-  fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse_feature<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let property_id = PropertyId::parse(input)?;
-    input.expect_colon()?;
-    input.skip_whitespace();
-    let feature = Self::Feature(Property::parse(property_id, input, &Default::default())?);
-    let _ = input.try_parse(|input| parse_important(input));
-    Ok(feature)
+    if input.try_parse(|input| input.expect_colon()).is_ok() {
+      input.skip_whitespace();
+      let feature = Self::Declaration(Property::parse(property_id, input, options)?);
+      let _ = input.try_parse(|input| parse_important(input));
+      Ok(feature)
+    } else {
+      Ok(Self::Property(property_id))
+    }
   }
 
   #[inline]
@@ -155,18 +205,25 @@ impl<'i> QueryCondition<'i> for StyleQuery<'i> {
     Self::Operation { operator, conditions }
   }
 
-  fn needs_parens(&self, parent_operator: Option<Operator>, _targets: &Option<Browsers>) -> bool {
+  fn needs_parens(&self, parent_operator: Option<Operator>, _targets: &Targets) -> bool {
     match self {
       StyleQuery::Not(_) => true,
       StyleQuery::Operation { operator, .. } => Some(*operator) != parent_operator,
-      StyleQuery::Feature(_) => true,
+      StyleQuery::Declaration(_) | StyleQuery::Property(_) => true,
     }
   }
 }
 
-impl<'i> Parse<'i> for ContainerCondition<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    parse_query_condition(input, QueryConditionFlags::ALLOW_OR | QueryConditionFlags::ALLOW_STYLE)
+impl<'i> ParseWithOptions<'i> for ContainerCondition<'i> {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    parse_query_condition(
+      input,
+      QueryConditionFlags::ALLOW_OR | QueryConditionFlags::ALLOW_STYLE,
+      options,
+    )
   }
 }
 
@@ -179,7 +236,7 @@ impl<'i> ToCss for ContainerCondition<'i> {
       ContainerCondition::Feature(ref f) => f.to_css(dest),
       ContainerCondition::Not(ref c) => {
         dest.write_str("not ")?;
-        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))
+        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets.current))
       }
       ContainerCondition::Operation {
         ref conditions,
@@ -200,10 +257,11 @@ impl<'i> ToCss for StyleQuery<'i> {
     W: std::fmt::Write,
   {
     match *self {
-      StyleQuery::Feature(ref f) => f.to_css(dest, false),
+      StyleQuery::Declaration(ref f) => f.to_css(dest, false),
+      StyleQuery::Property(ref f) => f.to_css(dest),
       StyleQuery::Not(ref c) => {
         dest.write_str("not ")?;
-        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))
+        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets.current))
       }
       StyleQuery::Operation {
         ref conditions,
@@ -216,7 +274,7 @@ impl<'i> ToCss for StyleQuery<'i> {
 /// A [`<container-name>`](https://drafts.csswg.org/css-contain-3/#typedef-container-name) in a `@container` rule.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ContainerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);
@@ -236,11 +294,19 @@ impl<'i> ToCss for ContainerName<'i> {
   where
     W: std::fmt::Write,
   {
-    self.0.to_css(dest)
+    // Container name should not be hashed
+    // https://github.com/vercel/next.js/issues/71233
+    self.0.to_css_with_options(
+      dest,
+      match &dest.css_module {
+        Some(css_module) => css_module.config.container,
+        None => false,
+      },
+    )
   }
 }
 
-impl<'i, T> ContainerRule<'i, T> {
+impl<'i, T: Clone> ContainerRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
@@ -265,10 +331,10 @@ impl<'a, 'i, T: ToCss> ToCss for ContainerRule<'i, T> {
     }
 
     // Don't downlevel range syntax in container queries.
-    let mut targets = None;
-    std::mem::swap(&mut targets, &mut dest.targets);
+    let exclude = dest.targets.current.exclude;
+    dest.targets.current.exclude.insert(Features::MediaQueries);
     self.condition.to_css(dest)?;
-    std::mem::swap(&mut targets, &mut dest.targets);
+    dest.targets.current.exclude = exclude;
 
     dest.whitespace()?;
     dest.write_char('{')?;

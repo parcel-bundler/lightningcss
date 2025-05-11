@@ -3,8 +3,8 @@
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::targets::{Browsers, Targets};
+use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::values::{color::CssColor, url::Url};
 #[cfg(feature = "visitor")]
@@ -13,9 +13,9 @@ use cssparser::*;
 
 /// An SVG [`<paint>`](https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint) value
 /// used in the `fill` and `stroke` properties.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -23,8 +23,6 @@ use cssparser::*;
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SVGPaint<'i> {
-  /// No paint.
-  None,
   /// A URL reference to a paint server element, e.g. `linearGradient`, `radialGradient`, and `pattern`.
   Url {
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -40,12 +38,14 @@ pub enum SVGPaint<'i> {
   ContextFill,
   /// Use the paint value of stroke from a context element.
   ContextStroke,
+  /// No paint.
+  None,
 }
 
 /// A fallback for an SVG paint in case a paint server `url()` cannot be resolved.
 ///
 /// See [SVGPaint](SVGPaint).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -53,6 +53,7 @@ pub enum SVGPaint<'i> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum SVGPaintFallback {
   /// No fallback.
   None,
@@ -60,76 +61,8 @@ pub enum SVGPaintFallback {
   Color(CssColor),
 }
 
-impl<'i> Parse<'i> for SVGPaint<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(url) = input.try_parse(Url::parse) {
-      let fallback = input.try_parse(SVGPaintFallback::parse).ok();
-      return Ok(SVGPaint::Url { url, fallback });
-    }
-
-    if let Ok(color) = input.try_parse(CssColor::parse) {
-      return Ok(SVGPaint::Color(color));
-    }
-
-    let location = input.current_source_location();
-    let keyword = input.expect_ident()?;
-    match_ignore_ascii_case! { &keyword,
-      "none" => Ok(SVGPaint::None),
-      "context-fill" => Ok(SVGPaint::ContextFill),
-      "context-stroke" => Ok(SVGPaint::ContextStroke),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(keyword.clone())
-      ))
-    }
-  }
-}
-
-impl<'i> ToCss for SVGPaint<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      SVGPaint::None => dest.write_str("none"),
-      SVGPaint::Url { url, fallback } => {
-        url.to_css(dest)?;
-        if let Some(fallback) = fallback {
-          dest.write_char(' ')?;
-          fallback.to_css(dest)?;
-        }
-        Ok(())
-      }
-      SVGPaint::Color(color) => color.to_css(dest),
-      SVGPaint::ContextFill => dest.write_str("context-fill"),
-      SVGPaint::ContextStroke => dest.write_str("context-stroke"),
-    }
-  }
-}
-
-impl<'i> Parse<'i> for SVGPaintFallback {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(SVGPaintFallback::None);
-    }
-
-    Ok(SVGPaintFallback::Color(CssColor::parse(input)?))
-  }
-}
-
-impl ToCss for SVGPaintFallback {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      SVGPaintFallback::None => dest.write_str("none"),
-      SVGPaintFallback::Color(color) => color.to_css(dest),
-    }
-  }
-}
-
 impl<'i> FallbackValues for SVGPaint<'i> {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     match self {
       SVGPaint::Color(color) => color
         .get_fallbacks(targets)
@@ -152,6 +85,19 @@ impl<'i> FallbackValues for SVGPaint<'i> {
   }
 }
 
+impl IsCompatible for SVGPaint<'_> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      SVGPaint::Color(c)
+      | SVGPaint::Url {
+        fallback: Some(SVGPaintFallback::Color(c)),
+        ..
+      } => c.is_compatible(browsers),
+      SVGPaint::Url { .. } | SVGPaint::None | SVGPaint::ContextFill | SVGPaint::ContextStroke => true,
+    }
+  }
+}
+
 enum_property! {
   /// A value for the [stroke-linecap](https://www.w3.org/TR/SVG2/painting.html#LineCaps) property.
   pub enum StrokeLinecap {
@@ -168,15 +114,15 @@ enum_property! {
   /// A value for the [stroke-linejoin](https://www.w3.org/TR/SVG2/painting.html#LineJoin) property.
   pub enum StrokeLinejoin {
     /// A sharp corner is to be used to join path segments.
-    "miter": Miter,
+    Miter,
     /// Same as `miter` but clipped beyond `stroke-miterlimit`.
-    "miter-clip": MiterClip,
+    MiterClip,
     /// A round corner is to be used to join path segments.
-    "round": Round,
+    Round,
     /// A bevelled corner is to be used to join path segments.
-    "bevel": Bevel,
+    Bevel,
     /// An arcs corner is to be used to join path segments.
-    "arcs": Arcs,
+    Arcs,
   }
 }
 
@@ -189,6 +135,7 @@ enum_property! {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum StrokeDasharray {
   /// No dashing is used.
   None,
@@ -245,9 +192,9 @@ impl ToCss for StrokeDasharray {
 }
 
 /// A value for the [marker](https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties) properties.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -262,89 +209,101 @@ pub enum Marker<'i> {
   Url(Url<'i>),
 }
 
-impl<'i> Parse<'i> for Marker<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(url) = input.try_parse(Url::parse) {
-      return Ok(Marker::Url(url));
-    }
-
-    input.expect_ident_matching("none")?;
-    Ok(Marker::None)
-  }
+/// A value for the [color-interpolation](https://www.w3.org/TR/SVG2/painting.html#ColorInterpolation) property.
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ColorInterpolation {
+  /// The UA can choose between sRGB or linearRGB.
+  Auto,
+  /// Color interpolation occurs in the sRGB color space.
+  SRGB,
+  /// Color interpolation occurs in the linearized RGB color space
+  LinearRGB,
 }
 
-impl<'i> ToCss for Marker<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      Marker::None => dest.write_str("none"),
-      Marker::Url(url) => url.to_css(dest),
-    }
-  }
+/// A value for the [color-rendering](https://www.w3.org/TR/SVG2/painting.html#ColorRendering) property.
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ColorRendering {
+  /// The UA can choose a tradeoff between speed and quality.
+  Auto,
+  /// The UA shall optimize speed over quality.
+  OptimizeSpeed,
+  /// The UA shall optimize quality over speed.
+  OptimizeQuality,
 }
 
-enum_property! {
-  /// A value for the [color-interpolation](https://www.w3.org/TR/SVG2/painting.html#ColorInterpolation) property.
-  pub enum ColorInterpolation {
-    /// The UA can choose between sRGB or linearRGB.
-    Auto,
-    /// Color interpolation occurs in the sRGB color space.
-    SRGB,
-    /// Color interpolation occurs in the linearized RGB color space
-    LinearRGB,
-  }
+/// A value for the [shape-rendering](https://www.w3.org/TR/SVG2/painting.html#ShapeRendering) property.
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ShapeRendering {
+  /// The UA can choose an appropriate tradeoff.
+  Auto,
+  /// The UA shall optimize speed.
+  OptimizeSpeed,
+  /// The UA shall optimize crisp edges.
+  CrispEdges,
+  /// The UA shall optimize geometric precision.
+  GeometricPrecision,
 }
 
-enum_property! {
-  /// A value for the [color-rendering](https://www.w3.org/TR/SVG2/painting.html#ColorRendering) property.
-  pub enum ColorRendering {
-    /// The UA can choose a tradeoff between speed and quality.
-    Auto,
-    /// The UA shall optimize speed over quality.
-    OptimizeSpeed,
-    /// The UA shall optimize quality over speed.
-    OptimizeQuality,
-  }
+/// A value for the [text-rendering](https://www.w3.org/TR/SVG2/painting.html#TextRendering) property.
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum TextRendering {
+  /// The UA can choose an appropriate tradeoff.
+  Auto,
+  /// The UA shall optimize speed.
+  OptimizeSpeed,
+  /// The UA shall optimize legibility.
+  OptimizeLegibility,
+  /// The UA shall optimize geometric precision.
+  GeometricPrecision,
 }
 
-enum_property! {
-  /// A value for the [shape-rendering](https://www.w3.org/TR/SVG2/painting.html#ShapeRendering) property.
-  pub enum ShapeRendering {
-    /// The UA can choose an appropriate tradeoff.
-    Auto,
-    /// The UA shall optimize speed.
-    OptimizeSpeed,
-    /// The UA shall optimize crisp edges.
-    CrispEdges,
-    /// The UA shall optimize geometric precision.
-    GeometricPrecision,
-  }
-}
-
-enum_property! {
-  /// A value for the [text-rendering](https://www.w3.org/TR/SVG2/painting.html#TextRendering) property.
-  pub enum TextRendering {
-    /// The UA can choose an appropriate tradeoff.
-    Auto,
-    /// The UA shall optimize speed.
-    OptimizeSpeed,
-    /// The UA shall optimize legibility.
-    OptimizeLegibility,
-    /// The UA shall optimize geometric precision.
-    GeometricPrecision,
-  }
-}
-
-enum_property! {
-  /// A value for the [image-rendering](https://www.w3.org/TR/SVG2/painting.html#ImageRendering) property.
-  pub enum ImageRendering {
-    /// The UA can choose a tradeoff between speed and quality.
-    Auto,
-    /// The UA shall optimize speed over quality.
-    OptimizeSpeed,
-    /// The UA shall optimize quality over speed.
-    OptimizeQuality,
-  }
+/// A value for the [image-rendering](https://www.w3.org/TR/SVG2/painting.html#ImageRendering) property.
+#[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ImageRendering {
+  /// The UA can choose a tradeoff between speed and quality.
+  Auto,
+  /// The UA shall optimize speed over quality.
+  OptimizeSpeed,
+  /// The UA shall optimize quality over speed.
+  OptimizeQuality,
 }

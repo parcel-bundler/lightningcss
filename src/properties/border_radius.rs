@@ -9,8 +9,7 @@ use crate::macros::define_shorthand;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
-use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
+use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::length::*;
 use crate::values::rect::Rect;
 use crate::values::size::Size2D;
@@ -92,7 +91,6 @@ impl ToCss for BorderRadius {
 
 #[derive(Default, Debug)]
 pub(crate) struct BorderRadiusHandler<'i> {
-  targets: Option<Browsers>,
   top_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
@@ -103,15 +101,6 @@ pub(crate) struct BorderRadiusHandler<'i> {
   end_start: Option<Property<'i>>,
   category: PropertyCategory,
   has_any: bool,
-}
-
-impl<'i> BorderRadiusHandler<'i> {
-  pub fn new(targets: Option<Browsers>) -> Self {
-    BorderRadiusHandler {
-      targets,
-      ..BorderRadiusHandler::default()
-    }
-  }
 }
 
 impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
@@ -131,6 +120,10 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
           if val != $val && !prefixes.contains(*$vp) {
             self.flush(dest, context);
           }
+        }
+
+        if self.$prop.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
+          self.flush(dest, context);
         }
       }};
     }
@@ -202,7 +195,7 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
           _ => {
             self.flush(dest, context);
             dest.push(Property::Unparsed(
-              val.get_prefixed(self.targets, Feature::BorderRadius),
+              val.get_prefixed(context.targets, Feature::BorderRadius),
             ));
           }
         }
@@ -244,12 +237,7 @@ impl<'i> BorderRadiusHandler<'i> {
     {
       let intersection = *tl_prefix & *tr_prefix & *br_prefix & *bl_prefix;
       if !intersection.is_empty() {
-        let mut prefix = intersection;
-        if prefix.contains(VendorPrefix::None) {
-          if let Some(targets) = self.targets {
-            prefix = Feature::BorderRadius.prefixes_for(targets)
-          }
-        }
+        let prefix = context.targets.prefixes(intersection, Feature::BorderRadius);
         dest.push(Property::BorderRadius(
           BorderRadius {
             top_left: top_left.clone(),
@@ -270,18 +258,14 @@ impl<'i> BorderRadiusHandler<'i> {
       ($prop: ident, $key: ident) => {
         if let Some((val, mut vp)) = $key {
           if !vp.is_empty() {
-            if vp.contains(VendorPrefix::None) {
-              if let Some(targets) = self.targets {
-                vp = Feature::$prop.prefixes_for(targets)
-              }
-            }
+            vp = context.targets.prefixes(vp, Feature::$prop);
             dest.push(Property::$prop(val, vp))
           }
         }
       };
     }
 
-    let logical_supported = context.is_supported(compat::Feature::LogicalBorderRadius);
+    let logical_supported = !context.should_compile_logical(compat::Feature::LogicalBorderRadius);
 
     macro_rules! logical_property {
       ($prop: ident, $key: ident, $ltr: ident, $rtl: ident) => {
@@ -289,12 +273,7 @@ impl<'i> BorderRadiusHandler<'i> {
           if logical_supported {
             dest.push(val);
           } else {
-            let vp = if let Some(targets) = self.targets {
-              Feature::$ltr.prefixes_for(targets)
-            } else {
-              VendorPrefix::None
-            };
-
+            let vp = context.targets.prefixes(VendorPrefix::None, Feature::$ltr);
             match val {
               Property::BorderStartStartRadius(val)
               | Property::BorderStartEndRadius(val)

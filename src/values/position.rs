@@ -5,7 +5,8 @@ use super::percentage::Percentage;
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use crate::traits::{Parse, ToCss, Zero};
+use crate::targets::Browsers;
+use crate::traits::{IsCompatible, Parse, ToCss, Zero};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -19,6 +20,7 @@ use crate::serialization::ValueWrapper;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct Position {
   /// The x-position.
   pub x: HorizontalPosition,
@@ -272,6 +274,12 @@ impl ToCss for Position {
   }
 }
 
+impl IsCompatible for Position {
+  fn is_compatible(&self, _browsers: Browsers) -> bool {
+    true
+  }
+}
+
 /// A component within a [Position](Position) value, representing a position
 /// along either the horizontal or vertical axis of a box.
 ///
@@ -284,6 +292,7 @@ impl ToCss for Position {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum PositionComponent<S> {
   /// The `center` keyword.
   Center,

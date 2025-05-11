@@ -6,9 +6,12 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::stylesheet::{ParserOptions, PrinterOptions};
-use crate::targets::Browsers;
+use crate::targets::{Browsers, Targets};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
+
+#[cfg(feature = "into_owned")]
+pub use static_self::IntoOwned;
 
 /// Trait for things that can be parsed from CSS syntax.
 pub trait Parse<'i>: Sized {
@@ -24,6 +27,20 @@ pub trait Parse<'i>: Sized {
     let result = Self::parse(&mut parser)?;
     parser.expect_exhausted()?;
     Ok(result)
+  }
+}
+
+pub(crate) use lightningcss_derive::Parse;
+
+impl<'i, T: Parse<'i>> Parse<'i> for Option<T> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Ok(input.try_parse(T::parse).ok())
+  }
+}
+
+impl<'i, T: Parse<'i>> Parse<'i> for Box<T> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Ok(Box::new(T::parse(input)?))
   }
 }
 
@@ -75,6 +92,8 @@ pub trait ToCss {
   }
 }
 
+pub(crate) use lightningcss_derive::ToCss;
+
 impl<'a, T> ToCss for &'a T
 where
   T: ToCss + ?Sized,
@@ -84,6 +103,27 @@ where
     W: std::fmt::Write,
   {
     (*self).to_css(dest)
+  }
+}
+
+impl<T: ToCss> ToCss for Box<T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    (**self).to_css(dest)
+  }
+}
+
+impl<T: ToCss> ToCss for Option<T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if let Some(v) = self {
+      v.to_css(dest)?;
+    }
+    Ok(())
   }
 }
 
@@ -112,7 +152,7 @@ pub(crate) trait FromStandard<T>: Sized {
 }
 
 pub(crate) trait FallbackValues: Sized {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self>;
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self>;
 }
 
 /// Trait for shorthand properties.
@@ -151,6 +191,7 @@ macro_rules! impl_op {
 }
 
 pub(crate) use impl_op;
+use smallvec::SmallVec;
 
 /// A trait for values that potentially support a binary operation (e.g. if they have the same unit).
 pub trait TryOp: Sized {
@@ -235,6 +276,24 @@ pub trait Zero {
   fn is_zero(&self) -> bool;
 }
 
+/// A trait for values that can check if they are compatible with browser targets.
+pub trait IsCompatible {
+  /// Returns whether the value is compatible with all of the given browser targets.
+  fn is_compatible(&self, browsers: Browsers) -> bool;
+}
+
+impl<T: IsCompatible> IsCompatible for SmallVec<[T; 1]> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.iter().all(|v| v.is_compatible(browsers))
+  }
+}
+
+impl<T: IsCompatible> IsCompatible for Vec<T> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.iter().all(|v| v.is_compatible(browsers))
+  }
+}
+
 /// A trait to provide parsing of custom at-rules.
 ///
 /// For example, there could be different implementations for top-level at-rules
@@ -287,6 +346,7 @@ pub trait AtRuleParser<'i>: Sized {
   /// representation of the at-rule.
   ///
   /// The location passed in is source location of the start of the prelude.
+  /// `is_nested` indicates whether the rule is nested inside a style rule.
   ///
   /// This is only called when either the `;` semicolon indeed follows the prelude,
   /// or parser is at the end of the input.
@@ -295,16 +355,19 @@ pub trait AtRuleParser<'i>: Sized {
     prelude: Self::Prelude,
     start: &ParserState,
     options: &ParserOptions<'_, 'i>,
+    is_nested: bool,
   ) -> Result<Self::AtRule, ()> {
     let _ = prelude;
     let _ = start;
     let _ = options;
+    let _ = is_nested;
     Err(())
   }
 
   /// Parse the content of a `{ /* ... */ }` block for the body of the at-rule.
   ///
   /// The location passed in is source location of the start of the prelude.
+  /// `is_nested` indicates whether the rule is nested inside a style rule.
   ///
   /// Return the finished representation of the at-rule
   /// as returned by `RuleListParser::next` or `DeclarationListParser::next`,
@@ -317,11 +380,13 @@ pub trait AtRuleParser<'i>: Sized {
     start: &ParserState,
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
+    is_nested: bool,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
     let _ = prelude;
     let _ = start;
     let _ = input;
     let _ = options;
+    let _ = is_nested;
     Err(input.new_error(BasicParseErrorKind::AtRuleBodyInvalid))
   }
 }

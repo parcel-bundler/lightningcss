@@ -11,7 +11,10 @@ use lightningcss::{
   stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
   targets::Browsers,
   traits::{AtRuleParser, ToCss},
-  values::{color::CssColor, length::LengthValue},
+  values::{
+    color::{CssColor, RGBA},
+    length::LengthValue,
+  },
   vendor_prefix::VendorPrefix,
   visit_types,
   visitor::{Visit, VisitTypes, Visitor},
@@ -40,10 +43,11 @@ fn main() {
 
   let result = stylesheet
     .to_css(PrinterOptions {
-      targets: Some(Browsers {
+      targets: Browsers {
         chrome: Some(100 << 16),
         ..Browsers::default()
-      }),
+      }
+      .into(),
       ..PrinterOptions::default()
     })
     .unwrap();
@@ -135,6 +139,7 @@ impl<'i> AtRuleParser<'i> for TailwindAtRuleParser {
     prelude: Self::Prelude,
     start: &ParserState,
     _options: &ParserOptions<'_, 'i>,
+    _is_nested: bool,
   ) -> Result<Self::AtRule, ()> {
     let loc = start.source_location();
     match prelude {
@@ -151,7 +156,9 @@ struct StyleRuleCollector<'i, 'a> {
 impl<'i, 'a> Visitor<'i, AtRule> for StyleRuleCollector<'i, 'a> {
   type Error = Infallible;
 
-  const TYPES: VisitTypes = VisitTypes::RULES;
+  fn visit_types(&self) -> VisitTypes {
+    VisitTypes::RULES
+  }
 
   fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i, AtRule>) -> Result<(), Self::Error> {
     match rule {
@@ -184,14 +191,18 @@ struct ApplyVisitor<'a, 'i> {
 impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
   type Error = Infallible;
 
-  const TYPES: VisitTypes = visit_types!(RULES | COLORS | LENGTHS | DASHED_IDENTS | SELECTORS | TOKENS);
+  fn visit_types(&self) -> VisitTypes {
+    visit_types!(RULES | COLORS | LENGTHS | DASHED_IDENTS | SELECTORS | TOKENS)
+  }
 
   fn visit_rule(&mut self, rule: &mut CssRule<'i, AtRule>) -> Result<(), Self::Error> {
     // Replace @apply rule with nested style rule.
     if let CssRule::Custom(AtRule::Apply(apply)) = rule {
       let mut declarations = DeclarationBlock::new();
       for name in &apply.names {
-        let applied = self.rules.get(name).unwrap();
+        let Some(applied) = self.rules.get(name) else {
+          continue;
+        };
         declarations
           .important_declarations
           .extend(applied.important_declarations.iter().cloned());
@@ -219,7 +230,7 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
   }
 
   fn visit_color(&mut self, color: &mut lightningcss::values::color::CssColor) -> Result<(), Self::Error> {
-    *color = color.to_lab();
+    *color = color.to_lab().unwrap();
     Ok(())
   }
 
@@ -257,8 +268,8 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
     match token {
       TokenOrValue::Function(f) if f.name == "theme" => match f.arguments.0.first() {
         Some(TokenOrValue::Token(Token::String(s))) => match s.as_ref() {
-          "blue-500" => *token = TokenOrValue::Color(CssColor::RGBA(RGBA::new(0, 0, 255, 255))),
-          "red-500" => *token = TokenOrValue::Color(CssColor::RGBA(RGBA::new(255, 0, 0, 255))),
+          "blue-500" => *token = TokenOrValue::Color(CssColor::RGBA(RGBA::new(0, 0, 255, 1.0))),
+          "red-500" => *token = TokenOrValue::Color(CssColor::RGBA(RGBA::new(255, 0, 0, 1.0))),
           _ => {}
         },
         _ => {}

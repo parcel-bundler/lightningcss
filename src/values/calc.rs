@@ -4,8 +4,9 @@ use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
+use crate::targets::{should_compile, Browsers};
 use crate::traits::private::AddInternal;
-use crate::traits::{Parse, Sign, ToCss, TryMap, TryOp, TrySign};
+use crate::traits::{IsCompatible, Parse, Sign, ToCss, TryMap, TryOp, TrySign};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -28,6 +29,7 @@ use super::time::Time;
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum MathFunction<V> {
   /// The [`calc()`](https://www.w3.org/TR/css-values-4/#calc-func) function.
   Calc(Calc<V>),
@@ -51,18 +53,52 @@ pub enum MathFunction<V> {
   Hypot(Vec<Calc<V>>),
 }
 
+impl<V: IsCompatible> IsCompatible for MathFunction<V> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      MathFunction::Calc(v) => Feature::CalcFunction.is_compatible(browsers) && v.is_compatible(browsers),
+      MathFunction::Min(v) => {
+        Feature::MinFunction.is_compatible(browsers) && v.iter().all(|v| v.is_compatible(browsers))
+      }
+      MathFunction::Max(v) => {
+        Feature::MaxFunction.is_compatible(browsers) && v.iter().all(|v| v.is_compatible(browsers))
+      }
+      MathFunction::Clamp(a, b, c) => {
+        Feature::ClampFunction.is_compatible(browsers)
+          && a.is_compatible(browsers)
+          && b.is_compatible(browsers)
+          && c.is_compatible(browsers)
+      }
+      MathFunction::Round(_, a, b) => {
+        Feature::RoundFunction.is_compatible(browsers) && a.is_compatible(browsers) && b.is_compatible(browsers)
+      }
+      MathFunction::Rem(a, b) => {
+        Feature::RemFunction.is_compatible(browsers) && a.is_compatible(browsers) && b.is_compatible(browsers)
+      }
+      MathFunction::Mod(a, b) => {
+        Feature::ModFunction.is_compatible(browsers) && a.is_compatible(browsers) && b.is_compatible(browsers)
+      }
+      MathFunction::Abs(v) => Feature::AbsFunction.is_compatible(browsers) && v.is_compatible(browsers),
+      MathFunction::Sign(v) => Feature::SignFunction.is_compatible(browsers) && v.is_compatible(browsers),
+      MathFunction::Hypot(v) => {
+        Feature::HypotFunction.is_compatible(browsers) && v.iter().all(|v| v.is_compatible(browsers))
+      }
+    }
+  }
+}
+
 enum_property! {
   /// A [rounding strategy](https://www.w3.org/TR/css-values-4/#typedef-rounding-strategy),
   /// as used in the `round()` function.
   pub enum RoundingStrategy {
     /// Round to the nearest integer.
-    "nearest": Nearest,
+    Nearest,
     /// Round up (ceil).
-    "up": Up,
+    Up,
     /// Round down (floor).
-    "down": Down,
+    Down,
     /// Round toward zero (truncate).
-    "to-zero": ToZero,
+    ToZero,
   }
 }
 
@@ -125,18 +161,16 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
       }
       MathFunction::Clamp(a, b, c) => {
         // If clamp() is unsupported by targets, output min()/max()
-        if let Some(targets) = dest.targets {
-          if !Feature::Clamp.is_compatible(targets) {
-            dest.write_str("max(")?;
-            a.to_css(dest)?;
-            dest.delim(',', false)?;
-            dest.write_str("min(")?;
-            b.to_css(dest)?;
-            dest.delim(',', false)?;
-            c.to_css(dest)?;
-            dest.write_str("))")?;
-            return Ok(());
-          }
+        if should_compile!(dest.targets.current, ClampFunction) {
+          dest.write_str("max(")?;
+          a.to_css(dest)?;
+          dest.delim(',', false)?;
+          dest.write_str("min(")?;
+          b.to_css(dest)?;
+          dest.delim(',', false)?;
+          c.to_css(dest)?;
+          dest.write_str("))")?;
+          return Ok(());
         }
 
         dest.write_str("clamp(")?;
@@ -211,6 +245,7 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Calc<V> {
   /// A literal value.
   Value(Box<V>),
@@ -225,6 +260,18 @@ pub enum Calc<V> {
   /// A math function, such as `calc()`, `min()`, or `max()`.
   #[cfg_attr(feature = "visitor", skip_type)]
   Function(Box<MathFunction<V>>),
+}
+
+impl<V: IsCompatible> IsCompatible for Calc<V> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      Calc::Sum(a, b) => a.is_compatible(browsers) && b.is_compatible(browsers),
+      Calc::Product(_, v) => v.is_compatible(browsers),
+      Calc::Function(f) => f.is_compatible(browsers),
+      Calc::Value(v) => v.is_compatible(browsers),
+      Calc::Number(..) => true,
+    }
+  }
 }
 
 enum_property! {
@@ -267,9 +314,8 @@ impl<
       + TrySign
       + std::cmp::PartialOrd<V>
       + Into<Calc<V>>
-      + TryFrom<Calc<V>>
+      + From<Calc<V>>
       + TryFrom<Angle>
-      + TryInto<Angle>
       + Clone
       + std::fmt::Debug,
   > Parse<'i> for Calc<V>
@@ -289,9 +335,8 @@ impl<
       + TrySign
       + std::cmp::PartialOrd<V>
       + Into<Calc<V>>
-      + TryFrom<Calc<V>>
+      + From<Calc<V>>
       + TryFrom<Angle>
-      + TryInto<Angle>
       + Clone
       + std::fmt::Debug,
   > Calc<V>
@@ -355,22 +400,24 @@ impl<
           None => {}
         }
 
-        let cmp = if let (Some(Calc::Value(min_val)), Calc::Value(center_val)) = (&min, &center) {
-          center_val.partial_cmp(&min_val)
-        } else {
-          None
-        };
+        if cmp.is_some() {
+          let cmp = if let (Some(Calc::Value(min_val)), Calc::Value(center_val)) = (&min, &center) {
+            center_val.partial_cmp(&min_val)
+          } else {
+            None
+          };
 
-        // If center is known to be less than the minimum, replace it with minimum and remove the min argument.
-        // Otherwise, if center is known to be greater than the minimum, remove the min argument.
-        match cmp {
-          Some(std::cmp::Ordering::Less) => {
-            center = std::mem::take(&mut min).unwrap();
+          // If center is known to be less than the minimum, replace it with minimum and remove the min argument.
+          // Otherwise, if center is known to be greater than the minimum, remove the min argument.
+          match cmp {
+            Some(std::cmp::Ordering::Less) => {
+              center = std::mem::take(&mut min).unwrap();
+            }
+            Some(_) => {
+              min = None;
+            }
+            None => {}
           }
-          Some(_) => {
-            min = None;
-          }
-          None => {}
         }
 
         // Generate clamp(), min(), max(), or value depending on which arguments are left.
@@ -503,12 +550,12 @@ impl<
           match *input.next()? {
             Token::Delim('+') => {
               let next = Calc::parse_product(input, parse_ident)?;
-              cur = cur.add(next).map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
+              cur = cur.add(next);
             }
             Token::Delim('-') => {
               let mut rhs = Calc::parse_product(input, parse_ident)?;
               rhs = rhs * -1.0;
-              cur = cur.add(rhs).map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
+              cur = cur.add(rhs);
             }
             ref t => {
               let t = t.clone();
@@ -697,12 +744,9 @@ impl<
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
       let v: Calc<Angle> = Calc::parse_sum(input, |v| {
-        parse_ident(v).and_then(|v| -> Option<Calc<Angle>> {
-          match v {
-            Calc::Number(v) => Some(Calc::Number(v)),
-            Calc::Value(v) => (*v).try_into().ok().map(|v| Calc::Value(Box::new(v))),
-            _ => None,
-          }
+        parse_ident(v).and_then(|v| match v {
+          Calc::Number(v) => Some(Calc::Number(v)),
+          _ => None,
         })
       })?;
       let rad = match v {
@@ -859,17 +903,41 @@ impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
   }
 }
 
-impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V>> + std::fmt::Debug> Calc<V> {
-  pub(crate) fn add(self, other: Calc<V>) -> Result<Calc<V>, <V as TryFrom<Calc<V>>>::Error> {
-    Ok(match (self, other) {
+impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> AddInternal
+  for Calc<V>
+{
+  fn add(self, other: Calc<V>) -> Calc<V> {
+    match (self, other) {
       (Calc::Value(a), Calc::Value(b)) => (a.add(*b)).into(),
       (Calc::Number(a), Calc::Number(b)) => Calc::Number(a + b),
-      (Calc::Value(a), b) => (a.add(V::try_from(b)?)).into(),
-      (a, Calc::Value(b)) => (V::try_from(a)?.add(*b)).into(),
+      (Calc::Sum(a, b), Calc::Number(c)) => {
+        if let Calc::Number(a) = *a {
+          Calc::Sum(Box::new(Calc::Number(a + c)), b)
+        } else if let Calc::Number(b) = *b {
+          Calc::Sum(a, Box::new(Calc::Number(b + c)))
+        } else {
+          Calc::Sum(Box::new(Calc::Sum(a, b)), Box::new(Calc::Number(c)))
+        }
+      }
+      (Calc::Number(a), Calc::Sum(b, c)) => {
+        if let Calc::Number(b) = *b {
+          Calc::Sum(Box::new(Calc::Number(a + b)), c)
+        } else if let Calc::Number(c) = *c {
+          Calc::Sum(Box::new(Calc::Number(a + c)), b)
+        } else {
+          Calc::Sum(Box::new(Calc::Number(a)), Box::new(Calc::Sum(b, c)))
+        }
+      }
+      (a @ Calc::Number(_), b)
+      | (a, b @ Calc::Number(_))
+      | (a @ Calc::Product(..), b)
+      | (a, b @ Calc::Product(..)) => Calc::Sum(Box::new(a), Box::new(b)),
       (Calc::Function(a), b) => Calc::Sum(Box::new(Calc::Function(a)), Box::new(b)),
       (a, Calc::Function(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Function(b))),
-      (a, b) => V::try_from(a)?.add(V::try_from(b)?).into(),
-    })
+      (Calc::Value(a), b) => (a.add(V::from(b))).into(),
+      (a, Calc::Value(b)) => (V::from(a).add(*b)).into(),
+      (a @ Calc::Sum(..), b @ Calc::Sum(..)) => V::from(a).add(V::from(b)).into(),
+    }
   }
 }
 
@@ -922,6 +990,52 @@ impl<V: TrySign> TrySign for Calc<V> {
     match self {
       Calc::Number(v) => v.try_sign(),
       Calc::Value(v) => v.try_sign(),
+      Calc::Product(c, v) => v.try_sign().map(|s| s * c.sign()),
+      Calc::Function(f) => f.try_sign(),
+      _ => None,
+    }
+  }
+}
+
+impl<V: TrySign> TrySign for MathFunction<V> {
+  fn try_sign(&self) -> Option<f32> {
+    match self {
+      MathFunction::Abs(_) => Some(1.0),
+      MathFunction::Max(values) | MathFunction::Min(values) => {
+        let mut iter = values.iter();
+        if let Some(sign) = iter.next().and_then(|f| f.try_sign()) {
+          for value in iter {
+            if let Some(s) = value.try_sign() {
+              if s != sign {
+                return None;
+              }
+            } else {
+              return None;
+            }
+          }
+          return Some(sign);
+        } else {
+          return None;
+        }
+      }
+      MathFunction::Clamp(a, b, c) => {
+        if let (Some(a), Some(b), Some(c)) = (a.try_sign(), b.try_sign(), c.try_sign()) {
+          if a == b && b == c {
+            return Some(a);
+          }
+        }
+        return None;
+      }
+      MathFunction::Round(_, a, b) => {
+        if let (Some(a), Some(b)) = (a.try_sign(), b.try_sign()) {
+          if a == b {
+            return Some(a);
+          }
+        }
+        return None;
+      }
+      MathFunction::Sign(v) => v.try_sign(),
+      MathFunction::Calc(v) => v.try_sign(),
       _ => None,
     }
   }

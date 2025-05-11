@@ -1,0 +1,18 @@
+[package]
+name = "static-self-derive"
+version = "0.1.1"
+edition = "2021"
+authors = ["Devon Govett <devongovett@gmail.com>","Donny <kdy1997.dev@gmail.com>"]
+description = "Derive macros for static-self"
+license = "MPL-2.0"
+keywords = [  ]
+repository = "https://github.com/parcel-bundler/lightningcss"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "1.0", features = ["extra-traits"] }
+quote = "1.0"
+proc-macro2 = "1.0"

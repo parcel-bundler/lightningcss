@@ -3,12 +3,14 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
-use crate::context::PropertyHandlerContext;
-use crate::error::{ParserError, PrinterError};
+use crate::context::{DeclarationContext, PropertyHandlerContext};
+use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
+use crate::properties::custom::{CustomProperty, CustomPropertyName};
 use crate::properties::masking::MaskHandler;
+use crate::properties::text::{Direction, UnicodeBidi};
 use crate::properties::{
   align::AlignHandler,
   animation::AnimationHandler,
@@ -29,14 +31,18 @@ use crate::properties::{
   text::TextDecorationHandler,
   transform::TransformHandler,
   transition::TransitionHandler,
+  ui::ColorSchemeHandler,
 };
 use crate::properties::{Property, PropertyId};
-use crate::targets::Browsers;
+use crate::selector::SelectorList;
 use crate::traits::{PropertyHandler, ToCss};
+use crate::values::ident::DashedIdent;
 use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use indexmap::IndexMap;
+use smallvec::SmallVec;
 
 /// A CSS declaration block.
 ///
@@ -45,7 +51,7 @@ use cssparser::*;
 /// with storing a boolean along with each property.
 #[derive(Debug, PartialEq, Clone, Default)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_declaration_block, PROPERTIES))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -69,14 +75,12 @@ impl<'i> DeclarationBlock<'i> {
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut important_declarations = DeclarationList::new();
     let mut declarations = DeclarationList::new();
-    let mut parser = DeclarationListParser::new(
-      input,
-      PropertyDeclarationParser {
-        important_declarations: &mut important_declarations,
-        declarations: &mut declarations,
-        options,
-      },
-    );
+    let mut decl_parser = PropertyDeclarationParser {
+      important_declarations: &mut important_declarations,
+      declarations: &mut declarations,
+      options,
+    };
+    let mut parser = RuleBodyParser::new(input, &mut decl_parser);
     while let Some(res) = parser.next() {
       if let Err((err, _)) = res {
         if options.error_recovery {
@@ -155,18 +159,70 @@ impl<'i> DeclarationBlock<'i> {
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();
+    dest.newline()?;
 
+    self.to_css_declarations(dest, false, &parcel_selectors::SelectorList(SmallVec::new()), 0)?;
+
+    dest.dedent();
+    dest.newline()?;
+    dest.write_char('}')
+  }
+
+  pub(crate) fn has_printable_declarations(&self) -> bool {
+    if self.len() > 1 {
+      return true;
+    }
+
+    if self.declarations.len() == 1 {
+      !matches!(self.declarations[0], crate::properties::Property::Composes(_))
+    } else if self.important_declarations.len() == 1 {
+      !matches!(self.important_declarations[0], crate::properties::Property::Composes(_))
+    } else {
+      false
+    }
+  }
+
+  /// Writes the declarations to a CSS declaration block.
+  pub fn to_css_declarations<W>(
+    &self,
+    dest: &mut Printer<W>,
+    has_nested_rules: bool,
+    selectors: &SelectorList,
+    source_index: u32,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut i = 0;
     let len = self.len();
 
     macro_rules! write {
       ($decls: expr, $important: literal) => {
         for decl in &$decls {
-          dest.newline()?;
+          // The CSS modules `composes` property is handled specially, and omitted during printing.
+          // We need to add the classes it references to the list for the selectors in this rule.
+          if let crate::properties::Property::Composes(composes) = &decl {
+            if dest.is_nested() && dest.css_module.is_some() {
+              return Err(dest.error(PrinterErrorKind::InvalidComposesNesting, composes.loc));
+            }
+
+            if let Some(css_module) = &mut dest.css_module {
+              css_module
+                .handle_composes(&selectors, &composes, source_index)
+                .map_err(|e| dest.error(e, composes.loc))?;
+              continue;
+            }
+          }
+
+          if i > 0 {
+            dest.newline()?;
+          }
+
           decl.to_css(dest, $important)?;
-          if i != len - 1 || !dest.minify {
+          if i != len - 1 || !dest.minify || has_nested_rules {
             dest.write_char(';')?;
           }
+
           i += 1;
         }
       };
@@ -174,10 +230,7 @@ impl<'i> DeclarationBlock<'i> {
 
     write!(self.declarations, false);
     write!(self.important_declarations, true);
-
-    dest.dedent();
-    dest.newline()?;
-    dest.write_char('}')
+    Ok(())
   }
 }
 
@@ -436,6 +489,22 @@ impl<'a, 'o, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
   type Error = ParserError<'i>;
 }
 
+impl<'a, 'o, 'i> QualifiedRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
+  type Prelude = ();
+  type QualifiedRule = ();
+  type Error = ParserError<'i>;
+}
+
+impl<'a, 'o, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for PropertyDeclarationParser<'a, 'o, 'i> {
+  fn parse_qualified(&self) -> bool {
+    false
+  }
+
+  fn parse_declarations(&self) -> bool {
+    true
+  }
+}
+
 pub(crate) fn parse_declaration<'i, 't>(
   name: CowRcStr<'i>,
   input: &mut cssparser::Parser<'i, 't>,
@@ -443,15 +512,22 @@ pub(crate) fn parse_declaration<'i, 't>(
   important_declarations: &mut DeclarationList<'i>,
   options: &ParserOptions<'_, 'i>,
 ) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
-  let property = input.parse_until_before(Delimiter::Bang, |input| {
-    Property::parse(PropertyId::from(CowArcStr::from(name)), input, options)
-  })?;
+  // Stop if we hit a `{` token in a non-custom property to
+  // avoid ambiguity between nested rules and declarations.
+  // https://github.com/w3c/csswg-drafts/issues/9317
+  let property_id = PropertyId::from(CowArcStr::from(name));
+  let mut delimiters = Delimiter::Bang;
+  if !matches!(property_id, PropertyId::Custom(CustomPropertyName::Custom(..))) {
+    delimiters = delimiters | Delimiter::CurlyBracketBlock;
+  }
+  let property = input.parse_until_before(delimiters, |input| Property::parse(property_id, input, options))?;
   let important = input
     .try_parse(|input| {
       input.expect_delim('!')?;
       input.expect_ident_matching("important")
     })
     .is_ok();
+  input.expect_exhausted()?;
   if important {
     important_declarations.push(property);
   } else {
@@ -462,6 +538,7 @@ pub(crate) fn parse_declaration<'i, 't>(
 
 pub(crate) type DeclarationList<'i> = Vec<Property<'i>>;
 
+#[derive(Default)]
 pub(crate) struct DeclarationHandler<'i> {
   background: BackgroundHandler<'i>,
   border: BorderHandler<'i>,
@@ -487,55 +564,21 @@ pub(crate) struct DeclarationHandler<'i> {
   box_shadow: BoxShadowHandler,
   mask: MaskHandler<'i>,
   container: ContainerHandler<'i>,
+  color_scheme: ColorSchemeHandler,
   fallback: FallbackHandler,
   prefix: PrefixHandler,
+  direction: Option<Direction>,
+  unicode_bidi: Option<UnicodeBidi>,
+  custom_properties: IndexMap<DashedIdent<'i>, usize>,
   decls: DeclarationList<'i>,
 }
 
 impl<'i> DeclarationHandler<'i> {
-  pub fn new(targets: Option<Browsers>) -> Self {
-    DeclarationHandler {
-      background: BackgroundHandler::new(targets),
-      border: BorderHandler::new(targets),
-      outline: OutlineHandler::new(targets),
-      flex: FlexHandler::new(targets),
-      grid: GridHandler::default(),
-      align: AlignHandler::new(targets),
-      size: SizeHandler::default(),
-      margin: MarginHandler::default(),
-      padding: PaddingHandler::default(),
-      scroll_margin: ScrollMarginHandler::default(),
-      scroll_padding: ScrollPaddingHandler::default(),
-      font: FontHandler::default(),
-      text: TextDecorationHandler::new(targets),
-      list: ListStyleHandler::new(targets),
-      transition: TransitionHandler::new(targets),
-      animation: AnimationHandler::new(targets),
-      display: DisplayHandler::new(targets),
-      position: PositionHandler::new(targets),
-      inset: InsetHandler::default(),
-      overflow: OverflowHandler::new(targets),
-      transform: TransformHandler::new(targets),
-      box_shadow: BoxShadowHandler::new(targets),
-      mask: MaskHandler::default(),
-      container: ContainerHandler::default(),
-      fallback: FallbackHandler::new(targets),
-      prefix: PrefixHandler::new(targets),
-      decls: DeclarationList::new(),
-    }
-  }
-
   pub fn handle_property(
     &mut self,
     property: &Property<'i>,
     context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
-    if !context.unused_symbols.is_empty()
-      && matches!(property, Property::Custom(custom) if context.unused_symbols.contains(custom.name.as_ref()))
-    {
-      return true;
-    }
-
     self.background.handle_property(property, &mut self.decls, context)
       || self.border.handle_property(property, &mut self.decls, context)
       || self.outline.handle_property(property, &mut self.decls, context)
@@ -560,11 +603,102 @@ impl<'i> DeclarationHandler<'i> {
       || self.box_shadow.handle_property(property, &mut self.decls, context)
       || self.mask.handle_property(property, &mut self.decls, context)
       || self.container.handle_property(property, &mut self.decls, context)
+      || self.color_scheme.handle_property(property, &mut self.decls, context)
       || self.fallback.handle_property(property, &mut self.decls, context)
       || self.prefix.handle_property(property, &mut self.decls, context)
+      || self.handle_all(property)
+      || self.handle_custom_property(property, context)
+  }
+
+  fn handle_custom_property(
+    &mut self,
+    property: &Property<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
+  ) -> bool {
+    if let Property::Custom(custom) = property {
+      if context.unused_symbols.contains(custom.name.as_ref()) {
+        return true;
+      }
+
+      if let CustomPropertyName::Custom(name) = &custom.name {
+        if let Some(index) = self.custom_properties.get(name) {
+          if self.decls[*index] == *property {
+            return true;
+          }
+          let mut custom = custom.clone();
+          self.add_conditional_fallbacks(&mut custom, context);
+          self.decls[*index] = Property::Custom(custom);
+        } else {
+          self.custom_properties.insert(name.clone(), self.decls.len());
+          let mut custom = custom.clone();
+          self.add_conditional_fallbacks(&mut custom, context);
+          self.decls.push(Property::Custom(custom));
+        }
+
+        return true;
+      }
+    }
+
+    false
+  }
+
+  fn handle_all(&mut self, property: &Property<'i>) -> bool {
+    // The `all` property resets all properies except `unicode-bidi`, `direction`, and custom properties.
+    // https://drafts.csswg.org/css-cascade-5/#all-shorthand
+    match property {
+      Property::UnicodeBidi(bidi) => {
+        self.unicode_bidi = Some(*bidi);
+        true
+      }
+      Property::Direction(direction) => {
+        self.direction = Some(*direction);
+        true
+      }
+      Property::All(keyword) => {
+        let mut handler = DeclarationHandler {
+          unicode_bidi: self.unicode_bidi.clone(),
+          direction: self.direction.clone(),
+          ..Default::default()
+        };
+        for (key, index) in self.custom_properties.drain(..) {
+          handler.custom_properties.insert(key, handler.decls.len());
+          handler.decls.push(self.decls[index].clone());
+        }
+        handler.decls.push(Property::All(keyword.clone()));
+        *self = handler;
+        true
+      }
+      _ => false,
+    }
+  }
+
+  fn add_conditional_fallbacks(
+    &self,
+    custom: &mut CustomProperty<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
+  ) {
+    if context.context != DeclarationContext::Keyframes {
+      let fallbacks = custom.value.get_fallbacks(context.targets);
+      for (condition, fallback) in fallbacks {
+        context.add_conditional_property(
+          condition,
+          Property::Custom(CustomProperty {
+            name: custom.name.clone(),
+            value: fallback,
+          }),
+        );
+      }
+    }
   }
 
   pub fn finalize(&mut self, context: &mut PropertyHandlerContext<'i, '_>) {
+    if let Some(direction) = std::mem::take(&mut self.direction) {
+      self.decls.push(Property::Direction(direction));
+    }
+    if let Some(unicode_bidi) = std::mem::take(&mut self.unicode_bidi) {
+      self.decls.push(Property::UnicodeBidi(unicode_bidi));
+    }
+
     self.background.finalize(&mut self.decls, context);
     self.border.finalize(&mut self.decls, context);
     self.outline.finalize(&mut self.decls, context);
@@ -589,7 +723,9 @@ impl<'i> DeclarationHandler<'i> {
     self.box_shadow.finalize(&mut self.decls, context);
     self.mask.finalize(&mut self.decls, context);
     self.container.finalize(&mut self.decls, context);
+    self.color_scheme.finalize(&mut self.decls, context);
     self.fallback.finalize(&mut self.decls, context);
     self.prefix.finalize(&mut self.decls, context);
+    self.custom_properties.clear();
   }
 }

@@ -31,7 +31,7 @@ use std::slice;
 /// consumer and never moved (because it contains a lot of inline data that
 /// would be slow to memmov).
 ///
-/// After instantation, callers may call the push_simple_selector() and
+/// After instantiation, callers may call the push_simple_selector() and
 /// push_combinator() methods to append selector data as it is encountered
 /// (from left to right). Once the process is complete, callers should invoke
 /// build(), which transforms the contents of the SelectorBuilder into a heap-
@@ -47,7 +47,7 @@ pub struct SelectorBuilder<'i, Impl: SelectorImpl<'i>> {
   simple_selectors: SmallVec<[Component<'i, Impl>; 32]>,
   /// The combinators, and the length of the compound selector to their left.
   combinators: SmallVec<[(Combinator, usize); 16]>,
-  /// The length of the current compount selector.
+  /// The length of the current compound selector.
   current_len: usize,
 }
 
@@ -188,7 +188,7 @@ fn split_from_end<T>(s: &[T], at: usize) -> (&[T], &[T]) {
 
 bitflags! {
     /// Flags that indicate at which point of parsing a selector are we.
-    #[derive(Default)]
+    #[derive(Default, Clone, Copy, Debug, Eq, PartialEq, Hash)]
     pub (crate) struct SelectorFlags : u8 {
         const HAS_PSEUDO = 1 << 0;
         const HAS_SLOTTED = 1 << 1;

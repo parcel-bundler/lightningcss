@@ -2,7 +2,41 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import { bundle, bundleAsync, transform, transformStyleAttribute } from '../index.mjs';
+import fs from 'fs';
+import {webcrypto as crypto} from 'node:crypto';
+
+let bundle, bundleAsync, transform, transformStyleAttribute;
+if (process.env.TEST_WASM === 'node') {
+  ({ bundle, bundleAsync, transform, transformStyleAttribute } = await import('../../wasm/wasm-node.mjs'));
+} else if (process.env.TEST_WASM === 'browser') {
+  // Define crypto globally for old node.
+  // @ts-ignore
+  globalThis.crypto ??= crypto;
+  let wasm = await import('../../wasm/index.mjs');
+  await wasm.default();
+  ({ transform, transformStyleAttribute } = wasm);
+  bundle = function(options) {
+    return wasm.bundle({
+      ...options,
+      resolver: {
+        read: (filePath) => fs.readFileSync(filePath, 'utf8')
+      }
+    });
+  }
+
+  bundleAsync = function (options) {
+    if (!options.resolver?.read) {
+      options.resolver = {
+        ...options.resolver,
+        read: (filePath) => fs.readFileSync(filePath, 'utf8')
+      };
+    }
+
+    return wasm.bundleAsync(options);
+  }
+} else {
+  ({ bundle, bundleAsync, transform, transformStyleAttribute } = await import('../index.mjs'));
+}
 
 test('px to rem', () => {
   // Similar to https://github.com/cuth/postcss-pxtorem
@@ -28,7 +62,7 @@ test('px to rem', () => {
     }
   });
 
-  assert.equal(res.code.toString(), '.foo{width:2rem;height:calc(100vh - 4rem);--custom:calc(var(--foo) + 2rem)}');
+  assert.equal(res.code.toString(), '.foo{--custom:calc(var(--foo) + 2rem);width:2rem;height:calc(100vh - 4rem)}');
 });
 
 test('custom units', () => {
@@ -170,7 +204,7 @@ test('env function', () => {
     }
   });
 
-  assert.equal(res.code.toString(), '@media (max-width:600px){body{padding:20px}}');
+  assert.equal(res.code.toString(), '@media (width<=600px){body{padding:20px}}');
 });
 
 test('specific environment variables', () => {
@@ -212,7 +246,7 @@ test('specific environment variables', () => {
     }
   });
 
-  assert.equal(res.code.toString(), '@media (max-width:600px){body{padding:20px}}');
+  assert.equal(res.code.toString(), '@media (width<=600px){body{padding:20px}}');
 });
 
 test('url', () => {
@@ -295,9 +329,6 @@ test('apply', () => {
   let res = transform({
     filename: 'test.css',
     minify: true,
-    drafts: {
-      nesting: true
-    },
     code: Buffer.from(`
       --toolbar-theme {
         color: white;
@@ -401,6 +432,9 @@ test('focus visible', () => {
         color: red;
       }
     `),
+    targets: {
+      safari: 14 << 16
+    },
     visitor: {
       Rule: {
         style(rule) {
@@ -986,6 +1020,92 @@ test('nth of S to nth-of-type', () => {
   });
 
   assert.equal(res.code.toString(), 'a:nth-of-type(2n){color:red}');
+});
+
+test('media query raw', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @breakpoints {
+        .m-1 {
+          margin: 10px;
+        }
+      }
+    `),
+    customAtRules: {
+      breakpoints: {
+        prelude: null,
+        body: "rule-list",
+      },
+    },
+    visitor: {
+      Rule: {
+        custom: {
+          breakpoints({ body, loc }) {
+            /** @type {import('lightningcss').ReturnedRule[]} */
+            const value = [];
+
+            for (let rule of body.value) {
+              if (rule.type !== 'style') {
+                continue;
+              }
+              const clone = structuredClone(rule);
+              for (let selector of clone.value.selectors) {
+                for (let component of selector) {
+                  if (component.type === 'class') {
+                    component.name = `sm:${component.name}`;
+                  }
+                }
+              }
+
+              value.push(rule);
+              value.push({
+                type: "media",
+                value: {
+                  rules: [clone],
+                  loc,
+                  query: {
+                    mediaQueries: [
+                      { raw: '(min-width: 500px)' }
+                    ]
+                  }
+                }
+              });
+            }
+
+            return value;
+          }
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.m-1{margin:10px}@media (width>=500px){.sm\\:m-1{margin:10px}}');
+});
+
+test('visit stylesheet', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        width: 32px;
+      }
+
+      .bar {
+        width: 80px;
+      }
+    `),
+    visitor: {
+      StyleSheetExit(stylesheet) {
+        stylesheet.rules.sort((a, b) => a.value.selectors[0][0].name.localeCompare(b.value.selectors[0][0].name));
+        return stylesheet;
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.bar{width:80px}.foo{width:32px}');
 });
 
 test.run();

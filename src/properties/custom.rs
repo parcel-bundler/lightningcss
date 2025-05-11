@@ -1,6 +1,5 @@
 //! CSS custom properties and unparsed token values.
 
-use crate::compat;
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::macros::enum_property;
 use crate::prefixes::Feature;
@@ -8,11 +7,12 @@ use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
 use crate::stylesheet::ParserOptions;
-use crate::targets::Browsers;
+use crate::targets::{should_compile, Features, Targets};
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::angle::Angle;
 use crate::values::color::{
-  parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor,
+  parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor, LightDarkColor,
+  HSL, RGBA, SRGB,
 };
 use crate::values::ident::{CustomIdent, DashedIdent, DashedIdentReference, Ident};
 use crate::values::length::{serialize_dimension, LengthValue};
@@ -22,18 +22,19 @@ use crate::values::resolution::Resolution;
 use crate::values::string::CowArcStr;
 use crate::values::time::Time;
 use crate::values::url::Url;
-use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use cssparser::color::parse_hash_color;
 use cssparser::*;
 
+use super::AnimationName;
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
 
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CustomProperty<'i> {
@@ -61,7 +62,7 @@ impl<'i> CustomProperty<'i> {
 /// A CSS custom property name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize), serde(untagged))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum CustomPropertyName<'i> {
@@ -129,7 +130,7 @@ impl<'i, 'de: 'i> serde::Deserialize<'de> for CustomPropertyName<'i> {
 /// In this case, the raw tokens are stored instead.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -157,14 +158,10 @@ impl<'i> UnparsedProperty<'i> {
     Ok(UnparsedProperty { property_id, value })
   }
 
-  pub(crate) fn get_prefixed(&self, targets: Option<Browsers>, feature: Feature) -> UnparsedProperty<'i> {
+  pub(crate) fn get_prefixed(&self, targets: Targets, feature: Feature) -> UnparsedProperty<'i> {
     let mut clone = self.clone();
     let prefix = self.property_id.prefix();
-    if prefix.is_empty() || prefix.contains(VendorPrefix::None) {
-      if let Some(targets) = targets {
-        clone.property_id = clone.property_id.with_prefix(feature.prefixes_for(targets))
-      }
-    }
+    clone.property_id = clone.property_id.with_prefix(targets.prefixes(prefix.or_none(), feature));
     clone
   }
 
@@ -185,6 +182,7 @@ impl<'i> UnparsedProperty<'i> {
   ) -> Result<super::Property<'x>, ()> {
     use super::Property;
     use crate::stylesheet::PrinterOptions;
+    use static_self::IntoOwned;
 
     // Substitute variables in the token list.
     self.value.substitute_variables(vars);
@@ -203,7 +201,7 @@ impl<'i> UnparsedProperty<'i> {
 /// A raw list of CSS tokens, with embedded parsed values.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token_list, TOKENS))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<TokenOrValue<'i>>);
@@ -211,7 +209,7 @@ pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<T
 /// A raw CSS token, or a parsed value.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token, TOKENS), visit_types(TOKENS | COLORS | URLS | VARIABLES | ENVIRONMENT_VARIABLES | FUNCTIONS | LENGTHS | ANGLES | TIMES | RESOLUTIONS | DASHED_IDENTS))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -244,6 +242,8 @@ pub enum TokenOrValue<'i> {
   Resolution(Resolution),
   /// A dashed ident.
   DashedIdent(DashedIdent<'i>),
+  /// An animation name.
+  AnimationName(AnimationName<'i>),
 }
 
 impl<'i> From<Token<'i>> for TokenOrValue<'i> {
@@ -312,6 +312,54 @@ impl<'i> TokenList<'i> {
     return Ok(TokenList(tokens));
   }
 
+  pub(crate) fn parse_raw<'t>(
+    input: &mut Parser<'i, 't>,
+    tokens: &mut Vec<TokenOrValue<'i>>,
+    options: &ParserOptions<'_, 'i>,
+    depth: usize,
+  ) -> Result<(), ParseError<'i, ParserError<'i>>> {
+    if depth > 500 {
+      return Err(input.new_custom_error(ParserError::MaximumNestingDepth));
+    }
+
+    loop {
+      let state = input.state();
+      match input.next_including_whitespace_and_comments() {
+        Ok(token @ &cssparser::Token::ParenthesisBlock)
+        | Ok(token @ &cssparser::Token::SquareBracketBlock)
+        | Ok(token @ &cssparser::Token::CurlyBracketBlock) => {
+          tokens.push(Token::from(token).into());
+          let closing_delimiter = match token {
+            cssparser::Token::ParenthesisBlock => Token::CloseParenthesis,
+            cssparser::Token::SquareBracketBlock => Token::CloseSquareBracket,
+            cssparser::Token::CurlyBracketBlock => Token::CloseCurlyBracket,
+            _ => unreachable!(),
+          };
+
+          input.parse_nested_block(|input| TokenList::parse_raw(input, tokens, options, depth + 1))?;
+          tokens.push(closing_delimiter.into());
+        }
+        Ok(token @ &cssparser::Token::Function(_)) => {
+          tokens.push(Token::from(token).into());
+          input.parse_nested_block(|input| TokenList::parse_raw(input, tokens, options, depth + 1))?;
+          tokens.push(Token::CloseParenthesis.into());
+        }
+        Ok(token) if token.is_parse_error() => {
+          return Err(ParseError {
+            kind: ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(token.clone())),
+            location: state.source_location(),
+          })
+        }
+        Ok(token) => {
+          tokens.push(Token::from(token).into());
+        }
+        Err(_) => break,
+      }
+    }
+
+    Ok(())
+  }
+
   fn parse_into<'t>(
     input: &mut Parser<'i, 't>,
     tokens: &mut Vec<TokenOrValue<'i>>,
@@ -328,7 +376,7 @@ impl<'i> TokenList<'i> {
       let state = input.state();
       match input.next_including_whitespace_and_comments() {
         Ok(&cssparser::Token::WhiteSpace(..)) | Ok(&cssparser::Token::Comment(..)) => {
-          // Skip whitespace if the last token was a delimeter.
+          // Skip whitespace if the last token was a delimiter.
           // Otherwise, replace all whitespace and comments with a single space character.
           if !last_is_delim {
             tokens.push(Token::WhiteSpace(" ".into()).into());
@@ -378,8 +426,8 @@ impl<'i> TokenList<'i> {
           }
         }
         Ok(&cssparser::Token::Hash(ref h)) | Ok(&cssparser::Token::IDHash(ref h)) => {
-          if let Ok(color) = Color::parse_hash(h.as_bytes()) {
-            tokens.push(TokenOrValue::Color(color.into()));
+          if let Ok((r, g, b, a)) = parse_hash_color(h.as_bytes()) {
+            tokens.push(TokenOrValue::Color(CssColor::RGBA(RGBA::new(r, g, b, a))));
           } else {
             tokens.push(Token::Hash(h.into()).into());
           }
@@ -430,11 +478,17 @@ impl<'i> TokenList<'i> {
           last_is_delim = false;
           last_is_whitespace = false;
         }
+        Ok(token) if token.is_parse_error() => {
+          return Err(ParseError {
+            kind: ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(token.clone())),
+            location: state.source_location(),
+          })
+        }
         Ok(token) => {
           last_is_delim = matches!(token, cssparser::Token::Delim(_) | cssparser::Token::Comma);
 
-          // If this is a delimeter, and the last token was whitespace,
-          // replace the whitespace with the delimeter since both are not required.
+          // If this is a delimiter, and the last token was whitespace,
+          // replace the whitespace with the delimiter since both are not required.
           if last_is_delim && last_is_whitespace {
             let last = tokens.last_mut().unwrap();
             *last = Token::from(token).into();
@@ -459,7 +513,7 @@ fn try_parse_color_token<'i, 't>(
   input: &mut Parser<'i, 't>,
 ) -> Option<CssColor> {
   match_ignore_ascii_case! { &*f,
-    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" => {
+    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" => {
       let s = input.state();
       input.reset(&state);
       if let Ok(color) = CssColor::parse(input) {
@@ -539,6 +593,10 @@ impl<'i> TokenList<'i> {
           v.to_css(dest)?;
           false
         }
+        TokenOrValue::AnimationName(v) => {
+          v.to_css(dest)?;
+          false
+        }
         TokenOrValue::Token(token) => match token {
           Token::Delim(d) => {
             if *d == '+' || *d == '-' {
@@ -578,6 +636,27 @@ impl<'i> TokenList<'i> {
     Ok(())
   }
 
+  pub(crate) fn to_css_raw<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    for token_or_value in &self.0 {
+      match token_or_value {
+        TokenOrValue::Token(token) => {
+          token.to_css(dest)?;
+        }
+        _ => {
+          return Err(PrinterError {
+            kind: PrinterErrorKind::FmtError,
+            loc: None,
+          })
+        }
+      }
+    }
+
+    Ok(())
+  }
+
   #[inline]
   fn write_whitespace_if_needed<W>(&self, i: usize, dest: &mut Printer<W>) -> Result<bool, PrinterError>
   where
@@ -603,7 +682,7 @@ impl<'i> TokenList<'i> {
 // Copied from cssparser to change CowRcStr to CowArcStr
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1016,7 +1095,7 @@ fn integer_decode(v: f32) -> (u32, i16, i8) {
 }
 
 impl<'i> TokenList<'i> {
-  pub(crate) fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  pub(crate) fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     let mut fallbacks = ColorFallbackKind::empty();
     for token in &self.0 {
       match token {
@@ -1058,7 +1137,7 @@ impl<'i> TokenList<'i> {
     TokenList(tokens)
   }
 
-  pub(crate) fn get_fallbacks(&mut self, targets: Browsers) -> Vec<(SupportsCondition<'i>, Self)> {
+  pub(crate) fn get_fallbacks(&mut self, targets: Targets) -> Vec<(SupportsCondition<'i>, Self)> {
     // Get the full list of possible fallbacks, and remove the lowest one, which will replace
     // the original declaration. The remaining fallbacks need to be added as @supports rules.
     let mut fallbacks = self.get_necessary_fallbacks(targets);
@@ -1097,6 +1176,44 @@ impl<'i> TokenList<'i> {
     res
   }
 
+  pub(crate) fn get_features(&self) -> Features {
+    let mut features = Features::empty();
+    for token in &self.0 {
+      match token {
+        TokenOrValue::Color(color) => {
+          features |= color.get_features();
+        }
+        TokenOrValue::UnresolvedColor(unresolved_color) => {
+          features |= Features::SpaceSeparatedColorNotation;
+          match unresolved_color {
+            UnresolvedColor::LightDark { light, dark } => {
+              features |= Features::LightDark;
+              features |= light.get_features();
+              features |= dark.get_features();
+            }
+            _ => {}
+          }
+        }
+        TokenOrValue::Function(f) => {
+          features |= f.arguments.get_features();
+        }
+        TokenOrValue::Var(v) => {
+          if let Some(fallback) = &v.fallback {
+            features |= fallback.get_features();
+          }
+        }
+        TokenOrValue::Env(v) => {
+          if let Some(fallback) = &v.fallback {
+            features |= fallback.get_features();
+          }
+        }
+        _ => {}
+      }
+    }
+
+    features
+  }
+
   /// Substitutes variables with the provided values.
   #[cfg(feature = "substitute_variables")]
   #[cfg_attr(docsrs, doc(cfg(feature = "substitute_variables")))]
@@ -1114,7 +1231,9 @@ struct VarInliner<'a, 'i> {
 impl<'a, 'i> crate::visitor::Visitor<'i> for VarInliner<'a, 'i> {
   type Error = std::convert::Infallible;
 
-  const TYPES: crate::visitor::VisitTypes = crate::visit_types!(TOKENS | VARIABLES);
+  fn visit_types(&self) -> crate::visitor::VisitTypes {
+    crate::visit_types!(TOKENS | VARIABLES)
+  }
 
   fn visit_token_list(&mut self, tokens: &mut TokenList<'i>) -> Result<(), Self::Error> {
     let mut i = 0;
@@ -1148,7 +1267,7 @@ impl<'a, 'i> crate::visitor::Visitor<'i> for VarInliner<'a, 'i> {
 /// A CSS variable reference.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "visitor", visit(visit_variable, VARIABLES))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
@@ -1205,7 +1324,7 @@ impl<'i> Variable<'i> {
   derive(Visit),
   visit(visit_environment_variable, ENVIRONMENT_VARIABLES)
 )]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct EnvironmentVariable<'i> {
@@ -1222,7 +1341,7 @@ pub struct EnvironmentVariable<'i> {
 /// A CSS environment variable name.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1248,25 +1367,25 @@ enum_property! {
   /// A UA-defined environment variable name.
   pub enum UAEnvironmentVariable {
     /// The safe area inset from the top of the viewport.
-    "safe-area-inset-top": SafeAreaInsetTop,
+    SafeAreaInsetTop,
     /// The safe area inset from the right of the viewport.
-    "safe-area-inset-right": SafeAreaInsetRight,
+    SafeAreaInsetRight,
     /// The safe area inset from the bottom of the viewport.
-    "safe-area-inset-bottom": SafeAreaInsetBottom,
+    SafeAreaInsetBottom,
     /// The safe area inset from the left of the viewport.
-    "safe-area-inset-left": SafeAreaInsetLeft,
+    SafeAreaInsetLeft,
     /// The viewport segment width.
-    "viewport-segment-width": ViewportSegmentWidth,
+    ViewportSegmentWidth,
     /// The viewport segment height.
-    "viewport-segment-height": ViewportSegmentHeight,
+    ViewportSegmentHeight,
     /// The viewport segment top position.
-    "viewport-segment-top": ViewportSegmentTop,
+    ViewportSegmentTop,
     /// The viewport segment left position.
-    "viewport-segment-left": ViewportSegmentLeft,
+    ViewportSegmentLeft,
     /// The viewport segment bottom position.
-    "viewport-segment-bottom": ViewportSegmentBottom,
+    ViewportSegmentBottom,
     /// The viewport segment right position.
-    "viewport-segment-right": ViewportSegmentRight,
+    ViewportSegmentRight,
   }
 }
 
@@ -1376,7 +1495,7 @@ impl<'i> EnvironmentVariable<'i> {
 /// A custom CSS function.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "visitor", visit(visit_function, FUNCTIONS))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
@@ -1413,7 +1532,7 @@ impl<'i> Function<'i> {
 /// since variables can resolve to multiple tokens.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1445,6 +1564,24 @@ pub enum UnresolvedColor<'i> {
     #[cfg_attr(feature = "serde", serde(borrow))]
     alpha: TokenList<'i>,
   },
+  /// The light-dark() function.
+  #[cfg_attr(feature = "serde", serde(rename = "light-dark"))]
+  LightDark {
+    /// The light value.
+    light: TokenList<'i>,
+    /// The dark value.
+    dark: TokenList<'i>,
+  },
+}
+
+impl<'i> LightDarkColor for UnresolvedColor<'i> {
+  #[inline]
+  fn light_dark(light: Self, dark: Self) -> Self {
+    UnresolvedColor::LightDark {
+      light: TokenList(vec![TokenOrValue::UnresolvedColor(light)]),
+      dark: TokenList(vec![TokenOrValue::UnresolvedColor(dark)]),
+    }
+  }
 }
 
 impl<'i> UnresolvedColor<'i> {
@@ -1453,22 +1590,42 @@ impl<'i> UnresolvedColor<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let parser = ComponentParser::new(false);
+    let mut parser = ComponentParser::new(false);
     match_ignore_ascii_case! { &*f,
       "rgb" => {
         input.parse_nested_block(|input| {
-          let (r, g, b) = parse_rgb_components(input, &parser)?;
-          input.expect_delim('/')?;
-          let alpha = TokenList::parse(input, options, 0)?;
-          Ok(UnresolvedColor::RGB { r, g, b, alpha })
+          parser.parse_relative::<SRGB, _, _>(input, |input, parser| {
+            let (r, g, b, is_legacy) = parse_rgb_components(input, parser)?;
+            if is_legacy {
+              return Err(input.new_custom_error(ParserError::InvalidValue))
+            }
+            input.expect_delim('/')?;
+            let alpha = TokenList::parse(input, options, 0)?;
+            Ok(UnresolvedColor::RGB { r, g, b, alpha })
+          })
         })
       },
       "hsl" => {
         input.parse_nested_block(|input| {
-          let (h, s, l) = parse_hsl_hwb_components(input, &parser)?;
-          input.expect_delim('/')?;
-          let alpha = TokenList::parse(input, options, 0)?;
-          Ok(UnresolvedColor::HSL { h, s, l, alpha })
+          parser.parse_relative::<HSL, _, _>(input, |input, parser| {
+            let (h, s, l, is_legacy) = parse_hsl_hwb_components::<HSL>(input, parser, false)?;
+            if is_legacy {
+              return Err(input.new_custom_error(ParserError::InvalidValue))
+            }
+            input.expect_delim('/')?;
+            let alpha = TokenList::parse(input, options, 0)?;
+            Ok(UnresolvedColor::HSL { h, s, l, alpha })
+          })
+        })
+      },
+      "light-dark" => {
+        input.parse_nested_block(|input| {
+          let light = input.parse_until_before(Delimiter::Comma, |input|
+            TokenList::parse(input, options, 0)
+          )?;
+          input.expect_comma()?;
+          let dark = TokenList::parse(input, options, 0)?;
+          Ok(UnresolvedColor::LightDark { light, dark })
         })
       },
       _ => Err(input.new_custom_error(ParserError::InvalidValue))
@@ -1479,47 +1636,48 @@ impl<'i> UnresolvedColor<'i> {
   where
     W: std::fmt::Write,
   {
+    #[inline]
+    fn c(c: &f32) -> i32 {
+      (c * 255.0).round().clamp(0.0, 255.0) as i32
+    }
+
     match self {
       UnresolvedColor::RGB { r, g, b, alpha } => {
-        if let Some(targets) = dest.targets {
-          if !compat::Feature::SpaceSeparatedColorFunction.is_compatible(targets) {
-            dest.write_str("rgba(")?;
-            r.to_css(dest)?;
-            dest.delim(',', false)?;
-            g.to_css(dest)?;
-            dest.delim(',', false)?;
-            b.to_css(dest)?;
-            dest.delim(',', false)?;
-            alpha.to_css(dest, is_custom_property)?;
-            dest.write_char(')')?;
-            return Ok(());
-          }
+        if should_compile!(dest.targets.current, SpaceSeparatedColorNotation) {
+          dest.write_str("rgba(")?;
+          c(r).to_css(dest)?;
+          dest.delim(',', false)?;
+          c(g).to_css(dest)?;
+          dest.delim(',', false)?;
+          c(b).to_css(dest)?;
+          dest.delim(',', false)?;
+          alpha.to_css(dest, is_custom_property)?;
+          dest.write_char(')')?;
+          return Ok(());
         }
 
         dest.write_str("rgb(")?;
-        r.to_css(dest)?;
+        c(r).to_css(dest)?;
         dest.write_char(' ')?;
-        g.to_css(dest)?;
+        c(g).to_css(dest)?;
         dest.write_char(' ')?;
-        b.to_css(dest)?;
+        c(b).to_css(dest)?;
         dest.delim('/', true)?;
         alpha.to_css(dest, is_custom_property)?;
         dest.write_char(')')
       }
       UnresolvedColor::HSL { h, s, l, alpha } => {
-        if let Some(targets) = dest.targets {
-          if !compat::Feature::SpaceSeparatedColorFunction.is_compatible(targets) {
-            dest.write_str("hsla(")?;
-            h.to_css(dest)?;
-            dest.delim(',', false)?;
-            Percentage(*s).to_css(dest)?;
-            dest.delim(',', false)?;
-            Percentage(*l).to_css(dest)?;
-            dest.delim(',', false)?;
-            alpha.to_css(dest, is_custom_property)?;
-            dest.write_char(')')?;
-            return Ok(());
-          }
+        if should_compile!(dest.targets.current, SpaceSeparatedColorNotation) {
+          dest.write_str("hsla(")?;
+          h.to_css(dest)?;
+          dest.delim(',', false)?;
+          Percentage(*s).to_css(dest)?;
+          dest.delim(',', false)?;
+          Percentage(*l).to_css(dest)?;
+          dest.delim(',', false)?;
+          alpha.to_css(dest, is_custom_property)?;
+          dest.write_char(')')?;
+          return Ok(());
         }
 
         dest.write_str("hsl(")?;
@@ -1530,6 +1688,25 @@ impl<'i> UnresolvedColor<'i> {
         Percentage(*l).to_css(dest)?;
         dest.delim('/', true)?;
         alpha.to_css(dest, is_custom_property)?;
+        dest.write_char(')')
+      }
+      UnresolvedColor::LightDark { light, dark } => {
+        if should_compile!(dest.targets.current, LightDark) {
+          dest.write_str("var(--lightningcss-light")?;
+          dest.delim(',', false)?;
+          light.to_css(dest, is_custom_property)?;
+          dest.write_char(')')?;
+          dest.whitespace()?;
+          dest.write_str("var(--lightningcss-dark")?;
+          dest.delim(',', false)?;
+          dark.to_css(dest, is_custom_property)?;
+          return dest.write_char(')');
+        }
+
+        dest.write_str("light-dark(")?;
+        light.to_css(dest, is_custom_property)?;
+        dest.delim(',', false)?;
+        dark.to_css(dest, is_custom_property)?;
         dest.write_char(')')
       }
     }

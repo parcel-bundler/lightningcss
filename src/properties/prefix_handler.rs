@@ -1,11 +1,9 @@
 #![allow(non_snake_case)]
 use super::{Property, PropertyId};
-use crate::context::{DeclarationContext, PropertyHandlerContext};
+use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::prefixes::Feature;
-use crate::properties::custom::CustomProperty;
-use crate::targets::Browsers;
-use crate::traits::{FallbackValues, PropertyHandler};
+use crate::traits::{FallbackValues, IsCompatible, PropertyHandler};
 use crate::vendor_prefix::VendorPrefix;
 
 macro_rules! define_prefixes {
@@ -14,23 +12,13 @@ macro_rules! define_prefixes {
   ) => {
     #[derive(Default)]
     pub(crate) struct PrefixHandler {
-      targets: Option<Browsers>,
       $(
         $name: Option<usize>,
       )+
     }
 
-    impl PrefixHandler {
-      pub fn new(targets: Option<Browsers>) -> PrefixHandler {
-        PrefixHandler {
-          targets,
-          ..PrefixHandler::default()
-        }
-      }
-    }
-
     impl<'i> PropertyHandler<'i> for PrefixHandler {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext) -> bool {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext) -> bool {
         match property {
           $(
             Property::$name(val, prefix) => {
@@ -42,12 +30,7 @@ macro_rules! define_prefixes {
                     if val == cur || prefixes.contains(*prefix) {
                       *cur = val.clone();
                       *prefixes |= *prefix;
-                      if prefixes.contains(VendorPrefix::None) {
-                        if let Some(targets) = self.targets {
-                          *prefixes = Feature::$name.prefixes_for(targets);
-                        }
-                      }
-
+                      *prefixes = context.targets.prefixes(*prefixes, Feature::$name);
                       return true
                     }
                   }
@@ -55,15 +38,7 @@ macro_rules! define_prefixes {
               }
 
               // Update the prefixes based on the targets.
-              let prefixes = if prefix.contains(VendorPrefix::None) {
-                if let Some(targets) = self.targets {
-                  Feature::$name.prefixes_for(targets)
-                } else {
-                  *prefix
-                }
-              } else {
-                *prefix
-              };
+              let prefixes = context.targets.prefixes(*prefix, Feature::$name);
 
               // Store the index of the property, so we can update it later.
               self.$name = Some(dest.len());
@@ -97,22 +72,19 @@ define_prefixes! {
   Appearance,
   ClipPath,
   BoxDecorationBreak,
+  TextSizeAdjust,
 }
 
 macro_rules! define_fallbacks {
   (
     $( $name: ident$(($p: ident))?, )+
   ) => {
-    #[derive(Default)]
-    pub(crate) struct FallbackHandler {
-      targets: Option<Browsers>
-    }
-
-    impl FallbackHandler {
-      pub fn new(targets: Option<Browsers>) -> FallbackHandler {
-        FallbackHandler {
-          targets
-        }
+    paste::paste! {
+      #[derive(Default)]
+      pub(crate) struct FallbackHandler {
+        $(
+          [<$name:snake>]: Option<usize>
+        ),+
       }
     }
 
@@ -122,14 +94,11 @@ macro_rules! define_fallbacks {
           $(
             Property::$name(val $(, mut $p)?) => {
               let mut val = val.clone();
-              if let Some(targets) = self.targets {
-                $(
-                  if $p.contains(VendorPrefix::None) {
-                    $p = Feature::$name.prefixes_for(targets);
-                  }
-                )?
-
-                let fallbacks = val.get_fallbacks(targets);
+              $(
+                $p = context.targets.prefixes($p, Feature::$name);
+              )?
+              if paste::paste! { self.[<$name:snake>] }.is_none() {
+                let fallbacks = val.get_fallbacks(context.targets);
                 #[allow(unused_variables)]
                 let has_fallbacks = !fallbacks.is_empty();
                 for fallback in fallbacks {
@@ -143,36 +112,22 @@ macro_rules! define_fallbacks {
                 )?
               }
 
-              dest.push(Property::$name(val $(, $p)?))
-            }
-          )+
-          Property::Custom(custom) => {
-            let mut custom = custom.clone();
-            if context.context != DeclarationContext::Keyframes {
-              if let Some(targets) = self.targets {
-                let fallbacks = custom.value.get_fallbacks(targets);
-                for (condition, fallback) in fallbacks {
-                  context.add_conditional_property(
-                    condition,
-                    Property::Custom(CustomProperty {
-                      name: custom.name.clone(),
-                      value: fallback
-                    })
-                  );
-                }
+              if paste::paste! { self.[<$name:snake>] }.is_none() || matches!(context.targets.browsers, Some(targets) if !val.is_compatible(targets)) {
+                paste::paste! { self.[<$name:snake>] = Some(dest.len()) };
+                dest.push(Property::$name(val $(, $p)?));
+              } else if let Some(index) = paste::paste! { self.[<$name:snake>] } {
+                dest[index] = Property::$name(val $(, $p)?);
               }
             }
-
-            dest.push(Property::Custom(custom))
-          }
+          )+
           Property::Unparsed(val) => {
-            let mut unparsed = match val.property_id {
+            let (mut unparsed, index) = match val.property_id {
               $(
                 PropertyId::$name$(($p))? => {
                   macro_rules! get_prefixed {
                     ($vp: ident) => {
                       if $vp.contains(VendorPrefix::None) {
-                        val.get_prefixed(self.targets, Feature::$name)
+                        val.get_prefixed(context.targets, Feature::$name)
                       } else {
                         val.clone()
                       }
@@ -182,15 +137,21 @@ macro_rules! define_fallbacks {
                     };
                   }
 
-                  get_prefixed!($($p)?)
+                  let val = get_prefixed!($($p)?);
+                  (val, paste::paste! { &mut self.[<$name:snake>] })
                 }
               )+
-              PropertyId::All => val.clone(),
               _ => return false
             };
 
+            // Unparsed properties are always "valid", meaning they always override previous declarations.
             context.add_unparsed_fallbacks(&mut unparsed);
-            dest.push(Property::Unparsed(unparsed));
+            if let Some(index) = *index {
+              dest[index] = Property::Unparsed(unparsed);
+            } else {
+              *index = Some(dest.len());
+              dest.push(Property::Unparsed(unparsed));
+            }
           }
           _ => return false
         }
@@ -198,7 +159,11 @@ macro_rules! define_fallbacks {
         true
       }
 
-      fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext) {}
+      fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext) {
+        $(
+          paste::paste! { self.[<$name:snake>] = None };
+        )+
+      }
     }
   };
 }

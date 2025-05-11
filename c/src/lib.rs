@@ -1,3 +1,5 @@
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
+
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::mem::ManuallyDrop;
@@ -6,7 +8,7 @@ use std::sync::{Arc, RwLock};
 
 use lightningcss::css_modules::PatternParseError;
 use lightningcss::error::{Error, MinifyErrorKind, ParserError, PrinterError};
-use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
+use lightningcss::stylesheet::{MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, StyleSheet};
 use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 
@@ -180,9 +182,9 @@ impl Into<MinifyOptions> for TransformOptions {
 
     MinifyOptions {
       targets: if self.targets != Targets::default() {
-        Some(self.targets.into())
+        Some(self.targets.into()).into()
       } else {
-        None
+        Default::default()
       },
       unused_symbols,
     }
@@ -255,14 +257,15 @@ pub extern "C" fn lightningcss_stylesheet_parse(
   let slice = unsafe { std::slice::from_raw_parts(source as *const u8, len) };
   let code = unsafe { std::str::from_utf8_unchecked(slice) };
   let warnings = Arc::new(RwLock::new(Vec::new()));
+  let mut flags = ParserFlags::empty();
+  flags.set(ParserFlags::CUSTOM_MEDIA, options.custom_media);
   let opts = ParserOptions {
     filename: if options.filename.is_null() {
       String::new()
     } else {
       unsafe { std::str::from_utf8_unchecked(CStr::from_ptr(options.filename).to_bytes()).to_owned() }
     },
-    nesting: options.nesting,
-    custom_media: options.custom_media,
+    flags,
     css_modules: if options.css_modules {
       let pattern = if !options.css_modules_pattern.is_null() {
         let pattern =
@@ -278,6 +281,7 @@ pub extern "C" fn lightningcss_stylesheet_parse(
       Some(lightningcss::css_modules::Config {
         pattern,
         dashed_idents: options.css_modules_dashed_idents,
+        ..Default::default()
       })
     } else {
       None
@@ -331,9 +335,9 @@ pub extern "C" fn lightningcss_stylesheet_to_css(
     },
     source_map: source_map.as_mut(),
     targets: if options.targets != Targets::default() {
-      Some(options.targets.into())
+      Some(options.targets.into()).into()
     } else {
-      None
+      Default::default()
     },
     analyze_dependencies: if options.analyze_dependencies {
       Some(Default::default())

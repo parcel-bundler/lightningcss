@@ -18,6 +18,7 @@ use std::fmt::Write;
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum EasingFunction {
   /// A linear easing function.
   Linear,
@@ -191,7 +192,7 @@ impl EasingFunction {
 }
 
 /// A [step position](https://www.w3.org/TR/css-easing-1/#step-position), used within the `steps()` function.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -230,19 +231,5 @@ impl<'i> Parse<'i> for StepPosition {
       _ => return Err(location.new_unexpected_token_error(Token::Ident(ident.clone())))
     };
     Ok(keyword)
-  }
-}
-
-impl ToCss for StepPosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      StepPosition::Start => dest.write_str("start"),
-      StepPosition::End => dest.write_str("end"),
-      StepPosition::JumpNone => dest.write_str("jump-none"),
-      StepPosition::JumpBoth => dest.write_str("jump-both"),
-    }
   }
 }

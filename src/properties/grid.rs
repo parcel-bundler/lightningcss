@@ -24,9 +24,9 @@ use crate::serialization::ValueWrapper;
 
 /// A [track sizing](https://drafts.csswg.org/css-grid-2/#track-sizing) value
 /// for the `grid-template-rows` and `grid-template-columns` properties.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -47,7 +47,7 @@ pub enum TrackSizing<'i> {
 /// See [TrackSizing](TrackSizing).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -67,7 +67,7 @@ pub struct TrackList<'i> {
 /// See [TrackList](TrackList).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -94,6 +94,7 @@ pub enum TrackListItem<'i> {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum TrackSize {
   /// An explicit track breadth.
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<TrackBreadth>"))]
@@ -122,6 +123,7 @@ impl Default for TrackSize {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
 
 /// A [`<track-breadth>`](https://drafts.csswg.org/css-grid-2/#typedef-track-breadth) value.
@@ -135,6 +137,7 @@ pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum TrackBreadth {
   /// An explicit length.
   Length(LengthPercentage),
@@ -154,7 +157,7 @@ pub enum TrackBreadth {
 /// See [TrackListItem](TrackListItem).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -163,19 +166,19 @@ pub enum TrackBreadth {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TrackRepeat<'i> {
   /// The repeat count.
-  count: RepeatCount,
+  pub count: RepeatCount,
   /// The line names to repeat.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  line_names: Vec<CustomIdentList<'i>>,
+  pub line_names: Vec<CustomIdentList<'i>>,
   /// The track sizes to repeat.
-  track_sizes: Vec<TrackSize>,
+  pub track_sizes: Vec<TrackSize>,
 }
 
 /// A [`<repeat-count>`](https://drafts.csswg.org/css-grid-2/#typedef-track-repeat) value,
 /// used in the `repeat()` function.
 ///
 /// See [TrackRepeat](TrackRepeat).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -183,6 +186,7 @@ pub struct TrackRepeat<'i> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum RepeatCount {
   /// The number of times to repeat.
   Number(CSSInteger),
@@ -361,37 +365,6 @@ impl<'i> ToCss for TrackRepeat<'i> {
   }
 }
 
-impl<'i> Parse<'i> for RepeatCount {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(num) = input.try_parse(CSSInteger::parse) {
-      return Ok(RepeatCount::Number(num));
-    }
-
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "auto-fill" => Ok(RepeatCount::AutoFill),
-      "auto-fit" => Ok(RepeatCount::AutoFit),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(ident.clone())
-      ))
-    }
-  }
-}
-
-impl ToCss for RepeatCount {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      RepeatCount::AutoFill => dest.write_str("auto-fill"),
-      RepeatCount::AutoFit => dest.write_str("auto-fit"),
-      RepeatCount::Number(num) => num.to_css(dest),
-    }
-  }
-}
-
 fn parse_line_names<'i, 't>(
   input: &mut Parser<'i, 't>,
 ) -> Result<CustomIdentList<'i>, ParseError<'i, ParserError<'i>>> {
@@ -426,21 +399,24 @@ fn write_ident<W>(name: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
 where
   W: std::fmt::Write,
 {
-  if let Some(css_module) = &mut dest.css_module {
-    if let Some(last) = css_module.config.pattern.segments.last() {
-      if !matches!(last, crate::css_modules::Segment::Local) {
-        return Err(Error {
-          kind: PrinterErrorKind::InvalidCssModulesPatternInGrid,
-          loc: Some(ErrorLocation {
-            filename: dest.filename().into(),
-            line: dest.loc.line,
-            column: dest.loc.column,
-          }),
-        });
+  let css_module_grid_enabled = dest.css_module.as_ref().map_or(false, |css_module| css_module.config.grid);
+  if css_module_grid_enabled {
+    if let Some(css_module) = &mut dest.css_module {
+      if let Some(last) = css_module.config.pattern.segments.last() {
+        if !matches!(last, crate::css_modules::Segment::Local) {
+          return Err(Error {
+            kind: PrinterErrorKind::InvalidCssModulesPatternInGrid,
+            loc: Some(ErrorLocation {
+              filename: dest.filename().into(),
+              line: dest.loc.line,
+              column: dest.loc.column,
+            }),
+          });
+        }
       }
     }
   }
-  dest.write_ident(name)?;
+  dest.write_ident(name, css_module_grid_enabled)?;
   Ok(())
 }
 
@@ -512,29 +488,6 @@ impl<'i> TrackList<'i> {
   }
 }
 
-impl<'i> Parse<'i> for TrackSizing<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(TrackSizing::None);
-    }
-
-    let track_list = TrackList::parse(input)?;
-    Ok(TrackSizing::TrackList(track_list))
-  }
-}
-
-impl<'i> ToCss for TrackSizing<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      TrackSizing::None => dest.write_str("none"),
-      TrackSizing::TrackList(list) => list.to_css(dest),
-    }
-  }
-}
-
 impl<'i> TrackSizing<'i> {
   fn is_explicit(&self) -> bool {
     match self {
@@ -588,6 +541,7 @@ impl ToCss for TrackSizeList {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum GridTemplateAreas {
   /// No named grid areas.
   None,
@@ -753,7 +707,7 @@ impl GridTemplateAreas {
 /// If `areas` is not `None`, then `rows` must also not be `None`.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct GridTemplate<'i> {
@@ -985,6 +939,8 @@ bitflags! {
   /// not be combined.
   #[cfg_attr(feature = "visitor", derive(Visit))]
   #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedGridAutoFlow", into = "SerializedGridAutoFlow"))]
+  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+  #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
   pub struct GridAutoFlow: u8 {
     /// The auto-placement algorithm places items by filling each row, adding new rows as necessary.
     const Row    = 0b00;
@@ -1007,10 +963,10 @@ struct SerializedGridAutoFlow {
 impl From<GridAutoFlow> for SerializedGridAutoFlow {
   fn from(flow: GridAutoFlow) -> Self {
     Self {
-      direction: if flow.contains(GridAutoFlow::Row) {
-        AutoFlowDirection::Row
-      } else {
+      direction: if flow.contains(GridAutoFlow::Column) {
         AutoFlowDirection::Column
+      } else {
+        AutoFlowDirection::Row
       },
       dense: flow.contains(GridAutoFlow::Dense),
     }
@@ -1148,7 +1104,7 @@ impl ToCss for GridAutoFlow {
 /// Explicit and implicit values may not be combined.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1337,7 +1293,7 @@ impl_shorthand! {
 /// used in the `grid-row-start`, `grid-row-end`, `grid-column-start`, and `grid-column-end` properties.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1505,7 +1461,6 @@ macro_rules! impl_grid_placement {
 
 define_shorthand! {
   /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-row) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct GridRow<'i> {
     /// The starting line.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -1517,7 +1472,6 @@ define_shorthand! {
 
 define_shorthand! {
   /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct GridColumn<'i> {
     /// The starting line.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -1532,7 +1486,6 @@ impl_grid_placement!(GridColumn);
 
 define_shorthand! {
   /// A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct GridArea<'i> {
     /// The grid row start placement.
     #[cfg_attr(feature = "serde", serde(borrow))]

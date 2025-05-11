@@ -12,6 +12,9 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             binary: lightningcss.exe
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            binary: lightningcss.exe
           # Mac OS
           - os: macos-latest
             target: x86_64-apple-darwin
@@ -27,16 +30,12 @@ jobs:
         with:
           node-version: 18
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Setup rust target
         run: rustup target add ${{ matrix.target }}
 
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Build release
         run: yarn build-release
         env:
@@ -49,7 +48,7 @@ jobs:
         if: ${{ matrix.strip }}
         run: ${{ matrix.strip }} *.node ${{ matrix.binary }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bindings-${{ matrix.target }}
           path: |
@@ -66,16 +65,12 @@ jobs:
         with:
           node-version: 18
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Setup rust target
         run: rustup target add aarch64-apple-darwin
 
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Build release
         run: yarn build-release
         env:
@@ -95,7 +90,7 @@ jobs:
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: strip -x *.node lightningcss
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bindings-aarch64-apple-darwin
           path: |
@@ -114,14 +109,17 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             strip: llvm-strip
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+          - target: aarch64-linux-android
+            strip: llvm-strip
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
           - target: armv7-unknown-linux-gnueabihf
             strip: llvm-strip
-            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-zig
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust@sha256:c22284b2d79092d3e885f64ede00f6afdeb2ccef7e2b6e78be52e7909091cd57
           - target: aarch64-unknown-linux-musl
-            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust@sha256:78c9ab1f117f8c535b93c4b91a2f19063dda6e4dba48a6187df49810625992c1
             strip: aarch64-linux-musl-strip
           - target: x86_64-unknown-linux-musl
-            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust@sha256:78c9ab1f117f8c535b93c4b91a2f19063dda6e4dba48a6187df49810625992c1
             strip: strip
 
     name: build-${{ matrix.target }}
@@ -136,11 +134,15 @@ jobs:
         with:
           node-version: 18
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Android NDK
+        if: ${{ matrix.target == 'aarch64-linux-android' }}
+        run: |
+          sudo apt update && sudo apt install unzip -y
+          cd /tmp
+          wget -q https://dl.google.com/android/repository/android-ndk-r28-linux.zip -O /tmp/ndk.zip
+          unzip ndk.zip
 
       - name: Setup cross compile toolchain
         if: ${{ matrix.setup }}
@@ -149,12 +151,15 @@ jobs:
       - name: Setup rust target
         run: rustup target add ${{ matrix.target }}
 
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Build release
         run: yarn build-release
         env:
+          ANDROID_NDK_LATEST_HOME: /tmp/android-ndk-r28
           RUST_TARGET: ${{ matrix.target }}
       - name: Build CLI
+        env:
+          ANDROID_NDK_LATEST_HOME: /tmp/android-ndk-r28
         run: |
           yarn napi build --bin lightningcss --release --features cli --target ${{ matrix.target }}
           mv target/${{ matrix.target }}/release/lightningcss lightningcss
@@ -162,9 +167,57 @@ jobs:
         if: ${{ matrix.strip }}
         run: ${{ matrix.strip }} *.node lightningcss
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bindings-${{ matrix.target }}
+          path: |
+            *.node
+            lightningcss
+
+  build-freebsd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build FreeBSD
+        uses: cross-platform-actions/action@v0.25.0
+        env:
+          DEBUG: napi:*
+          RUSTUP_HOME: /usr/local/rustup
+          CARGO_HOME: /usr/local/cargo
+          RUSTUP_IO_THREADS: 1
+        with:
+          operating_system: freebsd
+          version: '14.0'
+          memory: 13G
+          cpu_count: 3
+          environment_variables: 'DEBUG RUSTUP_IO_THREADS'
+          shell: bash
+          run: |
+            sudo pkg install -y -f curl node libnghttp2 npm yarn
+            curl https://sh.rustup.rs -sSf --output rustup.sh
+            sh rustup.sh -y --profile minimal --default-toolchain beta
+            source "$HOME/.cargo/env"
+            echo "~~~~ rustc --version ~~~~"
+            rustc --version
+            echo "~~~~ node -v ~~~~"
+            node -v
+            echo "~~~~ yarn --version ~~~~"
+            yarn --version
+            yarn install || true
+            yarn build-release
+            strip -x *.node
+            cargo build --release --features cli
+            mv target/release/lightningcss lightningcss
+            node -e "require('.')"
+            ./lightningcss --help
+            rm -rf node_modules
+            rm -rf target
+            rm -rf .yarn/cache
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-x86_64-unknown-freebsd
           path: |
             *.node
             lightningcss
@@ -177,25 +230,23 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          profile: minimal
-          override: true
-          target: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown
+      - name: Setup rust target
+        run: rustup target add wasm32-unknown-unknown
       - name: Install wasm-opt
         run: |
           curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz
           tar -xf binaryen-version_111-x86_64-linux.tar.gz
       - name: Build wasm
-        run: yarn wasm:build-release
-      - name: Optimize wasm
         run: |
-          ./binaryen-version_111/bin/wasm-opt wasm/lightningcss_node.wasm -Oz -o wasm/lightningcss_node.opt.wasm
-          mv wasm/lightningcss_node.opt.wasm wasm/lightningcss_node.wasm
+          export PATH="$PATH:./binaryen-version_111/bin"
+          yarn wasm:build-release
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wasm
           path: wasm/lightningcss_node.wasm
@@ -207,14 +258,17 @@ jobs:
       - build
       - build-linux
       - build-apple-silicon
+      - build-freebsd
       - build-wasm
     steps:
       - uses: actions/checkout@v3
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: Show artifacts
+        run: ls -R artifacts
       - name: Build npm packages
         run: |
           node scripts/build-npm.js
@@ -246,17 +300,13 @@ jobs:
     runs-on: ubuntu-latest
     name: Release Rust crate
     steps:
-      - uses: actions/checkout@v1
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: actions/checkout@v3
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       - run: cargo login ${CRATES_IO_TOKEN}
         env:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
       - run: |
           cargo install cargo-workspaces
-          cargo workspaces publish --from-git -y
+          cargo workspaces publish --no-remove-dev-deps --from-git -y

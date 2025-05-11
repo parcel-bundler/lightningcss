@@ -5,7 +5,7 @@ use crate::dependencies::{Dependency, DependencyOptions};
 use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
 use crate::rules::{Location, StyleContext};
 use crate::selector::SelectorList;
-use crate::targets::Browsers;
+use crate::targets::{Targets, TargetsWithSupportsScope};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::{serialize_identifier, serialize_name};
 #[cfg(feature = "sourcemap")]
@@ -22,8 +22,8 @@ pub struct PrinterOptions<'a> {
   pub source_map: Option<&'a mut SourceMap>,
   /// An optional project root path, used to generate relative paths for sources used in CSS module hashes.
   pub project_root: Option<&'a str>,
-  /// Browser targets to output the CSS for.
-  pub targets: Option<Browsers>,
+  /// Targets to output the CSS for.
+  pub targets: Targets,
   /// Whether to analyze dependencies (i.e. `@import` and `url()`).
   /// If true, the dependencies are returned as part of the
   /// [ToCssResult](super::stylesheet::ToCssResult).
@@ -77,7 +77,7 @@ pub struct Printer<'a, 'b, 'c, W> {
   line: u32,
   col: u32,
   pub(crate) minify: bool,
-  pub(crate) targets: Option<Browsers>,
+  pub(crate) targets: TargetsWithSupportsScope,
   /// Vendor prefix override. When non-empty, it overrides
   /// the vendor prefix of whatever is being printed.
   pub(crate) vendor_prefix: VendorPrefix,
@@ -108,7 +108,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
       line: 0,
       col: 0,
       minify: options.minify,
-      targets: options.targets,
+      targets: TargetsWithSupportsScope::new(options.targets),
       vendor_prefix: VendorPrefix::empty(),
       in_calc: false,
       css_module: None,
@@ -146,6 +146,25 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     Ok(())
   }
 
+  /// Writes a raw string which may contain newlines to the underlying destination.
+  pub fn write_str_with_newlines(&mut self, s: &str) -> Result<(), PrinterError> {
+    let mut last_line_start: usize = 0;
+
+    for (idx, n) in s.char_indices() {
+      if n == '\n' {
+        self.line += 1;
+        self.col = 0;
+
+        // Keep track of where the *next* line starts
+        last_line_start = idx + 1;
+      }
+    }
+
+    self.col += (s.len() - last_line_start) as u32;
+    self.dest.write_str(s)?;
+    Ok(())
+  }
+
   /// Write a single character to the underlying destination.
   pub fn write_char(&mut self, c: char) -> Result<(), PrinterError> {
     if c == '\n' {
@@ -170,8 +189,8 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     self.write_char(' ')
   }
 
-  /// Writes a delimeter character, followed by whitespace (depending on the `minify` option).
-  /// If `ws_before` is true, then whitespace is also written before the delimeter.
+  /// Writes a delimiter character, followed by whitespace (depending on the `minify` option).
+  /// If `ws_before` is true, then whitespace is also written before the delimiter.
   pub fn delim(&mut self, delim: char, ws_before: bool) -> Result<(), PrinterError> {
     if ws_before {
       self.whitespace()?;
@@ -241,10 +260,11 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
           if let Some(orig) = mapping.original {
             let sources_len = map.get_sources().len();
             let source_index = map.add_source(sm.get_source(orig.source).unwrap());
+            let name = orig.name.map(|name| map.add_name(sm.get_name(name).unwrap()));
             original.original_line = orig.original_line;
             original.original_column = orig.original_column;
             original.source = source_index;
-            original.name = orig.name;
+            original.name = name;
 
             if map.get_sources().len() > sources_len {
               let content = sm.get_source_content(orig.source).unwrap().to_owned();
@@ -267,30 +287,37 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
   /// Writes a CSS identifier to the underlying destination, escaping it
   /// as appropriate. If the `css_modules` option was enabled, then a hash
   /// is added, and the mapping is added to the CSS module.
-  pub fn write_ident(&mut self, ident: &str) -> Result<(), PrinterError> {
-    if let Some(css_module) = &mut self.css_module {
-      let dest = &mut self.dest;
-      let mut first = true;
-      css_module.config.pattern.write(
-        &css_module.hashes[self.loc.source_index as usize],
-        &css_module.sources[self.loc.source_index as usize],
-        ident,
-        |s| {
-          self.col += s.len() as u32;
-          if first {
-            first = false;
-            serialize_identifier(s, dest)
+  pub fn write_ident(&mut self, ident: &str, handle_css_module: bool) -> Result<(), PrinterError> {
+    if handle_css_module {
+      if let Some(css_module) = &mut self.css_module {
+        let dest = &mut self.dest;
+        let mut first = true;
+        css_module.config.pattern.write(
+          &css_module.hashes[self.loc.source_index as usize],
+          &css_module.sources[self.loc.source_index as usize],
+          ident,
+          if let Some(content_hashes) = &css_module.content_hashes {
+            &content_hashes[self.loc.source_index as usize]
           } else {
-            serialize_name(s, dest)
-          }
-        },
-      )?;
+            ""
+          },
+          |s| {
+            self.col += s.len() as u32;
+            if first {
+              first = false;
+              serialize_identifier(s, dest)
+            } else {
+              serialize_name(s, dest)
+            }
+          },
+        )?;
 
-      css_module.add_local(&ident, &ident, self.loc.source_index);
-    } else {
-      serialize_identifier(ident, self)?;
+        css_module.add_local(&ident, &ident, self.loc.source_index);
+        return Ok(());
+      }
     }
 
+    serialize_identifier(ident, self)?;
     Ok(())
   }
 
@@ -304,6 +331,11 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
           &css_module.hashes[self.loc.source_index as usize],
           &css_module.sources[self.loc.source_index as usize],
           &ident[2..],
+          if let Some(content_hashes) = &css_module.content_hashes {
+            &content_hashes[self.loc.source_index as usize]
+          } else {
+            ""
+          },
           |s| {
             self.col += s.len() as u32;
             serialize_name(s, dest)
@@ -348,6 +380,29 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     // I can't figure out what lifetime to use here to convince the compiler that
     // the reference doesn't live beyond the function call.
     self.context = Some(unsafe { std::mem::transmute(&ctx) });
+    let res = f(self);
+    self.context = parent;
+    res
+  }
+
+  pub(crate) fn with_cleared_context<T, U, F: FnOnce(&mut Printer<'a, 'b, 'c, W>) -> Result<T, U>>(
+    &mut self,
+    f: F,
+  ) -> Result<T, U> {
+    let parent = std::mem::take(&mut self.context);
+    let res = f(self);
+    self.context = parent;
+    res
+  }
+
+  pub(crate) fn with_parent_context<T, U, F: FnOnce(&mut Printer<'a, 'b, 'c, W>) -> Result<T, U>>(
+    &mut self,
+    f: F,
+  ) -> Result<T, U> {
+    let parent = std::mem::take(&mut self.context);
+    if let Some(parent) = parent {
+      self.context = parent.parent;
+    }
     let res = f(self);
     self.context = parent;
     res

@@ -2,7 +2,30 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import { bundle, transform } from '../index.mjs';
+import fs from 'fs';
+import {webcrypto as crypto} from 'node:crypto';
+
+let bundle, transform;
+if (process.env.TEST_WASM === 'node') {
+  ({ bundle, transform } = await import('../../wasm/wasm-node.mjs'));
+} else if (process.env.TEST_WASM === 'browser') {
+  // Define crypto globally for old node.
+  // @ts-ignore
+  globalThis.crypto ??= crypto;
+  let wasm = await import('../../wasm/index.mjs');
+  await wasm.default();
+  transform = wasm.transform;
+  bundle = function(options) {
+    return wasm.bundle({
+      ...options,
+      resolver: {
+        read: (filePath) => fs.readFileSync(filePath, 'utf8')
+      }
+    });
+  }
+} else {
+  ({bundle, transform} = await import('../index.mjs'));
+}
 
 test('declaration list', () => {
   let definitions = new Map();
@@ -59,17 +82,16 @@ test('mixin', () => {
     code: Buffer.from(`
       @mixin color {
         color: red;
-  
+
         &.bar {
           color: yellow;
         }
       }
-  
+
       .foo {
         @apply color;
       }
     `),
-    drafts: { nesting: true },
     targets: { chrome: 100 << 16 },
     customAtRules: {
       mixin: {
@@ -152,9 +174,6 @@ test('style block', () => {
         }
       }
     `),
-    drafts: {
-      nesting: true
-    },
     targets: {
       chrome: 105 << 16
     },
@@ -185,6 +204,27 @@ test('style block', () => {
   });
 
   assert.equal(res.code.toString(), '@media (width<=1024px){.foo{color:#ff0}.foo.bar{color:red}}');
+});
+
+test('style block top level', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @test {
+        .foo {
+          background: black;
+        }
+      }
+    `),
+    customAtRules: {
+      test: {
+        body: 'style-block'
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '@test{.foo{background:#000}}');
 });
 
 test('multiple', () => {
@@ -246,7 +286,6 @@ test('bundler', () => {
   let res = bundle({
     filename: 'tests/testdata/apply.css',
     minify: true,
-    drafts: { nesting: true },
     targets: { chrome: 100 << 16 },
     customAtRules: {
       mixin: {

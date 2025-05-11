@@ -1,6 +1,6 @@
 {
   "name": "lightningcss",
-  "version": "1.19.0",
+  "version": "1.29.3",
   "license": "MPL-2.0",
   "description": "A CSS parser, transformer, and minifier written in Rust",
   "main": "node/index.js",
@@ -39,19 +39,22 @@
     "node/*.flow"
   ],
   "dependencies": {
-    "detect-libc": "^1.0.3"
+    "detect-libc": "^2.0.3"
   },
   "devDependencies": {
+    "@babel/parser": "7.21.4",
+    "@babel/traverse": "7.21.4",
     "@codemirror/lang-css": "^6.0.1",
     "@codemirror/lang-javascript": "^6.1.2",
     "@codemirror/lint": "^6.1.0",
     "@codemirror/theme-one-dark": "^6.1.0",
-    "@mdn/browser-compat-data": "^5.2.49",
+    "@mdn/browser-compat-data": "~5.7.3",
     "@napi-rs/cli": "^2.14.0",
-    "autoprefixer": "^10.4.14",
+    "autoprefixer": "^10.4.21",
+    "caniuse-lite": "^1.0.30001704",
     "codemirror": "^6.0.1",
-    "cssnano": "^5.0.8",
-    "esbuild": "^0.13.10",
+    "cssnano": "^7.0.6",
+    "esbuild": "^0.19.8",
     "flowgen": "^1.21.0",
     "jest-diff": "^27.4.2",
     "json-schema-to-typescript": "^11.0.2",
@@ -69,7 +72,9 @@
     "posthtml-prism": "^1.0.4",
     "process": "^0.11.10",
     "puppeteer": "^12.0.1",
-    "sharp": "^0.31.1",
+    "recast": "^0.22.0",
+    "sharp": "^0.33.5",
+    "typescript": "^5.7.2",
     "util": "^0.12.4",
     "uvu": "^0.5.6"
   },
@@ -81,11 +86,12 @@
     "build": "node scripts/build.js && node scripts/build-flow.js",
     "build-release": "node scripts/build.js --release && node scripts/build-flow.js",
     "prepublishOnly": "node scripts/build-flow.js",
-    "wasm:build": "cargo build --target wasm32-unknown-unknown -p lightningcss_node && cp target/wasm32-unknown-unknown/debug/lightningcss_node.wasm wasm/. && node scripts/build-wasm.js",
-    "wasm:build-release": "cargo build --target wasm32-unknown-unknown -p lightningcss_node --release && cp target/wasm32-unknown-unknown/release/lightningcss_node.wasm wasm/. && node scripts/build-wasm.js",
+    "wasm:build": "cargo build --target wasm32-unknown-unknown -p lightningcss_node && wasm-opt target/wasm32-unknown-unknown/debug/lightningcss_node.wasm --asyncify --pass-arg=asyncify-imports@env.await_promise_sync -Oz -o wasm/lightningcss_node.wasm && node scripts/build-wasm.js",
+    "wasm:build-release": "cargo build --target wasm32-unknown-unknown -p lightningcss_node --release && wasm-opt target/wasm32-unknown-unknown/release/lightningcss_node.wasm --asyncify --pass-arg=asyncify-imports@env.await_promise_sync -Oz -o wasm/lightningcss_node.wasm && node scripts/build-wasm.js",
     "website:start": "parcel 'website/*.html' website/playground/index.html",
     "website:build": "yarn wasm:build-release && parcel build 'website/*.html' website/playground/index.html",
     "build-ast": "cargo run --example schema --features jsonschema && node scripts/build-ast.js",
+    "tsc": "tsc -p node/tsconfig.json",
     "test": "uvu node/test"
   }
 }

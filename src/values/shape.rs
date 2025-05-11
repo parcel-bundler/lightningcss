@@ -21,6 +21,7 @@ use cssparser::*;
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum BasicShape {
   /// An inset rectangle.
   Inset(InsetRect),
@@ -58,7 +59,7 @@ pub struct Circle {
 
 /// A [`<shape-radius>`](https://www.w3.org/TR/css-shapes-1/#typedef-shape-radius) value
 /// that defines the radius of a `circle()` or `ellipse()` shape.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -181,21 +182,6 @@ impl<'i> Parse<'i> for Circle {
   }
 }
 
-impl<'i> Parse<'i> for ShapeRadius {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(len) = input.try_parse(LengthPercentage::parse) {
-      return Ok(ShapeRadius::LengthPercentage(len));
-    }
-
-    if input.try_parse(|input| input.expect_ident_matching("closest-side")).is_ok() {
-      return Ok(ShapeRadius::ClosestSide);
-    }
-
-    input.expect_ident_matching("farthest-side")?;
-    Ok(ShapeRadius::FarthestSide)
-  }
-}
-
 impl Default for ShapeRadius {
   fn default() -> ShapeRadius {
     ShapeRadius::ClosestSide
@@ -311,19 +297,6 @@ impl ToCss for Circle {
     }
 
     Ok(())
-  }
-}
-
-impl ToCss for ShapeRadius {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      ShapeRadius::LengthPercentage(len) => len.to_css(dest),
-      ShapeRadius::ClosestSide => dest.write_str("closest-side"),
-      ShapeRadius::FarthestSide => dest.write_str("farthest-side"),
-    }
   }
 }
 

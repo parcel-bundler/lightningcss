@@ -6,7 +6,6 @@ use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
-use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::values::number::CSSInteger;
 use crate::vendor_prefix::VendorPrefix;
@@ -23,6 +22,7 @@ use cssparser::*;
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Position {
   /// The box is laid in the document flow.
   Static,
@@ -73,7 +73,7 @@ impl ToCss for Position {
 }
 
 /// A value for the [z-index](https://drafts.csswg.org/css2/#z-index) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -81,6 +81,7 @@ impl ToCss for Position {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum ZIndex {
   /// The `auto` keyword.
   Auto,
@@ -88,42 +89,9 @@ pub enum ZIndex {
   Integer(CSSInteger),
 }
 
-impl<'i> Parse<'i> for ZIndex {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(value) = input.expect_integer() {
-      return Ok(ZIndex::Integer(value));
-    }
-
-    input.expect_ident_matching("auto")?;
-    Ok(ZIndex::Auto)
-  }
-}
-
-impl ToCss for ZIndex {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      ZIndex::Auto => dest.write_str("auto"),
-      ZIndex::Integer(value) => value.to_css(dest),
-    }
-  }
-}
-
 #[derive(Default)]
 pub(crate) struct PositionHandler {
-  targets: Option<Browsers>,
   position: Option<Position>,
-}
-
-impl PositionHandler {
-  pub fn new(targets: Option<Browsers>) -> PositionHandler {
-    PositionHandler {
-      targets,
-      ..PositionHandler::default()
-    }
-  }
 }
 
 impl<'i> PropertyHandler<'i> for PositionHandler {
@@ -146,7 +114,7 @@ impl<'i> PropertyHandler<'i> for PositionHandler {
     false
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {
+  fn finalize(&mut self, dest: &mut DeclarationList, context: &mut PropertyHandlerContext<'i, '_>) {
     if self.position.is_none() {
       return;
     }
@@ -154,12 +122,7 @@ impl<'i> PropertyHandler<'i> for PositionHandler {
     if let Some(position) = std::mem::take(&mut self.position) {
       match position {
         Position::Sticky(mut prefix) => {
-          if prefix.contains(VendorPrefix::None) {
-            if let Some(targets) = self.targets {
-              prefix = Feature::Sticky.prefixes_for(targets)
-            }
-          }
-
+          prefix = context.targets.prefixes(prefix, Feature::Sticky);
           if prefix.contains(VendorPrefix::WebKit) {
             dest.push(Property::Position(Position::Sticky(VendorPrefix::WebKit)))
           }

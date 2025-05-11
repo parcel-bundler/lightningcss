@@ -1,12 +1,15 @@
 //! The `@supports` rule.
 
+use std::collections::HashMap;
+
 use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
+use crate::properties::custom::TokenList;
 use crate::properties::PropertyId;
-use crate::targets::Browsers;
+use crate::targets::{Features, FeaturesIterator, Targets};
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
@@ -22,6 +25,7 @@ use crate::serialization::ValueWrapper;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct SupportsRule<'i, R = DefaultAtRule> {
   /// The supports condition.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -33,17 +37,25 @@ pub struct SupportsRule<'i, R = DefaultAtRule> {
   pub loc: Location,
 }
 
-impl<'i, T> SupportsRule<'i, T> {
+impl<'i, T: Clone> SupportsRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
     parent_is_unused: bool,
   ) -> Result<(), MinifyError> {
-    if let Some(targets) = context.targets {
-      self.condition.set_prefixes_for_targets(targets)
+    let inserted = context.targets.enter_supports(self.condition.get_supported_features());
+    if inserted {
+      context.handler_context.targets = context.targets.current;
     }
 
-    self.rules.minify(context, parent_is_unused)
+    self.condition.set_prefixes_for_targets(&context.targets.current);
+    let result = self.rules.minify(context, parent_is_unused);
+
+    if inserted {
+      context.targets.exit_supports();
+      context.handler_context.targets = context.targets.current;
+    }
+    result
   }
 }
 
@@ -60,7 +72,13 @@ impl<'a, 'i, T: ToCss> ToCss for SupportsRule<'i, T> {
     dest.write_char('{')?;
     dest.indent();
     dest.newline()?;
+
+    let inserted = dest.targets.enter_supports(self.condition.get_supported_features());
     self.rules.to_css(dest)?;
+    if inserted {
+      dest.targets.exit_supports();
+    }
+
     dest.dedent();
     dest.newline()?;
     dest.write_char('}')
@@ -71,7 +89,7 @@ impl<'a, 'i, T: ToCss> ToCss for SupportsRule<'i, T> {
 /// as used in the `@supports` and `@import` rules.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "visitor", visit(visit_supports_condition, SUPPORTS_CONDITIONS))]
 #[cfg_attr(
   feature = "serde",
@@ -132,7 +150,7 @@ impl<'i> SupportsCondition<'i> {
     }
   }
 
-  fn set_prefixes_for_targets(&mut self, targets: &Browsers) {
+  fn set_prefixes_for_targets(&mut self, targets: &Targets) {
     match self {
       SupportsCondition::Not(cond) => cond.set_prefixes_for_targets(targets),
       SupportsCondition::And(items) | SupportsCondition::Or(items) => {
@@ -149,6 +167,28 @@ impl<'i> SupportsCondition<'i> {
       _ => {}
     }
   }
+
+  fn get_supported_features(&self) -> Features {
+    fn get_supported_features_internal(value: &SupportsCondition) -> Option<Features> {
+      match value {
+        SupportsCondition::And(list) => list.iter().map(|c| get_supported_features_internal(c)).try_union_all(),
+        SupportsCondition::Declaration { value, .. } => {
+          let mut input = ParserInput::new(&value);
+          let mut parser = Parser::new(&mut input);
+          if let Ok(tokens) = TokenList::parse(&mut parser, &Default::default(), 0) {
+            Some(tokens.get_features())
+          } else {
+            Some(Features::empty())
+          }
+        }
+        // bail out if "not" or "or" exists for now
+        SupportsCondition::Not(_) | SupportsCondition::Or(_) => None,
+        SupportsCondition::Selector(_) | SupportsCondition::Unknown(_) => Some(Features::empty()),
+      }
+    }
+
+    get_supported_features_internal(self).unwrap_or(Features::empty())
+  }
 }
 
 impl<'i> Parse<'i> for SupportsCondition<'i> {
@@ -161,6 +201,7 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
     let in_parens = Self::parse_in_parens(input)?;
     let mut expected_type = None;
     let mut conditions = Vec::new();
+    let mut seen_declarations = HashMap::new();
 
     loop {
       let condition = input.try_parse(|input| {
@@ -187,12 +228,38 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
 
       if let Ok(condition) = condition {
         if conditions.is_empty() {
-          conditions.push(in_parens.clone())
+          conditions.push(in_parens.clone());
+          if let SupportsCondition::Declaration { property_id, value } = &in_parens {
+            seen_declarations.insert((property_id.with_prefix(VendorPrefix::None), value.clone()), 0);
+          }
         }
-        conditions.push(condition)
+
+        if let SupportsCondition::Declaration { property_id, value } = condition {
+          // Merge multiple declarations with the same property id (minus prefix) and value together.
+          let property_id = property_id.with_prefix(VendorPrefix::None);
+          let key = (property_id.clone(), value.clone());
+          if let Some(index) = seen_declarations.get(&key) {
+            if let SupportsCondition::Declaration {
+              property_id: cur_property,
+              ..
+            } = &mut conditions[*index]
+            {
+              cur_property.add_prefix(property_id.prefix());
+            }
+          } else {
+            seen_declarations.insert(key, conditions.len());
+            conditions.push(SupportsCondition::Declaration { property_id, value });
+          }
+        } else {
+          conditions.push(condition);
+        }
       } else {
         break;
       }
+    }
+
+    if conditions.len() == 1 {
+      return Ok(conditions.pop().unwrap());
     }
 
     match expected_type {
