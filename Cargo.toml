@@ -90,7 +90,7 @@ jemallocator = { version = "0.3.2", features = [
 ], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2", features = ["custom"], default-features = false }
+getrandom = { version = "0.3", features = ["wasm_js"], default-features = false }
 
 [dev-dependencies]
 indoc = "1.0.3"
