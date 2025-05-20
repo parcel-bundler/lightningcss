@@ -29,7 +29,7 @@ test('should parse line comments after closing parenthesis', () => {
     minify: true,
   });
 
-  assert.equal(res.code.toString(), 'div{width:calc(5)}');
+  assert.equal(res.code.toString(), 'div{width:5}');
 });
 
 test.run();
