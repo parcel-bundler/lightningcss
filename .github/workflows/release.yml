@@ -35,7 +35,7 @@ jobs:
       - name: Setup rust target
         run: rustup target add ${{ matrix.target }}
 
-      - uses: bahmutov/npm-install@v1.8.32
+      - uses: bahmutov/npm-install@v1.10.9
       - name: Build release
         run: yarn build-release
         env:
@@ -59,18 +59,18 @@ jobs:
     name: build-apple-silicon
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Node.JS
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup rust target
         run: rustup target add aarch64-apple-darwin
 
-      - uses: bahmutov/npm-install@v1.8.32
+      - uses: bahmutov/npm-install@v1.10.9
       - name: Build release
         run: yarn build-release
         env:
@@ -128,11 +128,11 @@ jobs:
       image: ${{ matrix.image }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Node.JS
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -151,7 +151,7 @@ jobs:
       - name: Setup rust target
         run: rustup target add ${{ matrix.target }}
 
-      - uses: bahmutov/npm-install@v1.8.32
+      - uses: bahmutov/npm-install@v1.10.9
       - name: Build release
         run: yarn build-release
         env:
@@ -177,9 +177,9 @@ jobs:
   build-freebsd:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build FreeBSD
-        uses: cross-platform-actions/action@v0.25.0
+        uses: cross-platform-actions/action@v0.28.0
         env:
           DEBUG: napi:*
           RUSTUP_HOME: /usr/local/rustup
@@ -187,7 +187,7 @@ jobs:
           RUSTUP_IO_THREADS: 1
         with:
           operating_system: freebsd
-          version: '14.0'
+          version: '14.2'
           memory: 13G
           cpu_count: 3
           environment_variables: 'DEBUG RUSTUP_IO_THREADS'
@@ -225,12 +225,12 @@ jobs:
   build-wasm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Node.JS
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
-      - uses: bahmutov/npm-install@v1.8.32
+          node-version: 22
+      - uses: bahmutov/npm-install@v1.10.9
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -261,8 +261,8 @@ jobs:
       - build-freebsd
       - build-wasm
     steps:
-      - uses: actions/checkout@v3
-      - uses: bahmutov/npm-install@v1.8.32
+      - uses: actions/checkout@v4
+      - uses: bahmutov/npm-install@v1.10.9
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -300,8 +300,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Release Rust crate
     steps:
-      - uses: actions/checkout@v3
-      - uses: bahmutov/npm-install@v1.8.32
+      - uses: actions/checkout@v4
+      - uses: bahmutov/npm-install@v1.10.9
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - run: cargo login ${CRATES_IO_TOKEN}

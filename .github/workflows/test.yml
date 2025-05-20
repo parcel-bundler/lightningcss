@@ -14,7 +14,7 @@ jobs:
       RUST_BACKTRACE: full
       RUSTFLAGS: -D warnings
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt
@@ -23,11 +23,11 @@ jobs:
   test-js:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
-      - uses: bahmutov/npm-install@v1.8.32
+          node-version: 22
+      - uses: bahmutov/npm-install@v1.10.9
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: yarn build
@@ -37,11 +37,11 @@ jobs:
   test-wasm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
-      - uses: bahmutov/npm-install@v1.8.32
+          node-version: 22
+      - uses: bahmutov/npm-install@v1.10.9
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
