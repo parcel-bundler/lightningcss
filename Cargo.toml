@@ -89,9 +89,6 @@ jemallocator = { version = "0.3.2", features = [
   "disable_initial_exec_tls",
 ], optional = true }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.3", features = ["wasm_js"], default-features = false }
-
 [dev-dependencies]
 indoc = "1.0.3"
 assert_cmd = "2.0"
