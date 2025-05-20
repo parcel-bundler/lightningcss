@@ -1,4 +1,4 @@
-import { test } from 'uvu';
+import {test} from 'uvu';
 import * as assert from 'uvu/assert';
 import {webcrypto as crypto} from 'node:crypto';
 
@@ -26,7 +26,7 @@ test('should parse line comments after closing parenthesis', () => {
   let res = transform({
     filename: 'test.css',
     code: Buffer.from(css),
-    minify: true
+    minify: true,
   });
 
   assert.equal(res.code.toString(), 'div{width:calc(5)}');
