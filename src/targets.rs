@@ -51,17 +51,17 @@ impl Browsers {
   pub fn from_browserslist<S: AsRef<str>, I: IntoIterator<Item = S>>(
     query: I,
   ) -> Result<Option<Browsers>, browserslist::Error> {
-    Self::from_browserslist_with_config(query, None)
+    Self::from_browserslist_with_config(query, BrowserslistConfig::default())
   }
 
   /// Parses a list of browserslist queries into Lightning CSS targets.
   pub fn from_browserslist_with_config<S: AsRef<str>, I: IntoIterator<Item = S>>(
     query: I,
-    config: Option<BrowserslistConfig>,
+    config: BrowserslistConfig,
   ) -> Result<Option<Browsers>, browserslist::Error> {
-    use browserslist::{resolve, Opts};
+    use browserslist::resolve;
 
-    Self::from_distribs(resolve(query, &config.unwrap_or(Opts::default()))?)
+    Self::from_distribs(resolve(query, &config)?)
   }
 
   #[cfg(not(target_arch = "wasm32"))]
