@@ -42,15 +42,26 @@ pub struct Browsers {
 }
 
 #[cfg(feature = "browserslist")]
+pub use browserslist::Opts as BrowserslistConfig;
+
+#[cfg(feature = "browserslist")]
 #[cfg_attr(docsrs, doc(cfg(feature = "browserslist")))]
 impl Browsers {
   /// Parses a list of browserslist queries into Lightning CSS targets.
   pub fn from_browserslist<S: AsRef<str>, I: IntoIterator<Item = S>>(
     query: I,
   ) -> Result<Option<Browsers>, browserslist::Error> {
+    Self::from_browserslist_with_config(query, None)
+  }
+
+  /// Parses a list of browserslist queries into Lightning CSS targets.
+  pub fn from_browserslist_with_config<S: AsRef<str>, I: IntoIterator<Item = S>>(
+    query: I,
+    config: Option<BrowserslistConfig>,
+  ) -> Result<Option<Browsers>, browserslist::Error> {
     use browserslist::{resolve, Opts};
 
-    Self::from_distribs(resolve(query, &Opts::default())?)
+    Self::from_distribs(resolve(query, &config.unwrap_or(Opts::default()))?)
   }
 
   #[cfg(not(target_arch = "wasm32"))]
