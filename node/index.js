@@ -11,6 +11,12 @@ if (process.platform === 'linux') {
   }
 } else if (process.platform === 'win32') {
   parts.push('msvc');
+} else if (process.platform === 'android') {
+  if(process.arch === 'arm'){
+    parts.push('androidabi');
+  } else {
+    parts.push('aarch64');
+  }
 }
 
 if (process.env.CSS_TRANSFORMER_WASM) {
