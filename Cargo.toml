@@ -42,6 +42,7 @@ jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
 nodejs = ["dep:serde"]
 serde = [
   "dep:serde",
+  "bitflags/serde",
   "smallvec/serde",
   "cssparser/serde",
   "parcel_selectors/serde",
