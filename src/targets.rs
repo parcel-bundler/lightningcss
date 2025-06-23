@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 ///   ..Browsers::default()
 /// };
 /// ```
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize, Deserialize))]
 #[allow(missing_docs)]
 pub struct Browsers {
@@ -181,7 +181,7 @@ pub(crate) trait FeaturesIterator: Sized + Iterator {
 impl<I> FeaturesIterator for I where I: Iterator {}
 
 /// Target browsers and features to compile.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Targets {
   /// Browser targets to compile the CSS for.
   pub browsers: Option<Browsers>,
