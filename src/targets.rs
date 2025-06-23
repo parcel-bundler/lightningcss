@@ -140,6 +140,7 @@ fn parse_version(version: &str) -> Option<u32> {
 bitflags! {
   /// Features to explicitly enable or disable.
   #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq)]
+  #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(transparent))]
   pub struct Features: u32 {
     const Nesting = 1 << 0;
     const NotSelectorList = 1 << 1;
@@ -182,6 +183,7 @@ impl<I> FeaturesIterator for I where I: Iterator {}
 
 /// Target browsers and features to compile.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Targets {
   /// Browser targets to compile the CSS for.
   pub browsers: Option<Browsers>,
