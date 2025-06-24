@@ -749,7 +749,7 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.66"
+version = "1.0.0-alpha.67"
 dependencies = [
  "ahash 0.8.11",
  "assert_cmd",
