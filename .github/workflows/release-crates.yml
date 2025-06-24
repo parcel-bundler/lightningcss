@@ -7,8 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Release Rust crate
     steps:
-      - uses: actions/checkout@v3
-      - uses: bahmutov/npm-install@v1.8.32
+      - uses: actions/checkout@v4
+      - uses: bahmutov/npm-install@v1.10.9
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - run: cargo login ${CRATES_IO_TOKEN}
