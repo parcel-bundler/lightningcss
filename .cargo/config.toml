@@ -12,7 +12,13 @@ linker = "aarch64-linux-musl-gcc"
 rustflags = ["-C", "target-feature=-crt-static"]
 
 [target.wasm32-unknown-unknown]
-rustflags = ["-C", "link-arg=--export-table"]
+rustflags = [
+    "-C",
+    "link-arg=--export-table",
+    '--cfg',
+    'getrandom_backend="custom"',
+]
+
 
 # Statically link Visual Studio redistributables on Windows builds
 [target.x86_64-pc-windows-msvc]

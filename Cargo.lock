@@ -768,7 +768,7 @@ dependencies = [
  "cssparser-color",
  "dashmap",
  "data-encoding",
- "getrandom 0.2.15",
+ "getrandom 0.3.3",
  "indexmap 2.7.0",
  "indoc",
  "itertools 0.10.5",
