@@ -85,8 +85,9 @@ pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
   /// This is only set if CSS modules are enabled and the pattern includes [content-hash].
   #[cfg_attr(feature = "serde", serde(skip))]
   pub(crate) content_hashes: Option<Vec<String>>,
-  #[cfg_attr(feature = "serde", serde(skip))]
+  // #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
+  #[cfg_attr(feature = "serde", serde(bound(deserialize = "'de: 'o")))]
   options: ParserOptions<'o, 'i>,
 }
 

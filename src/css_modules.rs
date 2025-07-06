@@ -26,9 +26,15 @@ use std::path::Path;
 
 /// Configuration for CSS modules.
 #[derive(Clone, Debug)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 pub struct Config<'i> {
   /// The name pattern to use when renaming class names and other identifiers.
   /// Default is `[hash]_[local]`.
+  #[cfg_attr(feature = "serde", serde(bound(deserialize = "'de: 'i")))]
   pub pattern: Pattern<'i>,
   /// Whether to rename dashed identifiers, e.g. custom properties.
   pub dashed_idents: bool,
@@ -64,7 +70,13 @@ impl<'i> Default for Config<'i> {
 
 /// A CSS modules class name pattern.
 #[derive(Clone, Debug)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 pub struct Pattern<'i> {
+  #[cfg_attr(feature = "serde", serde(bound(deserialize = "'de: 'i")))]
   /// The list of segments in the pattern.
   pub segments: SmallVec<[Segment<'i>; 2]>,
 }
@@ -196,6 +208,11 @@ impl<'i> Pattern<'i> {
 ///
 /// See [Pattern](Pattern).
 #[derive(Clone, Debug)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 pub enum Segment<'i> {
   /// A literal string segment.
   Literal(&'i str),
