@@ -3938,6 +3938,11 @@ pub mod tests {
     assert!(parse("::picker(select)").is_ok());
     assert!(parse("select::picker-icon").is_ok());
     assert!(parse("option::checkmark").is_ok());
+
+    assert!(parse("::grammar-error").is_ok());
+    assert!(parse("::spelling-error").is_ok());
+    assert!(parse("::part(mypart)::grammar-error").is_ok());
+    assert!(parse("::part(mypart)::spelling-error").is_ok());
   }
 
   #[test]

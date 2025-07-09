@@ -297,6 +297,9 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
 
       "view-transition" => ViewTransition,
 
+      "grammar-error" => GrammarError,
+      "spelling-error" => SpellingError,
+
       _ => {
         if !name.starts_with('-') {
           self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name.clone())));
@@ -966,6 +969,10 @@ pub enum PseudoElement<'i> {
   PickerIcon,
   /// The [::checkmark](https://drafts.csswg.org/css-forms-1/#styling-checkmarks-the-checkmark-pseudo-element) pseudo element.
   Checkmark,
+  /// The [::grammar-error](https://drafts.csswg.org/css-pseudo/#selectordef-grammar-error) pseudo element.
+  GrammarError,
+  /// The [::spelling-error](https://drafts.csswg.org/css-pseudo/#selectordef-spelling-error) pseudo element.
+  SpellingError,
   /// An unknown pseudo element.
   Custom {
     /// The name of the pseudo element.
@@ -1233,6 +1240,8 @@ where
     }
     PickerIcon => dest.write_str("::picker-icon"),
     Checkmark => dest.write_str("::checkmark"),
+    GrammarError => dest.write_str("::grammar-error"),
+    SpellingError => dest.write_str("::spelling-error"),
     Custom { name: val } => {
       dest.write_str("::")?;
       return dest.write_str(val);
@@ -1947,6 +1956,8 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           PseudoElement::PickerFunction { identifier: _ } => Feature::Picker,
           PseudoElement::PickerIcon => Feature::PickerIcon,
           PseudoElement::Checkmark => Feature::Checkmark,
+          PseudoElement::GrammarError => Feature::GrammarError,
+          PseudoElement::SpellingError => Feature::SpellingError,
           PseudoElement::Custom { name: _ } | _ => return false,
         },
 

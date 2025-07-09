@@ -87,6 +87,7 @@ pub enum Feature {
   Gencontent,
   GeorgianListStyleType,
   GradientInterpolationHints,
+  GrammarError,
   GujaratiListStyleType,
   GurmukhiListStyleType,
   HasSelector,
@@ -189,6 +190,7 @@ pub enum Feature {
   SimpChineseFormalListStyleType,
   SimpChineseInformalListStyleType,
   SomaliListStyleType,
+  SpellingError,
   SpaceSeparatedColorNotation,
   SquareListStyleType,
   StretchSize,
@@ -5595,6 +5597,46 @@ impl Feature {
           return false;
         }
       }
+      Feature::GrammarError | Feature::SpellingError => {
+        if let Some(version) = browsers.chrome {
+          if version < 7929856 { // Chrome 121
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 7929856 { // Edge 121
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 7929856 { // Opera 121
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 1115136 { // Safari 17.4
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1115136 { // iOS Safari 17.4
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 7929856 { // Android Chrome 121
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 7929856 { // Samsung Internet 121
+            return false;
+          }
+        }
+        if browsers.firefox.is_some() || browsers.ie.is_some() {
+          return false;
+        }
+      }      
       Feature::P3Colors | Feature::LangSelectorList => {
         if let Some(version) = browsers.safari {
           if version < 655616 {
