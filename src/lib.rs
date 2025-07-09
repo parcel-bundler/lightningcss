@@ -35,6 +35,7 @@ pub mod printer;
 pub mod properties;
 pub mod rules;
 pub mod selector;
+mod serialize;
 pub mod stylesheet;
 pub mod targets;
 pub mod traits;
@@ -32042,6 +32043,20 @@ mod tests {
           }
         }
     "#},
+    );
+  }
+
+  #[test]
+  fn test_string_escaping() {
+    minify_test(
+      r#"[title="\1  b"][href="\a a"] {
+        background: url('x\1  y.png'), url('x y\a\az.png');
+        font-family: 'x y\1  z', 'x y\a  z';
+      }"#,
+      "[title=\\1 \\ b][href=\\a a]{\
+        background:url(\"x\\1  y.png\"),url(\"x y\\a\\az.png\");\
+        font-family:\"x y\\1  z\",\"x y\\a  z\"\
+      }",
     );
   }
 
