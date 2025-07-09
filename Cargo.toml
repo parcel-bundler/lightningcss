@@ -61,6 +61,7 @@ substitute_variables = ["visitor", "into_owned"]
 [dependencies]
 serde = { version = "1.0.201", features = ["derive"], optional = true }
 cssparser = "0.33.0"
+cssparser-macros = "*"
 cssparser-color = "0.1.0"
 parcel_selectors = { version = "0.28.2", path = "./selectors" }
 itertools = "0.10.1"
