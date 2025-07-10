@@ -257,6 +257,27 @@ impl<'i> TokenOrValue<'i> {
   pub fn is_whitespace(&self) -> bool {
     matches!(self, TokenOrValue::Token(Token::WhiteSpace(_)))
   }
+
+  /// Returns whether this token requires spacing before it.
+  pub fn requires_spacing_before(&self) -> bool {
+    match self {
+      TokenOrValue::Token(token) => matches!(token,
+        Token::Ident(_) | Token::Number { .. } | Token::Dimension { .. } |
+        Token::Percentage { .. } | Token::String(_)
+      ),
+      _ => true,
+    }
+  }
+
+  /// Returns whether this token requires spacing after it.
+  pub fn requires_spacing_after(&self) -> bool {
+    match self {
+      // These have closing parens, so no space needed after.
+      TokenOrValue::Var(_) | TokenOrValue::Env(_) | TokenOrValue::Function(_) => false,
+      // For other cases, it is the same as the before case. This is a bit of a hack, but it works.
+      _ => self.requires_spacing_before(),
+    }
+  }
 }
 
 impl<'a> Eq for TokenOrValue<'a> {}
@@ -541,11 +562,11 @@ impl<'i> TokenList<'i> {
       has_whitespace = match token_or_value {
         TokenOrValue::Color(color) => {
           color.to_css(dest)?;
-          false
+          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::UnresolvedColor(color) => {
           color.to_css(dest, is_custom_property)?;
-          false
+          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Url(url) => {
           if dest.dependencies.is_some() && is_custom_property && !url.is_absolute() {
@@ -557,7 +578,7 @@ impl<'i> TokenList<'i> {
             ));
           }
           url.to_css(dest)?;
-          false
+          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Var(var) => {
           var.to_css(dest, is_custom_property)?;
@@ -575,27 +596,27 @@ impl<'i> TokenList<'i> {
           // Do not serialize unitless zero lengths in custom properties as it may break calc().
           let (value, unit) = v.to_unit_value();
           serialize_dimension(value, unit, dest)?;
-          false
+          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Angle(v) => {
           v.to_css(dest)?;
-          false
+          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Time(v) => {
           v.to_css(dest)?;
-          false
+          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Resolution(v) => {
           v.to_css(dest)?;
-          false
+          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::DashedIdent(v) => {
           v.to_css(dest)?;
-          false
+          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::AnimationName(v) => {
           v.to_css(dest)?;
-          false
+          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Token(token) => match token {
           Token::Delim(d) => {
@@ -619,15 +640,15 @@ impl<'i> TokenList<'i> {
           }
           Token::Dimension { value, unit, .. } => {
             serialize_dimension(*value, unit, dest)?;
-            false
+            self.write_whitespace_if_needed(i, dest)?
           }
           Token::Number { value, .. } => {
             value.to_css(dest)?;
-            false
+            self.write_whitespace_if_needed(i, dest)?
           }
           _ => {
             token.to_css(dest)?;
-            matches!(token, Token::WhiteSpace(..))
+            self.write_whitespace_if_needed(i, dest)?
           }
         },
       };
@@ -662,16 +683,21 @@ impl<'i> TokenList<'i> {
   where
     W: std::fmt::Write,
   {
-    if !dest.minify
-      && i != self.0.len() - 1
+    if i != self.0.len() - 1
       && !matches!(
         self.0[i + 1],
         TokenOrValue::Token(Token::Comma) | TokenOrValue::Token(Token::CloseParenthesis)
       )
     {
-      // Whitespace is removed during parsing, so add it back if we aren't minifying.
-      dest.write_char(' ')?;
-      Ok(true)
+      let requires_spacing = self.0[i].requires_spacing_after() && self.0[i + 1].requires_spacing_before();
+
+      // Whitespace is removed during parsing, so add it back if we aren't minifying, or if two values require spacing between them.
+      if !dest.minify || requires_spacing {
+        dest.write_char(' ')?;
+        Ok(true)
+      } else {
+        Ok(false)
+      }
     } else {
       Ok(false)
     }
