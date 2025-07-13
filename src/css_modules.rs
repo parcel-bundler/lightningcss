@@ -211,7 +211,7 @@ impl<'i> Pattern<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(rename_all = "camelCase")
+  serde(rename_all = "camelCase", tag = "type")
 )]
 pub enum Segment<'i> {
   /// A literal string segment.
