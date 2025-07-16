@@ -644,8 +644,36 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         AtRulePrelude::Layer(names)
       },
       "container" => {
+        // Try to parse a container name, but also allow scroll-state as a special case
         let name = input.try_parse(ContainerName::parse).ok();
-        let condition = ContainerCondition::parse_with_options(input, &self.options)?;
+        let condition = if name.is_none() {
+          // If no name, check for scroll-state(...)
+          if input.try_parse(|input| input.expect_ident_matching("scroll-state")).is_ok() {
+            let arg = input.parse_nested_block(|input| {
+                let mut s = String::new();
+                while let Ok(token) = input.next_including_whitespace_and_comments() {
+                    use cssparser::ToCss as _;
+                    token.to_css(&mut s).ok();
+                }
+                Ok(s.trim().to_owned())
+            })?;
+            ContainerCondition::ScrollState(arg)
+          } else if input.try_parse(|input| input.expect_function_matching("scroll-state")).is_ok() {
+            let arg = input.parse_nested_block(|input| {
+                let mut s = String::new();
+                while let Ok(token) = input.next_including_whitespace_and_comments() {
+                    use cssparser::ToCss as _;
+                    token.to_css(&mut s).ok();
+                }
+                Ok(s.trim().to_owned())
+            })?;
+            ContainerCondition::ScrollState(arg)
+          } else {
+            ContainerCondition::parse_with_options(input, &self.options)?
+          }
+        } else {
+          ContainerCondition::parse_with_options(input, &self.options)?
+        };
         AtRulePrelude::Container(name, condition)
       },
       "starting-style" => {

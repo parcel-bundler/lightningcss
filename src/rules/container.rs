@@ -53,6 +53,8 @@ pub enum ContainerCondition<'i> {
   /// A size container feature, implicitly parenthesized.
   #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<ContainerSizeFeature>"))]
   Feature(ContainerSizeFeature<'i>),
+  /// A scroll-state container query.
+  ScrollState(String),
   /// A negation of a condition.
   #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<ContainerCondition>>"))]
@@ -174,6 +176,7 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
       ContainerCondition::Operation { operator, .. } => Some(*operator) != parent_operator,
       ContainerCondition::Feature(f) => f.needs_parens(parent_operator, targets),
       ContainerCondition::Style(_) => false,
+      ContainerCondition::ScrollState(_) => false,
     }
   }
 }
@@ -234,6 +237,11 @@ impl<'i> ToCss for ContainerCondition<'i> {
   {
     match *self {
       ContainerCondition::Feature(ref f) => f.to_css(dest),
+      ContainerCondition::ScrollState(ref s) => {
+        dest.write_str("scroll-state(")?;
+        dest.write_str(s)?;
+        dest.write_char(')')
+      }
       ContainerCondition::Not(ref c) => {
         dest.write_str("not ")?;
         to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets.current))
