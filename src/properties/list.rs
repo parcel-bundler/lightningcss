@@ -108,7 +108,7 @@ macro_rules! counter_styles {
       fn is_compatible(&self, browsers: Browsers) -> bool {
         match self {
           $(
-            PredefinedCounterStyle::$id => paste::paste! {
+            PredefinedCounterStyle::$id => pastey::paste! {
               crate::compat::Feature::[<$id ListStyleType>].is_compatible(browsers)
             },
           )+
