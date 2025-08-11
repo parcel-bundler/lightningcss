@@ -429,13 +429,13 @@ impl<'i> ToCss for FamilyName<'i> {
         } else {
           id.push(' ');
         }
-        serialize_identifier(slice, &mut id)?;
+        crate::serialize::identifier(slice, &mut id)?;
       }
       if id.len() < val.len() + 2 {
         return dest.write_str(&id);
       }
     }
-    serialize_string(&val, dest)?;
+    crate::serialize::string(&val, dest)?;
     Ok(())
   }
 }
