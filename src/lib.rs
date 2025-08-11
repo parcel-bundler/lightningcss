@@ -7062,22 +7062,30 @@ mod tests {
 
     minify_error_test_with_options(
       "div {width: 20px}",
-      MinifyErrorKind::ImpureCSSModuleSelector,
+      MinifyErrorKind::ImpureCSSModuleSelector {
+        selector: "div".to_string(),
+      },
       pure_css_module_options.clone(),
     );
     minify_error_test_with_options(
       ":global(.foo) {width: 20px}",
-      MinifyErrorKind::ImpureCSSModuleSelector,
+      MinifyErrorKind::ImpureCSSModuleSelector {
+        selector: ".foo".to_string(),
+      },
       pure_css_module_options.clone(),
     );
     minify_error_test_with_options(
       "[foo=bar] {width: 20px}",
-      MinifyErrorKind::ImpureCSSModuleSelector,
+      MinifyErrorKind::ImpureCSSModuleSelector {
+        selector: "[foo=\"bar\"]".to_string(),
+      },
       pure_css_module_options.clone(),
     );
     minify_error_test_with_options(
       "div, .foo {width: 20px}",
-      MinifyErrorKind::ImpureCSSModuleSelector,
+      MinifyErrorKind::ImpureCSSModuleSelector {
+        selector: "div, .foo".to_string(),
+      },
       pure_css_module_options.clone(),
     );
     minify_test_with_options(
@@ -7127,7 +7135,9 @@ mod tests {
     );
     minify_error_test_with_options(
       "html { .foo { span { color: red; } } }",
-      MinifyErrorKind::ImpureCSSModuleSelector,
+      MinifyErrorKind::ImpureCSSModuleSelector {
+        selector: "html".to_string(),
+      },
       pure_css_module_options.clone(),
     );
     minify_test_with_options(
@@ -7137,17 +7147,23 @@ mod tests {
     );
     minify_error_test_with_options(
       "@scope (div) { .foo { color: red } }",
-      MinifyErrorKind::ImpureCSSModuleSelector,
+      MinifyErrorKind::ImpureCSSModuleSelector {
+        selector: "div".to_string(),
+      },
       pure_css_module_options.clone(),
     );
     minify_error_test_with_options(
       "@scope (.a) to (div) { .foo { color: red } }",
-      MinifyErrorKind::ImpureCSSModuleSelector,
+      MinifyErrorKind::ImpureCSSModuleSelector {
+        selector: "div".to_string(),
+      },
       pure_css_module_options.clone(),
     );
     minify_error_test_with_options(
       "@scope (.a) to (.b) { div { color: red } }",
-      MinifyErrorKind::ImpureCSSModuleSelector,
+      MinifyErrorKind::ImpureCSSModuleSelector {
+        selector: "div".to_string(),
+      },
       pure_css_module_options.clone(),
     );
     minify_test_with_options(
