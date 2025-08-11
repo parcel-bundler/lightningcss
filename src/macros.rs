@@ -189,7 +189,7 @@ macro_rules! shorthand_property_bitflags {
     crate::macros::shorthand_property_bitflags!($name, [$($all),*] $($rest),* ; $last_index + 1; $($var = $index)* $cur = $last_index + 1);
   };
   ($name:ident, [$($all:ident),*] $cur:ident; $last_index:expr ; $($var:ident = $index:expr)+) => {
-    paste::paste! {
+    pastey::paste! {
       crate::macros::property_bitflags! {
         #[derive(Default, Debug)]
         struct [<$name Property>]: u8 {
@@ -216,7 +216,7 @@ macro_rules! shorthand_handler {
       $(
         pub $key: Option<$type>,
       )*
-      flushed_properties: paste::paste!([<$shorthand Property>]),
+      flushed_properties: pastey::paste!([<$shorthand Property>]),
       has_any: bool
     }
 
@@ -250,7 +250,7 @@ macro_rules! shorthand_handler {
 
             let mut unparsed = val.clone();
             context.add_unparsed_fallbacks(&mut unparsed);
-            paste::paste! {
+            pastey::paste! {
               self.flushed_properties.insert([<$shorthand Property>]::try_from(&unparsed.property_id).unwrap());
             };
             dest.push(Property::Unparsed(unparsed));
@@ -263,7 +263,7 @@ macro_rules! shorthand_handler {
 
       fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
         self.flush(dest, context);
-        self.flushed_properties = paste::paste!([<$shorthand Property>]::empty());
+        self.flushed_properties = pastey::paste!([<$shorthand Property>]::empty());
       }
     }
 
@@ -289,7 +289,7 @@ macro_rules! shorthand_handler {
           };
 
           $(
-            if $shorthand_fallback && !self.flushed_properties.intersects(paste::paste!([<$shorthand Property>]::$shorthand)) {
+            if $shorthand_fallback && !self.flushed_properties.intersects(pastey::paste!([<$shorthand Property>]::$shorthand)) {
               let fallbacks = shorthand.get_fallbacks(context.targets);
               for fallback in fallbacks {
                 dest.push(Property::$shorthand(fallback));
@@ -298,7 +298,7 @@ macro_rules! shorthand_handler {
           )?
 
           dest.push(Property::$shorthand(shorthand));
-          paste::paste! {
+          pastey::paste! {
             self.flushed_properties.insert([<$shorthand Property>]::$shorthand);
           };
         } else {
@@ -306,7 +306,7 @@ macro_rules! shorthand_handler {
             #[allow(unused_mut)]
             if let Some(mut val) = $key {
               $(
-                if $fallback && !self.flushed_properties.intersects(paste::paste!([<$shorthand Property>]::$prop)) {
+                if $fallback && !self.flushed_properties.intersects(pastey::paste!([<$shorthand Property>]::$prop)) {
                   let fallbacks = val.get_fallbacks(context.targets);
                   for fallback in fallbacks {
                     dest.push(Property::$prop(fallback));
@@ -315,7 +315,7 @@ macro_rules! shorthand_handler {
               )?
 
               dest.push(Property::$prop(val));
-              paste::paste! {
+              pastey::paste! {
                 self.flushed_properties.insert([<$shorthand Property>]::$prop);
               };
             }
@@ -390,7 +390,7 @@ macro_rules! impl_shorthand {
     impl<'i> Shorthand<'i> for $t {
       #[allow(unused_variables)]
       fn from_longhands(decls: &DeclarationBlock<'i>, vendor_prefix: crate::vendor_prefix::VendorPrefix) -> Option<(Self, bool)> {
-        use paste::paste;
+        use pastey::paste;
 
         $(
           $(
