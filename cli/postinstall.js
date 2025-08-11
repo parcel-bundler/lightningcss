@@ -14,6 +14,8 @@ if (process.platform === 'linux') {
   }
 } else if (process.platform === 'win32') {
   parts.push('msvc');
+} else if (process.platform === 'android') {
+  parts.push(process.arch);
 }
 
 let binary = process.platform === 'win32' ? 'lightningcss.exe' : 'lightningcss';
