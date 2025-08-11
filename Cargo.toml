@@ -39,6 +39,7 @@ browserslist = ["browserslist-rs"]
 bundler = ["dashmap", "sourcemap", "rayon"]
 cli = ["atty", "clap", "serde_json", "browserslist", "jemallocator"]
 jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
+level6 = []
 nodejs = ["dep:serde"]
 serde = [
   "dep:serde",
