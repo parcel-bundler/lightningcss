@@ -195,7 +195,7 @@ pub enum CssRule<'i, R = DefaultAtRule> {
 // Manually implemented deserialize to reduce binary size.
 #[cfg(feature = "serde")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRule<'i, R> {
+impl<'de: 'i, 'i, R: serde::Deserialize<'de> + 'i> serde::Deserialize<'de> for CssRule<'i, R> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
@@ -207,15 +207,12 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
       Value,
     }
 
-    struct PartialRule<'de> {
-      rule_type: CowArcStr<'de>,
-      content: serde::__private::de::Content<'de>,
+    struct CssRuleVisitor<'i, R> {
+      marker: std::marker::PhantomData<&'i R>,
     }
 
-    struct CssRuleVisitor;
-
-    impl<'de> serde::de::Visitor<'de> for CssRuleVisitor {
-      type Value = PartialRule<'de>;
+    impl<'de: 'i, 'i, R: serde::Deserialize<'de> + 'i> serde::de::Visitor<'de> for CssRuleVisitor<'i, R> {
+      type Value = CssRule<'i, R>;
 
       fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("a CssRule")
@@ -226,131 +223,130 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         A: serde::de::MapAccess<'de>,
       {
         let mut rule_type: Option<CowArcStr<'de>> = None;
-        let mut value: Option<serde::__private::de::Content> = None;
+        let mut value: Option<Self::Value> = None;
         while let Some(key) = map.next_key()? {
           match key {
             Field::Type => {
               rule_type = Some(map.next_value()?);
             }
             Field::Value => {
-              value = Some(map.next_value()?);
+              let rule_type = rule_type.as_ref().ok_or_else(|| serde::de::Error::missing_field("type"))?;
+
+              value = Some(match rule_type.as_ref() {
+                "media" => {
+                  let rule = map.next_value()?;
+                  CssRule::Media(rule)
+                }
+                "import" => {
+                  let rule = map.next_value()?;
+                  CssRule::Import(rule)
+                }
+                "style" => {
+                  let rule = map.next_value()?;
+                  CssRule::Style(rule)
+                }
+                "keyframes" => {
+                  let rule = map.next_value()?;
+                  CssRule::Keyframes(rule)
+                }
+                "font-face" => {
+                  let rule = map.next_value()?;
+                  CssRule::FontFace(rule)
+                }
+                "font-palette-values" => {
+                  let rule = map.next_value()?;
+                  CssRule::FontPaletteValues(rule)
+                }
+                "font-feature-values" => {
+                  let rule = map.next_value()?;
+                  CssRule::FontFeatureValues(rule)
+                }
+                "page" => {
+                  let rule = map.next_value()?;
+                  CssRule::Page(rule)
+                }
+                "supports" => {
+                  let rule = map.next_value()?;
+                  CssRule::Supports(rule)
+                }
+                "counter-style" => {
+                  let rule = map.next_value()?;
+                  CssRule::CounterStyle(rule)
+                }
+                "namespace" => {
+                  let rule = map.next_value()?;
+                  CssRule::Namespace(rule)
+                }
+                "moz-document" => {
+                  let rule = map.next_value()?;
+                  CssRule::MozDocument(rule)
+                }
+                "nesting" => {
+                  let rule = map.next_value()?;
+                  CssRule::Nesting(rule)
+                }
+                "nested-declarations" => {
+                  let rule = map.next_value()?;
+                  CssRule::NestedDeclarations(rule)
+                }
+                "viewport" => {
+                  let rule = map.next_value()?;
+                  CssRule::Viewport(rule)
+                }
+                "custom-media" => {
+                  let rule = map.next_value()?;
+                  CssRule::CustomMedia(rule)
+                }
+                "layer-statement" => {
+                  let rule = map.next_value()?;
+                  CssRule::LayerStatement(rule)
+                }
+                "layer-block" => {
+                  let rule = map.next_value()?;
+                  CssRule::LayerBlock(rule)
+                }
+                "property" => {
+                  let rule = map.next_value()?;
+                  CssRule::Property(rule)
+                }
+                "container" => {
+                  let rule = map.next_value()?;
+                  CssRule::Container(rule)
+                }
+                "scope" => {
+                  let rule = map.next_value()?;
+                  CssRule::Scope(rule)
+                }
+                "starting-style" => {
+                  let rule = map.next_value()?;
+                  CssRule::StartingStyle(rule)
+                }
+                "view-transition" => {
+                  let rule = map.next_value()?;
+                  CssRule::ViewTransition(rule)
+                }
+                "ignored" => CssRule::Ignored,
+                "unknown" => {
+                  let rule = map.next_value()?;
+                  CssRule::Unknown(rule)
+                }
+                "custom" => {
+                  let rule = map.next_value()?;
+                  CssRule::Custom(rule)
+                }
+                t => return Err(serde::de::Error::unknown_variant(t, &[])),
+              });
             }
           }
         }
 
-        let rule_type = rule_type.ok_or_else(|| serde::de::Error::missing_field("type"))?;
-        let content = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
-        Ok(PartialRule { rule_type, content })
+        value.ok_or_else(|| serde::de::Error::missing_field("value"))
       }
     }
 
-    let partial = deserializer.deserialize_map(CssRuleVisitor)?;
-    let deserializer = serde::__private::de::ContentDeserializer::new(partial.content);
-
-    match partial.rule_type.as_ref() {
-      "media" => {
-        let rule = MediaRule::deserialize(deserializer)?;
-        Ok(CssRule::Media(rule))
-      }
-      "import" => {
-        let rule = ImportRule::deserialize(deserializer)?;
-        Ok(CssRule::Import(rule))
-      }
-      "style" => {
-        let rule = StyleRule::deserialize(deserializer)?;
-        Ok(CssRule::Style(rule))
-      }
-      "keyframes" => {
-        let rule = KeyframesRule::deserialize(deserializer)?;
-        Ok(CssRule::Keyframes(rule))
-      }
-      "font-face" => {
-        let rule = FontFaceRule::deserialize(deserializer)?;
-        Ok(CssRule::FontFace(rule))
-      }
-      "font-palette-values" => {
-        let rule = FontPaletteValuesRule::deserialize(deserializer)?;
-        Ok(CssRule::FontPaletteValues(rule))
-      }
-      "font-feature-values" => {
-        let rule = FontFeatureValuesRule::deserialize(deserializer)?;
-        Ok(CssRule::FontFeatureValues(rule))
-      }
-      "page" => {
-        let rule = PageRule::deserialize(deserializer)?;
-        Ok(CssRule::Page(rule))
-      }
-      "supports" => {
-        let rule = SupportsRule::deserialize(deserializer)?;
-        Ok(CssRule::Supports(rule))
-      }
-      "counter-style" => {
-        let rule = CounterStyleRule::deserialize(deserializer)?;
-        Ok(CssRule::CounterStyle(rule))
-      }
-      "namespace" => {
-        let rule = NamespaceRule::deserialize(deserializer)?;
-        Ok(CssRule::Namespace(rule))
-      }
-      "moz-document" => {
-        let rule = MozDocumentRule::deserialize(deserializer)?;
-        Ok(CssRule::MozDocument(rule))
-      }
-      "nesting" => {
-        let rule = NestingRule::deserialize(deserializer)?;
-        Ok(CssRule::Nesting(rule))
-      }
-      "nested-declarations" => {
-        let rule = NestedDeclarationsRule::deserialize(deserializer)?;
-        Ok(CssRule::NestedDeclarations(rule))
-      }
-      "viewport" => {
-        let rule = ViewportRule::deserialize(deserializer)?;
-        Ok(CssRule::Viewport(rule))
-      }
-      "custom-media" => {
-        let rule = CustomMediaRule::deserialize(deserializer)?;
-        Ok(CssRule::CustomMedia(rule))
-      }
-      "layer-statement" => {
-        let rule = LayerStatementRule::deserialize(deserializer)?;
-        Ok(CssRule::LayerStatement(rule))
-      }
-      "layer-block" => {
-        let rule = LayerBlockRule::deserialize(deserializer)?;
-        Ok(CssRule::LayerBlock(rule))
-      }
-      "property" => {
-        let rule = PropertyRule::deserialize(deserializer)?;
-        Ok(CssRule::Property(rule))
-      }
-      "container" => {
-        let rule = ContainerRule::deserialize(deserializer)?;
-        Ok(CssRule::Container(rule))
-      }
-      "scope" => {
-        let rule = ScopeRule::deserialize(deserializer)?;
-        Ok(CssRule::Scope(rule))
-      }
-      "starting-style" => {
-        let rule = StartingStyleRule::deserialize(deserializer)?;
-        Ok(CssRule::StartingStyle(rule))
-      }
-      "view-transition" => {
-        let rule = ViewTransitionRule::deserialize(deserializer)?;
-        Ok(CssRule::ViewTransition(rule))
-      }
-      "ignored" => Ok(CssRule::Ignored),
-      "unknown" => {
-        let rule = UnknownAtRule::deserialize(deserializer)?;
-        Ok(CssRule::Unknown(rule))
-      }
-      "custom" => {
-        let rule = R::deserialize(deserializer)?;
-        Ok(CssRule::Custom(rule))
-      }
-      t => Err(serde::de::Error::unknown_variant(t, &[])),
-    }
+    deserializer.deserialize_map(CssRuleVisitor {
+      marker: std::marker::PhantomData,
+    })
   }
 }
 
@@ -1143,3 +1139,21 @@ impl<'a, 'i, R> std::hash::Hash for StyleRuleKey<'a, 'i, R> {
     state.write_u64(self.hash);
   }
 }
+
+// #[cfg(test)]
+// mod tests {
+//   use std::marker::PhantomData;
+
+//   #[test]
+//   fn test_lifetime_constraints() {
+//     struct X<'a, B> {
+//       marker: PhantomData<&'a B>,
+//     }
+
+//     #[derive(static_self::IntoOwned)]
+//     pub struct CssRuleList<'i, R: 'i = i32>(pub Vec<&'i R>);
+
+//     let x = 0;
+//     assert_eq!(CssRuleList(vec![&x]).0.len(), 1);
+//   }
+// }
