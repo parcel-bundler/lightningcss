@@ -2905,6 +2905,35 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        :where(&) {
+          width: unset;
+        }
+        border-start-start-radius: var(--radius);
+      }
+    "#,
+      indoc! {r#"
+      :where(.foo) {
+        width: unset;
+      }
+      
+      .foo:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        border-top-left-radius: var(--radius);
+      }
+
+      .foo:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        border-top-right-radius: var(--radius);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(12 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
