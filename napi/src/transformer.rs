@@ -21,7 +21,13 @@ use lightningcss::{
 };
 use lightningcss::{stylesheet::StyleSheet, traits::IntoOwned};
 use napi::{Env, JsFunction, JsObject, JsUnknown, Ref, ValueType};
-use serde::{Deserialize, Serialize};
+use serde::{
+  de::{
+    value::{EnumAccessDeserializer, MapAccessDeserializer, UnitDeserializer},
+    IntoDeserializer,
+  },
+  Deserialize, Serialize,
+};
 use smallvec::SmallVec;
 
 use crate::{at_rule_parser::AtRule, utils::get_named_property};
@@ -754,36 +760,14 @@ impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de
   where
     D: serde::Deserializer<'de>,
   {
-    use serde::Deserializer;
-    let content = serde::__private::de::Content::deserialize(deserializer)?;
-    let de: serde::__private::de::ContentRefDeserializer<D::Error> =
-      serde::__private::de::ContentRefDeserializer::new(&content);
+    return deserializer.deserialize_any(SeqVisitor { phantom: PhantomData });
 
-    // Try to deserialize as a sequence first.
-    let mut was_seq = false;
-    let res = de.deserialize_seq(SeqVisitor {
-      was_seq: &mut was_seq,
-      phantom: PhantomData,
-    });
-
-    if was_seq {
-      // Allow fallback if we know the value is also a list (e.g. selector).
-      if res.is_ok() || !IS_VEC {
-        return res.map(ValueOrVec::Vec);
-      }
-    }
-
-    // If it wasn't a sequence, try a value.
-    let de = serde::__private::de::ContentRefDeserializer::new(&content);
-    return V::deserialize(de).map(ValueOrVec::Value);
-
-    struct SeqVisitor<'a, V> {
-      was_seq: &'a mut bool,
+    struct SeqVisitor<V, const IS_VEC: bool> {
       phantom: PhantomData<V>,
     }
 
-    impl<'a, 'de, V: serde::Deserialize<'de>> serde::de::Visitor<'de> for SeqVisitor<'a, V> {
-      type Value = Vec<V>;
+    impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::de::Visitor<'de> for SeqVisitor<V, IS_VEC> {
+      type Value = ValueOrVec<V, IS_VEC>;
 
       fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("a sequence")
@@ -793,12 +777,201 @@ impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de
       where
         A: serde::de::SeqAccess<'de>,
       {
-        *self.was_seq = true;
         let mut vec = Vec::with_capacity(seq.size_hint().unwrap_or(1));
         while let Some(v) = seq.next_element()? {
           vec.push(v);
         }
-        Ok(vec)
+        // TODO use IS_VEC
+        Ok(ValueOrVec::Vec(vec))
+      }
+
+      // The below just defer to V
+
+      fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      #[inline]
+      fn visit_char<E>(self, v: char) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      #[inline]
+      fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      #[inline]
+      fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      #[inline]
+      fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(v.into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_none<E>(self) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        // TODO not sure what to to put here
+        V::deserialize(().into_deserializer()).map(ValueOrVec::Value)
+      }
+
+      fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+      where
+        D: serde::Deserializer<'de>,
+      {
+        V::deserialize(deserializer).map(ValueOrVec::Value)
+      }
+
+      fn visit_unit<E>(self) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        V::deserialize(UnitDeserializer::new()).map(ValueOrVec::Value)
+      }
+
+      fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+      where
+        D: serde::Deserializer<'de>,
+      {
+        V::deserialize(deserializer).map(ValueOrVec::Value)
+      }
+
+      fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+      where
+        A: serde::de::MapAccess<'de>,
+      {
+        V::deserialize(MapAccessDeserializer::new(map)).map(ValueOrVec::Value)
+      }
+
+      fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+      where
+        A: serde::de::EnumAccess<'de>,
+      {
+        V::deserialize(EnumAccessDeserializer::new(data)).map(ValueOrVec::Value)
       }
     }
   }
