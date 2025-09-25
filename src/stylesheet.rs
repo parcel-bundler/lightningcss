@@ -72,7 +72,10 @@ pub use crate::printer::PseudoClasses;
 )]
 pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
   /// A list of top-level rules within the style sheet.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, bound(deserialize = "T: serde::Deserialize<'de> + 'i"))
+  )]
   pub rules: CssRuleList<'i, T>,
   /// A list of file names for all source files included within the style sheet.
   /// Sources are referenced by index in the `loc` property of each rule.

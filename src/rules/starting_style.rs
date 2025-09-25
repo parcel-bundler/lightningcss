@@ -17,7 +17,10 @@ use crate::visitor::Visit;
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct StartingStyleRule<'i, R = DefaultAtRule> {
   /// Nested rules within the `@starting-style` rule.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, bound(deserialize = "R: serde::Deserialize<'de> + 'i"))
+  )]
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
   #[cfg_attr(feature = "visitor", skip_visit)]

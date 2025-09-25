@@ -41,6 +41,10 @@ pub struct StyleRule<'i, R = DefaultAtRule> {
   pub declarations: DeclarationBlock<'i>,
   /// Nested rules within the style rule.
   #[cfg_attr(feature = "serde", serde(default = "default_rule_list::<R>"))]
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, bound(deserialize = "R: serde::Deserialize<'de> + 'i"))
+  )]
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
   #[cfg_attr(feature = "visitor", skip_visit)]

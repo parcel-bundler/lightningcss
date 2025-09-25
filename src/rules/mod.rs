@@ -195,7 +195,7 @@ pub enum CssRule<'i, R = DefaultAtRule> {
 // Manually implemented deserialize to reduce binary size.
 #[cfg(feature = "serde")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-impl<'de: 'i, 'i, R: serde::Deserialize<'de> + 'i> serde::Deserialize<'de> for CssRule<'i, R> {
+impl<'i, 'de: 'i, R: serde::Deserialize<'de> + 'i> serde::Deserialize<'de> for CssRule<'i, R> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
@@ -437,7 +437,11 @@ impl<'i, T> CssRule<'i, T> {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct CssRuleList<'i, R = DefaultAtRule>(
-  #[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, bound(deserialize = "R: serde::Deserialize<'de> + 'i"))
+  )]
+  pub Vec<CssRule<'i, R>>,
 );
 
 impl<'i> CssRuleList<'i, DefaultAtRule> {

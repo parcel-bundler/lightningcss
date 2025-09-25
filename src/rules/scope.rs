@@ -30,7 +30,10 @@ pub struct ScopeRule<'i, R = DefaultAtRule> {
   /// A selector list used to identify any scoping limits.
   pub scope_end: Option<SelectorList<'i>>,
   /// Nested rules within the `@scope` rule.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, bound(deserialize = "R: serde::Deserialize<'de> + 'i"))
+  )]
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
   #[cfg_attr(feature = "visitor", skip_visit)]

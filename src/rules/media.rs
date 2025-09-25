@@ -21,6 +21,10 @@ pub struct MediaRule<'i, R = DefaultAtRule> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub query: MediaList<'i>,
   /// The rules within the `@media` rule.
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, bound(deserialize = "R: serde::Deserialize<'de> + 'i"))
+  )]
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
   #[cfg_attr(feature = "visitor", skip_visit)]

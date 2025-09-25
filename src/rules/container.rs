@@ -32,6 +32,10 @@ pub struct ContainerRule<'i, R = DefaultAtRule> {
   pub name: Option<ContainerName<'i>>,
   /// The container condition.
   pub condition: ContainerCondition<'i>,
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, bound(deserialize = "R: serde::Deserialize<'de> + 'i"))
+  )]
   /// The rules within the `@container` rule.
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.

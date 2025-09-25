@@ -119,7 +119,10 @@ impl<'i> ToCss for LayerStatementRule<'i> {
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct LayerBlockRule<'i, R = DefaultAtRule> {
   /// The name of the layer to declare, or `None` to declare an anonymous layer.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, bound(deserialize = "R: serde::Deserialize<'de> + 'i"))
+  )]
   #[cfg_attr(feature = "visitor", skip_visit)]
   pub name: Option<LayerName<'i>>,
   /// The rules within the `@layer` rule.
