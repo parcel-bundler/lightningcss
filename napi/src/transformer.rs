@@ -984,25 +984,29 @@ impl<'i, 'de: 'i> serde::Deserialize<'de> for TokensOrRaw<'i> {
   where
     D: serde::Deserializer<'de>,
   {
-    use serde::__private::de::ContentRefDeserializer;
+    // Try to first parse as a string and use TokenList::parse_string_with_options
+    // Otherwise, parse the tokens using serde
 
     #[derive(serde::Deserialize)]
-    struct Raw<'i> {
-      #[serde(borrow)]
-      raw: CowArcStr<'i>,
+    #[serde(untagged)]
+    enum Data<'i> {
+      String {
+        #[serde(borrow)]
+        raw: CowArcStr<'i>,
+      },
+      #[serde(untagged)]
+      Raw(ValueOrVec<TokenOrValue<'i>>),
     }
 
-    let content = serde::__private::de::Content::deserialize(deserializer)?;
-    let de: ContentRefDeserializer<D::Error> = ContentRefDeserializer::new(&content);
-
-    if let Ok(res) = Raw::deserialize(de) {
-      let res = TokenList::parse_string_with_options(res.raw.as_ref(), ParserOptions::default())
-        .map_err(|_| serde::de::Error::custom("Could not parse value"))?;
-      return Ok(TokensOrRaw(ValueOrVec::Vec(res.into_owned().0)));
+    let data = Data::deserialize(deserializer)?;
+    match data {
+      Data::String { raw } => {
+        let res = TokenList::parse_string_with_options(raw.as_ref(), ParserOptions::default())
+          .map_err(|_| serde::de::Error::custom("Could not parse value"))?;
+        Ok(TokensOrRaw(ValueOrVec::Vec(res.into_owned().0)))
+      }
+      Data::Raw(data) => Ok(TokensOrRaw(data)),
     }
-
-    let de = ContentRefDeserializer::new(&content);
-    Ok(TokensOrRaw(ValueOrVec::deserialize(de)?))
   }
 }
 
