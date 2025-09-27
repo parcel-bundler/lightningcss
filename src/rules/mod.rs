@@ -209,7 +209,7 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
 
     struct PartialRule<'de> {
       rule_type: CowArcStr<'de>,
-      content: serde::__private::de::Content<'de>,
+      content: serde_content::Value<'de>,
     }
 
     struct CssRuleVisitor;
@@ -226,7 +226,7 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         A: serde::de::MapAccess<'de>,
       {
         let mut rule_type: Option<CowArcStr<'de>> = None;
-        let mut value: Option<serde::__private::de::Content> = None;
+        let mut value: Option<serde_content::Value> = None;
         while let Some(key) = map.next_key()? {
           match key {
             Field::Type => {
@@ -245,108 +245,122 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
     }
 
     let partial = deserializer.deserialize_map(CssRuleVisitor)?;
-    let deserializer = serde::__private::de::ContentDeserializer::new(partial.content);
+    let deserializer = serde_content::Deserializer::new(partial.content).coerce_numbers();
 
     match partial.rule_type.as_ref() {
       "media" => {
-        let rule = MediaRule::deserialize(deserializer)?;
+        let rule = MediaRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Media(rule))
       }
       "import" => {
-        let rule = ImportRule::deserialize(deserializer)?;
+        let rule = ImportRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Import(rule))
       }
       "style" => {
-        let rule = StyleRule::deserialize(deserializer)?;
+        let rule = StyleRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Style(rule))
       }
       "keyframes" => {
-        let rule = KeyframesRule::deserialize(deserializer)?;
+        let rule =
+          KeyframesRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Keyframes(rule))
       }
       "font-face" => {
-        let rule = FontFaceRule::deserialize(deserializer)?;
+        let rule = FontFaceRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::FontFace(rule))
       }
       "font-palette-values" => {
-        let rule = FontPaletteValuesRule::deserialize(deserializer)?;
+        let rule =
+          FontPaletteValuesRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::FontPaletteValues(rule))
       }
       "font-feature-values" => {
-        let rule = FontFeatureValuesRule::deserialize(deserializer)?;
+        let rule =
+          FontFeatureValuesRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::FontFeatureValues(rule))
       }
       "page" => {
-        let rule = PageRule::deserialize(deserializer)?;
+        let rule = PageRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Page(rule))
       }
       "supports" => {
-        let rule = SupportsRule::deserialize(deserializer)?;
+        let rule = SupportsRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Supports(rule))
       }
       "counter-style" => {
-        let rule = CounterStyleRule::deserialize(deserializer)?;
+        let rule =
+          CounterStyleRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::CounterStyle(rule))
       }
       "namespace" => {
-        let rule = NamespaceRule::deserialize(deserializer)?;
+        let rule =
+          NamespaceRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Namespace(rule))
       }
       "moz-document" => {
-        let rule = MozDocumentRule::deserialize(deserializer)?;
+        let rule =
+          MozDocumentRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::MozDocument(rule))
       }
       "nesting" => {
-        let rule = NestingRule::deserialize(deserializer)?;
+        let rule = NestingRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Nesting(rule))
       }
       "nested-declarations" => {
-        let rule = NestedDeclarationsRule::deserialize(deserializer)?;
+        let rule = NestedDeclarationsRule::deserialize(deserializer)
+          .map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::NestedDeclarations(rule))
       }
       "viewport" => {
-        let rule = ViewportRule::deserialize(deserializer)?;
+        let rule = ViewportRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Viewport(rule))
       }
       "custom-media" => {
-        let rule = CustomMediaRule::deserialize(deserializer)?;
+        let rule =
+          CustomMediaRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::CustomMedia(rule))
       }
       "layer-statement" => {
-        let rule = LayerStatementRule::deserialize(deserializer)?;
+        let rule =
+          LayerStatementRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::LayerStatement(rule))
       }
       "layer-block" => {
-        let rule = LayerBlockRule::deserialize(deserializer)?;
+        let rule =
+          LayerBlockRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::LayerBlock(rule))
       }
       "property" => {
-        let rule = PropertyRule::deserialize(deserializer)?;
+        let rule = PropertyRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Property(rule))
       }
       "container" => {
-        let rule = ContainerRule::deserialize(deserializer)?;
+        let rule =
+          ContainerRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Container(rule))
       }
       "scope" => {
-        let rule = ScopeRule::deserialize(deserializer)?;
+        let rule = ScopeRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Scope(rule))
       }
       "starting-style" => {
-        let rule = StartingStyleRule::deserialize(deserializer)?;
+        let rule =
+          StartingStyleRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::StartingStyle(rule))
       }
       "view-transition" => {
-        let rule = ViewTransitionRule::deserialize(deserializer)?;
+        let rule =
+          ViewTransitionRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::ViewTransition(rule))
       }
       "ignored" => Ok(CssRule::Ignored),
       "unknown" => {
-        let rule = UnknownAtRule::deserialize(deserializer)?;
+        let rule =
+          UnknownAtRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Unknown(rule))
       }
       "custom" => {
-        let rule = R::deserialize(deserializer)?;
+        let rule = R::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Custom(rule))
       }
       t => Err(serde::de::Error::unknown_variant(t, &[])),
