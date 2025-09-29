@@ -1225,7 +1225,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1769472 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1304,7 +1304,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 327680 {
+          if version >= 327680 && version <= 1769472 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1549,7 +1549,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1769472 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1951,7 +1951,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1769472 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -2191,7 +2191,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1769472 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
