@@ -755,9 +755,8 @@ impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de
     D: serde::Deserializer<'de>,
   {
     use serde::Deserializer;
-    let content = serde::__private::de::Content::deserialize(deserializer)?;
-    let de: serde::__private::de::ContentRefDeserializer<D::Error> =
-      serde::__private::de::ContentRefDeserializer::new(&content);
+    let content = serde_content::Value::deserialize(deserializer)?;
+    let de = serde_content::Deserializer::new(content.clone()).coerce_numbers();
 
     // Try to deserialize as a sequence first.
     let mut was_seq = false;
@@ -769,13 +768,15 @@ impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de
     if was_seq {
       // Allow fallback if we know the value is also a list (e.g. selector).
       if res.is_ok() || !IS_VEC {
-        return res.map(ValueOrVec::Vec);
+        return res.map_err(|e| serde::de::Error::custom(e.to_string())).map(ValueOrVec::Vec);
       }
     }
 
     // If it wasn't a sequence, try a value.
-    let de = serde::__private::de::ContentRefDeserializer::new(&content);
-    return V::deserialize(de).map(ValueOrVec::Value);
+    let de = serde_content::Deserializer::new(content).coerce_numbers();
+    return V::deserialize(de)
+      .map_err(|e| serde::de::Error::custom(e.to_string()))
+      .map(ValueOrVec::Value);
 
     struct SeqVisitor<'a, V> {
       was_seq: &'a mut bool,
@@ -811,16 +812,14 @@ impl<'i, 'de: 'i> serde::Deserialize<'de> for TokensOrRaw<'i> {
   where
     D: serde::Deserializer<'de>,
   {
-    use serde::__private::de::ContentRefDeserializer;
-
     #[derive(serde::Deserialize)]
     struct Raw<'i> {
       #[serde(borrow)]
       raw: CowArcStr<'i>,
     }
 
-    let content = serde::__private::de::Content::deserialize(deserializer)?;
-    let de: ContentRefDeserializer<D::Error> = ContentRefDeserializer::new(&content);
+    let content = serde_content::Value::deserialize(deserializer)?;
+    let de = serde_content::Deserializer::new(content.clone()).coerce_numbers();
 
     if let Ok(res) = Raw::deserialize(de) {
       let res = TokenList::parse_string_with_options(res.raw.as_ref(), ParserOptions::default())
@@ -828,8 +827,10 @@ impl<'i, 'de: 'i> serde::Deserialize<'de> for TokensOrRaw<'i> {
       return Ok(TokensOrRaw(ValueOrVec::Vec(res.into_owned().0)));
     }
 
-    let de = ContentRefDeserializer::new(&content);
-    Ok(TokensOrRaw(ValueOrVec::deserialize(de)?))
+    let de = serde_content::Deserializer::new(content).coerce_numbers();
+    Ok(TokensOrRaw(
+      ValueOrVec::deserialize(de).map_err(|e| serde::de::Error::custom(e.to_string()))?,
+    ))
   }
 }
 

@@ -39,9 +39,10 @@ browserslist = ["browserslist-rs"]
 bundler = ["dashmap", "sourcemap", "rayon"]
 cli = ["atty", "clap", "serde_json", "browserslist", "jemallocator"]
 jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
-nodejs = ["dep:serde"]
+nodejs = ["dep:serde", "dep:serde-content"]
 serde = [
   "dep:serde",
+  "dep:serde-content",
   "bitflags/serde",
   "smallvec/serde",
   "cssparser/serde",
@@ -59,7 +60,8 @@ into_owned = [
 substitute_variables = ["visitor", "into_owned"]
 
 [dependencies]
-serde = { version = "1.0.201", features = ["derive"], optional = true }
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+serde-content = { version = "0.1.2", features = ["serde"], optional = true }
 cssparser = "0.33.0"
 cssparser-color = "0.1.0"
 parcel_selectors = { version = "0.28.2", path = "./selectors" }

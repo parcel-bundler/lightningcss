@@ -989,7 +989,7 @@ macro_rules! define_properties {
         D: serde::Deserializer<'de>,
       {
         enum ContentOrRaw<'de> {
-          Content(serde::__private::de::Content<'de>),
+          Content(serde_content::Value<'de>),
           Raw(CowArcStr<'de>)
         }
 
@@ -1062,26 +1062,26 @@ macro_rules! define_properties {
           ContentOrRaw::Content(content) => content
         };
 
-        let deserializer = serde::__private::de::ContentDeserializer::new(content);
+        let deserializer = serde_content::Deserializer::new(content).coerce_numbers();
         match partial.property_id {
           $(
             $(#[$meta])*
             PropertyId::$property$((vp_name!($vp, prefix)))? => {
-              let value = <$type>::deserialize(deserializer)?;
+              let value = <$type>::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
               Ok(Property::$property(value $(, vp_name!($vp, prefix))?))
             },
           )+
           PropertyId::Custom(name) => {
             if name.as_ref() == "unparsed" {
-              let value = UnparsedProperty::deserialize(deserializer)?;
+              let value = UnparsedProperty::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
               Ok(Property::Unparsed(value))
             } else {
-              let value = CustomProperty::deserialize(deserializer)?;
+              let value = CustomProperty::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
               Ok(Property::Custom(value))
             }
           }
           PropertyId::All => {
-            let value = CSSWideKeyword::deserialize(deserializer)?;
+            let value = CSSWideKeyword::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
             Ok(Property::All(value))
           }
         }
