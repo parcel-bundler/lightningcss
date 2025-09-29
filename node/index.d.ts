@@ -464,12 +464,12 @@ export declare function transformStyleAttribute(options: TransformAttributeOptio
 export declare function browserslistToTargets(browserslist: string[]): Targets;
 
 /**
- * Bundles a CSS file and its dependencies, inlining @import rules.
+ * Bundles a CSS file and its dependencies, inlining `@import` rules.
  */
 export declare function bundle<C extends CustomAtRules, O extends BundleOptions<C>>(options: O): TransformResult<O>;
 
 /**
- * Bundles a CSS file and its dependencies asynchronously, inlining @import rules.
+ * Bundles a CSS file and its dependencies asynchronously, inlining `@import` rules.
  */
 export declare function bundleAsync<C extends CustomAtRules, O extends BundleAsyncOptions<C>>(options: O): Promise<TransformResult<O>>;
 
