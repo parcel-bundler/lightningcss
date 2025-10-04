@@ -603,11 +603,16 @@ impl<'i> TokenList<'i> {
               dest.write_char(' ')?;
               dest.write_char(*d)?;
               dest.write_char(' ')?;
+              true
+            } else if *d == '<' || *d == '>' {
+              // Angle brackets should not have whitespace added after them (e.g., in type(<color>))
+              dest.write_char(*d)?;
+              false
             } else {
               let ws_before = !has_whitespace && (*d == '/' || *d == '*');
               dest.delim(*d, ws_before)?;
+              true
             }
-            true
           }
           Token::Comma => {
             dest.delim(',', false)?;

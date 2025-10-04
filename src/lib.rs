@@ -22633,6 +22633,26 @@ mod tests {
     minify_test(".foo { --theme-sizes-1\\/12: 2 }", ".foo{--theme-sizes-1\\/12:2}");
     minify_test(".foo { --test: 0px; }", ".foo{--test:0px}");
 
+    // Test attr() function with type() syntax - minified
+    minify_test(
+      ".foo { background-color: attr(data-color type(<color>)); }",
+      ".foo{background-color:attr(data-color type(<color>))}"
+    );
+    minify_test(
+      ".foo { width: attr(data-width type(<length>), 100px); }",
+      ".foo{width:attr(data-width type(<length>),100px)}"
+    );
+    
+    // Test attr() function with type() syntax - non-minified (issue with extra spaces)
+    test(
+      ".foo { background-color: attr(data-color type(<color>)); }",
+      ".foo {\n  background-color: attr(data-color type(<color>));\n}\n"
+    );
+    test(
+      ".foo { width: attr(data-width type(<length>), 100px); }",
+      ".foo {\n  width: attr(data-width type(<length>), 100px);\n}\n"
+    );
+
     prefix_test(
       r#"
       .foo {
