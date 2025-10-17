@@ -421,9 +421,10 @@ impl<'i> ToCss for FamilyName<'i> {
     // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
     let val = &self.0;
     if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() {
+      // Family names with two or more consecutive spaces must be quoted to preserve the spaces.
       let needs_quotes = val.contains("  ");
       let mut id = if needs_quotes {
-        String::from("\"")
+        return serialize_string(&val, dest)
       } else {
         String::new()
       };
@@ -435,9 +436,6 @@ impl<'i> ToCss for FamilyName<'i> {
           id.push(' ');
         }
         serialize_identifier(slice, &mut id)?;
-      }
-      if needs_quotes {
-        id.push('"');
       }
       if id.len() < val.len() + 2 {
         return dest.write_str(&id);
