@@ -7007,6 +7007,24 @@ mod tests {
       ".foo ::unknown(foo) .bar {width: 20px}",
       ".foo ::unknown(foo) .bar{width:20px}",
     );
+
+    minify_test(
+      "wa-checkbox:state(disabled) {color:red}",
+      "wa-checkbox:state(disabled){color:red}",
+    );
+    minify_test(
+      "button:state(checked) {background:blue}",
+      "button:state(checked){background:#00f}",
+    );
+    minify_test(
+      "input:state(custom-state) {border:1px solid}",
+      "input:state(custom-state){border:1px solid}",
+    );
+    minify_test(
+      "button:active:not(:state(disabled))::part(control) {border:1px solid}",
+      "button:active:not(:state(disabled))::part(control){border:1px solid}",
+    );
+
     minify_test(
       ".foo ::unknown:only-child {width: 20px}",
       ".foo ::unknown:only-child{width:20px}",
