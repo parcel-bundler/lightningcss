@@ -101,6 +101,11 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
   ) -> Result<PseudoClass<'i>, ParseError<'i, Self::Error>> {
     use PseudoClass::*;
     let pseudo_class = match_ignore_ascii_case! { &name,
+      // CSS Modules non-functional aliases: :local and :global without arguments
+      // Treat them as if they were functional with a nesting selector argument, i.e.
+      // :local(&) and :global(&), so they affect nested rules blocks like `:global { ... }`.
+      "local" if self.options.css_modules.is_some() => Local { selector: Box::new(Selector::from(Component::Nesting)) },
+      "global" if self.options.css_modules.is_some() => Global { selector: Box::new(Selector::from(Component::Nesting)) },
       // https://drafts.csswg.org/selectors-4/#useraction-pseudos
       "hover" => Hover,
       "active" => Active,
@@ -193,11 +198,6 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "no-button" => WebKitScrollbar(WebKitScrollbarPseudoClass::NoButton),
       "corner-present" => WebKitScrollbar(WebKitScrollbarPseudoClass::CornerPresent),
       "window-inactive" => WebKitScrollbar(WebKitScrollbarPseudoClass::WindowInactive),
-
-      "local" | "global" if self.options.css_modules.is_some() => {
-        return Err(loc.new_custom_error(SelectorParseErrorKind::AmbiguousCssModuleClass(name.clone())))
-      },
-
       _ => {
         if !name.starts_with('-') {
           self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name.clone())));
