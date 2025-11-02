@@ -175,6 +175,15 @@ jobs:
             lightningcss
 
   build-freebsd:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86_64-unknown-freebsd
+          - arch: arm64
+            target: aarch64-unknown-freebsd
+    name: build-${{ matrix.target }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -188,6 +197,7 @@ jobs:
         with:
           operating_system: freebsd
           version: '14.0'
+          architecture: ${{ matrix.arch }}
           memory: 13G
           cpu_count: 3
           environment_variables: 'DEBUG RUSTUP_IO_THREADS'
@@ -217,7 +227,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: bindings-x86_64-unknown-freebsd
+          name: bindings-${{ matrix.target }}
           path: |
             *.node
             lightningcss

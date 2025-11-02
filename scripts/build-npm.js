@@ -40,6 +40,9 @@ const triples = [
     name: 'x86_64-unknown-freebsd'
   },
   {
+    name: 'aarch64-unknown-freebsd'
+  },
+  {
     name: 'aarch64-linux-android'
   }
 ];
