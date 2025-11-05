@@ -994,7 +994,6 @@ where
     };
 
     if operator.is_some() && legacy_op.is_some() {
-      dbg!();
       return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
     }
 
@@ -1012,8 +1011,6 @@ where
 
     if let Some(operator) = operator.or(legacy_op) {
       if !name.value_type().allows_ranges() {
-        dbg!();
-
         return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
       }
 
@@ -1029,15 +1026,11 @@ where
     let name = loop {
       if let Ok((name, legacy_op)) = MediaFeatureName::parse(input) {
         if legacy_op.is_some() {
-          dbg!();
-
           return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
         }
         break name;
       }
       if input.is_exhausted() {
-        dbg!();
-
         return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
       }
     };
@@ -1055,7 +1048,6 @@ where
     }
 
     if !name.value_type().allows_ranges() || !value.check_type(name.value_type()) {
-      dbg!();
       return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
     }
 

@@ -104,7 +104,6 @@ pub mod display;
 pub mod effects;
 pub mod flex;
 pub mod font;
-#[cfg(feature = "grid")]
 pub mod grid;
 pub mod list;
 pub(crate) mod margin_padding;
@@ -154,7 +153,6 @@ use display::*;
 use effects::*;
 use flex::*;
 use font::*;
-#[cfg(feature = "grid")]
 use grid::*;
 use list::*;
 use margin_padding::*;
@@ -991,7 +989,7 @@ macro_rules! define_properties {
         D: serde::Deserializer<'de>,
       {
         enum ContentOrRaw<'de> {
-          Content(serde::__private::de::Content<'de>),
+          Content(serde_content::Value<'de>),
           Raw(CowArcStr<'de>)
         }
 
@@ -1064,26 +1062,26 @@ macro_rules! define_properties {
           ContentOrRaw::Content(content) => content
         };
 
-        let deserializer = serde::__private::de::ContentDeserializer::new(content);
+        let deserializer = serde_content::Deserializer::new(content).coerce_numbers();
         match partial.property_id {
           $(
             $(#[$meta])*
             PropertyId::$property$((vp_name!($vp, prefix)))? => {
-              let value = <$type>::deserialize(deserializer)?;
+              let value = <$type>::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
               Ok(Property::$property(value $(, vp_name!($vp, prefix))?))
             },
           )+
           PropertyId::Custom(name) => {
             if name.as_ref() == "unparsed" {
-              let value = UnparsedProperty::deserialize(deserializer)?;
+              let value = UnparsedProperty::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
               Ok(Property::Unparsed(value))
             } else {
-              let value = CustomProperty::deserialize(deserializer)?;
+              let value = CustomProperty::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
               Ok(Property::Custom(value))
             }
           }
           PropertyId::All => {
-            let value = CSSWideKeyword::deserialize(deserializer)?;
+            let value = CSSWideKeyword::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
             Ok(Property::All(value))
           }
         }
@@ -1372,50 +1370,20 @@ define_properties! {
   "flex-negative": FlexNegative(CSSNumber, VendorPrefix) / Ms unprefixed: false,
   "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / Ms unprefixed: false,
 
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-columns": GridTemplateColumns(TrackSizing<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-rows": GridTemplateRows(TrackSizing<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-columns": GridAutoColumns(TrackSizeList),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-rows": GridAutoRows(TrackSizeList),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-flow": GridAutoFlow(GridAutoFlow),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-areas": GridTemplateAreas(GridTemplateAreas),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template": GridTemplate(GridTemplate<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid": Grid(Grid<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row-start": GridRowStart(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row-end": GridRowEnd(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column-start": GridColumnStart(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column-end": GridColumnEnd(GridLine<'i>),
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row": GridRow(GridRow<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column": GridColumn(GridColumn<'i>) shorthand: true,
-  #[cfg(feature = "grid")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-area": GridArea(GridArea<'i>) shorthand: true,
 
   "margin-top": MarginTop(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],

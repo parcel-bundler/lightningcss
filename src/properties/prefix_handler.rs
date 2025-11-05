@@ -79,7 +79,7 @@ macro_rules! define_fallbacks {
   (
     $( $name: ident$(($p: ident))?, )+
   ) => {
-    paste::paste! {
+    pastey::paste! {
       #[derive(Default)]
       pub(crate) struct FallbackHandler {
         $(
@@ -97,7 +97,7 @@ macro_rules! define_fallbacks {
               $(
                 $p = context.targets.prefixes($p, Feature::$name);
               )?
-              if paste::paste! { self.[<$name:snake>] }.is_none() {
+              if pastey::paste! { self.[<$name:snake>] }.is_none() {
                 let fallbacks = val.get_fallbacks(context.targets);
                 #[allow(unused_variables)]
                 let has_fallbacks = !fallbacks.is_empty();
@@ -112,10 +112,10 @@ macro_rules! define_fallbacks {
                 )?
               }
 
-              if paste::paste! { self.[<$name:snake>] }.is_none() || matches!(context.targets.browsers, Some(targets) if !val.is_compatible(targets)) {
-                paste::paste! { self.[<$name:snake>] = Some(dest.len()) };
+              if pastey::paste! { self.[<$name:snake>] }.is_none() || matches!(context.targets.browsers, Some(targets) if !val.is_compatible(targets)) {
+                pastey::paste! { self.[<$name:snake>] = Some(dest.len()) };
                 dest.push(Property::$name(val $(, $p)?));
-              } else if let Some(index) = paste::paste! { self.[<$name:snake>] } {
+              } else if let Some(index) = pastey::paste! { self.[<$name:snake>] } {
                 dest[index] = Property::$name(val $(, $p)?);
               }
             }
@@ -138,7 +138,7 @@ macro_rules! define_fallbacks {
                   }
 
                   let val = get_prefixed!($($p)?);
-                  (val, paste::paste! { &mut self.[<$name:snake>] })
+                  (val, pastey::paste! { &mut self.[<$name:snake>] })
                 }
               )+
               _ => return false
@@ -161,7 +161,7 @@ macro_rules! define_fallbacks {
 
       fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext) {
         $(
-          paste::paste! { self.[<$name:snake>] = None };
+          pastey::paste! { self.[<$name:snake>] = None };
         )+
       }
     }

@@ -38,6 +38,9 @@ const triples = [
   },
   {
     name: 'x86_64-unknown-freebsd'
+  },
+  {
+    name: 'aarch64-linux-android'
   }
 ];
 const cpuToNodeArch = {
@@ -51,6 +54,7 @@ const sysToNodePlatform = {
   freebsd: 'freebsd',
   darwin: 'darwin',
   windows: 'win32',
+  android: 'android'
 };
 
 let optionalDependencies = {};

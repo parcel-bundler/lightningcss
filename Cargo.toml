@@ -12,7 +12,7 @@ members = [
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
 name = "lightningcss"
-version = "1.0.0-alpha.65"
+version = "1.0.0-alpha.68"
 description = "A CSS parser, transformer, and minifier"
 license = "MPL-2.0"
 edition = "2021"
@@ -34,15 +34,16 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [features]
-default = ["bundler", "grid", "nodejs", "sourcemap"]
+default = ["bundler", "nodejs", "sourcemap"]
 browserslist = ["browserslist-rs"]
 bundler = ["dashmap", "sourcemap", "rayon"]
 cli = ["atty", "clap", "serde_json", "browserslist", "jemallocator"]
-grid = []
 jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
-nodejs = ["dep:serde"]
+nodejs = ["dep:serde", "dep:serde-content"]
 serde = [
   "dep:serde",
+  "dep:serde-content",
+  "bitflags/serde",
   "smallvec/serde",
   "cssparser/serde",
   "parcel_selectors/serde",
@@ -59,10 +60,11 @@ into_owned = [
 substitute_variables = ["visitor", "into_owned"]
 
 [dependencies]
-serde = { version = "1.0.201", features = ["derive"], optional = true }
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+serde-content = { version = "0.1.2", features = ["serde"], optional = true }
 cssparser = "0.33.0"
 cssparser-color = "0.1.0"
-parcel_selectors = { version = "0.28.1", path = "./selectors" }
+parcel_selectors = { version = "0.28.2", path = "./selectors" }
 itertools = "0.10.1"
 smallvec = { version = "1.7.0", features = ["union"] }
 bitflags = "2.2.1"
@@ -72,12 +74,12 @@ lazy_static = "1.4.0"
 const-str = "0.3.1"
 pathdiff = "0.2.1"
 ahash = "0.8.7"
-paste = "1.0.12"
+pastey = "0.1.0"
 indexmap = { version = "2.2.6", features = ["serde"] }
 # CLI deps
 atty = { version = "0.2", optional = true }
 clap = { version = "3.0.6", features = ["derive"], optional = true }
-browserslist-rs = { version = "0.18.1", optional = true }
+browserslist-rs = { version = "0.19.0", optional = true }
 rayon = { version = "1.5.1", optional = true }
 dashmap = { version = "5.0.0", optional = true }
 serde_json = { version = "1.0.78", optional = true }
@@ -91,7 +93,7 @@ jemallocator = { version = "0.3.2", features = [
 ], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2", features = ["custom"], default-features = false }
+getrandom = { version = "0.3", default-features = false }
 
 [dev-dependencies]
 indoc = "1.0.3"

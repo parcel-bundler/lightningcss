@@ -21,7 +21,7 @@ export default async function init(input) {
       env: {
         ...napi,
         await_promise_sync,
-        __getrandom_custom: (ptr, len) => {
+        __getrandom_v03_custom: (ptr, len) => {
           let buf = env.memory.subarray(ptr, ptr + len);
           crypto.getRandomValues(buf);
         },

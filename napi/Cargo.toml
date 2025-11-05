@@ -1,7 +1,7 @@
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
 name = "lightningcss-napi"
-version = "0.4.3"
+version = "0.4.5"
 description = "Node-API bindings for Lightning CSS"
 license = "MPL-2.0"
 repository = "https://github.com/parcel-bundler/lightningcss"
@@ -14,9 +14,10 @@ bundler = ["dep:crossbeam-channel", "dep:rayon"]
 
 [dependencies]
 serde = { version = "1.0.201", features = ["derive"] }
+serde-content = { version = "0.1.2", features = ["serde"] }
 serde_bytes = "0.11.5"
 cssparser = "0.33.0"
-lightningcss = { version = "1.0.0-alpha.65", path = "../", features = [
+lightningcss = { version = "1.0.0-alpha.68", path = "../", features = [
   "nodejs",
   "serde",
 ] }

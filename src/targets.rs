@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 ///   ..Browsers::default()
 /// };
 /// ```
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize, Deserialize))]
 #[allow(missing_docs)]
 pub struct Browsers {
@@ -42,15 +42,26 @@ pub struct Browsers {
 }
 
 #[cfg(feature = "browserslist")]
+pub use browserslist::Opts as BrowserslistConfig;
+
+#[cfg(feature = "browserslist")]
 #[cfg_attr(docsrs, doc(cfg(feature = "browserslist")))]
 impl Browsers {
   /// Parses a list of browserslist queries into Lightning CSS targets.
   pub fn from_browserslist<S: AsRef<str>, I: IntoIterator<Item = S>>(
     query: I,
   ) -> Result<Option<Browsers>, browserslist::Error> {
-    use browserslist::{resolve, Opts};
+    Self::from_browserslist_with_config(query, BrowserslistConfig::default())
+  }
 
-    Self::from_distribs(resolve(query, &Opts::default())?)
+  /// Parses a list of browserslist queries into Lightning CSS targets.
+  pub fn from_browserslist_with_config<S: AsRef<str>, I: IntoIterator<Item = S>>(
+    query: I,
+    config: BrowserslistConfig,
+  ) -> Result<Option<Browsers>, browserslist::Error> {
+    use browserslist::resolve;
+
+    Self::from_distribs(resolve(query, &config)?)
   }
 
   #[cfg(not(target_arch = "wasm32"))]
@@ -140,6 +151,7 @@ fn parse_version(version: &str) -> Option<u32> {
 bitflags! {
   /// Features to explicitly enable or disable.
   #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq)]
+  #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(transparent))]
   pub struct Features: u32 {
     const Nesting = 1 << 0;
     const NotSelectorList = 1 << 1;
@@ -181,7 +193,8 @@ pub(crate) trait FeaturesIterator: Sized + Iterator {
 impl<I> FeaturesIterator for I where I: Iterator {}
 
 /// Target browsers and features to compile.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Targets {
   /// Browser targets to compile the CSS for.
   pub browsers: Option<Browsers>,

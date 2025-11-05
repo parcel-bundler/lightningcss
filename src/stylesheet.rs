@@ -287,8 +287,8 @@ where
 
     for comment in &self.license_comments {
       printer.write_str("/*")?;
-      printer.write_str(comment)?;
-      printer.write_str("*/\n")?;
+      printer.write_str_with_newlines(comment)?;
+      printer.write_str_with_newlines("*/\n")?;
     }
 
     if let Some(config) = &self.options.css_modules {

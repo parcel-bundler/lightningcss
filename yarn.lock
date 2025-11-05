@@ -570,10 +570,10 @@
   resolved "https://registry.yarnpkg.com/@marijn/find-cluster-break/-/find-cluster-break-1.0.2.tgz#775374306116d51c0c500b8c4face0f9a04752d8"
   integrity sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g==
 
-"@mdn/browser-compat-data@~5.7.3":
-  version "5.7.3"
-  resolved "https://registry.yarnpkg.com/@mdn/browser-compat-data/-/browser-compat-data-5.7.3.tgz#1c4abb3a0ff9e631dd23eed1435d388ccc999f4b"
-  integrity sha512-ckygcngv0i7Qe0yOzzge/K7Gr5dnk2jNm/AYdqUd1ZTGa9pIEdDuVyWmL3bDU/NdJ8FtdSAjng98YfUuou9Csw==
+"@mdn/browser-compat-data@~7.1.8":
+  version "7.1.8"
+  resolved "https://registry.yarnpkg.com/@mdn/browser-compat-data/-/browser-compat-data-7.1.8.tgz#504059bb1c27156b0758bc3bcc8b76020c890ed4"
+  integrity sha512-5ND+azfaE7xtM9vOVzikPu3WtMkCBYvKGY8omIj+zeL+jwuZIJ3g43yuHZvMfmom9wtW6UOB3nNul5oNpMS1kg==
 
 "@mischnic/json-sourcemap@^0.1.0":
   version "0.1.1"
@@ -1654,10 +1654,15 @@ caniuse-lite@^1.0.0, caniuse-lite@^1.0.30001688:
   resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30001690.tgz#f2d15e3aaf8e18f76b2b8c1481abde063b8104c8"
   integrity sha512-5ExiE3qQN6oF8Clf8ifIDcMRCRE/dMGcETG/XGMD8/XiXm6HXQgQTh1yZYLXXpSOsEUlJm1Xr7kGULZTuGtP/w==
 
-caniuse-lite@^1.0.30001702, caniuse-lite@^1.0.30001704:
+caniuse-lite@^1.0.30001702:
   version "1.0.30001704"
   resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30001704.tgz#6644fe909d924ac3a7125e8a0ab6af95b1f32990"
   integrity sha512-+L2IgBbV6gXB4ETf0keSvLr7JUrRVbIaB/lrQ1+z8mRcQiisG5k+lG6O4n6Y5q6f5EuNfaYXKgymucphlEXQew==
+
+caniuse-lite@^1.0.30001745:
+  version "1.0.30001745"
+  resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30001745.tgz#ab2a36e3b6ed5bfb268adc002c476aab6513f859"
+  integrity sha512-ywt6i8FzvdgrrrGbr1jZVObnVv6adj+0if2/omv9cmR2oiZs30zL4DIyaptKcbOrBdOIc74QTMoJvSE2QHh5UQ==
 
 chalk@^2.4.2:
   version "2.4.2"
