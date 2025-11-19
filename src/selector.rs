@@ -1084,13 +1084,19 @@ impl<'i> Parse<'i> for ViewTransitionPartSelector<'i> {
     let name = input.try_parse(ViewTransitionPartName::parse).ok();
     let mut classes = Vec::new();
     while let Ok(token) = input.next_including_whitespace() {
-      if matches!(token, Token::Delim('.')) {
-        match input.next_including_whitespace() {
+      match token {
+        Token::WhiteSpace(_) => {
+          if input.is_exhausted() {
+            break;
+          } else {
+            return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState)));
+          }
+        }
+        Token::Delim('.') => match input.next_including_whitespace() {
           Ok(Token::Ident(id)) => classes.push(CustomIdent(id.into())),
           _ => return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState))),
-        }
-      } else {
-        return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState)));
+        },
+        _ => return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState))),
       }
     }
 
