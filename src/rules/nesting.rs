@@ -118,6 +118,6 @@ impl<'i> ToCss for NestedDeclarationsRule<'i> {
 
     self
       .declarations
-      .to_css_declarations(dest, false, &parcel_selectors::SelectorList(SmallVec::new()), 0)
+      .to_css_declarations(dest, true, &parcel_selectors::SelectorList(SmallVec::new()), 0)
   }
 }

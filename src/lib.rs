@@ -24800,10 +24800,15 @@ mod tests {
     let mut stylesheet = StyleSheet::parse(
       r#"
       .foo {
+        color: orange;
+        .baz {
+          color: green;
+        }
         color: blue;
         .bar {
           color: red;
         }
+        color: pink;
       }
       "#,
       ParserOptions::default(),
@@ -24816,7 +24821,7 @@ mod tests {
         ..PrinterOptions::default()
       })
       .unwrap();
-    assert_eq!(res.code, ".foo{color:#00f;& .bar{color:red}}");
+    assert_eq!(res.code, ".foo{color:orange;& .baz{color:green}color:#00f;& .bar{color:red}color:pink;}");
 
     nesting_test_with_targets(
       r#"
@@ -27395,7 +27400,7 @@ mod tests {
         }
       }
       "#,
-      ".foo{@scope(.bar){color:#ff0}}",
+      ".foo{@scope(.bar){color:#ff0;}}",
     );
     nesting_test(
       r#"
