@@ -28742,6 +28742,44 @@ mod tests {
     "#,
       "@property --property-name{syntax:\"<color>\";inherits:true;initial-value:#00f}.foo{color:var(--property-name)}",
     );
+
+    test(
+      r#"
+      @media (width < 800px) {
+        @property --property-name {
+          syntax: '*';
+          inherits: false;
+        }
+      }
+    "#,
+      indoc! {r#"
+        @media (width < 800px) {
+          @property --property-name {
+            syntax: "*";
+            inherits: false
+          }
+        }
+    "#},
+    );
+
+    test(
+      r#"
+      @layer foo {
+        @property --property-name {
+          syntax: '*';
+          inherits: false;
+        }
+      }
+    "#,
+      indoc! {r#"
+        @layer foo {
+          @property --property-name {
+            syntax: "*";
+            inherits: false
+          }
+        }
+    "#},
+    );
   }
 
   #[test]
