@@ -423,11 +423,12 @@ impl<'i> ToCss for FamilyName<'i> {
     if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() {
       // Family names with two or more consecutive spaces must be quoted to preserve the spaces.
       let needs_quotes = val.contains("  ");
-      let mut id = if needs_quotes {
-        return serialize_string(&val, dest)
-      } else {
-        String::new()
-      };
+      if needs_quotes {
+        serialize_string(&val, dest)?;
+        return Ok(());
+      }
+
+      let mut id = String::new();
       let mut first = true;
       for slice in val.split(' ') {
         if first {
