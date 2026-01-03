@@ -1090,8 +1090,12 @@ impl<'i> Parse<'i> for ViewTransitionPartSelector<'i> {
           _ => return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState))),
         }
       } else {
-        return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState)));
+        break;
       }
+    }
+
+    if !input.is_exhausted() || (name.is_none() && classes.is_empty()) {
+      return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState)));
     }
 
     Ok(ViewTransitionPartSelector { name, classes })

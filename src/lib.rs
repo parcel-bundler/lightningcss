@@ -6972,6 +6972,10 @@ mod tests {
         &format!(":root::{}(.foo.bar) {{position: fixed}}", name),
         &format!(":root::{}(.foo.bar){{position:fixed}}", name),
       );
+      minify_test(
+        &format!(":root::{}(  .foo.bar  ) {{position: fixed}}", name),
+        &format!(":root::{}(.foo.bar){{position:fixed}}", name),
+      );
       error_test(
         &format!(":root::{}(foo):first-child {{position: fixed}}", name),
         ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
