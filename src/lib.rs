@@ -24929,6 +24929,21 @@ mod tests {
         exclude: Features::empty(),
       },
     );
+
+    minify_test(
+      r#"
+    .foo {
+      color: red;
+      .bar {
+        color: green;
+      }
+      color: blue;
+      .baz {
+        color: pink;
+      }
+    }"#,
+      ".foo{color:red;& .bar{color:green}color:#00f;& .baz{color:pink}}",
+    );
   }
 
   #[test]

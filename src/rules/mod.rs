@@ -73,7 +73,7 @@ use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
 use crate::selector::{is_compatible, is_equivalent, Component, Selector, SelectorList};
 use crate::stylesheet::ParserOptions;
-use crate::targets::TargetsWithSupportsScope;
+use crate::targets::{should_compile, TargetsWithSupportsScope};
 use crate::traits::{AtRuleParser, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
@@ -1025,7 +1025,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRuleList<'i, T> {
     let mut first = true;
     let mut last_without_block = false;
 
-    for rule in &self.0 {
+    for (i, rule) in self.0.iter().enumerate() {
       if let CssRule::Ignored = &rule {
         continue;
       }
@@ -1061,6 +1061,16 @@ impl<'a, 'i, T: ToCss> ToCss for CssRuleList<'i, T> {
         dest.newline()?;
       }
       rule.to_css(dest)?;
+
+      // If this is an invisible nested declarations rule, and not the last rule in the block, add a semicolon.
+      if dest.minify
+        && !should_compile!(dest.targets.current, Nesting)
+        && matches!(rule, CssRule::NestedDeclarations(_))
+        && i != self.0.len() - 1
+      {
+        dest.write_char(';')?;
+      }
+
       last_without_block = matches!(
         rule,
         CssRule::Import(..) | CssRule::Namespace(..) | CssRule::LayerStatement(..)
