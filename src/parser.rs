@@ -320,10 +320,6 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for TopLev
         let media = MediaList::parse(input, &self.options)?;
         return Ok(AtRulePrelude::CustomMedia(name, media))
       },
-      "property" => {
-        let name = DashedIdent::parse(input)?;
-        return Ok(AtRulePrelude::Property(name))
-      },
       _ => {}
     }
 
@@ -695,6 +691,10 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         return Err(input.new_custom_error(ParserError::DeprecatedCssModulesValueRule));
       },
 
+      "property" => {
+        let name = DashedIdent::parse(input)?;
+        return Ok(AtRulePrelude::Property(name))
+      },
 
       _ => parse_custom_at_rule_prelude(&name, input, self.options, self.at_rule_parser)?
     };
