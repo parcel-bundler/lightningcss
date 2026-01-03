@@ -249,6 +249,68 @@ test('specific environment variables', () => {
   assert.equal(res.code.toString(), '@media (width<=600px){body{padding:20px}}');
 });
 
+test('spacing with env substitution', () => {
+  // Test spacing for different cases when `env()` functions are replaced with actual values.
+  /** @type {Record<string, string>} */
+  let tokens = {
+    '--var1': 'var(--foo)',
+    '--var2': 'var(--bar)',
+    '--function': 'scale(1.5)',
+    '--length1': '10px',
+    '--length2': '20px',
+    '--x': '4',
+    '--y': '12',
+    '--num1': '5',
+    '--num2': '10',
+    '--num3': '15',
+    '--counter': '2',
+    '--ident1': 'solid',
+    '--ident2': 'auto',
+    '--rotate': '45deg',
+    '--percentage1': '25%',
+    '--percentage2': '75%',
+    '--color': 'red',
+    '--color1': '#ff1234',
+    '--string1': '"hello"',
+    '--string2': '" world"'
+  };
+
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .test {
+        /* Asymmetric spacing - no space after var(). */
+        background: env(--var1) env(--var2);
+        border: env(--var1)env(--ident1);
+        transform: env(--function) env(--function);
+        /* Normal spacing between values. */
+        padding: env(--length1) env(--length2);
+        margin: env(--length1) env(--ident2);
+        outline: env(--color) env(--ident1);
+        /* Raw numbers that need spacing. */
+        cursor: url(cursor.png) env(--x) env(--y), auto;
+        stroke-dasharray: env(--num1) env(--num2) env(--num3);
+        counter-increment: myCounter env(--counter);
+        /* Mixed token types. */
+        background: linear-gradient(red env(--percentage1), blue env(--percentage2));
+        content: env(--string1) env(--string2);
+        /* Inside calc expressions. */
+        width: calc(env(--length1) - env(--length2));
+      }
+    `),
+    visitor: {
+      EnvironmentVariable(env) {
+        if (env.name.type === 'custom' && tokens[env.name.ident]) {
+          return { raw: tokens[env.name.ident] };
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.test{background:var(--foo) var(--bar);border:var(--foo)solid;transform:scale(1.5) scale(1.5);padding:10px 20px;margin:10px auto;outline:red solid;cursor:url(cursor.png) 4 12, auto;stroke-dasharray:5 10 15;counter-increment:myCounter 2;background:linear-gradient(red 25%, blue 75%);content:"hello" " world";width:calc(10px - 20px)}');
+});
+
 test('url', () => {
   // https://www.npmjs.com/package/postcss-url
   let res = transform({

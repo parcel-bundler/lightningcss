@@ -852,7 +852,10 @@ macro_rules! define_properties {
           },
           Custom(custom) => {
             custom.name.to_css(dest)?;
-            dest.delim(':', false)?;
+            dest.write_char(':')?;
+            if !custom.value.starts_with_whitespace() {
+              dest.whitespace()?;
+            }
             self.value_to_css(dest)?;
             write_important!();
             return Ok(())
