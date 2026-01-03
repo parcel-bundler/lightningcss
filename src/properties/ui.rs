@@ -571,6 +571,16 @@ impl<'i> PropertyHandler<'i> for ColorSchemeHandler {
   fn finalize(&mut self, _: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {}
 }
 
+enum_property! {
+  /// A value for the [print-color-adjust](https://drafts.csswg.org/css-color-adjust/#propdef-print-color-adjust) property.
+  pub enum PrintColorAdjust {
+    /// The user agent is allowed to make adjustments to the element as it deems appropriate.
+    Economy,
+    /// The user agent is not allowed to make adjustments to the element.
+    Exact,
+  }
+}
+
 #[inline]
 fn define_var<'i>(name: &'static str, value: Token<'static>) -> Property<'i> {
   Property::Custom(CustomProperty {

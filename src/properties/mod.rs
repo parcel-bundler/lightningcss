@@ -1616,6 +1616,7 @@ define_properties! {
 
   // https://drafts.csswg.org/css-color-adjust/
   "color-scheme": ColorScheme(ColorScheme),
+  "print-color-adjust": PrintColorAdjust(PrintColorAdjust, VendorPrefix) / WebKit,
 }
 
 impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {

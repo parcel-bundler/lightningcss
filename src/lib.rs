@@ -30121,6 +30121,35 @@ mod tests {
   }
 
   #[test]
+  fn test_print_color_adjust() {
+    prefix_test(
+      ".foo { print-color-adjust: exact; }",
+      indoc! { r#"
+      .foo {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      "#},
+      Browsers {
+        chrome: Some(135 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { print-color-adjust: exact; }",
+      indoc! { r#"
+      .foo {
+        print-color-adjust: exact;
+      }
+      "#},
+      Browsers {
+        chrome: Some(137 << 16),
+        ..Browsers::default()
+      },
+    );
+  }
+
+  #[test]
   fn test_all() {
     minify_test(".foo { all: initial; all: initial }", ".foo{all:initial}");
     minify_test(".foo { all: initial; all: revert }", ".foo{all:revert}");
