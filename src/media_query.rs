@@ -1131,17 +1131,16 @@ where
   }
 
   pub(crate) fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool {
-    if !should_compile!(targets, MediaIntervalSyntax) {
-      return false;
-    }
-
     match self {
-      QueryFeature::Interval { .. } => parent_operator != Some(Operator::And),
+      QueryFeature::Interval { .. } => {
+        should_compile!(targets, MediaIntervalSyntax) && parent_operator != Some(Operator::And)
+      }
       QueryFeature::Range { operator, .. } => {
-        matches!(
-          operator,
-          MediaFeatureComparison::GreaterThan | MediaFeatureComparison::LessThan
-        )
+        should_compile!(targets, MediaRangeSyntax)
+          && matches!(
+            operator,
+            MediaFeatureComparison::GreaterThan | MediaFeatureComparison::LessThan
+          )
       }
       _ => false,
     }

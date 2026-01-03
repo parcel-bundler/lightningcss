@@ -79,6 +79,13 @@ mod tests {
     assert_eq!(res.code, expected);
   }
 
+  fn test_with_printer_options<'i, 'o>(source: &'i str, expected: &'i str, options: PrinterOptions<'o>) {
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    let res = stylesheet.to_css(options).unwrap();
+    assert_eq!(res.code, expected);
+  }
+
   fn minify_test(source: &str, expected: &str) {
     minify_test_with_options(source, expected, ParserOptions::default())
   }
@@ -9061,6 +9068,31 @@ mod tests {
         safari: Some(15 << 16),
         firefox: Some(10 << 16),
         ..Browsers::default()
+      },
+    );
+
+    test_with_printer_options(
+      r#"
+        @media (width < 256px) or (hover: none) {
+          .foo {
+            color: #fff;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (not (min-width: 256px)) or (hover: none) {
+          .foo {
+            color: #fff;
+          }
+        }
+      "#},
+      PrinterOptions {
+        targets: Targets {
+          browsers: None,
+          include: Features::MediaRangeSyntax,
+          exclude: Features::empty(),
+        },
+        ..Default::default()
       },
     );
 
