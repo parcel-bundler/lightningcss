@@ -134,6 +134,10 @@ export type MediaCondition =
        */
       operator: Operator;
       type: "operation";
+    }
+  | {
+      type: "unknown";
+      value: TokenOrValue[];
     };
 /**
  * A generic media feature or container feature.
@@ -6420,7 +6424,7 @@ export type ZIndex =
 /**
  * A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property. Establishes the element as a query container for the purpose of container queries.
  */
-export type ContainerType = "normal" | "inline-size" | "size";
+export type ContainerType = "normal" | "inline-size" | "size" | "scroll-state";
 /**
  * A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
  */
@@ -6945,6 +6949,25 @@ export type PseudoElement =
       part: ViewTransitionPartSelector;
     }
   | {
+      /**
+       * A form control identifier.
+       */
+      identifier: String;
+      kind: "picker-function";
+    }
+  | {
+      kind: "picker-icon";
+    }
+  | {
+      kind: "checkmark";
+    }
+  | {
+      kind: "grammar-error";
+    }
+  | {
+      kind: "spelling-error";
+    }
+  | {
       kind: "custom";
       /**
        * The name of the pseudo element.
@@ -7390,6 +7413,14 @@ export type ContainerCondition<D = Declaration> = | {
 | {
     type: "style";
     value: StyleQuery<D>;
+  }
+| {
+    type: "scroll-state";
+    value: ScrollStateQuery;
+  }
+| {
+    type: "unknown";
+    value: TokenOrValue[];
   };
 /**
  * A generic media feature or container feature.
@@ -7485,6 +7516,97 @@ export type StyleQuery<D = Declaration> = | {
     operator: Operator;
     type: "operation";
   };
+/**
+ * Represents a scroll state query within a container condition.
+ */
+export type ScrollStateQuery =
+  | {
+      type: "feature";
+      value: QueryFeatureFor_ScrollStateFeatureId;
+    }
+  | {
+      type: "not";
+      value: ScrollStateQuery;
+    }
+  | {
+      /**
+       * The conditions for the operator.
+       */
+      conditions: ScrollStateQuery[];
+      /**
+       * The operator for the conditions.
+       */
+      operator: Operator;
+      type: "operation";
+    };
+/**
+ * A generic media feature or container feature.
+ */
+export type QueryFeatureFor_ScrollStateFeatureId =
+  | {
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ScrollStateFeatureId;
+      type: "plain";
+      /**
+       * The feature value.
+       */
+      value: MediaFeatureValue;
+    }
+  | {
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ScrollStateFeatureId;
+      type: "boolean";
+    }
+  | {
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ScrollStateFeatureId;
+      /**
+       * A comparator.
+       */
+      operator: MediaFeatureComparison;
+      type: "range";
+      /**
+       * The feature value.
+       */
+      value: MediaFeatureValue;
+    }
+  | {
+      /**
+       * The end value.
+       */
+      end: MediaFeatureValue;
+      /**
+       * A comparator for the end value.
+       */
+      endOperator: MediaFeatureComparison;
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ScrollStateFeatureId;
+      /**
+       * A start value.
+       */
+      start: MediaFeatureValue;
+      /**
+       * A comparator for the start value.
+       */
+      startOperator: MediaFeatureComparison;
+      type: "interval";
+    };
+/**
+ * A media feature name.
+ */
+export type MediaFeatureNameFor_ScrollStateFeatureId = ScrollStateFeatureId | String | String;
+/**
+ * A container query scroll state feature identifier.
+ */
+export type ScrollStateFeatureId = "stuck" | "snapped" | "scrollable" | "scrolled";
 /**
  * A property within a `@view-transition` rule.
  *

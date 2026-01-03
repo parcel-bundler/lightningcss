@@ -9108,6 +9108,12 @@ mod tests {
       "@media (prefers-color-scheme = dark) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
     );
+    error_test(
+      "@media unknown(foo) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Function("unknown".into())),
+    );
+
+    error_recovery_test("@media unknown(foo) {}");
   }
 
   #[test]
@@ -29335,6 +29341,56 @@ mod tests {
     "#,
       "@container style(width){.foo{color:red}}",
     );
+    minify_test(
+      r#"
+      @container scroll-state(scrollable: top) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container scroll-state(scrollable:top){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container scroll-state((stuck: top) and (stuck: left)) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container scroll-state((stuck:top) and (stuck:left)){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container scroll-state(not ((scrollable: bottom) and (scrollable: right))) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container scroll-state(not ((scrollable:bottom) and (scrollable:right))){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container (scroll-state(scrollable: inline-end)) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container scroll-state(scrollable:inline-end){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container not scroll-state(scrollable: top) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container not scroll-state(scrollable:top){.foo{color:red}}",
+    );
 
     // Disallow 'none', 'not', 'and', 'or' as a `<container-name>`
     // https://github.com/w3c/csswg-drafts/issues/7203#issuecomment-1144257312
@@ -29379,6 +29435,16 @@ mod tests {
       "@container style(style(--foo: bar)) {}",
       ParserError::UnexpectedToken(crate::properties::custom::Token::Function("style".into())),
     );
+    error_test(
+      "@container scroll-state(scroll-state(scrollable: top)) {}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@container unknown(foo) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Function("unknown".into())),
+    );
+
+    error_recovery_test("@container unknown(foo) {}");
   }
 
   #[test]

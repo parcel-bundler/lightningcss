@@ -30,6 +30,8 @@ enum_property! {
     InlineSize,
     /// Establishes a query container for container size queries on both the inline and block axis.
     Size,
+    /// Establishes a query container for container scroll-state queries
+    ScrollState,
   }
 }
 

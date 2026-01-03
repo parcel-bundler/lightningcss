@@ -11,6 +11,7 @@ use crate::media_query::{
 };
 use crate::parser::{DefaultAtRule, ParserOptions};
 use crate::printer::Printer;
+use crate::properties::custom::TokenList;
 use crate::properties::{Property, PropertyId};
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
@@ -68,6 +69,12 @@ pub enum ContainerCondition<'i> {
   /// A style query.
   #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<StyleQuery>"))]
   Style(StyleQuery<'i>),
+  /// A scroll state query.
+  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<ScrollStateQuery>"))]
+  ScrollState(ScrollStateQuery<'i>),
+  /// Unknown tokens.
+  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<TokenList>"))]
+  Unknown(TokenList<'i>),
 }
 
 /// A container query size feature.
@@ -133,6 +140,61 @@ pub enum StyleQuery<'i> {
   },
 }
 
+/// Represents a scroll state query within a container condition.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum ScrollStateQuery<'i> {
+  /// A size container feature, implicitly parenthesized.
+  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<ScrollStateFeature>"))]
+  Feature(ScrollStateFeature<'i>),
+  /// A negation of a condition.
+  #[cfg_attr(feature = "visitor", skip_type)]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<ScrollStateQuery>>"))]
+  Not(Box<ScrollStateQuery<'i>>),
+  /// A set of joint operations.
+  #[cfg_attr(feature = "visitor", skip_type)]
+  Operation {
+    /// The operator for the conditions.
+    operator: Operator,
+    /// The conditions for the operator.
+    conditions: Vec<ScrollStateQuery<'i>>,
+  },
+}
+
+/// A container query size feature.
+pub type ScrollStateFeature<'i> = QueryFeature<'i, ScrollStateFeatureId>;
+
+define_query_features! {
+  /// A container query scroll state feature identifier.
+  pub enum ScrollStateFeatureId {
+    /// The [stuck](https://drafts.csswg.org/css-conditional-5/#stuck) scroll state feature.
+    "stuck": Stuck = Ident,
+    /// The [snapped](https://drafts.csswg.org/css-conditional-5/#snapped) scroll state feature.
+    "snapped": Snapped = Ident,
+    /// The [scrollable](https://drafts.csswg.org/css-conditional-5/#scrollable) scroll state feature.
+    "scrollable": Scrollable = Ident,
+    /// The [scrolled](https://drafts.csswg.org/css-conditional-5/#scrolled) scroll state feature.
+    "scrolled": Scrolled = Ident,
+  }
+}
+
+impl FeatureToCss for ScrollStateFeatureId {
+  fn to_css_with_prefix<W>(&self, prefix: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.write_str(prefix)?;
+    self.to_css(dest)
+  }
+}
+
 impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
   #[inline]
   fn parse_feature<'t>(
@@ -168,12 +230,58 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
     })
   }
 
+  fn parse_scroll_state_query<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.parse_nested_block(|input| {
+      if let Ok(res) =
+        input.try_parse(|input| parse_query_condition(input, QueryConditionFlags::ALLOW_OR, options))
+      {
+        return Ok(Self::ScrollState(res));
+      }
+
+      Ok(Self::ScrollState(ScrollStateQuery::parse_feature(input, options)?))
+    })
+  }
+
   fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool {
     match self {
       ContainerCondition::Not(_) => true,
       ContainerCondition::Operation { operator, .. } => Some(*operator) != parent_operator,
       ContainerCondition::Feature(f) => f.needs_parens(parent_operator, targets),
       ContainerCondition::Style(_) => false,
+      ContainerCondition::ScrollState(_) => false,
+      ContainerCondition::Unknown(_) => false,
+    }
+  }
+}
+
+impl<'i> QueryCondition<'i> for ScrollStateQuery<'i> {
+  #[inline]
+  fn parse_feature<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let feature = QueryFeature::parse_with_options(input, options)?;
+    Ok(Self::Feature(feature))
+  }
+
+  #[inline]
+  fn create_negation(condition: Box<Self>) -> Self {
+    Self::Not(condition)
+  }
+
+  #[inline]
+  fn create_operation(operator: Operator, conditions: Vec<Self>) -> Self {
+    Self::Operation { operator, conditions }
+  }
+
+  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool {
+    match self {
+      ScrollStateQuery::Not(_) => true,
+      ScrollStateQuery::Operation { operator, .. } => Some(*operator) != parent_operator,
+      ScrollStateQuery::Feature(f) => f.needs_parens(parent_operator, targets),
     }
   }
 }
@@ -219,11 +327,24 @@ impl<'i> ParseWithOptions<'i> for ContainerCondition<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    parse_query_condition(
-      input,
-      QueryConditionFlags::ALLOW_OR | QueryConditionFlags::ALLOW_STYLE,
-      options,
-    )
+    input
+      .try_parse(|input| {
+        parse_query_condition(
+          input,
+          QueryConditionFlags::ALLOW_OR
+            | QueryConditionFlags::ALLOW_STYLE
+            | QueryConditionFlags::ALLOW_SCROLL_STATE,
+          options,
+        )
+      })
+      .or_else(|e| {
+        if options.error_recovery {
+          options.warn(e);
+          Ok(ContainerCondition::Unknown(TokenList::parse(input, options, 0)?))
+        } else {
+          Err(e)
+        }
+      })
   }
 }
 
@@ -247,6 +368,19 @@ impl<'i> ToCss for ContainerCondition<'i> {
         query.to_css(dest)?;
         dest.write_char(')')
       }
+      ContainerCondition::ScrollState(ref query) => {
+        let needs_parens = !matches!(query, ScrollStateQuery::Feature(_));
+        dest.write_str("scroll-state")?;
+        if needs_parens {
+          dest.write_char('(')?;
+        }
+        query.to_css(dest)?;
+        if needs_parens {
+          dest.write_char(')')?;
+        }
+        Ok(())
+      }
+      ContainerCondition::Unknown(ref tokens) => tokens.to_css(dest, false),
     }
   }
 }
@@ -264,6 +398,25 @@ impl<'i> ToCss for StyleQuery<'i> {
         to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets.current))
       }
       StyleQuery::Operation {
+        ref conditions,
+        operator,
+      } => operation_to_css(operator, conditions, dest),
+    }
+  }
+}
+
+impl<'i> ToCss for ScrollStateQuery<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match *self {
+      ScrollStateQuery::Feature(ref f) => f.to_css(dest),
+      ScrollStateQuery::Not(ref c) => {
+        dest.write_str("not ")?;
+        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets.current))
+      }
+      ScrollStateQuery::Operation {
         ref conditions,
         operator,
       } => operation_to_css(operator, conditions, dest),
