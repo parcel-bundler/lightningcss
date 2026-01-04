@@ -26403,6 +26403,8 @@ mod tests {
 
   #[test]
   fn test_svg() {
+    use crate::properties::svg;
+
     minify_test(".foo { fill: yellow; }", ".foo{fill:#ff0}");
     minify_test(".foo { fill: url(#foo); }", ".foo{fill:url(#foo)}");
     minify_test(".foo { fill: url(#foo) none; }", ".foo{fill:url(#foo) none}");
@@ -27231,6 +27233,21 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    let property =
+      Property::parse_string("text-rendering".into(), "geometricPrecision", ParserOptions::default()).unwrap();
+    assert_eq!(
+      property,
+      Property::TextRendering(svg::TextRendering::GeometricPrecision)
+    );
+    let property =
+      Property::parse_string("shape-rendering".into(), "geometricPrecision", ParserOptions::default()).unwrap();
+    assert_eq!(
+      property,
+      Property::ShapeRendering(svg::ShapeRendering::GeometricPrecision)
+    );
+    let property = Property::parse_string("color-interpolation".into(), "sRGB", ParserOptions::default()).unwrap();
+    assert_eq!(property, Property::ColorInterpolation(svg::ColorInterpolation::SRGB));
   }
 
   #[test]

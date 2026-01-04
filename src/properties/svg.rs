@@ -211,6 +211,7 @@ pub enum Marker<'i> {
 
 /// A value for the [color-interpolation](https://www.w3.org/TR/SVG2/painting.html#ColorInterpolation) property.
 #[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[css(case = lower)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -249,6 +250,7 @@ pub enum ColorRendering {
 
 /// A value for the [shape-rendering](https://www.w3.org/TR/SVG2/painting.html#ShapeRendering) property.
 #[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[css(case = lower)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -270,6 +272,7 @@ pub enum ShapeRendering {
 
 /// A value for the [text-rendering](https://www.w3.org/TR/SVG2/painting.html#TextRendering) property.
 #[derive(Debug, Clone, Copy, PartialEq, Parse, ToCss)]
+#[css(case = lower)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
