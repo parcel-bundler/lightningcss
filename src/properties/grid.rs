@@ -1337,7 +1337,7 @@ impl<'i> Parse<'i> for GridLine<'i> {
         let ident = input.try_parse(CustomIdent::parse).ok();
         (line_number, ident)
       } else if let Ok(ident) = input.try_parse(CustomIdent::parse) {
-        let line_number = input.try_parse(CSSInteger::parse).unwrap_or(1);
+        let line_number = input.try_parse(CSSInteger::parse).unwrap_or(CSSInteger(1));
         (line_number, Some(ident))
       } else {
         return Err(input.new_custom_error(ParserError::InvalidDeclaration));

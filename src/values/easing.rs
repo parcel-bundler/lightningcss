@@ -75,8 +75,8 @@ impl<'i> Parse<'i> for EasingFunction {
         "ease-in" => EasingFunction::EaseIn,
         "ease-out" => EasingFunction::EaseOut,
         "ease-in-out" => EasingFunction::EaseInOut,
-        "step-start" => EasingFunction::Steps { count: 1, position: StepPosition::Start },
-        "step-end" => EasingFunction::Steps { count: 1, position: StepPosition::End },
+        "step-start" => EasingFunction::Steps { count: CSSInteger(1), position: StepPosition::Start },
+        "step-end" => EasingFunction::Steps { count: CSSInteger(1), position: StepPosition::End },
         _ => return Err(location.new_unexpected_token_error(Token::Ident(ident.clone())))
       };
       return Ok(keyword);
@@ -163,11 +163,11 @@ impl ToCss for EasingFunction {
         dest.write_char(')')
       }
       EasingFunction::Steps {
-        count: 1,
+        count: CSSInteger(1),
         position: StepPosition::Start,
       } => dest.write_str("step-start"),
       EasingFunction::Steps {
-        count: 1,
+        count: CSSInteger(1),
         position: StepPosition::End,
       } => dest.write_str("step-end"),
       EasingFunction::Steps { count, position } => {

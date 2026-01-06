@@ -601,7 +601,48 @@ impl<
               node = node * (1.0 / val);
               continue;
             }
+            // Division by zero produces infinity (IEEE-754 semantics)
+            if val == 0.0 {
+              // IEEE-754: 0 / -0 = NaN, not infinity
+              if let Calc::Number(node_val) = node {
+                if node_val == 0.0 {
+                  // 0 / 0 or 0 / -0 = NaN
+                  node = Calc::Number(f32::NAN);
+                  continue;
+                }
+                // Number / 0 = infinity
+                let infinity = if val.is_sign_positive() {
+                  if node.is_sign_negative() {
+                    Calc::Number(-f32::INFINITY)
+                  } else {
+                    Calc::Number(f32::INFINITY)
+                  }
+                } else {
+                  if node.is_sign_negative() {
+                    Calc::Number(f32::INFINITY)
+                  } else {
+                    Calc::Number(-f32::INFINITY)
+                  }
+                };
+                node = infinity;
+                continue;
+              }
+              // Non-Number (like Length) / 0 = infinity
+              // For Length values, we keep them as-is and let ToCss handle serialization
+              node = Calc::Product(1.0, Box::new(node));
+              continue;
+            }
+            // Division by infinity
+            if val.is_infinite() {
+              if node.is_sign_negative() {
+                node = Calc::Number(-0.0);
+              } else {
+                node = Calc::Number(0.0);
+              }
+              continue;
+            }
           }
+          // Non-Number / 0 case handled above
           return Err(input.new_custom_error(ParserError::InvalidValue));
         }
         _ => {
@@ -969,7 +1010,13 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
         }
       }
       Calc::Product(num, calc) => {
-        if num.abs() < 1.0 {
+        // Special case: Product(1, value) represents value/0 (infinity)
+        // Serialize as calc(value/0) instead of calc(1 * value)
+        if *num == 1.0 {
+          calc.to_css(dest)?;
+          dest.delim('/', true)?;
+          dest.write_str("0")
+        } else if num.abs() < 1.0 {
           let div = 1.0 / num;
           calc.to_css(dest)?;
           dest.delim('/', true)?;

@@ -7,7 +7,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::traits::{Parse, PropertyHandler, ToCss};
-use crate::values::number::CSSInteger;
+use crate::values::number::CSSIntegerWithInfinity;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -73,7 +73,7 @@ impl ToCss for Position {
 }
 
 /// A value for the [z-index](https://drafts.csswg.org/css2/#z-index) property.
-#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -85,8 +85,32 @@ impl ToCss for Position {
 pub enum ZIndex {
   /// The `auto` keyword.
   Auto,
-  /// An integer value.
-  Integer(CSSInteger),
+  /// An integer value (supports infinity via calc()).
+  Integer(CSSIntegerWithInfinity),
+}
+
+impl<'i> Parse<'i> for ZIndex {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if input.try_parse(|input| input.expect_ident_cloned()).is_ok() {
+      return Ok(ZIndex::Auto);
+    }
+
+    // Use CSSIntegerWithInfinity::parse which handles calc() and infinity
+    let integer = CSSIntegerWithInfinity::parse(input)?;
+    Ok(ZIndex::Integer(integer))
+  }
+}
+
+impl ToCss for ZIndex {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      ZIndex::Auto => dest.write_str("auto"),
+      ZIndex::Integer(v) => v.to_css(dest),
+    }
+  }
 }
 
 #[derive(Default)]

@@ -7685,6 +7685,149 @@ mod tests {
     minify_test(".foo { width: calc(20px + 30px) }", ".foo{width:50px}");
     minify_test(".foo { width: calc(20px + 30px + 40px) }", ".foo{width:90px}");
     minify_test(".foo { width: calc(100% - 30px) }", ".foo{width:calc(100% - 30px)}");
+
+    // Test <integer>
+    minify_test(".z-index1 { z-index: calc(10 / 5) }", ".z-index1{z-index:2}");
+    minify_test(".z-index2 { z-index: calc(-10 / 5) }", ".z-index2{z-index:-2}");
+    minify_test(".z-index3 { z-index: calc(10 / 3) }", ".z-index3{z-index:3}");
+    minify_test(".z-index4 { z-index: calc(11 / 3) }", ".z-index4{z-index:4}");
+    minify_test(".z-index5 { z-index: calc(-11 / 3) }", ".z-index5{z-index:-4}");
+    minify_test(".order1 { order: calc(5 * 2 - 1) }", ".order1{order:9}");
+    minify_test(".order2 { order: calc( calc(8 - 2) / -2 ) }", ".order2{order:-3}");
+    minify_test(".order3 { order: calc(-6 + calc(2 * 3)) }", ".order3{order:0}");
+    minify_test(".order4 { order: calc(0) }", ".order4{order:0}");
+    minify_test(".order5 { order: calc(-0) }", ".order5{order:0}");
+    minify_test(".order6 { order: calc(0.5) }", ".order6{order:1}");
+    minify_test(".order7 { order: calc(-5 * 0) }", ".order7{order:0}");
+
+    // Test Infinity
+    // https://drafts.csswg.org/css-values-4/#calc-ieee
+    minify_test(
+      ".infinity1 { z-index: calc(9/0) }",
+      ".infinity1{z-index:calc(1/0)}",
+    );
+    minify_test(
+      ".infinity2 { z-index: calc(0.0002/0) }",
+      ".infinity2{z-index:calc(1/0)}",
+    );
+    minify_test(
+      ".infinity3 { z-index: calc(-1/0) }",
+      ".infinity3{z-index:calc(-1/0)}",
+    );
+    minify_test(
+      ".infinity3-1 { z-index: calc(1/-0) }",
+      ".infinity3-1{z-index:calc(-1/0)}",
+    );
+    minify_test(
+      ".infinity3-1 { z-index: calc(0/-0) }",
+      ".infinity3-1{z-index:0}",
+    );
+    minify_test(
+      ".infinity3-1 { z-index: calc(-0/-0) }",
+      ".infinity3-1{z-index:0}",
+    );
+    minify_test(
+      ".infinity3-1 { z-index: calc(-0/0) }",
+      ".infinity3-1{z-index:0}",
+    );
+    minify_test(
+      ".infinity3-2 { z-index: calc(-1/-0) }",
+      ".infinity3-2{z-index:calc(1/0)}",
+    );
+    minify_test(
+      ".infinity4 { z-index: calc(1 * infinity) }",
+      ".infinity4{z-index:calc(1/0)}",
+    );
+    minify_test(
+      ".infinity5 { z-index: calc(-1 * infinity) }",
+      ".infinity5{z-index:calc(-1/0)}",
+    );
+    minify_test(
+      ".infinity6 { z-index: calc(1 / -infinity) }",
+      ".infinity6{z-index:0}",
+    );
+    minify_test(
+      ".infinity7 { z-index: calc(1 - infinity) }",
+      ".infinity7{z-index:calc(-1/0)}",
+    );
+    minify_test(
+      ".infinity8 { z-index: calc(infinity - infinity) }",
+      ".infinity8{z-index:0}",
+    );
+    minify_test(
+      ".infinity9 { z-index: calc(1 / calc(-5 * 0)) }",
+      ".infinity9{z-index:calc(-1/0)}",
+    );
+    minify_test(
+      ".infinity10 { z-index: calc(infinity + infinity) }",
+      ".infinity10{z-index:calc(1/0)}",
+    );
+    minify_test(
+      ".infinity6 { order: calc(infinity / infinity) }",
+      ".infinity6{order:0}",
+    );
+    minify_test(
+      ".infinity6 { order: calc(infinity / 0) }",
+      ".infinity6{order:calc(1/0)}",
+    );
+    minify_test(
+      ".infinity6 { order: calc(infinity + 888) }",
+      ".infinity6{order:calc(1/0)}",
+    );
+    minify_test(
+      ".infinity6 { order: calc(infinity - 888) }",
+      ".infinity6{order:calc(1/0)}",
+    );
+    minify_test(
+      ".infinity-flex { flex: calc(6 / 0); }",
+      ".infinity-flex{flex:calc(1/0)}",
+    );
+
+    // TODO Support orphans prop
+    // Test orphans = <integer [1,∞]>
+    // minify_test(".orphans1 { orphans: calc(5 + 0.3) }", ".orphans1{orphans:5}");
+    // minify_test(".orphans2 { orphans: calc(10 / 3) }", ".orphans2{orphans:3}");
+    // minify_test(".orphans3 { orphans: calc(0.3) }", ".orphans3{orphans:1}");
+    // minify_test(
+    //   ".orphans1 { orphans: calc(-0.5) }",
+    //   ".orphans1{orphans:1}",
+    // );
+    // minify_test(
+    //   ".orphans2 { orphans: calc(-.5 * 2) }",
+    //   ".orphans2{orphans:-1}",
+    // );
+    // minify_test(
+    //   ".orphans4 { orphans: calc(5 - 10) }",
+    //   ".orphans4{orphans:-5}",
+    // );
+
+    // Test repeat() = <integer [1,∞]>
+    minify_test(
+      ".grid1 { grid-template-rows: repeat( calc(0.5), 1fr ); }",
+      ".grid1{grid-template-rows:repeat(1,1fr)}",
+    );
+    minify_test(
+      ".grid2 { grid-template-rows: repeat( calc(10 / 3), 1fr ); }",
+      ".grid2{grid-template-rows:repeat(3,1fr)}",
+    );
+    minify_test(
+      ".grid3 { grid-template-rows: repeat( calc(0.5 * 3), 200px ); }",
+      ".grid3{grid-template-rows:repeat(2,200px)}",
+    );
+    minify_test(
+      ".grid-mix1 { grid-template-rows: repeat( calc(0.5 * 5 - 1), minmax(calc(100px * 2), 1fr) ); }",
+      ".grid-mix1{grid-template-rows:repeat(2,minmax(200px,1fr))}",
+    );
+
+    minify_test(".mix1 { z-index: calc(10 + 5 * 2 - 3) }", ".mix1{z-index:17}");
+    minify_test(".mix2 { z-index: calc(10 * 2 + 5) }", ".mix2{z-index:25}");
+    minify_test(".mix3 { z-index: calc(10 * 2 - 5) }", ".mix3{z-index:15}");
+    minify_test(".mix4 { z-index: calc((10 + 5) * 2) }", ".mix4{z-index:30}");
+    minify_test(".mix5 { order: calc(100 - 50 + 25 - 10) }", ".mix5{order:65}");
+    minify_test(".mix6 { z-index: calc(2 * 3 * 4) }", ".mix6{z-index:24}");
+    minify_test(".mix7 { z-index: calc(2 * 3 + 4 * 5) }", ".mix7{z-index:26}");
+    minify_test(".mix8 { z-index: calc(2 * (3 + 4)) }", ".mix8{z-index:14}");
+
     minify_test(
       ".foo { width: calc(100% - 30px + 20px) }",
       ".foo{width:calc(100% - 10px)}",
@@ -7772,7 +7915,8 @@ mod tests {
       ".foo { width: calc((900px - (10% - 63.5px)) + (2 * 100px)) }",
       ".foo{width:calc(1163.5px - 10%)}",
     );
-    minify_test(".foo { width: calc(500px/0) }", ".foo{width:calc(500px/0)}");
+    minify_test(".foo { margin: calc(500px/0) }", ".foo{margin:calc(500px/0)}");
+    minify_test(".foo { margin: calc(-500px/0) }", ".foo{margin:calc(-500px/0)}");
     minify_test(".foo { width: calc(500px/2px) }", ".foo{width:calc(500px/2px)}");
     minify_test(".foo { width: calc(100% / 3 * 3) }", ".foo{width:100%}");
     minify_test(".foo { width: calc(+100px + +100px) }", ".foo{width:200px}");

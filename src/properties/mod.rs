@@ -129,7 +129,7 @@ use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
 use crate::targets::Targets;
 use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
-use crate::values::number::{CSSInteger, CSSNumber};
+use crate::values::number::{CSSIntegerWithInfinity, CSSNumber};
 use crate::values::string::CowArcStr;
 use crate::values::{
   alpha::*, color::*, easing::EasingFunction, ident::DashedIdentReference, ident::NoneOrCustomIdentList, image::*,
@@ -1335,7 +1335,7 @@ define_properties! {
   "flex-shrink": FlexShrink(CSSNumber, VendorPrefix) / WebKit,
   "flex-basis": FlexBasis(LengthPercentageOrAuto, VendorPrefix) / WebKit,
   "flex": Flex(Flex, VendorPrefix) / WebKit / Ms shorthand: true,
-  "order": Order(CSSInteger, VendorPrefix) / WebKit,
+  "order": Order(CSSIntegerWithInfinity, VendorPrefix) / WebKit,
 
   // Align properties: https://www.w3.org/TR/2020/WD-css-align-3-20200421
   "align-content": AlignContent(AlignContent, VendorPrefix) / WebKit,
@@ -1354,16 +1354,16 @@ define_properties! {
   // Old flex (2009): https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/
   "box-orient": BoxOrient(BoxOrient, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-direction": BoxDirection(BoxDirection, VendorPrefix) / WebKit / Moz unprefixed: false,
-  "box-ordinal-group": BoxOrdinalGroup(CSSInteger, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-ordinal-group": BoxOrdinalGroup(CSSIntegerWithInfinity, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-align": BoxAlign(BoxAlign, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-flex": BoxFlex(CSSNumber, VendorPrefix) / WebKit / Moz unprefixed: false,
-  "box-flex-group": BoxFlexGroup(CSSInteger, VendorPrefix) / WebKit unprefixed: false,
+  "box-flex-group": BoxFlexGroup(CSSIntegerWithInfinity, VendorPrefix) / WebKit unprefixed: false,
   "box-pack": BoxPack(BoxPack, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-lines": BoxLines(BoxLines, VendorPrefix) / WebKit / Moz unprefixed: false,
 
   // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
   "flex-pack": FlexPack(FlexPack, VendorPrefix) / Ms unprefixed: false,
-  "flex-order": FlexOrder(CSSInteger, VendorPrefix) / Ms unprefixed: false,
+  "flex-order": FlexOrder(CSSIntegerWithInfinity, VendorPrefix) / Ms unprefixed: false,
   "flex-align": FlexAlign(BoxAlign, VendorPrefix) / Ms unprefixed: false,
   "flex-item-align": FlexItemAlign(FlexItemAlign, VendorPrefix) / Ms unprefixed: false,
   "flex-line-pack": FlexLinePack(FlexLinePack, VendorPrefix) / Ms unprefixed: false,

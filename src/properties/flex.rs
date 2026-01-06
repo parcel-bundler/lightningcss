@@ -11,7 +11,7 @@ use crate::macros::*;
 use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
 use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss, Zero};
-use crate::values::number::{CSSInteger, CSSNumber};
+use crate::values::number::{CSSIntegerWithInfinity, CSSNumber};
 use crate::values::{
   length::{LengthPercentage, LengthPercentageOrAuto},
   percentage::Percentage,
@@ -350,12 +350,15 @@ impl FromStandard<FlexWrap> for BoxLines {
   }
 }
 
-type BoxOrdinalGroup = CSSInteger;
-impl FromStandard<CSSInteger> for BoxOrdinalGroup {
-  fn from_standard(order: &CSSInteger) -> Option<BoxOrdinalGroup> {
+type BoxOrdinalGroup = CSSIntegerWithInfinity;
+impl FromStandard<CSSIntegerWithInfinity> for BoxOrdinalGroup {
+  fn from_standard(order: &CSSIntegerWithInfinity) -> Option<BoxOrdinalGroup> {
     Some(*order)
   }
 }
+
+/// A value for the legacy (prefixed) [box-flex-group](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#box-flex-group) property.
+pub type BoxFlexGroup = CSSIntegerWithInfinity;
 
 // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
 
@@ -484,9 +487,9 @@ pub(crate) struct FlexHandler {
   flex_negative: Option<(CSSNumber, VendorPrefix)>,
   basis: Option<(LengthPercentageOrAuto, VendorPrefix)>,
   preferred_size: Option<(LengthPercentageOrAuto, VendorPrefix)>,
-  order: Option<(CSSInteger, VendorPrefix)>,
+  order: Option<(CSSIntegerWithInfinity, VendorPrefix)>,
   box_ordinal_group: Option<(BoxOrdinalGroup, VendorPrefix)>,
-  flex_order: Option<(CSSInteger, VendorPrefix)>,
+  flex_order: Option<(CSSIntegerWithInfinity, VendorPrefix)>,
   has_any: bool,
 }
 
