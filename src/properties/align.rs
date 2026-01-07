@@ -11,6 +11,7 @@ use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
 use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthPercentage;
+use crate::values::number::CSSInteger;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;

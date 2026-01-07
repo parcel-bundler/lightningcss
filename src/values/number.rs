@@ -35,6 +35,18 @@ impl ToCss for CSSNumber {
     W: std::fmt::Write,
   {
     let number = *self;
+    // Handle NaN
+    if number.is_nan() {
+      return dest.write_str("0");
+    }
+    // Handle infinity
+    if number.is_infinite() {
+      if number.is_sign_negative() {
+        return dest.write_str("calc(-1/0)");
+      } else {
+        return dest.write_str("calc(1/0)");
+      }
+    }
     if number != 0.0 && number.abs() < 1.0 {
       let mut s = String::new();
       cssparser::ToCss::to_css(self, &mut s)?;
@@ -195,7 +207,18 @@ impl<'i> Parse<'i> for CSSInteger {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
-      Ok(Calc::Number(n)) => return Ok(CSSInteger(n.round() as i32)),
+      Ok(Calc::Number(n)) => {
+        // Handle infinity and NaN from calc
+        if n.is_infinite() {
+          if n.is_sign_negative() {
+            return Ok(CSSInteger(i32::MIN));
+          } else {
+            return Ok(CSSInteger(i32::MAX));
+          }
+        }
+        // NaN rounds to 0 per CSS spec
+        return Ok(CSSInteger(n.round() as i32));
+      }
       // Numbers are always compatible, so they will always compute to a value.
       Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       _ => {}
@@ -211,6 +234,13 @@ impl ToCss for CSSInteger {
   where
     W: std::fmt::Write,
   {
+    // Handle infinity values
+    if self.0 == i32::MAX {
+      return dest.write_str("calc(1/0)");
+    }
+    if self.0 == i32::MIN {
+      return dest.write_str("calc(-1/0)");
+    }
     cssparser::ToCss::to_css(&self.0, dest)?;
     Ok(())
   }
@@ -219,19 +249,41 @@ impl ToCss for CSSInteger {
 impl std::ops::Mul<f32> for CSSInteger {
   type Output = Self;
   fn mul(self, other: f32) -> Self {
-    CSSInteger((self.0 as f32 * other).round() as i32)
+    let result = (self.0 as f32 * other).round();
+    // Check for overflow and produce infinity
+    if result > i32::MAX as f32 {
+      CSSInteger(i32::MAX)
+    } else if result < i32::MIN as f32 {
+      CSSInteger(i32::MIN)
+    } else {
+      CSSInteger(result as i32)
+    }
   }
 }
 
 impl AddInternal for CSSInteger {
   fn add(self, other: Self) -> Self {
-    CSSInteger(self.0 + other.0)
+    let result = self.0.saturating_add(other.0);
+    // Check for overflow and produce infinity
+    if result == i32::MAX || result == i32::MIN {
+      CSSInteger(i32::MAX)
+    } else {
+      CSSInteger(result)
+    }
   }
 }
 
 impl Op for CSSInteger {
   fn op<F: FnOnce(f32, f32) -> f32>(&self, to: &Self, op: F) -> Self {
-    CSSInteger(op(self.0 as f32, to.0 as f32).round() as i32)
+    let result = op(self.0 as f32, to.0 as f32);
+    // Check for overflow and produce infinity
+    if result > i32::MAX as f32 {
+      CSSInteger(i32::MAX)
+    } else if result < i32::MIN as f32 {
+      CSSInteger(i32::MIN)
+    } else {
+      CSSInteger(result.round() as i32)
+    }
   }
 
   fn op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> T {
@@ -241,7 +293,15 @@ impl Op for CSSInteger {
 
 impl Map for CSSInteger {
   fn map<F: FnOnce(f32) -> f32>(&self, op: F) -> Self {
-    CSSInteger((op(self.0 as f32)) as i32)
+    let result = op(self.0 as f32);
+    // Check for overflow and produce infinity
+    if result > i32::MAX as f32 {
+      CSSInteger(i32::MAX)
+    } else if result < i32::MIN as f32 {
+      CSSInteger(i32::MIN)
+    } else {
+      CSSInteger(result as i32)
+    }
   }
 }
 
@@ -265,9 +325,13 @@ impl std::convert::From<Calc<CSSInteger>> for CSSInteger {
     match calc {
       Calc::Value(v) => *v,
       Calc::Number(n) => {
-        // IEEE-754 special values are censored to 0 in top-level calculations
-        // https://drafts.csswg.org/css-values-4/#calc-ieee
-        if n.is_infinite() || n.is_nan() {
+        if n.is_infinite() {
+          if n.is_sign_negative() {
+            CSSInteger(i32::MIN)
+          } else {
+            CSSInteger(i32::MAX)
+          }
+        } else if n.is_nan() {
           CSSInteger(0)
         } else {
           CSSInteger(n.round() as i32)
@@ -289,196 +353,3 @@ impl Zero for CSSInteger {
 }
 
 impl_try_from_angle!(CSSInteger);
-
-/// A CSS [`<integer>`](https://www.w3.org/TR/css-values-4/#integers) value that supports infinity.
-///
-/// This type is similar to CSSInteger but also supports infinity values from calc().
-/// Infinity is stored using i32::MAX/i32::MIN as markers and serialized as `calc(1/0)`/`calc(-1/0)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CSSIntegerWithInfinity(pub i32);
-
-impl std::ops::Deref for CSSIntegerWithInfinity {
-  type Target = i32;
-
-  fn deref(&self) -> &Self::Target {
-    &self.0
-  }
-}
-
-impl std::ops::DerefMut for CSSIntegerWithInfinity {
-  fn deref_mut(&mut self) -> &mut Self::Target {
-    &mut self.0
-  }
-}
-
-impl From<i32> for CSSIntegerWithInfinity {
-  fn from(v: i32) -> Self {
-    CSSIntegerWithInfinity(v)
-  }
-}
-
-impl From<CSSIntegerWithInfinity> for i32 {
-  fn from(v: CSSIntegerWithInfinity) -> Self {
-    v.0
-  }
-}
-
-impl PartialEq<i32> for CSSIntegerWithInfinity {
-  fn eq(&self, other: &i32) -> bool {
-    self.0 == *other
-  }
-}
-
-impl std::fmt::Display for CSSIntegerWithInfinity {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    self.0.fmt(f)
-  }
-}
-
-impl<'i> Parse<'i> for CSSIntegerWithInfinity {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    // Try to parse using Calc::parse first for general calc expressions
-    match input.try_parse(Calc::parse) {
-      Ok(Calc::Value(v)) => return Ok(*v),
-      Ok(Calc::Number(n)) => {
-        // Handle infinity and NaN from calc
-        if n.is_infinite() {
-          if n.is_sign_negative() {
-            return Ok(CSSIntegerWithInfinity(i32::MIN));
-          } else {
-            return Ok(CSSIntegerWithInfinity(i32::MAX));
-          }
-        } else if n.is_nan() {
-          return Ok(CSSIntegerWithInfinity(0));
-        }
-        return Ok(CSSIntegerWithInfinity(n.round() as i32));
-      }
-      // Numbers are always compatible, so they will always compute to a value.
-      Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
-      _ => {}
-    }
-
-    let integer = input.expect_integer()?;
-    Ok(CSSIntegerWithInfinity(integer))
-  }
-}
-
-impl ToCss for CSSIntegerWithInfinity {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    // Check for infinity marker values (i32::MAX for +infinity, i32::MIN for -infinity)
-    if self.0 == i32::MAX {
-      // Positive infinity: output calc(1/0)
-      return dest.write_str("calc(1/0)");
-    }
-    if self.0 == i32::MIN {
-      // Negative infinity: output calc(-1/0)
-      return dest.write_str("calc(-1/0)");
-    }
-    cssparser::ToCss::to_css(&self.0, dest)?;
-    Ok(())
-  }
-}
-
-impl std::ops::Neg for CSSIntegerWithInfinity {
-  type Output = Self;
-
-  fn neg(self) -> Self::Output {
-    CSSIntegerWithInfinity(-self.0)
-  }
-}
-
-impl Zero for CSSIntegerWithInfinity {
-  fn zero() -> Self {
-    CSSIntegerWithInfinity(0)
-  }
-
-  fn is_zero(&self) -> bool {
-    self.0 == 0
-  }
-}
-
-impl crate::traits::private::AddInternal for CSSIntegerWithInfinity {
-  fn add(self, other: Self) -> Self {
-    CSSIntegerWithInfinity(self.0 + other.0)
-  }
-}
-
-impl crate::traits::Op for CSSIntegerWithInfinity {
-  fn op<F: FnOnce(f32, f32) -> f32>(&self, to: &Self, op: F) -> Self {
-    CSSIntegerWithInfinity(op(self.0 as f32, to.0 as f32).round() as i32)
-  }
-
-  fn op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> T {
-    op(self.0 as f32, rhs.0 as f32)
-  }
-}
-
-impl std::ops::Mul<f32> for CSSIntegerWithInfinity {
-  type Output = Self;
-
-  fn mul(self, other: f32) -> Self {
-    CSSIntegerWithInfinity((self.0 as f32 * other).round() as i32)
-  }
-}
-
-impl crate::traits::Sign for CSSIntegerWithInfinity {
-  fn sign(&self) -> f32 {
-    if self.0 == 0 {
-      return if self.0.is_positive() { 0.0 } else { -0.0 };
-    }
-    self.0.signum() as f32
-  }
-}
-
-impl crate::traits::Map for CSSIntegerWithInfinity {
-  fn map<F: FnOnce(f32) -> f32>(&self, op: F) -> Self {
-    CSSIntegerWithInfinity((op(self.0 as f32)) as i32)
-  }
-}
-
-// TryFrom<Angle> implementation - integers cannot be converted from angles
-impl TryFrom<crate::values::angle::Angle> for CSSIntegerWithInfinity {
-  type Error = ();
-  fn try_from(_: crate::values::angle::Angle) -> Result<Self, Self::Error> {
-    Err(())
-  }
-}
-
-impl TryInto<crate::values::angle::Angle> for CSSIntegerWithInfinity {
-  type Error = ();
-  fn try_into(self) -> Result<crate::values::angle::Angle, Self::Error> {
-    Err(())
-  }
-}
-
-impl std::convert::Into<Calc<CSSIntegerWithInfinity>> for CSSIntegerWithInfinity {
-  fn into(self) -> Calc<CSSIntegerWithInfinity> {
-    Calc::Value(Box::new(self))
-  }
-}
-
-impl std::convert::From<Calc<CSSIntegerWithInfinity>> for CSSIntegerWithInfinity {
-  fn from(calc: Calc<CSSIntegerWithInfinity>) -> Self {
-    match calc {
-      Calc::Value(v) => *v,
-      Calc::Number(n) => {
-        // Handle infinity and NaN from calc
-        if n.is_infinite() {
-          if n.is_sign_negative() {
-            CSSIntegerWithInfinity(i32::MIN)
-          } else {
-            CSSIntegerWithInfinity(i32::MAX)
-          }
-        } else if n.is_nan() {
-          CSSIntegerWithInfinity(0)
-        } else {
-          CSSIntegerWithInfinity(n.round() as i32)
-        }
-      }
-      _ => unreachable!(),
-    }
-  }
-}

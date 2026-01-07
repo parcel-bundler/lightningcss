@@ -7,7 +7,6 @@ use crate::values::number::{CSSInteger, CSSNumber};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
-use std::fmt::Write;
 
 /// A CSS [easing function](https://www.w3.org/TR/css-easing-1/#easing-functions).
 #[derive(Debug, Clone, PartialEq)]
@@ -172,7 +171,7 @@ impl ToCss for EasingFunction {
       } => dest.write_str("step-end"),
       EasingFunction::Steps { count, position } => {
         dest.write_str("steps(")?;
-        write!(dest, "{}", count)?;
+        count.to_css(dest)?;
         dest.delim(',', false)?;
         position.to_css(dest)?;
         dest.write_char(')')

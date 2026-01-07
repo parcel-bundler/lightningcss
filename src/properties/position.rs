@@ -7,7 +7,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::traits::{Parse, PropertyHandler, ToCss};
-use crate::values::number::CSSIntegerWithInfinity;
+use crate::values::number::CSSInteger;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -86,7 +86,7 @@ pub enum ZIndex {
   /// The `auto` keyword.
   Auto,
   /// An integer value (supports infinity via calc()).
-  Integer(CSSIntegerWithInfinity),
+  Integer(CSSInteger),
 }
 
 impl<'i> Parse<'i> for ZIndex {
@@ -95,8 +95,8 @@ impl<'i> Parse<'i> for ZIndex {
       return Ok(ZIndex::Auto);
     }
 
-    // Use CSSIntegerWithInfinity::parse which handles calc() and infinity
-    let integer = CSSIntegerWithInfinity::parse(input)?;
+    // Use CSSInteger::parse which handles calc() and infinity
+    let integer = CSSInteger::parse(input)?;
     Ok(ZIndex::Integer(integer))
   }
 }
