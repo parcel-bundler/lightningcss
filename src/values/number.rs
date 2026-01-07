@@ -6,6 +6,8 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
 use crate::traits::{Map, Op, Parse, Sign, ToCss, Zero};
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [`<number>`](https://www.w3.org/TR/css-values-4/#numbers) value.
@@ -127,6 +129,10 @@ impl_try_from_angle!(CSSNumber);
 /// Integers may be explicit or computed by `calc()`, but are always stored and serialized
 /// as their computed value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "visitor", derive(crate::visitor::Visit))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct CSSInteger(pub i32);
 
 impl std::ops::Deref for CSSInteger {
