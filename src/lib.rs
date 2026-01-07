@@ -7700,8 +7700,10 @@ mod tests {
     minify_test(".order6 { order: calc(0.5) }", ".order6{order:1}");
     minify_test(".order7 { order: calc(-5 * 0) }", ".order7{order:0}");
 
-    // Test Infinity
-    // https://drafts.csswg.org/css-values-4/#calc-ieee
+    // Test Infinity <integer>
+    // i32: calc(1/0) = 2147483647 = 2^31 - 1
+    // i32: calc(-1/0) = -2147483648 = -2^31
+    // Spec: https://drafts.csswg.org/css-values-4/#calc-ieee
     minify_test(
       ".infinity1 { z-index: calc(9/0) }",
       ".infinity1{z-index:calc(1/0)}",
@@ -7727,7 +7729,7 @@ mod tests {
       ".infinity3-1{z-index:0}",
     );
     minify_test(
-      ".infinity3-1 { z-index: calc(-0/0) }",
+      ".infinity3-1 { z-index: calc(-0/0) }", // NaN
       ".infinity3-1{z-index:0}",
     );
     minify_test(
@@ -7762,6 +7764,46 @@ mod tests {
       ".infinity10 { z-index: calc(infinity + infinity) }",
       ".infinity10{z-index:calc(1/0)}",
     );
+
+    minify_test(
+      ".infinity11-0 { z-index: calc(2147483 - 1) }",
+      ".infinity11-0{z-index:2147482}",
+    );
+    // TODO: Using the double type (f64) in Chrome can prevent precision loss.
+    // We currently align with Firefox, 2147483647 - 65 = 2147483520
+    minify_test(
+      ".infinity11-1 { z-index: calc(2147483647 - 65) }",
+      ".infinity11-1{z-index:2147483520}", // Chrome: 2147483582, Firefox: 2147483520
+    );
+    minify_test(
+      ".infinity11-2 { z-index: calc(-2147483647 + 1) }",
+      ".infinity11-2{z-index:calc(-1/0)}", // Chrome: -2147483646, Firefox: -2147483648
+    );
+    minify_test(
+      ".infinity11-3 { z-index: calc(2147483647 + 1) }",
+      ".infinity11-3{z-index:calc(1/0)}", // 2147483647
+    );
+    minify_test(
+      ".infinity11-4 { z-index: calc(-2147483647 - 1) }",
+      ".infinity11-4{z-index:calc(-1/0)}", // -2147483648
+    );
+    minify_test(
+      ".infinity11-5 { z-index: calc(2147483646 + infinity) }",
+      ".infinity11-5{z-index:calc(1/0)}", // 2147483647
+    );
+    minify_test(
+      ".infinity11-6 { z-index: calc(2147483647 + 2 - 1) }",
+      ".infinity11-6{z-index:calc(1/0)}", // 2147483647
+    );
+    minify_test(
+      ".infinity12-1 { z-index: calc(calc(1/0) + infinity) }",
+      ".infinity12-1{z-index:calc(1/0)}",
+    );
+    minify_test(
+      ".infinity12-2 { z-index: calc(calc(1/0) - infinity) }",
+      ".infinity12-2{z-index:0}",
+    );
+
     minify_test(
       ".infinity6 { order: calc(infinity / infinity) }",
       ".infinity6{order:0}",
@@ -7801,7 +7843,7 @@ mod tests {
     //   ".orphans4{orphans:-5}",
     // );
 
-    // Test repeat() = <integer [1,∞]>
+    // Test infinity repeat() = <integer [1,∞]>
     minify_test(
       ".grid1 { grid-template-rows: repeat( calc(0.5), 1fr ); }",
       ".grid1{grid-template-rows:repeat(1,1fr)}",
@@ -7818,6 +7860,7 @@ mod tests {
       ".grid-mix1 { grid-template-rows: repeat( calc(0.5 * 5 - 1), minmax(calc(100px * 2), 1fr) ); }",
       ".grid-mix1{grid-template-rows:repeat(2,minmax(200px,1fr))}",
     );
+    // end infinity
 
     minify_test(".mix1 { z-index: calc(10 + 5 * 2 - 3) }", ".mix1{z-index:17}");
     minify_test(".mix2 { z-index: calc(10 * 2 + 5) }", ".mix2{z-index:25}");
