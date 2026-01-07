@@ -187,7 +187,7 @@ impl<'i> Parse<'i> for BasePalette {
       if i.is_negative() {
         return Err(input.new_custom_error(ParserError::InvalidValue));
       }
-      return Ok(BasePalette::Integer(i32::from(i) as u16));
+      return Ok(BasePalette::Integer(*i as u16));
     }
 
     let location = input.current_source_location();
@@ -226,7 +226,7 @@ impl<'i> Parse<'i> for OverrideColors {
     }
 
     Ok(OverrideColors {
-      index: i32::from(index) as u16,
+      index: (*index) as u16,
       color,
     })
   }
@@ -237,7 +237,7 @@ impl ToCss for OverrideColors {
   where
     W: std::fmt::Write,
   {
-    CSSInteger(i32::from(self.index)).to_css(dest)?;
+    CSSInteger(self.index as i32).to_css(dest)?;
     dest.write_char(' ')?;
     self.color.to_css(dest)
   }

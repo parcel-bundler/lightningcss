@@ -265,8 +265,10 @@ impl AddInternal for CSSInteger {
   fn add(self, other: Self) -> Self {
     let result = self.0.saturating_add(other.0);
     // Check for overflow and produce infinity
-    if result == i32::MAX || result == i32::MIN {
+    if result == i32::MAX {
       CSSInteger(i32::MAX)
+    } else if result == i32::MIN {
+      CSSInteger(i32::MIN)
     } else {
       CSSInteger(result)
     }

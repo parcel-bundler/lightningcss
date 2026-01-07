@@ -91,7 +91,10 @@ pub enum ZIndex {
 
 impl<'i> Parse<'i> for ZIndex {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|input| input.expect_ident_cloned()).is_ok() {
+    if input
+      .try_parse(|input| input.expect_ident_matching("auto"))
+      .is_ok()
+    {
       return Ok(ZIndex::Auto);
     }
 

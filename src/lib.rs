@@ -7796,6 +7796,10 @@ mod tests {
       ".infinity11-6{z-index:calc(1/0)}", // 2147483647
     );
     minify_test(
+      ".infinity11-7 { z-index: calc(1 - 2147483649) }",
+      ".infinity11-7{z-index:calc(-1/0)}", // Negative overflow: 1 + (-2147483649) = -2147483648
+    );
+    minify_test(
       ".infinity12-1 { z-index: calc(calc(1/0) + infinity) }",
       ".infinity12-1{z-index:calc(1/0)}",
     );
@@ -7821,8 +7825,64 @@ mod tests {
       ".infinity6{order:calc(1/0)}",
     );
     minify_test(
-      ".infinity-flex { flex: calc(6 / 0); }",
-      ".infinity-flex{flex:calc(1/0)}",
+      ".infinity-new2 { transition-timing-function: steps(calc(infinity), jump-start) }",
+      ".infinity-new2{transition-timing-function:steps(calc(1/0),start)}",
+    );
+    minify_test(
+      ".infinity-new3 { transition: steps(calc(infinity), jump-start) }",
+      ".infinity-new3{transition:all steps(calc(1/0),start)}",
+    );
+
+    // Test Infinity <length> - division by zero should preserve sign
+    minify_test(
+      ".infinity-dim1 { width: calc(100px / 0) }",
+      ".infinity-dim1{width:calc(100px/0)}",
+    );
+    minify_test(
+      ".infinity-dim2 { width: calc(100px / -0) }",
+      ".infinity-dim2{width:calc(100px/-0)}",
+    );
+    minify_test(
+      ".infinity-dim3 { width: calc(-100px / 0) }",
+      ".infinity-dim3{width:calc(-100px/0)}",
+    );
+    minify_test(
+      ".infinity-dim4 { width: calc(-100px / -0) }",
+      ".infinity-dim4{width:calc(-100px/-0)}",
+    );
+    minify_test(
+      ".infinity-dim5 { width: calc(-0px); height: calc(-0); }",
+      ".infinity-dim5{width:0;height:0}",
+    );
+
+    // Test Infinity <number>
+    minify_test(
+      ".number1 { line-height: calc(9/0) }",
+      ".number1{line-height:calc(1/0)}",
+    );
+    minify_test(
+      ".number2 { line-height: calc(0.0002/0) }",
+      ".number2{line-height:calc(1/0)}",
+    );
+    minify_test(
+      ".number3 { line-height: calc(-1/0) }",
+      ".number3{line-height:calc(-1/0)}",
+    );
+    minify_test(
+      ".number3-1 { line-height: calc(1/-0) }",
+      ".number3-1{line-height:calc(-1/0)}",
+    );
+    minify_test(
+      ".number3-1 { flex: calc(0/-0) }",
+      ".number3-1{flex:0}",
+    );
+    minify_test(
+      ".number4 { flex: calc(1 * infinity) }",
+      ".number4{flex:calc(1/0)}",
+    );
+    minify_test(
+      ".number5 { flex: calc(-1 * infinity) }",
+      ".number5{flex:calc(-1/0)}",
     );
 
     // TODO Support orphans prop

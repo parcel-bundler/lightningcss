@@ -629,7 +629,10 @@ impl<
               }
               // Non-Number (like Length) / 0 = infinity
               // For Length values, we keep them as-is and let ToCss handle serialization
-              node = Calc::Product(1.0, Box::new(node));
+              // Use f32::INFINITY as marker for division by zero
+              // In ToCss, we'll output /0 or /-0 based on the marker
+              let marker = if f32::is_sign_negative(val) { -f32::INFINITY } else { f32::INFINITY };
+              node = Calc::Product(marker, Box::new(node));
               continue;
             }
             // Division by infinity
@@ -1010,9 +1013,18 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
         }
       }
       Calc::Product(num, calc) => {
-        // Special case: Product(1, value) represents value/0 (infinity)
-        // Serialize as calc(value/0) instead of calc(1 * value)
-        if *num == 1.0 {
+        // Special case: Product(INFINITY, value) represents value/0 (division by positive zero)
+        // Special case: Product(-INFINITY, value) represents value/-0 (division by negative zero)
+        // Serialize as calc(value/0) or calc(value/-0) instead of calc(INFINITY * value)
+        if num.is_infinite() {
+          calc.to_css(dest)?;
+          dest.delim('/', true)?;
+          if f32::is_sign_negative(*num) {
+            dest.write_str("-0")
+          } else {
+            dest.write_str("0")
+          }
+        } else if *num == 1.0 {
           calc.to_css(dest)?;
           dest.delim('/', true)?;
           dest.write_str("0")
