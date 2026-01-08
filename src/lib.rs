@@ -30379,4 +30379,39 @@ mod tests {
       },
     );
   }
+
+  #[test]
+  fn test_nested_declarations_logical_properties() {
+    nesting_test(
+      r#"
+        .foo {
+          :where(&) { width: unset; }
+          border-start-start-radius: 10px;
+        }
+      "#,
+      indoc! {r#"
+        :where(.foo) {
+          width: unset;
+        }
+
+        .foo {
+          border-start-start-radius: 10px;
+        }
+      "#},
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        :where(&) { width: unset; }
+        border-start-start-radius: 10px;
+      }
+    "#,
+      ".foo:not(:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi))) {\n  border-top-left-radius: 10px;\n}\n\n.foo:not(:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi))) {\n  border-top-left-radius: 10px;\n}\n\n.foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {\n  border-top-right-radius: 10px;\n}\n\n.foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {\n  border-top-right-radius: 10px;\n}\n\n:where(.foo) {\n  width: unset;\n}\n\n\n",
+      Browsers {
+        chrome: Some(70 << 16),
+        ..Browsers::default()
+      },
+    );
+  }
 }
