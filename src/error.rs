@@ -84,6 +84,8 @@ pub enum ParserError<'i> {
   InvalidDeclaration,
   /// A media query was invalid.
   InvalidMediaQuery,
+  /// The brackets in a condition cannot be empty.
+  EmptyBracketInCondition,
   /// Invalid CSS nesting.
   InvalidNesting,
   /// The @nest rule is deprecated.
@@ -118,6 +120,7 @@ impl<'i> fmt::Display for ParserError<'i> {
       EndOfInput => write!(f, "Unexpected end of input"),
       InvalidDeclaration => write!(f, "Invalid declaration"),
       InvalidMediaQuery => write!(f, "Invalid media query"),
+      EmptyBracketInCondition => write!(f, "The brackets cannot be empty"),
       InvalidNesting => write!(f, "Invalid nesting"),
       DeprecatedNestRule => write!(f, "The @nest rule is deprecated"),
       DeprecatedCssModulesValueRule => write!(f, "The @value rule is deprecated"),

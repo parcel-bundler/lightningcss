@@ -9167,6 +9167,10 @@ mod tests {
       ParserError::UnexpectedToken(crate::properties::custom::Token::Function("unknown".into())),
     );
 
+    // empty brackets should return a clearer error message
+    error_test("@media () {}", ParserError::EmptyBracketInCondition);
+    error_test("@media screen and () {}", ParserError::EmptyBracketInCondition);
+
     error_recovery_test("@media unknown(foo) {}");
   }
 
@@ -29157,6 +29161,18 @@ mod tests {
 
   #[test]
   fn test_container_queries() {
+    // name only (no condition) - new syntax
+    minify_test(
+      r#"
+      @container foo {
+        .inner {
+          background: green;
+        }
+      }
+    "#,
+      "@container foo{.inner{background:green}}",
+    );
+
     // with name
     minify_test(
       r#"
@@ -29588,6 +29604,19 @@ mod tests {
     error_test(
       "@container unknown(foo) {}",
       ParserError::UnexpectedToken(crate::properties::custom::Token::Function("unknown".into())),
+    );
+
+    // empty container (no name and no condition) should error
+    error_test("@container {}", ParserError::EndOfInput);
+
+    // empty brackets should return a clearer error message
+    error_test("@container () {}", ParserError::EmptyBracketInCondition);
+
+    // invalid condition after a name should error
+    error_test("@container foo () {}", ParserError::EmptyBracketInCondition);
+    error_test(
+      "@container foo bar {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("bar".into())),
     );
 
     error_recovery_test("@container unknown(foo) {}");

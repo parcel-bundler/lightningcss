@@ -791,6 +791,11 @@ fn parse_paren_block<'t, 'i, P: QueryCondition<'i>>(
   options: &ParserOptions<'_, 'i>,
 ) -> Result<P, ParseError<'i, ParserError<'i>>> {
   input.parse_nested_block(|input| {
+    // Detect empty brackets and provide a clearer error message.
+    if input.is_exhausted() {
+      return Err(input.new_custom_error(ParserError::EmptyBracketInCondition));
+    }
+
     if let Ok(inner) =
       input.try_parse(|i| parse_query_condition(i, flags | QueryConditionFlags::ALLOW_OR, options))
     {

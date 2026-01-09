@@ -32,7 +32,7 @@ pub struct ContainerRule<'i, R = DefaultAtRule> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: Option<ContainerName<'i>>,
   /// The container condition.
-  pub condition: ContainerCondition<'i>,
+  pub condition: Option<ContainerCondition<'i>>,
   /// The rules within the `@container` rule.
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
@@ -478,16 +478,22 @@ impl<'a, 'i, T: ToCss> ToCss for ContainerRule<'i, T> {
     #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@container ")?;
+    let has_condition = self.condition.is_some();
+
     if let Some(name) = &self.name {
       name.to_css(dest)?;
-      dest.write_char(' ')?;
+      if has_condition {
+        dest.write_char(' ')?;
+      }
     }
 
-    // Don't downlevel range syntax in container queries.
-    let exclude = dest.targets.current.exclude;
-    dest.targets.current.exclude.insert(Features::MediaQueries);
-    self.condition.to_css(dest)?;
-    dest.targets.current.exclude = exclude;
+    if let Some(condition) = &self.condition {
+      // Don't downlevel range syntax in container queries.
+      let exclude = dest.targets.current.exclude;
+      dest.targets.current.exclude.insert(Features::MediaQueries);
+      condition.to_css(dest)?;
+      dest.targets.current.exclude = exclude;
+    }
 
     dest.whitespace()?;
     dest.write_char('{')?;
