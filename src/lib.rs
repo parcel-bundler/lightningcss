@@ -22703,6 +22703,34 @@ mod tests {
       ".foo{width:attr(data-width type(<length>), 100px)}",
     );
 
+    minify_test(
+      ".foo { width: attr( data-foo    % ); }",
+      ".foo{width:attr(data-foo %)}",
+    );
+
+    // <attr-args> = attr( <declaration-value>, <declaration-value>? )
+    // Like var(), a bare comma can be used with nothing following it, indicating that the second <declaration-value> was passed, just as an empty sequence.
+    // Spec: https://drafts.csswg.org/css-values-5/#funcdef-attr
+    minify_test(
+      ".foo { width: attr( data-foo    %, ); }",
+      ".foo{width:attr(data-foo %,)}",
+    );
+
+    minify_test(
+      ".foo { width: attr( data-foo    px ); }",
+      ".foo{width:attr(data-foo px)}",
+    );
+
+    minify_test(
+      ".foo { width: attr(data-foo    number ); }",
+      ".foo{width:attr(data-foo number)}",
+    );
+
+    minify_test(
+      ".foo { width: attr(data-foo    raw-string); }",
+      ".foo{width:attr(data-foo raw-string)}",
+    );
+
     // Test attr() function with type() syntax - non-minified (issue with extra spaces)
     test(
       ".foo { background-color: attr(data-color type(<color>)); }",
