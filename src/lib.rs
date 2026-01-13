@@ -393,6 +393,122 @@ mod tests {
   }
 
   #[test]
+  pub fn test_math_fn() {
+    // max()
+    minify_test(
+      r#"
+      .foo {
+        color: rgb(max(255, 100), 0, 0);
+      }
+    "#,
+      indoc! {".foo{color:red}"
+      },
+    );
+    // min()
+    minify_test(
+      r#"
+      .foo {
+        color: rgb(min(255, 500), 0, 0);
+      }
+    "#,
+      indoc! {".foo{color:red}"
+      },
+    );
+    // abs()
+    minify_test(
+      r#"
+      .foo {
+        color: rgb(abs(-255), 0, 0);
+      }
+    "#,
+      indoc! {".foo{color:red}"
+      },
+    );
+    // clamp()
+    minify_test(
+      r#"
+      .foo {
+        flex: clamp(1, 5.20, 20);
+        color: rgb(clamp(0, 255, 300), 0, 0);
+      }
+    "#,
+      indoc! {".foo{color:red;flex:5.2}"
+      },
+    );
+    // round()
+    minify_test(
+      r#"
+      .round-color {
+        color: rgb(round(down, 255.6, 1), 0, 0);
+      }
+    "#,
+      indoc! {".round-color{color:red}"
+      },
+    );
+    // hypot()
+    minify_test(
+      r#"
+      .hypot-color {
+        color: rgb(hypot(255, 0), 0, 0);
+      }
+    "#,
+      indoc! {".hypot-color{color:red}"
+      },
+    );
+    // sign(), sign(50) = 1
+    minify_test(
+      r#"
+      .sign-color {
+        color: rgb(sign(50), 0, 0);
+      }
+    "#,
+      indoc! {".sign-color{color:#010000}"
+      },
+    );
+    // rem(), rem(21, 2) = 1
+    minify_test(
+      r#"
+      .rem-color {
+        color: rgb(rem(21, 2), 0, 0);
+      }
+    "#,
+      indoc! {".rem-color{color:#010000}"
+      },
+    );
+    // max() in width
+    minify_test(
+      r#"
+      .foo {
+        width: max(200px,   5px);
+      }
+    "#,
+      indoc! {".foo{width:200px}"
+      },
+    );
+    // max() in opacity
+    minify_test(
+      r#"
+      .foo {
+        opacity: max(1, 0.2);
+        filter: invert(min(1, 0.5));
+      }
+    "#,
+      indoc! {".foo{opacity:1;filter:invert(.5)}"
+      },
+    );
+    // TODO: support calc in Integer
+    // minify_test(
+    //   r#"
+    //   .foo {
+    //     z-index: max(100,    20);
+    //   }
+    // "#,
+    //   indoc! {".foo{z-index:100}"
+    //   },
+    // );
+  }
+
+  #[test]
   pub fn test_border() {
     test(
       r#"
