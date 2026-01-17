@@ -3694,12 +3694,12 @@ impl Feature {
       }
       Feature::StatePseudoClass => {
         if let Some(version) = browsers.chrome {
-          if version < 5898240 {
+          if version < 8192000 {
             return false;
           }
         }
         if let Some(version) = browsers.edge {
-          if version < 5898240 {
+          if version < 8192000 {
             return false;
           }
         }
@@ -3709,7 +3709,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
-          if version < 4194304 {
+          if version < 5439488 {
             return false;
           }
         }
@@ -3724,12 +3724,12 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version < 983040 {
+          if version < 1769472 {
             return false;
           }
         }
         if let Some(version) = browsers.android {
-          if version < 5898240 {
+          if version < 8192000 {
             return false;
           }
         }

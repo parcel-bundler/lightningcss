@@ -343,7 +343,20 @@ let mdnFeatures = {
   checkmark: mdn.css.selectors.checkmark.__compat.support,
   grammarError: mdn.css.selectors['grammar-error'].__compat.support,
   spellingError: mdn.css.selectors['spelling-error'].__compat.support,
-  statePseudoClass: mdn.css.selectors.state.__compat.support,
+  statePseudoClass: Object.fromEntries(
+    Object.entries(mdn.css.selectors.state.__compat.support)
+      .map(([browser, value]) => {
+        // Chrome/Edge 90-124 supported old :--foo syntax which was removed.
+        // Only include full :state(foo) support from 125+.
+        if (Array.isArray(value)) {
+          value = value.filter(v => !v.partial_implementation)
+        } else if (value.partial_implementation) {
+          value = undefined;
+        }
+
+        return [browser, value];
+      })
+  ),
 };
 
 for (let key in mdn.css.types.length) {
