@@ -343,6 +343,7 @@ let mdnFeatures = {
   checkmark: mdn.css.selectors.checkmark.__compat.support,
   grammarError: mdn.css.selectors['grammar-error'].__compat.support,
   spellingError: mdn.css.selectors['spelling-error'].__compat.support,
+  statePseudoClass: mdn.css.selectors.state.__compat.support,
 };
 
 for (let key in mdn.css.types.length) {
