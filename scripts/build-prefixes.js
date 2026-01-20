@@ -665,7 +665,10 @@ impl Feature {
       if self.is_compatible(browsers) {
         return true
       }
-      browsers.${browser} = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.${browser} = None;
+      }
     }\n`).join('    ')}
     false
   }

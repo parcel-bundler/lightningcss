@@ -1893,7 +1893,7 @@ mod tests {
     targets::{Browsers, Targets},
   };
 
-  fn parse(s: &str) -> MediaQuery {
+  fn parse(s: &str) -> MediaQuery<'_> {
     let mut input = ParserInput::new(&s);
     let mut parser = Parser::new(&mut input);
     MediaQuery::parse_with_options(&mut parser, &ParserOptions::default()).unwrap()

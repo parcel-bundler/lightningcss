@@ -100,7 +100,6 @@ pub enum Feature {
   ImageSet,
   InOutOfRange,
   IndeterminatePseudo,
-  IsAnimatableSize,
   IsSelector,
   JapaneseFormalListStyleType,
   JapaneseInformalListStyleType,
@@ -5555,53 +5554,6 @@ impl Feature {
           return false;
         }
       }
-      Feature::IsAnimatableSize => {
-        if let Some(version) = browsers.chrome {
-          if version < 1703936 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.edge {
-          if version < 786432 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.firefox {
-          if version < 1048576 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.ie {
-          if version < 720896 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.opera {
-          if version < 917504 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.safari {
-          if version < 458752 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.ios_saf {
-          if version < 458752 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.samsung {
-          if version < 66816 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.android {
-          if version < 263168 {
-            return false;
-          }
-        }
-      }
       Feature::MaxContentSize => {
         if let Some(version) = browsers.chrome {
           if version < 1638400 {
@@ -5785,63 +5737,90 @@ impl Feature {
       if self.is_compatible(browsers) {
         return true;
       }
-      browsers.android = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.android = None;
+      }
     }
     if targets.chrome.is_some() {
       browsers.chrome = targets.chrome;
       if self.is_compatible(browsers) {
         return true;
       }
-      browsers.chrome = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.chrome = None;
+      }
     }
     if targets.edge.is_some() {
       browsers.edge = targets.edge;
       if self.is_compatible(browsers) {
         return true;
       }
-      browsers.edge = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.edge = None;
+      }
     }
     if targets.firefox.is_some() {
       browsers.firefox = targets.firefox;
       if self.is_compatible(browsers) {
         return true;
       }
-      browsers.firefox = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.firefox = None;
+      }
     }
     if targets.ie.is_some() {
       browsers.ie = targets.ie;
       if self.is_compatible(browsers) {
         return true;
       }
-      browsers.ie = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.ie = None;
+      }
     }
     if targets.ios_saf.is_some() {
       browsers.ios_saf = targets.ios_saf;
       if self.is_compatible(browsers) {
         return true;
       }
-      browsers.ios_saf = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.ios_saf = None;
+      }
     }
     if targets.opera.is_some() {
       browsers.opera = targets.opera;
       if self.is_compatible(browsers) {
         return true;
       }
-      browsers.opera = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.opera = None;
+      }
     }
     if targets.safari.is_some() {
       browsers.safari = targets.safari;
       if self.is_compatible(browsers) {
         return true;
       }
-      browsers.safari = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.safari = None;
+      }
     }
     if targets.samsung.is_some() {
       browsers.samsung = targets.samsung;
       if self.is_compatible(browsers) {
         return true;
       }
-      browsers.samsung = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.samsung = None;
+      }
     }
 
     false

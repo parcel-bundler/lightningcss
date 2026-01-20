@@ -993,7 +993,7 @@ impl<'a> std::hash::Hash for Token<'a> {
 /// Converts a floating point value into its mantissa, exponent,
 /// and sign components so that it can be hashed.
 fn integer_decode(v: f32) -> (u32, i16, i8) {
-  let bits: u32 = unsafe { std::mem::transmute(v) };
+  let bits: u32 = f32::to_bits(v);
   let sign: i8 = if bits >> 31 == 0 { 1 } else { -1 };
   let mut exponent: i16 = ((bits >> 23) & 0xff) as i16;
   let mantissa = if exponent == 0 {
