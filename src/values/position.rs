@@ -203,11 +203,32 @@ impl ToCss for Position {
         // `center` is assumed if omitted.
         x_lp.to_css(dest)
       }
+      (
+        &HorizontalPosition::Side {
+          side: HorizontalPositionKeyword::Left,
+          offset: Some(ref x_lp),
+        },
+        y,
+      ) if y.is_center() => {
+        // `left 10px center` => `10px` (omit Y when center)
+        x_lp.to_css(dest)
+      }
       (&HorizontalPosition::Side { side, offset: None }, y) if y.is_center() => {
         let p: LengthPercentage = side.into();
         p.to_css(dest)
       }
       (x, y_pos @ &VerticalPosition::Side { offset: None, .. }) if x.is_center() => y_pos.to_css(dest),
+      (
+        &HorizontalPosition::Center,
+        y_pos @ &VerticalPosition::Side {
+          side: VerticalPositionKeyword::Bottom,
+          offset: Some(_),
+        },
+      ) => {
+        // `center bottom 10px` must keep the keyword form
+        dest.write_str("center ")?;
+        y_pos.to_css(dest)
+      }
       (&HorizontalPosition::Side { side: x, offset: None }, &VerticalPosition::Side { side: y, offset: None }) => {
         let x: LengthPercentage = x.into();
         let y: LengthPercentage = y.into();

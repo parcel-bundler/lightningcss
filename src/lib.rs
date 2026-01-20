@@ -4311,11 +4311,23 @@ mod tests {
     );
     minify_test(
       ".foo { background-position: left 10px center }",
-      ".foo{background-position:10px 50%}",
+      ".foo{background-position:10px}",
     );
     minify_test(
       ".foo { background-position: right 10px center }",
       ".foo{background-position:right 10px center}",
+    );
+    minify_test(
+      ".foo { background-position: center top 10px }",
+      ".foo{background-position:50% 10px}",
+    );
+    minify_test(
+      ".foo { background-position: center bottom 10px }",
+      ".foo{background-position:center bottom 10px}",
+    );
+    minify_test(
+      ".foo { background-position: center 10px }",
+      ".foo{background-position:50% 10px}",
     );
     minify_test(
       ".foo { background-position: right 10px top 20px }",
@@ -4336,6 +4348,26 @@ mod tests {
     minify_test(
       ".foo { background-position: bottom right }",
       ".foo{background-position:100% 100%}",
+    );
+    minify_test(
+      ".foo { background-position: center top }",
+      ".foo{background-position:top}",
+    );
+    minify_test(
+      ".foo { background-position: center bottom }",
+      ".foo{background-position:bottom}",
+    );
+    minify_test(
+      ".foo { background-position: left center }",
+      ".foo{background-position:0}",
+    );
+    minify_test(
+      ".foo { background-position: right center }",
+      ".foo{background-position:100%}",
+    );
+    minify_test(
+      ".foo { background-position: 20px center }",
+      ".foo{background-position:20px}",
     );
 
     minify_test(
