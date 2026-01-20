@@ -404,7 +404,7 @@ for (let key in mdn.css.properties['list-style-type']) {
 }
 
 for (let key in mdn.css.properties['width']) {
-  if (key === '__compat' || key === 'animatable') {
+  if (key === '__compat' || key === 'is_animatable') {
     continue;
   }
 

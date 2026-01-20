@@ -144,8 +144,7 @@ impl IsCompatible for Size {
       }
       Stretch(vp) => match *vp {
         VendorPrefix::None => Feature::StretchSize,
-        VendorPrefix::WebKit => Feature::WebkitFillAvailableSize,
-        VendorPrefix::Moz => Feature::MozAvailableSize,
+        VendorPrefix::WebKit | VendorPrefix::Moz => Feature::WebkitFillAvailableSize,
         _ => return false,
       }
       .is_compatible(browsers),
@@ -278,8 +277,7 @@ impl IsCompatible for MaxSize {
       }
       Stretch(vp) => match *vp {
         VendorPrefix::None => Feature::StretchSize,
-        VendorPrefix::WebKit => Feature::WebkitFillAvailableSize,
-        VendorPrefix::Moz => Feature::MozAvailableSize,
+        VendorPrefix::WebKit | VendorPrefix::Moz => Feature::WebkitFillAvailableSize,
         _ => return false,
       }
       .is_compatible(browsers),
