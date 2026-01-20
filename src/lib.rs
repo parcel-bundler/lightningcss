@@ -23112,10 +23112,7 @@ mod tests {
       ".foo{width:attr(data-width type(<length>), 100px)}",
     );
 
-    minify_test(
-      ".foo { width: attr( data-foo    % ); }",
-      ".foo{width:attr(data-foo %)}",
-    );
+    minify_test(".foo { width: attr( data-foo    % ); }", ".foo{width:attr(data-foo %)}");
 
     // <attr-args> = attr( <declaration-value>, <declaration-value>? )
     // Like var(), a bare comma can be used with nothing following it, indicating that the second <declaration-value> was passed, just as an empty sequence.

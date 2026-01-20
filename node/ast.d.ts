@@ -5231,7 +5231,7 @@ export type RepeatCount =
     };
 export type AutoFlowDirection = "row" | "column";
 /**
- * A value for the [grid-template-areas](https://drafts.csswg.org/css-grid-2/#grid-template-areas-property) property.
+ * A value for the [grid-template-areas](https://drafts.csswg.org/css-grid-2/#grid-template-areas-property) property. none | <string>+
  */
 export type GridTemplateAreas =
   | {
@@ -6802,6 +6802,13 @@ export type PseudoClass =
       type: String[];
     }
   | {
+      kind: "state";
+      /**
+       * The custom state identifier.
+       */
+      state: String;
+    }
+  | {
       kind: "local";
       /**
        * A local selector.
@@ -7267,6 +7274,10 @@ export type ParsedComponent =
       value: DimensionPercentageFor_LengthValue;
     }
   | {
+      type: "string";
+      value: String;
+    }
+  | {
       type: "color";
       value: CssColor;
     }
@@ -7366,6 +7377,9 @@ export type SyntaxComponentKind =
     }
   | {
       type: "length-percentage";
+    }
+  | {
+      type: "string";
     }
   | {
       type: "color";
@@ -8493,6 +8507,8 @@ export interface GridAutoFlow {
 /**
  * A value for the [grid-template](https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand) shorthand property.
  *
+ * none | [ <'grid-template-rows'> / <'grid-template-columns'> ] | [ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]?
+ *
  * If `areas` is not `None`, then `rows` must also not be `None`.
  */
 export interface GridTemplate {
@@ -8511,6 +8527,8 @@ export interface GridTemplate {
 }
 /**
  * A value for the [grid](https://drafts.csswg.org/css-grid-2/#grid-shorthand) shorthand property.
+ *
+ * <'grid-template'> | <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>? | [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>
  *
  * Explicit and implicit values may not be combined.
  */
@@ -8541,7 +8559,7 @@ export interface Grid {
   rows: TrackSizing;
 }
 /**
- * A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-row) shorthand property.
+ * A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-row) shorthand property. <grid-line> [ / <grid-line> ]?
  */
 export interface GridRow {
   /**
@@ -8554,7 +8572,7 @@ export interface GridRow {
   start: GridLine;
 }
 /**
- * A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property.
+ * A value for the [grid-column](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property. <grid-line> [ / <grid-line> ]?
  */
 export interface GridColumn {
   /**
@@ -8567,7 +8585,7 @@ export interface GridColumn {
   start: GridLine;
 }
 /**
- * A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) shorthand property.
+ * A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) shorthand property. <grid-line> [ / <grid-line> ]{0,3}
  */
 export interface GridArea {
   /**
