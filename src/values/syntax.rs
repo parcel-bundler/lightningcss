@@ -63,6 +63,8 @@ pub enum SyntaxComponentKind {
   Percentage,
   /// A `<length-percentage>` component.
   LengthPercentage,
+  /// A `<string>` component.
+  String,
   /// A `<color>` component.
   Color,
   /// An `<image>` component.
@@ -126,6 +128,8 @@ pub enum ParsedComponent<'i> {
   Percentage(values::percentage::Percentage),
   /// A `<length-percentage>` value.
   LengthPercentage(values::length::LengthPercentage),
+  /// A `<string>` value.
+  String(values::string::CSSString<'i>),
   /// A `<color>` value.
   Color(values::color::CssColor),
   /// An `<image>` value.
@@ -222,6 +226,7 @@ impl<'i> SyntaxString {
                 SyntaxComponentKind::LengthPercentage => {
                   ParsedComponent::LengthPercentage(values::length::LengthPercentage::parse(input)?)
                 }
+                SyntaxComponentKind::String => ParsedComponent::String(values::string::CSSString::parse(input)?),
                 SyntaxComponentKind::Color => ParsedComponent::Color(values::color::CssColor::parse(input)?),
                 SyntaxComponentKind::Image => ParsedComponent::Image(values::image::Image::parse(input)?),
                 SyntaxComponentKind::Url => ParsedComponent::Url(values::url::Url::parse(input)?),
@@ -343,6 +348,7 @@ impl SyntaxComponentKind {
         "number" => SyntaxComponentKind::Number,
         "percentage" => SyntaxComponentKind::Percentage,
         "length-percentage" => SyntaxComponentKind::LengthPercentage,
+        "string" => SyntaxComponentKind::String,
         "color" => SyntaxComponentKind::Color,
         "image" => SyntaxComponentKind::Image,
         "url" => SyntaxComponentKind::Url,
@@ -440,6 +446,7 @@ impl ToCss for SyntaxComponentKind {
       Number => "<number>",
       Percentage => "<percentage>",
       LengthPercentage => "<length-percentage>",
+      String => "<string>",
       Color => "<color>",
       Image => "<image>",
       Url => "<url>",
@@ -467,6 +474,7 @@ impl<'i> ToCss for ParsedComponent<'i> {
       Number(v) => v.to_css(dest),
       Percentage(v) => v.to_css(dest),
       LengthPercentage(v) => v.to_css(dest),
+      String(v) => v.to_css(dest),
       Color(v) => v.to_css(dest),
       Image(v) => v.to_css(dest),
       Url(v) => v.to_css(dest),
@@ -639,6 +647,12 @@ mod tests {
     error_test("<length> | <percentage>", "calc(100% - 25px)");
 
     test("foo | bar | baz", "bar", ParsedComponent::Literal("bar".into()));
+
+    test(
+      "<string>",
+      "'foo'",
+      ParsedComponent::String(values::string::CSSString("foo".into())),
+    );
 
     test(
       "<custom-ident>",

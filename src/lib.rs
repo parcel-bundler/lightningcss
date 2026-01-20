@@ -28661,6 +28661,17 @@ mod tests {
       "@property --property-name{syntax:\"<length>\";inherits:true;initial-value:25px}",
     );
 
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<string>';
+        inherits: true;
+        initial-value: "hi";
+      }
+    "#,
+      "@property --property-name{syntax:\"<string>\";inherits:true;initial-value:\"hi\"}",
+    );
+
     error_test(
       r#"
       @property --property-name {
