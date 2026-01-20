@@ -631,7 +631,11 @@ impl<
               // For Length values, we keep them as-is and let ToCss handle serialization
               // Use f32::INFINITY as marker for division by zero
               // In ToCss, we'll output /0 or /-0 based on the marker
-              let marker = if f32::is_sign_negative(val) { -f32::INFINITY } else { f32::INFINITY };
+              let marker = if f32::is_sign_negative(val) {
+                -f32::INFINITY
+              } else {
+                f32::INFINITY
+              };
               node = Calc::Product(marker, Box::new(node));
               continue;
             }

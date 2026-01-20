@@ -7686,7 +7686,11 @@ mod tests {
     minify_test(".foo { width: calc(20px + 30px + 40px) }", ".foo{width:90px}");
     minify_test(".foo { width: calc(100% - 30px) }", ".foo{width:calc(100% - 30px)}");
 
-    // Test <integer>
+    // Test <integer> is out of the `i32` range
+    minify_test(".z-index { z-index: 99999988888 }", ".z-index{z-index:calc(1/0)}");
+    minify_test(".z-index { z-index: -99999988888 }", ".z-index{z-index:calc(-1/0)}");
+
+    //  Test <integer> in calc()
     minify_test(".z-index1 { z-index: calc(10 / 5) }", ".z-index1{z-index:2}");
     minify_test(".z-index2 { z-index: calc(-10 / 5) }", ".z-index2{z-index:-2}");
     minify_test(".z-index3 { z-index: calc(10 / 3) }", ".z-index3{z-index:3}");
@@ -7704,37 +7708,25 @@ mod tests {
     // i32: calc(1/0) = 2147483647 = 2^31 - 1
     // i32: calc(-1/0) = -2147483648 = -2^31
     // Spec: https://drafts.csswg.org/css-values-4/#calc-ieee
-    minify_test(
-      ".infinity1 { z-index: calc(9/0) }",
-      ".infinity1{z-index:calc(1/0)}",
-    );
+    minify_test(".infinity1 { z-index: calc(9/0) }", ".infinity1{z-index:calc(1/0)}");
     minify_test(
       ".infinity2 { z-index: calc(0.0002/0) }",
       ".infinity2{z-index:calc(1/0)}",
     );
-    minify_test(
-      ".infinity3 { z-index: calc(-1/0) }",
-      ".infinity3{z-index:calc(-1/0)}",
-    );
+    minify_test(".infinity3 { z-index: calc(-1/0) }", ".infinity3{z-index:calc(-1/0)}");
     minify_test(
       ".infinity3-1 { z-index: calc(1/-0) }",
       ".infinity3-1{z-index:calc(-1/0)}",
     );
+    minify_test(".infinity3-2 { z-index: calc(0/-0) }", ".infinity3-2{z-index:0}");
+    minify_test(".infinity3-3 { z-index: calc(-0/-0) }", ".infinity3-3{z-index:0}");
     minify_test(
-      ".infinity3-1 { z-index: calc(0/-0) }",
-      ".infinity3-1{z-index:0}",
+      ".infinity3-4 { z-index: calc(-0/0) }", // NaN
+      ".infinity3-4{z-index:0}",
     );
     minify_test(
-      ".infinity3-1 { z-index: calc(-0/-0) }",
-      ".infinity3-1{z-index:0}",
-    );
-    minify_test(
-      ".infinity3-1 { z-index: calc(-0/0) }", // NaN
-      ".infinity3-1{z-index:0}",
-    );
-    minify_test(
-      ".infinity3-2 { z-index: calc(-1/-0) }",
-      ".infinity3-2{z-index:calc(1/0)}",
+      ".infinity3-5 { z-index: calc(-1/-0) }",
+      ".infinity3-5{z-index:calc(1/0)}",
     );
     minify_test(
       ".infinity4 { z-index: calc(1 * infinity) }",
@@ -7744,10 +7736,7 @@ mod tests {
       ".infinity5 { z-index: calc(-1 * infinity) }",
       ".infinity5{z-index:calc(-1/0)}",
     );
-    minify_test(
-      ".infinity6 { z-index: calc(1 / -infinity) }",
-      ".infinity6{z-index:0}",
-    );
+    minify_test(".infinity6 { z-index: calc(1 / -infinity) }", ".infinity6{z-index:0}");
     minify_test(
       ".infinity7 { z-index: calc(1 - infinity) }",
       ".infinity7{z-index:calc(-1/0)}",
@@ -7781,23 +7770,27 @@ mod tests {
     );
     minify_test(
       ".infinity11-3 { z-index: calc(2147483647 + 1) }",
-      ".infinity11-3{z-index:calc(1/0)}", // 2147483647
+      ".infinity11-3{z-index:calc(1/0)}",
     );
     minify_test(
       ".infinity11-4 { z-index: calc(-2147483647 - 1) }",
-      ".infinity11-4{z-index:calc(-1/0)}", // -2147483648
+      ".infinity11-4{z-index:calc(-1/0)}",
     );
     minify_test(
       ".infinity11-5 { z-index: calc(2147483646 + infinity) }",
-      ".infinity11-5{z-index:calc(1/0)}", // 2147483647
+      ".infinity11-5{z-index:calc(1/0)}",
     );
     minify_test(
       ".infinity11-6 { z-index: calc(2147483647 + 2 - 1) }",
-      ".infinity11-6{z-index:calc(1/0)}", // 2147483647
+      ".infinity11-6{z-index:calc(1/0)}",
     );
     minify_test(
       ".infinity11-7 { z-index: calc(1 - 2147483649) }",
       ".infinity11-7{z-index:calc(-1/0)}", // Negative overflow: 1 + (-2147483649) = -2147483648
+    );
+    minify_test(
+      ".infinity11-8 { z-index: 2147483647 }",
+      ".infinity11-8{z-index:calc(1/0)}",
     );
     minify_test(
       ".infinity12-1 { z-index: calc(calc(1/0) + infinity) }",
@@ -7809,28 +7802,28 @@ mod tests {
     );
 
     minify_test(
-      ".infinity6 { order: calc(infinity / infinity) }",
-      ".infinity6{order:0}",
+      ".infinity-order-1 { order: calc(infinity / infinity) }",
+      ".infinity-order-1{order:0}",
     );
     minify_test(
-      ".infinity6 { order: calc(infinity / 0) }",
-      ".infinity6{order:calc(1/0)}",
+      ".infinity-order-2 { order: calc(infinity / 0) }",
+      ".infinity-order-2{order:calc(1/0)}",
     );
     minify_test(
-      ".infinity6 { order: calc(infinity + 888) }",
-      ".infinity6{order:calc(1/0)}",
+      ".infinity-order-3 { order: calc(infinity + 888) }",
+      ".infinity-order-3{order:calc(1/0)}",
     );
     minify_test(
-      ".infinity6 { order: calc(infinity - 888) }",
-      ".infinity6{order:calc(1/0)}",
+      ".infinity-order-4 { order: calc(infinity - 888) }",
+      ".infinity-order-4{order:calc(1/0)}",
     );
     minify_test(
-      ".infinity-new2 { transition-timing-function: steps(calc(infinity), jump-start) }",
-      ".infinity-new2{transition-timing-function:steps(calc(1/0),start)}",
+      ".infinity-steps-1 { transition-timing-function: steps(calc(infinity), jump-start) }",
+      ".infinity-steps-1{transition-timing-function:steps(calc(1/0),start)}",
     );
     minify_test(
-      ".infinity-new3 { transition: steps(calc(infinity), jump-start) }",
-      ".infinity-new3{transition:all steps(calc(1/0),start)}",
+      ".infinity-steps-2 { transition: steps(calc(infinity), jump-start) }",
+      ".infinity-steps-2{transition:all steps(calc(1/0),start)}",
     );
 
     // Test Infinity <length> - division by zero should preserve sign
@@ -7856,10 +7849,7 @@ mod tests {
     );
 
     // Test Infinity <number>
-    minify_test(
-      ".number1 { line-height: calc(9/0) }",
-      ".number1{line-height:calc(1/0)}",
-    );
+    minify_test(".number1 { line-height: calc(9/0) }", ".number1{line-height:calc(1/0)}");
     minify_test(
       ".number2 { line-height: calc(0.0002/0) }",
       ".number2{line-height:calc(1/0)}",
@@ -7872,18 +7862,9 @@ mod tests {
       ".number3-1 { line-height: calc(1/-0) }",
       ".number3-1{line-height:calc(-1/0)}",
     );
-    minify_test(
-      ".number3-1 { flex: calc(0/-0) }",
-      ".number3-1{flex:0}",
-    );
-    minify_test(
-      ".number4 { flex: calc(1 * infinity) }",
-      ".number4{flex:calc(1/0)}",
-    );
-    minify_test(
-      ".number5 { flex: calc(-1 * infinity) }",
-      ".number5{flex:calc(-1/0)}",
-    );
+    minify_test(".number3-1 { flex: calc(0/-0) }", ".number3-1{flex:0}");
+    minify_test(".number4 { flex: calc(1 * infinity) }", ".number4{flex:calc(1/0)}");
+    minify_test(".number5 { flex: calc(-1 * infinity) }", ".number5{flex:calc(-1/0)}");
 
     // TODO Support orphans prop
     // Test orphans = <integer [1,∞]>
