@@ -193,6 +193,7 @@ pub enum Feature {
   SpaceSeparatedColorNotation,
   SpellingError,
   SquareListStyleType,
+  StatePseudoClass,
   StretchSize,
   StringListStyleType,
   SymbolsListStyleType,
@@ -3688,6 +3689,51 @@ impl Feature {
           }
         }
         if browsers.firefox.is_some() || browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::StatePseudoClass => {
+        if let Some(version) = browsers.chrome {
+          if version < 8192000 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 8192000 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 8257536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 5439488 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 1115136 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1115136 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 1769472 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 8192000 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
           return false;
         }
       }

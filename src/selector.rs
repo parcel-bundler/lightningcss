@@ -230,6 +230,10 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         let kind = Parse::parse(parser)?;
         ActiveViewTransitionType { kind }
       },
+      "state" => {
+        let state = CustomIdent::parse(parser)?;
+        State { state }
+      },
       "local" if self.options.css_modules.is_some() => Local { selector: Box::new(Selector::parse(self, parser)?) },
       "global" if self.options.css_modules.is_some() => Global { selector: Box::new(Selector::parse(self, parser)?) },
       _ => {
@@ -534,6 +538,12 @@ pub enum PseudoClass<'i> {
     kind: SmallVec<[CustomIdent<'i>; 1]>,
   },
 
+  /// The [:state()](https://developer.mozilla.org/en-US/docs/Web/CSS/:state) pseudo class for custom element states.
+  State {
+    /// The custom state identifier.
+    state: CustomIdent<'i>,
+  },
+
   // CSS modules
   /// The CSS modules :local() pseudo class.
   Local {
@@ -674,6 +684,11 @@ where
     Dir { direction: dir } => {
       dest.write_str(":dir(")?;
       dir.to_css(dest)?;
+      return dest.write_str(")");
+    }
+    State { state } => {
+      dest.write_str(":state(")?;
+      state.to_css(dest)?;
       return dest.write_str(")");
     }
     _ => {}
@@ -823,7 +838,7 @@ where
       })
     }
 
-    Lang { languages: _ } | Dir { direction: _ } => unreachable!(),
+    Lang { languages: _ } | Dir { direction: _ } | State { .. } => unreachable!(),
     Custom { name } => {
       dest.write_char(':')?;
       return dest.write_str(&name);
@@ -1915,6 +1930,8 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
             PseudoClass::InRange | PseudoClass::OutOfRange => Feature::InOutOfRange,
 
             PseudoClass::Autofill(prefix) if *prefix == VendorPrefix::None => Feature::Autofill,
+
+            PseudoClass::State { .. } => Feature::StatePseudoClass,
 
             // Experimental, no browser support.
             PseudoClass::Current

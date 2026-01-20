@@ -7009,7 +7009,56 @@ mod tests {
         ParserError::SelectorError(SelectorError::InvalidState),
       );
     }
+    minify_test(
+      "wa-checkbox:state(disabled) {color:red}",
+      "wa-checkbox:state(disabled){color:red}",
+    );
+    minify_test(
+      "button:state(checked) {background:blue}",
+      "button:state(checked){background:#00f}",
+    );
+    minify_test(
+      "input:state(custom-state) {border:1px solid}",
+      "input:state(custom-state){border:1px solid}",
+    );
+    minify_test(
+      "button:active:not(:state(disabled))::part(control) {border:1px solid}",
+      "button:active:not(:state(disabled))::part(control){border:1px solid}",
+    );
+    // Test nested CSS with :state() selector
+    nesting_test(
+      r#"
+        custom-element {
+          color: blue;
+          &:state(loading) {
+            opacity: 0.5;
+            & .spinner {
+              display: block;
+            }
+          }
+          &:state(error) {
+            border: 2px solid red;
+          }
+        }
+      "#,
+      indoc! {r#"
+        custom-element {
+          color: #00f;
+        }
 
+        custom-element:state(loading) {
+          opacity: .5;
+        }
+
+        custom-element:state(loading) .spinner {
+          display: block;
+        }
+
+        custom-element:state(error) {
+          border: 2px solid red;
+        }
+      "#},
+    );
     minify_test(".foo ::deep .bar {width: 20px}", ".foo ::deep .bar{width:20px}");
     minify_test(".foo::deep .bar {width: 20px}", ".foo::deep .bar{width:20px}");
     minify_test(".foo ::deep.bar {width: 20px}", ".foo ::deep.bar{width:20px}");
