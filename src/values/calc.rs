@@ -384,10 +384,10 @@ impl<
         })?;
 
         // According to the spec, the minimum should "win" over the maximum if they are in the wrong order.
-        let cmp = if let (Some(Calc::Value(max_val)), Calc::Value(center_val)) = (&max, &center) {
-          center_val.partial_cmp(&max_val)
-        } else {
-          None
+        let cmp = match (&max, &center) {
+          (Some(Calc::Value(max_val)), Calc::Value(center_val)) => center_val.partial_cmp(&max_val),
+          (Some(Calc::Number(max_val)), Calc::Number(center_val)) => center_val.partial_cmp(max_val),
+          _ => None,
         };
 
         // If center is known to be greater than the maximum, replace it with maximum and remove the max argument.
@@ -403,10 +403,10 @@ impl<
         }
 
         if cmp.is_some() {
-          let cmp = if let (Some(Calc::Value(min_val)), Calc::Value(center_val)) = (&min, &center) {
-            center_val.partial_cmp(&min_val)
-          } else {
-            None
+          let cmp = match (&min, &center) {
+            (Some(Calc::Value(min_val)), Calc::Value(center_val)) => center_val.partial_cmp(&min_val),
+            (Some(Calc::Number(min_val)), Calc::Number(center_val)) => center_val.partial_cmp(min_val),
+            _ => None,
           };
 
           // If center is known to be less than the minimum, replace it with minimum and remove the min argument.
@@ -658,6 +658,7 @@ impl<
   fn reduce_args(args: &mut Vec<Calc<V>>, cmp: std::cmp::Ordering) -> Vec<Calc<V>> {
     // Reduces the arguments of a min() or max() expression, combining compatible values.
     // e.g. min(1px, 1em, 2px, 3in) => min(1px, 1em)
+    // Also handles plain numbers: min(1, 2, 3) => min(1, 2)
     let mut reduced: Vec<Calc<V>> = vec![];
     for arg in args.drain(..) {
       let mut found = None;
@@ -665,6 +666,23 @@ impl<
         Calc::Value(val) => {
           for b in reduced.iter_mut() {
             if let Calc::Value(v) = b {
+              match val.partial_cmp(v) {
+                Some(ord) if ord == cmp => {
+                  found = Some(Some(b));
+                  break;
+                }
+                Some(_) => {
+                  found = Some(None);
+                  break;
+                }
+                None => {}
+              }
+            }
+          }
+        }
+        Calc::Number(val) => {
+          for b in reduced.iter_mut() {
+            if let Calc::Number(v) = b {
               match val.partial_cmp(v) {
                 Some(ord) if ord == cmp => {
                   found = Some(Some(b));
