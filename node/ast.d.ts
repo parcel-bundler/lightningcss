@@ -2368,6 +2368,10 @@ export type PropertyId =
       property: "color-scheme";
     }
   | {
+      property: "print-color-adjust";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
       property: "all";
     }
   | {
@@ -3854,6 +3858,11 @@ export type Declaration =
   | {
       property: "color-scheme";
       value: ColorScheme;
+    }
+  | {
+      property: "print-color-adjust";
+      value: PrintColorAdjust;
+      vendorPrefix: VendorPrefix;
     }
   | {
       property: "all";
@@ -6451,6 +6460,10 @@ export type NoneOrCustomIdentList =
  */
 export type ViewTransitionGroup =
   "normal" | "contain" | "nearest" | String;
+/**
+ * A value for the [print-color-adjust](https://drafts.csswg.org/css-color-adjust/#propdef-print-color-adjust) property.
+ */
+export type PrintColorAdjust = "economy" | "exact";
 /**
  * A [CSS-wide keyword](https://drafts.csswg.org/css-cascade-5/#defaulting-keywords).
  */
@@ -9775,7 +9788,7 @@ export interface ContainerRule<D = Declaration, M = MediaQuery> {
   /**
    * The container condition.
    */
-  condition: ContainerCondition<D>;
+  condition?: ContainerCondition<D> | null;
   /**
    * The location of the rule in the source file.
    */

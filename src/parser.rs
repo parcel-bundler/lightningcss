@@ -213,7 +213,9 @@ pub enum AtRulePrelude<'i, T> {
   /// An @property prelude.
   Property(DashedIdent<'i>),
   /// A @container prelude.
-  Container(Option<ContainerName<'i>>, ContainerCondition<'i>),
+  /// Spec: https://drafts.csswg.org/css-conditional-5/#container-rule
+  /// @container [ <container-name>? <container-query>? ]!
+  Container(Option<ContainerName<'i>>, Option<ContainerCondition<'i>>),
   /// A @starting-style prelude.
   StartingStyle,
   /// A @scope rule prelude.
@@ -641,8 +643,18 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       },
       "container" => {
         let name = input.try_parse(ContainerName::parse).ok();
-        let condition = ContainerCondition::parse_with_options(input, &self.options)?;
-        AtRulePrelude::Container(name, condition)
+        match input.try_parse(|input| ContainerCondition::parse_with_options(input, &self.options)) {
+          Ok(condition) => AtRulePrelude::Container(name, Some(condition)),
+          Err(e) => {
+            if name.is_some() && input.is_exhausted() {
+              // name only, no condition - allowed by new syntax
+              AtRulePrelude::Container(name, None)
+            } else {
+              // condition parsing failed (e.g., empty brackets or invalid tokens)
+              return Err(e);
+            }
+          }
+        }
       },
       "starting-style" => {
         AtRulePrelude::StartingStyle
