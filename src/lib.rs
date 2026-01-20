@@ -22037,6 +22037,214 @@ mod tests {
       ".foo{grid-template-areas:\"head head\"\"nav main\"\". .\"}",
     );
 
+    // to grid-* shorthand
+    minify_test(
+      r#"
+      .test-miss-areas {
+        grid-template-columns: 1fr 90px;
+        grid-template-rows: auto 80px;
+        grid-template-areas: "one";
+      }
+    "#,
+      ".test-miss-areas{grid-template:\"one\"\".\"80px/1fr 90px}",
+    );
+    test(
+      r#"
+      .test-miss-areas-2 {
+        grid-template-columns: 1fr 1fr 1fr;      
+        grid-template-rows: 30px 60px 100px;
+        grid-template-areas: "a a a" "b c c";
+      }
+    "#,
+      indoc! { r#"
+      .test-miss-areas-2 {
+        grid-template: "a a a" 30px
+                       "b c c" 60px
+                       ". . ." 100px
+                       / 1fr 1fr 1fr;
+      }
+    "#},
+    );
+
+    test(
+      r#"
+      .test-miss-areas-3 {
+        grid-template: 30px 60px 100px / 1fr 1fr 1fr;
+        grid-template-areas: "a a a" "b c c";
+      }
+    "#,
+      indoc! { r#"
+      .test-miss-areas-3 {
+        grid-template: "a a a" 30px
+                       "b c c" 60px
+                       ". . ." 100px
+                       / 1fr 1fr 1fr;
+      }
+    "#},
+    );
+
+    test(
+      r#"
+      .test-miss-areas-4 {
+        grid: 30px 60px 100px / 1fr 1fr 1fr;
+        grid-template-areas: "a a a" "b c c";
+      }
+    "#,
+      indoc! { r#"
+      .test-miss-areas-4 {
+        grid: "a a a" 30px
+              "b c c" 60px
+              ". . ." 100px
+              / 1fr 1fr 1fr;
+      }
+    "#},
+    );
+
+    // test no unreachable error
+    minify_test(
+      r#"
+    .grid-shorthand-areas {
+      grid: auto / 1fr 3fr;
+      grid-template-areas: ". content .";
+    }
+  "#,
+      ".grid-shorthand-areas{grid:\".content.\"/1fr 3fr}",
+    );
+    minify_test(
+      r#"
+    .grid-shorthand-areas-rows {
+      grid: auto / 1fr 3fr;
+      grid-template-rows: 20px;
+      grid-template-areas: ". content .";
+    }
+  "#,
+      ".grid-shorthand-areas-rows{grid:\".content.\"20px/1fr 3fr}",
+    );
+
+    // test grid-auto-flow: row in grid shorthand
+    test(
+      r#"
+      .test-auto-flow-row-1 {
+        grid: auto-flow   /  1fr 2fr 1fr;
+        grid-template-areas: "  .   one  .  ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-row-1 {
+        grid: auto-flow / 1fr 2fr 1fr;
+        grid-template-areas: ". one .";
+      }
+    "#},
+    );
+    test(
+      r#"
+      .test-auto-flow-row-2 {
+        grid: auto-flow   auto   /  100px   100px;
+        grid-template-areas: " one  two ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-row-2 {
+        grid: auto-flow / 100px 100px;
+        grid-template-areas: "one two";
+      }
+    "#},
+    );
+    test(
+      r#"
+      .test-auto-flow-dense {
+        grid: dense auto-flow  /  1fr 2fr;
+        grid-template-areas: "  .   content  .  ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-dense {
+        grid: auto-flow dense / 1fr 2fr;
+        grid-template-areas: ". content .";
+      }
+    "#},
+    );
+    minify_test(
+      r#"
+      .grid-auto-flow-row-auto-rows {
+        grid: auto-flow 40px / 1fr 90px;
+        grid-template-areas: "a";
+      }
+    "#,
+      ".grid-auto-flow-row-auto-rows{grid:auto-flow 40px/1fr 90px;grid-template-areas:\"a\"}",
+    );
+    minify_test(
+      r#"
+      .grid-auto-flow-row-auto-rows-multiple {
+        grid: auto-flow 40px max-content / 1fr;
+        grid-template-areas: ". a";
+      }
+    "#,
+      ".grid-auto-flow-row-auto-rows-multiple{grid:auto-flow 40px max-content/1fr;grid-template-areas:\".a\"}",
+    );
+
+    // test grid-auto-flow: column in grid shorthand
+    test(
+      r#"
+      .test-auto-flow-column-1 {
+        grid: 300px / auto-flow;
+        grid-template-areas: "  .   one  .  ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-column-1 {
+        grid: 300px / auto-flow;
+        grid-template-areas: ". one .";
+      }
+    "#},
+    );
+    test(
+      r#"
+      .test-auto-flow-column-2 {
+        grid: 200px 1fr / auto-flow auto;
+        grid-template-areas: "  .   one  .  ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-column-2 {
+        grid: 200px 1fr / auto-flow;
+        grid-template-areas: ". one .";
+      }
+    "#},
+    );
+    test(
+      r#"
+      .test-auto-flow-column-dense {
+        grid: 1fr 2fr / dense auto-flow;
+        grid-template-areas: "  .   content  .  ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-column-dense {
+        grid: 1fr 2fr / auto-flow dense;
+        grid-template-areas: ". content .";
+      }
+    "#},
+    );
+    minify_test(
+      r#"
+      .grid-auto-flow-column-auto-rows {
+        grid: 1fr 3fr / auto-flow 40px;
+        grid-template-areas: "a";
+      }
+    "#,
+      ".grid-auto-flow-column-auto-rows{grid:1fr 3fr/auto-flow 40px;grid-template-areas:\"a\"}",
+    );
+    minify_test(
+      r#"
+      .grid-auto-flow-column-auto-rows-multiple {
+        grid: 1fr / auto-flow 40px max-content ;
+        grid-template-areas: ". a";
+      }
+    "#,
+      ".grid-auto-flow-column-auto-rows-multiple{grid:1fr/auto-flow 40px max-content;grid-template-areas:\".a\"}",
+    );
+
     test(
       r#"
       .foo {
