@@ -1,7 +1,7 @@
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
 name = "lightningcss-napi"
-version = "0.4.6"
+version = "0.4.7"
 description = "Node-API bindings for Lightning CSS"
 license = "MPL-2.0"
 repository = "https://github.com/parcel-bundler/lightningcss"
@@ -17,7 +17,7 @@ serde = { version = "1.0.201", features = ["derive"] }
 serde-content = { version = "0.1.2", features = ["serde"] }
 serde_bytes = "0.11.5"
 cssparser = "0.33.0"
-lightningcss = { version = "1.0.0-alpha.69", path = "../", features = [
+lightningcss = { version = "1.0.0-alpha.70", path = "../", features = [
   "nodejs",
   "serde",
 ] }

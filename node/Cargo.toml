@@ -9,7 +9,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-lightningcss-napi = { version = "0.4.6", path = "../napi", features = [
+lightningcss-napi = { version = "0.4.7", path = "../napi", features = [
   "bundler",
   "visitor",
 ] }
