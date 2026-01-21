@@ -244,20 +244,23 @@ mod tests {
     }
   }
 
-  fn error_recovery_test(source: &str) {
+  fn error_recovery_test(source: &str) -> Vec<Error<ParserError<'_>>> {
     let warnings = Arc::new(RwLock::default());
-    let res = StyleSheet::parse(
-      &source,
-      ParserOptions {
-        error_recovery: true,
-        warnings: Some(warnings.clone()),
-        ..Default::default()
-      },
-    );
-    match res {
-      Ok(..) => {}
-      Err(e) => unreachable!("parser error should be recovered, but got {e:?}"),
+    {
+      let res = StyleSheet::parse(
+        &source,
+        ParserOptions {
+          error_recovery: true,
+          warnings: Some(warnings.clone()),
+          ..Default::default()
+        },
+      );
+      match res {
+        Ok(..) => {}
+        Err(e) => unreachable!("parser error should be recovered, but got {e:?}"),
+      }
     }
+    Arc::into_inner(warnings).unwrap().into_inner().unwrap()
   }
 
   fn css_modules_error_test(source: &str, error: ParserError) {
@@ -15062,6 +15065,8 @@ mod tests {
       "@layer foo; @import url(foo.css); @layer bar; @import url(bar.css)",
       ParserError::UnexpectedImportRule,
     );
+    let warnings = error_recovery_test("@import './actual-styles.css';");
+    assert_eq!(warnings, vec![]);
   }
 
   #[test]

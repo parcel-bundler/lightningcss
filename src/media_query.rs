@@ -56,6 +56,10 @@ impl<'i> MediaList<'i> {
     options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut media_queries = vec![];
+    if input.is_exhausted() {
+      return Ok(MediaList { media_queries });
+    }
+
     loop {
       match input.parse_until_before(Delimiter::Comma, |i| MediaQuery::parse_with_options(i, options)) {
         Ok(mq) => {
