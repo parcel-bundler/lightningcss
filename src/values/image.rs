@@ -459,12 +459,12 @@ impl<'i> ImageSetOption<'i> {
           None
         };
         if let Some(dep) = dep {
-          serialize_string(&dep.placeholder, dest)?;
+          crate::serialize::string(&dep.placeholder, dest)?;
           if let Some(dependencies) = &mut dest.dependencies {
             dependencies.push(Dependency::Url(dep))
           }
         } else {
-          serialize_string(&url.url, dest)?;
+          crate::serialize::string(&url.url, dest)?;
         }
       }
       _ => self.image.to_css(dest)?,
@@ -484,7 +484,7 @@ impl<'i> ImageSetOption<'i> {
 
     if let Some(file_type) = &self.file_type {
       dest.write_str(" type(")?;
-      serialize_string(&file_type, dest)?;
+      crate::serialize::string(&file_type, dest)?;
       dest.write_char(')')?;
     }
 
