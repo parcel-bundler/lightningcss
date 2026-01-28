@@ -23109,6 +23109,14 @@ mod tests {
       }
       "#},
     );
+    test(
+      ".foo { transform: env(--bar, ) }",
+      indoc! {r#"
+      .foo {
+        transform: env(--bar, );
+      }
+      "#},
+    );
 
     // Test attr() function with type() syntax - minified
     minify_test(
