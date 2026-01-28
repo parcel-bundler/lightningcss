@@ -1392,7 +1392,10 @@ impl<'i> EnvironmentVariable<'i> {
     }
 
     if let Some(fallback) = &self.fallback {
-      dest.delim(',', false)?;
+      dest.write_char(',')?;
+      if !fallback.starts_with_whitespace() {
+        dest.whitespace()?;
+      }
       fallback.to_css(dest, is_custom_property)?;
     }
     dest.write_char(')')
