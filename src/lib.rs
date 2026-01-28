@@ -23101,6 +23101,14 @@ mod tests {
     minify_test(".foo { --test: .5s; }", ".foo{--test:.5s}");
     minify_test(".foo { --theme-sizes-1\\/12: 2 }", ".foo{--theme-sizes-1\\/12:2}");
     minify_test(".foo { --test: 0px; }", ".foo{--test:0px}");
+    test(
+      ".foo { transform: var(--bar, ) }",
+      indoc! {r#"
+      .foo {
+        transform: var(--bar, );
+      }
+      "#},
+    );
 
     // Test attr() function with type() syntax - minified
     minify_test(
