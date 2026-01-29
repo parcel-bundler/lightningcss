@@ -602,7 +602,39 @@ fn allow_parser_color_whitelist(name: &CowArcStr<'_>) -> bool {
 #[inline]
 fn has_color_function(name: &str) -> bool {
   match_ignore_ascii_case! { name,
-    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" | "linear-gradient" => true,
+    "rgb"
+    | "rgba"
+    | "hsl"
+    | "hsla"
+    | "hwb"
+    | "lab"
+    | "lch"
+    | "oklab"
+    | "oklch"
+    | "color"
+    | "color-mix"
+    | "light-dark"
+    | "linear-gradient"
+    | "repeating-linear-gradient"
+    | "radial-gradient"
+    | "repeating-radial-gradient"
+    | "conic-gradient"
+    | "repeating-conic-gradient"
+    | "-webkit-linear-gradient"
+    | "-webkit-repeating-linear-gradient"
+    | "-webkit-gradient"
+    | "-webkit-radial-gradient"
+    | "-webkit-repeating-radial-gradient"
+    | "-moz-linear-gradient"
+    | "-moz-repeating-linear-gradient"
+    | "-moz-radial-gradient"
+    | "-moz-repeating-radial-gradient"
+    | "-o-linear-gradient"
+    | "-o-repeating-linear-gradient"
+    | "-o-radial-gradient"
+    | "-o-repeating-radial-gradient"
+    | "image-set"
+    | "-webkit-image-set" => true,
     _ => false
   }
 }

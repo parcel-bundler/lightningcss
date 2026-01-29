@@ -13768,8 +13768,8 @@ mod tests {
         div {
           background-image: radial-gradient(to left, white, black), repeating-linear-gradient(to bottom right, black, white), repeating-radial-gradient(to top, aqua, red);
         }
-        .old-radial {
-          background: radial-gradient(0 50%, ellipse farthest-corner, black, white);
+        .old-webkit-radial {
+          background: -webkit-radial-gradient(0 50%, ellipse farthest-corner, #000, #fff);
         }
         .simple1 {
           background: linear-gradient(black, white);
@@ -13783,8 +13783,8 @@ mod tests {
         .simple4 {
           background: linear-gradient(to right top, black, white);
         }
-        .direction {
-          background: linear-gradient(top left, black, rgba(0, 0, 0, 0.5), white);
+        .direction-old-webkit-gradient {
+          background: -webkit-linear-gradient(top left, black, rgba(0, 0, 0, 0.5), white);
         }
         .silent {
           background: -webkit-linear-gradient(top left, black, white);
@@ -13893,11 +13893,11 @@ mod tests {
         }
 
         div {
-          background-image: radial-gradient(to left, white, black), repeating-linear-gradient(to bottom right, black, white), repeating-radial-gradient(to top, aqua, red);
+          background-image: radial-gradient(to left, #fff, #000), repeating-linear-gradient(to bottom right, #000, #fff), repeating-radial-gradient(to top, #0ff, red);
         }
 
-        .old-radial {
-          background: radial-gradient(0 50%, ellipse farthest-corner, black, white);
+        .old-webkit-radial {
+          background: -webkit-radial-gradient(0 50%, ellipse farthest-corner, #000, #fff);
         }
 
         .simple1 {
@@ -13928,8 +13928,8 @@ mod tests {
           background: linear-gradient(to top right, #000, #fff);
         }
 
-        .direction {
-          background: linear-gradient(top left, black, rgba(0, 0, 0, .5), white);
+        .direction-old-webkit-gradient {
+          background: -webkit-linear-gradient(top left, #000, rgba(0, 0, 0, .5), #fff);
         }
 
         .silent {
@@ -14023,11 +14023,11 @@ mod tests {
         }
 
         .cover {
-          background: radial-gradient(ellipse cover at center, white, black);
+          background: radial-gradient(ellipse cover at center, #fff, #000);
         }
 
         .contain {
-          background: radial-gradient(contain at center, white, black);
+          background: radial-gradient(contain at center, #fff, #000);
         }
 
         .no-div {
@@ -23098,12 +23098,126 @@ mod tests {
     );
 
     minify_test(
-      ".foo { background-image: var( --foo, linear-gradient(white, black) ) }",  
-      ".foo{background-image:var(--foo,linear-gradient(#fff,#000))}",
+      ".foo { mask: linear-gradient(90deg, white, var(--bar, rgba(0, 0, 0, .5)) ) }",  
+      ".foo{mask:linear-gradient(90deg, #fff, var(--bar,#00000080))}",
     );
     minify_test(
-      ".foo { mask: linear-gradient(90deg, white, var(--bar, black) ) }",  
-      ".foo{mask:linear-gradient(90deg,#fff,var(--bar,#000))}",
+      ".foo { background-image: var( --foo, linear-gradient(white, rgba(0 0 0 / 50%)) ) }",  
+      ".foo{background-image:var(--foo,linear-gradient(#fff, #00000080))}",
+    );
+
+    // Test minify color in <image> functions
+    minify_test(
+      ".foo{background-image:linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:repeating-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:repeating-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:repeating-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:repeating-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:conic-gradient(var(--c,white),black)}",
+      ".foo{background-image:conic-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:repeating-conic-gradient(var(--c,white),black)}",
+      ".foo{background-image:repeating-conic-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:image-set(linear-gradient(var(--c,white),black) 1x)}",
+      ".foo{background-image:image-set(linear-gradient(var(--c,#fff),#000) 1x)}",
+    );
+    minify_test(
+      ".foo{background-image:-webkit-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-webkit-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-webkit-repeating-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-webkit-repeating-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-webkit-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-webkit-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-webkit-repeating-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-webkit-repeating-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-moz-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-moz-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-moz-repeating-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-moz-repeating-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-moz-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-moz-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-moz-repeating-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-moz-repeating-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-o-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-o-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-o-repeating-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-o-repeating-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-o-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-o-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-o-repeating-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-o-repeating-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-webkit-image-set(linear-gradient(var(--c,white),black) 1x)}",
+      ".foo{background-image:-webkit-image-set(linear-gradient(var(--c,#fff),#000) 1x)}",
+    );
+    minify_test(
+      ".foo{border-image-source:linear-gradient(var(--c,white),black)}",
+      ".foo{border-image-source:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{border-image:linear-gradient(var(--c,white),black) 30}",
+      ".foo{border-image:linear-gradient(var(--c,#fff),#000) 30}",
+    );
+    minify_test(
+      ".foo{list-style-image:linear-gradient(var(--c,white),black)}",
+      ".foo{list-style-image:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{mask-image:linear-gradient(var(--c,white),black)}",
+      ".foo{mask-image:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{mask-border-source:linear-gradient(var(--c,white),black)}",
+      ".foo{mask-border-source:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{mask-border:linear-gradient(var(--c,white),black) 30}",
+      ".foo{mask-border:linear-gradient(var(--c,#fff),#000) 30}",
+    );
+    minify_test(
+      ".foo{-webkit-mask-box-image:linear-gradient(var(--c,white),black) 30}",
+      ".foo{-webkit-mask-box-image:linear-gradient(var(--c,#fff),#000) 30}",
+    );
+    minify_test(
+      ".foo{-webkit-mask-box-image-source:linear-gradient(var(--c,white),black)}",
+      ".foo{-webkit-mask-box-image-source:linear-gradient(var(--c,#fff),#000)}",
     );
 
     // Test minify color in var() fallbak

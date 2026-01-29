@@ -153,7 +153,7 @@ use cssparser::*;
 bitflags! {
   #[derive(Default)]
   pub(crate) struct ValueFeatures: u8 {
-    const COLOR_KEYWORDS = 1 << 0;
+    const MINIFY_COLORS_IN_FN = 1 << 0;
     const IMAGE = 1 << 1;
   }
 }
@@ -422,7 +422,7 @@ macro_rules! define_properties {
       }
 
       pub(crate) fn parse_color_idents_in_unparsed(&self) -> bool {
-        self.value_features().contains(ValueFeatures::COLOR_KEYWORDS)
+        self.value_features().contains(ValueFeatures::MINIFY_COLORS_IN_FN)
       }
 
       /// Returns whether a property is a shorthand.
@@ -1227,8 +1227,8 @@ macro_rules! define_properties {
 }
 
 define_properties! {
-  "background-color": BackgroundColor(CssColor) value_features: [COLOR_KEYWORDS],
-  "background-image": BackgroundImage(SmallVec<[Image<'i>; 1]>),
+  "background-color": BackgroundColor(CssColor) value_features: [MINIFY_COLORS_IN_FN],
+  "background-image": BackgroundImage(SmallVec<[Image<'i>; 1]>) value_features: [MINIFY_COLORS_IN_FN],
   "background-position-x": BackgroundPositionX(SmallVec<[HorizontalPosition; 1]>),
   "background-position-y": BackgroundPositionY(SmallVec<[VerticalPosition; 1]>),
   "background-position": BackgroundPosition(SmallVec<[BackgroundPosition; 1]>) shorthand: true,
@@ -1237,11 +1237,11 @@ define_properties! {
   "background-attachment": BackgroundAttachment(SmallVec<[BackgroundAttachment; 1]>),
   "background-clip": BackgroundClip(SmallVec<[BackgroundClip; 1]>, VendorPrefix) / WebKit / Moz,
   "background-origin": BackgroundOrigin(SmallVec<[BackgroundOrigin; 1]>),
-  "background": Background(SmallVec<[Background<'i>; 1]>) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "background": Background(SmallVec<[Background<'i>; 1]>) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
 
-  "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / WebKit / Moz value_features: [COLOR_KEYWORDS],
+  "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / WebKit / Moz value_features: [MINIFY_COLORS_IN_FN],
   "opacity": Opacity(AlphaValue),
-  "color": Color(CssColor) value_features: [COLOR_KEYWORDS],
+  "color": Color(CssColor) value_features: [MINIFY_COLORS_IN_FN],
   "display": Display(Display),
   "visibility": Visibility(Visibility),
 
@@ -1281,14 +1281,14 @@ define_properties! {
 
   "border-spacing": BorderSpacing(Size2D<Length>),
 
-  "border-top-color": BorderTopColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Physical],
-  "border-bottom-color": BorderBottomColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Physical],
-  "border-left-color": BorderLeftColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Physical],
-  "border-right-color": BorderRightColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Physical],
-  "border-block-start-color": BorderBlockStartColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Logical],
-  "border-block-end-color": BorderBlockEndColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Logical],
-  "border-inline-start-color": BorderInlineStartColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Logical],
-  "border-inline-end-color": BorderInlineEndColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Logical],
+  "border-top-color": BorderTopColor(CssColor) value_features: [MINIFY_COLORS_IN_FN] [logical_group: BorderColor, category: Physical],
+  "border-bottom-color": BorderBottomColor(CssColor) value_features: [MINIFY_COLORS_IN_FN] [logical_group: BorderColor, category: Physical],
+  "border-left-color": BorderLeftColor(CssColor) value_features: [MINIFY_COLORS_IN_FN] [logical_group: BorderColor, category: Physical],
+  "border-right-color": BorderRightColor(CssColor) value_features: [MINIFY_COLORS_IN_FN] [logical_group: BorderColor, category: Physical],
+  "border-block-start-color": BorderBlockStartColor(CssColor) value_features: [MINIFY_COLORS_IN_FN] [logical_group: BorderColor, category: Logical],
+  "border-block-end-color": BorderBlockEndColor(CssColor) value_features: [MINIFY_COLORS_IN_FN] [logical_group: BorderColor, category: Logical],
+  "border-inline-start-color": BorderInlineStartColor(CssColor) value_features: [MINIFY_COLORS_IN_FN] [logical_group: BorderColor, category: Logical],
+  "border-inline-end-color": BorderInlineEndColor(CssColor) value_features: [MINIFY_COLORS_IN_FN] [logical_group: BorderColor, category: Logical],
 
   "border-top-style": BorderTopStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
   "border-bottom-style": BorderBottomStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
@@ -1318,39 +1318,39 @@ define_properties! {
   "border-end-end-radius": BorderEndEndRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
   "border-radius": BorderRadius(BorderRadius, VendorPrefix) / WebKit / Moz shorthand: true,
 
-  "border-image-source": BorderImageSource(Image<'i>),
+  "border-image-source": BorderImageSource(Image<'i>) value_features: [MINIFY_COLORS_IN_FN],
   "border-image-outset": BorderImageOutset(Rect<LengthOrNumber>),
   "border-image-repeat": BorderImageRepeat(BorderImageRepeat),
   "border-image-width": BorderImageWidth(Rect<BorderImageSideWidth>),
   "border-image-slice": BorderImageSlice(BorderImageSlice),
-  "border-image": BorderImage(BorderImage<'i>, VendorPrefix) / WebKit / Moz / O shorthand: true,
+  "border-image": BorderImage(BorderImage<'i>, VendorPrefix) / WebKit / Moz / O value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
 
-  "border-color": BorderColor(BorderColor) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-color": BorderColor(BorderColor) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
   "border-style": BorderStyle(BorderStyle) shorthand: true,
   "border-width": BorderWidth(BorderWidth) shorthand: true,
 
-  "border-block-color": BorderBlockColor(BorderBlockColor) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-block-color": BorderBlockColor(BorderBlockColor) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
   "border-block-style": BorderBlockStyle(BorderBlockStyle) shorthand: true,
   "border-block-width": BorderBlockWidth(BorderBlockWidth) shorthand: true,
 
-  "border-inline-color": BorderInlineColor(BorderInlineColor) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-inline-color": BorderInlineColor(BorderInlineColor) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
   "border-inline-style": BorderInlineStyle(BorderInlineStyle) shorthand: true,
   "border-inline-width": BorderInlineWidth(BorderInlineWidth) shorthand: true,
 
-  "border": Border(Border) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "border-top": BorderTop(BorderTop) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "border-bottom": BorderBottom(BorderBottom) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "border-left": BorderLeft(BorderLeft) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "border-right": BorderRight(BorderRight) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "border-block": BorderBlock(BorderBlock) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "border-block-start": BorderBlockStart(BorderBlockStart) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "border-block-end": BorderBlockEnd(BorderBlockEnd) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "border-inline": BorderInline(BorderInline) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "border-inline-start": BorderInlineStart(BorderInlineStart) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "border-inline-end": BorderInlineEnd(BorderInlineEnd) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border": Border(Border) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "border-top": BorderTop(BorderTop) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "border-bottom": BorderBottom(BorderBottom) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "border-left": BorderLeft(BorderLeft) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "border-right": BorderRight(BorderRight) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "border-block": BorderBlock(BorderBlock) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "border-block-start": BorderBlockStart(BorderBlockStart) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "border-block-end": BorderBlockEnd(BorderBlockEnd) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "border-inline": BorderInline(BorderInline) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "border-inline-start": BorderInlineStart(BorderInlineStart) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "border-inline-end": BorderInlineEnd(BorderInlineEnd) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
 
-  "outline": Outline(Outline) value_features: [COLOR_KEYWORDS] shorthand: true,
-  "outline-color": OutlineColor(CssColor) value_features: [COLOR_KEYWORDS],
+  "outline": Outline(Outline) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "outline-color": OutlineColor(CssColor) value_features: [MINIFY_COLORS_IN_FN],
   "outline-style": OutlineStyle(OutlineStyle),
   "outline-width": OutlineWidth(BorderSideWidth),
 
@@ -1527,15 +1527,15 @@ define_properties! {
   // https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506
   "text-decoration-line": TextDecorationLine(TextDecorationLine, VendorPrefix) / WebKit / Moz,
   "text-decoration-style": TextDecorationStyle(TextDecorationStyle, VendorPrefix) / WebKit / Moz,
-  "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / WebKit / Moz value_features: [COLOR_KEYWORDS],
+  "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / WebKit / Moz value_features: [MINIFY_COLORS_IN_FN],
   "text-decoration-thickness": TextDecorationThickness(TextDecorationThickness),
-  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / WebKit / Moz value_features: [COLOR_KEYWORDS] shorthand: true,
+  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / WebKit / Moz value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
   "text-decoration-skip-ink": TextDecorationSkipInk(TextDecorationSkipInk, VendorPrefix) / WebKit,
   "text-emphasis-style": TextEmphasisStyle(TextEmphasisStyle<'i>, VendorPrefix) / WebKit,
-  "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / WebKit value_features: [COLOR_KEYWORDS],
-  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit value_features: [COLOR_KEYWORDS] shorthand: true,
+  "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / WebKit value_features: [MINIFY_COLORS_IN_FN],
+  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
   "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / WebKit,
-  "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>) value_features: [COLOR_KEYWORDS],
+  "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>) value_features: [MINIFY_COLORS_IN_FN],
 
   // https://w3c.github.io/csswg-drafts/css-size-adjust/
   "text-size-adjust": TextSizeAdjust(TextSizeAdjust, VendorPrefix) / WebKit / Moz / Ms,
@@ -1550,16 +1550,16 @@ define_properties! {
   // https://www.w3.org/TR/2021/WD-css-ui-4-20210316
   "resize": Resize(Resize),
   "cursor": Cursor(Cursor<'i>),
-  "caret-color": CaretColor(ColorOrAuto) value_features: [COLOR_KEYWORDS],
+  "caret-color": CaretColor(ColorOrAuto) value_features: [MINIFY_COLORS_IN_FN],
   "caret-shape": CaretShape(CaretShape),
   "caret": Caret(Caret) shorthand: true,
   "user-select": UserSelect(UserSelect, VendorPrefix) / WebKit / Moz / Ms,
-  "accent-color": AccentColor(ColorOrAuto) value_features: [COLOR_KEYWORDS],
+  "accent-color": AccentColor(ColorOrAuto) value_features: [MINIFY_COLORS_IN_FN],
   "appearance": Appearance(Appearance<'i>, VendorPrefix) / WebKit / Moz / Ms,
 
   // https://www.w3.org/TR/2020/WD-css-lists-3-20201117
   "list-style-type": ListStyleType(ListStyleType<'i>),
-  "list-style-image": ListStyleImage(Image<'i>),
+  "list-style-image": ListStyleImage(Image<'i>) value_features: [MINIFY_COLORS_IN_FN],
   "list-style-position": ListStylePosition(ListStylePosition),
   "list-style": ListStyle(ListStyle<'i>) shorthand: true,
   "marker-side": MarkerSide(MarkerSide),
@@ -1568,10 +1568,10 @@ define_properties! {
   "composes": Composes(Composes<'i>) if css_modules,
 
   // https://www.w3.org/TR/SVG2/painting.html
-  "fill": Fill(SVGPaint<'i>) value_features: [COLOR_KEYWORDS],
+  "fill": Fill(SVGPaint<'i>) value_features: [MINIFY_COLORS_IN_FN],
   "fill-rule": FillRule(FillRule),
   "fill-opacity": FillOpacity(AlphaValue),
-  "stroke": Stroke(SVGPaint<'i>) value_features: [COLOR_KEYWORDS],
+  "stroke": Stroke(SVGPaint<'i>) value_features: [MINIFY_COLORS_IN_FN],
   "stroke-opacity": StrokeOpacity(AlphaValue),
   "stroke-width": StrokeWidth(LengthPercentage),
   "stroke-linecap": StrokeLinecap(StrokeLinecap),
@@ -1593,7 +1593,7 @@ define_properties! {
   // https://www.w3.org/TR/css-masking-1/
   "clip-path": ClipPath(ClipPath<'i>, VendorPrefix) / WebKit,
   "clip-rule": ClipRule(FillRule),
-  "mask-image": MaskImage(SmallVec<[Image<'i>; 1]>, VendorPrefix) / WebKit,
+  "mask-image": MaskImage(SmallVec<[Image<'i>; 1]>, VendorPrefix) / WebKit value_features: [MINIFY_COLORS_IN_FN],
   "mask-mode": MaskMode(SmallVec<[MaskMode; 1]>),
   "mask-repeat": MaskRepeat(SmallVec<[BackgroundRepeat; 1]>, VendorPrefix) / WebKit,
   "mask-position-x": MaskPositionX(SmallVec<[HorizontalPosition; 1]>),
@@ -1604,20 +1604,20 @@ define_properties! {
   "mask-size": MaskSize(SmallVec<[BackgroundSize; 1]>, VendorPrefix) / WebKit,
   "mask-composite": MaskComposite(SmallVec<[MaskComposite; 1]>),
   "mask-type": MaskType(MaskType),
-  "mask": Mask(SmallVec<[Mask<'i>; 1]>, VendorPrefix) / WebKit shorthand: true,
-  "mask-border-source": MaskBorderSource(Image<'i>),
+  "mask": Mask(SmallVec<[Mask<'i>; 1]>, VendorPrefix) / WebKit value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
+  "mask-border-source": MaskBorderSource(Image<'i>) value_features: [MINIFY_COLORS_IN_FN],
   "mask-border-mode": MaskBorderMode(MaskBorderMode),
   "mask-border-slice": MaskBorderSlice(BorderImageSlice),
   "mask-border-width": MaskBorderWidth(Rect<BorderImageSideWidth>),
   "mask-border-outset": MaskBorderOutset(Rect<LengthOrNumber>),
   "mask-border-repeat": MaskBorderRepeat(BorderImageRepeat),
-  "mask-border": MaskBorder(MaskBorder<'i>) shorthand: true,
+  "mask-border": MaskBorder(MaskBorder<'i>) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
 
   // WebKit additions
   "-webkit-mask-composite": WebKitMaskComposite(SmallVec<[WebKitMaskComposite; 1]>),
   "mask-source-type": WebKitMaskSourceType(SmallVec<[WebKitMaskSourceType; 1]>, VendorPrefix) / WebKit unprefixed: false,
-  "mask-box-image": WebKitMaskBoxImage(BorderImage<'i>, VendorPrefix) / WebKit unprefixed: false,
-  "mask-box-image-source": WebKitMaskBoxImageSource(Image<'i>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image": WebKitMaskBoxImage(BorderImage<'i>, VendorPrefix) / WebKit unprefixed: false value_features: [MINIFY_COLORS_IN_FN],
+  "mask-box-image-source": WebKitMaskBoxImageSource(Image<'i>, VendorPrefix) / WebKit unprefixed: false value_features: [MINIFY_COLORS_IN_FN],
   "mask-box-image-slice": WebKitMaskBoxImageSlice(BorderImageSlice, VendorPrefix) / WebKit unprefixed: false,
   "mask-box-image-width": WebKitMaskBoxImageWidth(Rect<BorderImageSideWidth>, VendorPrefix) / WebKit unprefixed: false,
   "mask-box-image-outset": WebKitMaskBoxImageOutset(Rect<LengthOrNumber>, VendorPrefix) / WebKit unprefixed: false,
