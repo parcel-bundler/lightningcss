@@ -24,7 +24,7 @@ use crate::values::time::Time;
 use crate::values::url::Url;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
-use cssparser::color::parse_hash_color;
+use cssparser::color::{parse_hash_color, parse_named_color};
 use cssparser::*;
 
 use super::AnimationName;
@@ -152,8 +152,13 @@ impl<'i> UnparsedProperty<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let color_ident_mode = if property_id.parse_color_idents_in_unparsed() {
+      ColorIdentMode::FunctionsWhitelist
+    } else {
+      ColorIdentMode::None
+    };
     let value = input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
-      TokenList::parse(input, options, 0)
+      TokenList::parse_with_color_idents(input, options, 0, color_ident_mode)
     })?;
     Ok(UnparsedProperty { property_id, value })
   }
@@ -278,6 +283,37 @@ impl<'a> std::hash::Hash for TokenOrValue<'a> {
   }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct TokenListParseOptions {
+  color_ident_mode: ColorIdentMode,
+  // true at top-level token list, false when parsing arguments of any CSS function.
+  not_in_css_fn: bool,
+  allow_function_color_idents: bool,
+}
+
+impl TokenListParseOptions {
+  fn top_level(color_ident_mode: ColorIdentMode) -> Self {
+    Self {
+      color_ident_mode,
+      not_in_css_fn: true,
+      allow_function_color_idents: false,
+    }
+  }
+
+  fn in_css_function(color_ident_mode: ColorIdentMode, allow_function_color_idents: bool) -> Self {
+    Self {
+      color_ident_mode,
+      not_in_css_fn: false,
+      allow_function_color_idents,
+    }
+  }
+
+  fn allow_color_idents(self) -> bool {
+    self.color_ident_mode == ColorIdentMode::FunctionsWhitelist
+      && (self.not_in_css_fn || self.allow_function_color_idents)
+  }
+}
+
 impl<'i> ParseWithOptions<'i> for TokenList<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
@@ -293,8 +329,32 @@ impl<'i> TokenList<'i> {
     options: &ParserOptions<'_, 'i>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    TokenList::read_token_list(input, options, depth, TokenListParseOptions::top_level(ColorIdentMode::None))
+  }
+
+  pub(crate) fn parse_with_color_idents<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+    depth: usize,
+    color_ident_mode: ColorIdentMode,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    TokenList::read_token_list(input, options, depth, TokenListParseOptions::top_level(color_ident_mode))
+  }
+
+  fn read_token_list<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+    depth: usize,
+    parse_options: TokenListParseOptions,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut tokens = vec![];
-    TokenList::parse_into(input, &mut tokens, options, depth)?;
+    TokenList::parse_into(
+      input,
+      &mut tokens,
+      options,
+      depth,
+      parse_options,
+    )?;
 
     // Slice off leading and trailing whitespace if there are at least two tokens.
     // If there is only one token, we must preserve it. e.g. `--foo: ;` is valid.
@@ -365,6 +425,7 @@ impl<'i> TokenList<'i> {
     tokens: &mut Vec<TokenOrValue<'i>>,
     options: &ParserOptions<'_, 'i>,
     depth: usize,
+    parse_options: TokenListParseOptions,
   ) -> Result<(), ParseError<'i, ParserError<'i>>> {
     if depth > 500 {
       return Err(input.new_custom_error(ParserError::MaximumNestingDepth));
@@ -385,7 +446,7 @@ impl<'i> TokenList<'i> {
             tokens.push(TokenOrValue::Url(Url::parse(input)?));
           } else if f == "var" {
             let var = input.parse_nested_block(|input| {
-              let var = Variable::parse(input, options, depth + 1)?;
+              let var = Variable::parse(input, options, depth + 1, parse_options.color_ident_mode)?;
               Ok(TokenOrValue::Var(var))
             })?;
             tokens.push(var);
@@ -396,7 +457,16 @@ impl<'i> TokenList<'i> {
             })?;
             tokens.push(env);
           } else {
-            let arguments = input.parse_nested_block(|input| TokenList::parse(input, options, depth + 1))?;
+            let allow_function_color_idents = parse_options.color_ident_mode == ColorIdentMode::FunctionsWhitelist
+              && allow_parser_color_whitelist(&f);
+            let arguments = input.parse_nested_block(|input| {
+              TokenList::read_token_list(
+                input,
+                options,
+                depth + 1,
+                TokenListParseOptions::in_css_function(parse_options.color_ident_mode, allow_function_color_idents),
+              )
+            })?;
             tokens.push(TokenOrValue::Function(Function {
               name: Ident(f),
               arguments,
@@ -414,8 +484,17 @@ impl<'i> TokenList<'i> {
           input.reset(&state);
           tokens.push(TokenOrValue::Url(Url::parse(input)?));
         }
-        Ok(&cssparser::Token::Ident(ref name)) if name.starts_with("--") => {
-          tokens.push(TokenOrValue::DashedIdent(name.into()));
+        Ok(&cssparser::Token::Ident(ref name)) => {
+          if let Some(color) = try_parse_color_ident(name.as_ref(), parse_options) {
+            tokens.push(TokenOrValue::Color(color));
+            continue;
+          }
+
+          if name.starts_with("--") {
+            tokens.push(TokenOrValue::DashedIdent(name.into()));
+          } else {
+            tokens.push(Token::Ident(name.into()).into());
+          }
         }
         Ok(token @ &cssparser::Token::ParenthesisBlock)
         | Ok(token @ &cssparser::Token::SquareBracketBlock)
@@ -428,7 +507,15 @@ impl<'i> TokenList<'i> {
             _ => unreachable!(),
           };
 
-          input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options, depth + 1))?;
+          input.parse_nested_block(|input| {
+            TokenList::parse_into(
+              input,
+              tokens,
+              options,
+              depth + 1,
+              parse_options,
+            )
+          })?;
 
           tokens.push(closing_delimiter.into());
         }
@@ -469,19 +556,55 @@ fn try_parse_color_token<'i, 't>(
   state: &ParserState,
   input: &mut Parser<'i, 't>,
 ) -> Option<CssColor> {
-  match_ignore_ascii_case! { &*f,
-    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" => {
-      let s = input.state();
-      input.reset(&state);
-      if let Ok(color) = CssColor::parse(input) {
-        return Some(color)
-      }
-      input.reset(&s);
-    },
-    _ => {}
+  if has_color_function(f.as_ref()) {
+    let s = input.state();
+    input.reset(&state);
+    if let Ok(color) = CssColor::parse(input) {
+      return Some(color);
+    }
+    input.reset(&s);
   }
 
   None
+}
+
+#[inline]
+fn try_parse_color_ident(ident: &str, parse_options: TokenListParseOptions) -> Option<CssColor> {
+  if !parse_options.allow_color_idents() {
+    return None;
+  }
+  match_ignore_ascii_case! { ident,
+    "currentcolor" => Some(CssColor::CurrentColor),
+    "transparent" => Some(CssColor::RGBA(RGBA::transparent())),
+    _ => {
+      if let Ok((r, g, b)) = parse_named_color(ident) {
+        Some(CssColor::RGBA(RGBA { red: r, green: g, blue: b, alpha: 255 }))
+      } else {
+        // Preserve system color casing in unparsed values (no size win from normalizing).
+        None
+      }
+    }
+  }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ColorIdentMode {
+  None,
+  FunctionsWhitelist,
+}
+
+#[inline]
+// 允许解析颜色的函数
+fn allow_parser_color_whitelist(name: &CowArcStr<'_>) -> bool {
+  has_color_function(name.as_ref())
+}
+
+#[inline]
+fn has_color_function(name: &str) -> bool {
+  match_ignore_ascii_case! { name,
+    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" | "linear-gradient" => true,
+    _ => false
+  }
 }
 
 impl<'i> TokenList<'i> {
@@ -1196,11 +1319,17 @@ impl<'i> Variable<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
     depth: usize,
+    color_ident_mode: ColorIdentMode,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = DashedIdentReference::parse_with_options(input, options)?;
 
     let fallback = if input.try_parse(|input| input.expect_comma()).is_ok() {
-      Some(TokenList::parse(input, options, depth)?)
+      Some(TokenList::parse_with_color_idents(
+        input,
+        options,
+        depth,
+        color_ident_mode,
+      )?)
     } else {
       None
     };

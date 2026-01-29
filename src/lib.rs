@@ -20548,18 +20548,23 @@ mod tests {
         &format!("color({} 7 -20.5 100 / 0)", result_color_space),
       );
 
+      minify_test(
+        ".foo { border: lch(from rebeccapurple l c calc(h + 180)); }",
+        ".foo{border:lch(from #639 l c calc(h + 180))}",
+      );
+
       // https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/relative-color-invalid.html
       minify_test(
-        ".foo{color:rgb(from rebeccapurple r 10deg 10)}",
-        ".foo{color:rgb(from rebeccapurple r 10deg 10)}",
+        ".foo{color: rgb(from rebeccapurple r 10deg 10) }",
+        ".foo{color:rgb(from #639 r 10deg 10)}",
       );
       minify_test(
-        ".foo{color:rgb(from rebeccapurple l g b)}",
-        ".foo{color:rgb(from rebeccapurple l g b)}",
+        ".foo{ color: rgb(from rebeccapurple l g b) }",
+        ".foo{color:rgb(from #639 l g b)}",
       );
       minify_test(
-        ".foo{color:hsl(from rebeccapurple s h l)}",
-        ".foo{color:hsl(from rebeccapurple s h l)}",
+        ".foo{color: hsl(from rebeccapurple s h l) }",
+        ".foo{color:hsl(from #639 s h l)}",
       );
       minify_test(".foo{color:hsl(from rebeccapurple s s s / s)}", ".foo{color:#bfaa40}");
       minify_test(
@@ -20667,19 +20672,19 @@ mod tests {
     );
     minify_test(
       ".foo { color: color-mix(in srgb, currentColor, blue); }",
-      ".foo{color:color-mix(in srgb, currentColor, blue)}",
+      ".foo{color:color-mix(in srgb, currentColor, #00f)}",
     );
     minify_test(
       ".foo { color: color-mix(in srgb, blue, currentColor); }",
-      ".foo{color:color-mix(in srgb, blue, currentColor)}",
+      ".foo{color:color-mix(in srgb, #00f, currentColor)}",
     );
     minify_test(
       ".foo { color: color-mix(in srgb, accentcolor, blue); }",
-      ".foo{color:color-mix(in srgb, accentcolor, blue)}",
+      ".foo{color:color-mix(in srgb, accentcolor, #00f)}",
     );
     minify_test(
-      ".foo { color: color-mix(in srgb, blue, accentcolor); }",
-      ".foo{color:color-mix(in srgb, blue, accentcolor)}",
+      ".foo { color: color-mix(in srgb, rebeccapurple, accentcolor); }",
+      ".foo{color:color-mix(in srgb, #639, accentcolor)}",
     );
 
     // regex for converting web platform tests:
@@ -23091,6 +23096,17 @@ mod tests {
       ".foo { height: calc(var(--spectrum-global-dimension-size-300) / 2);",
       ".foo{height:calc(var(--spectrum-global-dimension-size-300) / 2)}",
     );
+
+    minify_test(
+      ".foo { background-image: var( --foo, linear-gradient(white, black) ) }",  
+      ".foo{background-image:var(--foo,linear-gradient(#fff,#000))}",
+    );
+    minify_test(
+      ".foo { mask: linear-gradient(90deg, white, var(--bar, black) ) }",  
+      ".foo{mask:linear-gradient(90deg,#fff,var(--bar,#000))}",
+    );
+
+    // Test minify color in var() fallbak
     minify_test(
       ".foo { color: var(--color, rgb(255, 255, 0)); }",
       ".foo{color:var(--color,#ff0)}",
@@ -23100,9 +23116,177 @@ mod tests {
       ".foo{color:var(--color,#ff0)}",
     );
     minify_test(
+      ".foo { color: var(--color, rgb(255 255 255 / .9)); }",
+      ".foo{color:var(--color,#ffffffe6)}",
+    );
+    minify_test(
+      ".foo { color: var(--color, hsl(0deg 100% 50%)); }",
+      ".foo{color:var(--color,red)}",
+    );
+    minify_test(
+      ".test-color { color: var(--c, white); }",
+      ".test-color{color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-background-color { background-color: var(--c, white); }",
+      ".test-background-color{background-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-background { background: var(--c, white); }",
+      ".test-background{background:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border { border: var(--c, white); }",
+      ".test-border{border:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-top { border-top: var(--c, white); }",
+      ".test-border-top{border-top:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-right { border-right: var(--c, white); }",
+      ".test-border-right{border-right:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-bottom { border-bottom: var(--c, white); }",
+      ".test-border-bottom{border-bottom:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-left { border-left: var(--c, white); }",
+      ".test-border-left{border-left:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block { border-block: var(--c, white); }",
+      ".test-border-block{border-block:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block-start { border-block-start: var(--c, white); }",
+      ".test-border-block-start{border-block-start:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block-end { border-block-end: var(--c, white); }",
+      ".test-border-block-end{border-block-end:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline { border-inline: var(--c, white); }",
+      ".test-border-inline{border-inline:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline-start { border-inline-start: var(--c, white); }",
+      ".test-border-inline-start{border-inline-start:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline-end { border-inline-end: var(--c, white); }",
+      ".test-border-inline-end{border-inline-end:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-color { border-color: var(--c, white); }",
+      ".test-border-color{border-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block-color { border-block-color: var(--c, white); }",
+      ".test-border-block-color{border-block-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline-color { border-inline-color: var(--c, white); }",
+      ".test-border-inline-color{border-inline-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-top-color { border-top-color: var(--c, white); }",
+      ".test-border-top-color{border-top-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-bottom-color { border-bottom-color: var(--c, white); }",
+      ".test-border-bottom-color{border-bottom-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-left-color { border-left-color: var(--c, white); }",
+      ".test-border-left-color{border-left-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-right-color { border-right-color: var(--c, white); }",
+      ".test-border-right-color{border-right-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block-start-color { border-block-start-color: var(--c, white); }",
+      ".test-border-block-start-color{border-block-start-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block-end-color { border-block-end-color: var(--c, white); }",
+      ".test-border-block-end-color{border-block-end-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline-start-color { border-inline-start-color: var(--c, white); }",
+      ".test-border-inline-start-color{border-inline-start-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline-end-color { border-inline-end-color: var(--c, white); }",
+      ".test-border-inline-end-color{border-inline-end-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-outline { outline: var(--c, white); }",
+      ".test-outline{outline:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-outline-color { outline-color: var(--c, white); }",
+      ".test-outline-color{outline-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-box-shadow { box-shadow: var(--s, 0 0 white); }",
+      ".test-box-shadow{box-shadow:var(--s,0 0 #fff)}",
+    );
+    minify_test(
+      ".test-text-shadow { text-shadow: var(--s, 0 0 white); }",
+      ".test-text-shadow{text-shadow:var(--s,0 0 #fff)}",
+    );
+    minify_test(
+      ".test-text-decoration-color { text-decoration-color: var(--c, white); }",
+      ".test-text-decoration-color{text-decoration-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-text-decoration { text-decoration: var(--c, white); }",
+      ".test-text-decoration{text-decoration:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-text-emphasis-color { text-emphasis-color: var(--c, white); }",
+      ".test-text-emphasis-color{text-emphasis-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-text-emphasis { text-emphasis: var(--c, white); }",
+      ".test-text-emphasis{text-emphasis:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-caret-color { caret-color: var(--c, currentcolor); }",
+      ".test-caret-color{caret-color:var(--c,currentColor)}",
+    );
+    minify_test(
+      ".test-accent-color { accent-color: var(--c, transparent); }",
+      ".test-accent-color{accent-color:var(--c,#0000)}",
+    );
+    minify_test(
+      ".test-fill { fill: var(--c, white); }",
+      ".test-fill{fill:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-stroke { stroke: var(--c, white); }",
+      ".test-stroke{stroke:var(--c,#fff)}",
+    );
+    minify_test(
       ".foo { color: var(--color, rgb(var(--red), var(--green), 0)); }",
       ".foo{color:var(--color,rgb(var(--red), var(--green), 0))}",
     );
+
+    // 非 color 相关的属性颜色值保持原状
+    minify_test(
+      ".foo { width: var(--w, white); height: var(--h, transparent); }",
+      ".foo{width:var(--w,white);height:var(--h,transparent)}",
+    );
+    // supports 中的颜色值保持原状
+    minify_test(
+      "@supports (color: var(--c, white)) { .foo { color: red; } }",
+      "@supports (color:var(--c, white)){.foo{color:red}}",
+    );
+
     minify_test(".foo { --test: .5s; }", ".foo{--test:.5s}");
     minify_test(".foo { --theme-sizes-1\\/12: 2 }", ".foo{--theme-sizes-1\\/12:2}");
     minify_test(".foo { --test: 0px; }", ".foo{--test:0px}");
@@ -23132,6 +23316,35 @@ mod tests {
       ".foo { width: attr(data-width type(<length>), 100px); }",
       ".foo{width:attr(data-width type(<length>), 100px)}",
     );
+    minify_test(
+      ".foo { color: attr(lightblue type(<color>), blue); }",
+      // TODO: Once we implement structured parsing for attr(), we can minify the blue color.
+      ".foo{color:attr(lightblue type(<color>), blue)}",
+    );
+
+    // TODO var() in attr()
+    // minify_test(
+    //   ".foo { color: attr(lightblue type(<color>), var(--foo, hsl(0deg 100% 50%))); }",
+    //   ".foo{color:attr(lightblue type(<color>), red)}",
+    // );
+    minify_test(
+      ".foo { color: var(--lightblue, blue); }",
+      ".foo{color:var(--lightblue,#00f)}",
+    );
+
+    // Edge cases for color keyword minification in var() fallbacks
+    // System colors should be preserved
+    minify_test(
+      ".foo { color: var(--c, ButtonText); }",
+      ".foo{color:var(--c,ButtonText)}",
+    );
+    minify_test(".foo { color: var(--c, Canvas); }", ".foo{color:var(--c,Canvas)}");
+    // Case-insensitive color names
+    minify_test(".foo { color: var(--c, WHITE); }", ".foo{color:var(--c,#fff)}");
+    minify_test(".foo { color: var(--c, White); }", ".foo{color:var(--c,#fff)}");
+    minify_test(".foo { color: var(--c, ReBeCcApUrPlE); }", ".foo{color:var(--c,#639)}");
+    // Invalid color names should be preserved
+    minify_test(".foo { color: var(--c, notacolor); }", ".foo{color:var(--c,notacolor)}");
 
     minify_test(".foo { width: attr( data-foo    % ); }", ".foo{width:attr(data-foo %)}");
 
@@ -29913,7 +30126,7 @@ mod tests {
         }
       }
     "#,
-      "@container style(color:yellow){.foo{color:red}}",
+      "@container style(color:#ff0){.foo{color:red}}",
     );
     minify_test(
       r#"

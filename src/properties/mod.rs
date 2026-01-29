@@ -141,6 +141,7 @@ use crate::visitor::Visit;
 use align::*;
 use animation::*;
 use background::*;
+use bitflags::bitflags;
 use border::*;
 use border_image::*;
 use border_radius::*;
@@ -148,6 +149,14 @@ use box_shadow::*;
 use contain::*;
 use css_modules::*;
 use cssparser::*;
+
+bitflags! {
+  #[derive(Default)]
+  pub(crate) struct ValueFeatures: u8 {
+    const COLOR_KEYWORDS = 1 << 0;
+    const IMAGE = 1 << 1;
+  }
+}
 use custom::*;
 use display::*;
 use effects::*;
@@ -173,7 +182,7 @@ macro_rules! define_properties {
   (
     $(
       $(#[$meta: meta])*
-      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: ident )* $( unprefixed: $unprefixed: literal )? $( options: $options: literal )? $( shorthand: $shorthand: literal )? $( [ logical_group: $logical_group: ident, category: $logical_category: ident ] )? $( if $condition: ident )?,
+      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: ident )* $( unprefixed: $unprefixed: literal )? $( options: $options: literal )? $( value_features: [ $($value_features: ident),+ ] )? $( shorthand: $shorthand: literal )? $( [ logical_group: $logical_group: ident, category: $logical_category: ident ] )? $( if $condition: ident )?,
     )+
   ) => {
     /// A CSS property id.
@@ -396,6 +405,24 @@ macro_rules! define_properties {
           All => "all",
           Custom(name) => name.as_ref()
         }
+      }
+
+      pub(crate) fn value_features(&self) -> ValueFeatures {
+        use PropertyId::*;
+        match self {
+          $(
+            $(#[$meta])*
+            $property$((vp_name!($vp, _p)))? => {
+              let features = ValueFeatures::empty() $(| $(ValueFeatures::$value_features)|+ )?;
+              features
+            },
+          )+
+          _ => ValueFeatures::empty(),
+        }
+      }
+
+      pub(crate) fn parse_color_idents_in_unparsed(&self) -> bool {
+        self.value_features().contains(ValueFeatures::COLOR_KEYWORDS)
       }
 
       /// Returns whether a property is a shorthand.
@@ -1200,7 +1227,7 @@ macro_rules! define_properties {
 }
 
 define_properties! {
-  "background-color": BackgroundColor(CssColor),
+  "background-color": BackgroundColor(CssColor) value_features: [COLOR_KEYWORDS],
   "background-image": BackgroundImage(SmallVec<[Image<'i>; 1]>),
   "background-position-x": BackgroundPositionX(SmallVec<[HorizontalPosition; 1]>),
   "background-position-y": BackgroundPositionY(SmallVec<[VerticalPosition; 1]>),
@@ -1210,11 +1237,11 @@ define_properties! {
   "background-attachment": BackgroundAttachment(SmallVec<[BackgroundAttachment; 1]>),
   "background-clip": BackgroundClip(SmallVec<[BackgroundClip; 1]>, VendorPrefix) / WebKit / Moz,
   "background-origin": BackgroundOrigin(SmallVec<[BackgroundOrigin; 1]>),
-  "background": Background(SmallVec<[Background<'i>; 1]>) shorthand: true,
+  "background": Background(SmallVec<[Background<'i>; 1]>) value_features: [COLOR_KEYWORDS] shorthand: true,
 
-  "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / WebKit / Moz,
+  "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / WebKit / Moz value_features: [COLOR_KEYWORDS],
   "opacity": Opacity(AlphaValue),
-  "color": Color(CssColor),
+  "color": Color(CssColor) value_features: [COLOR_KEYWORDS],
   "display": Display(Display),
   "visibility": Visibility(Visibility),
 
@@ -1254,14 +1281,14 @@ define_properties! {
 
   "border-spacing": BorderSpacing(Size2D<Length>),
 
-  "border-top-color": BorderTopColor(CssColor) [logical_group: BorderColor, category: Physical],
-  "border-bottom-color": BorderBottomColor(CssColor) [logical_group: BorderColor, category: Physical],
-  "border-left-color": BorderLeftColor(CssColor) [logical_group: BorderColor, category: Physical],
-  "border-right-color": BorderRightColor(CssColor) [logical_group: BorderColor, category: Physical],
-  "border-block-start-color": BorderBlockStartColor(CssColor) [logical_group: BorderColor, category: Logical],
-  "border-block-end-color": BorderBlockEndColor(CssColor) [logical_group: BorderColor, category: Logical],
-  "border-inline-start-color": BorderInlineStartColor(CssColor) [logical_group: BorderColor, category: Logical],
-  "border-inline-end-color": BorderInlineEndColor(CssColor) [logical_group: BorderColor, category: Logical],
+  "border-top-color": BorderTopColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Physical],
+  "border-bottom-color": BorderBottomColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Physical],
+  "border-left-color": BorderLeftColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Physical],
+  "border-right-color": BorderRightColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Physical],
+  "border-block-start-color": BorderBlockStartColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Logical],
+  "border-block-end-color": BorderBlockEndColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Logical],
+  "border-inline-start-color": BorderInlineStartColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Logical],
+  "border-inline-end-color": BorderInlineEndColor(CssColor) value_features: [COLOR_KEYWORDS] [logical_group: BorderColor, category: Logical],
 
   "border-top-style": BorderTopStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
   "border-bottom-style": BorderBottomStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
@@ -1298,32 +1325,32 @@ define_properties! {
   "border-image-slice": BorderImageSlice(BorderImageSlice),
   "border-image": BorderImage(BorderImage<'i>, VendorPrefix) / WebKit / Moz / O shorthand: true,
 
-  "border-color": BorderColor(BorderColor) shorthand: true,
+  "border-color": BorderColor(BorderColor) value_features: [COLOR_KEYWORDS] shorthand: true,
   "border-style": BorderStyle(BorderStyle) shorthand: true,
   "border-width": BorderWidth(BorderWidth) shorthand: true,
 
-  "border-block-color": BorderBlockColor(BorderBlockColor) shorthand: true,
+  "border-block-color": BorderBlockColor(BorderBlockColor) value_features: [COLOR_KEYWORDS] shorthand: true,
   "border-block-style": BorderBlockStyle(BorderBlockStyle) shorthand: true,
   "border-block-width": BorderBlockWidth(BorderBlockWidth) shorthand: true,
 
-  "border-inline-color": BorderInlineColor(BorderInlineColor) shorthand: true,
+  "border-inline-color": BorderInlineColor(BorderInlineColor) value_features: [COLOR_KEYWORDS] shorthand: true,
   "border-inline-style": BorderInlineStyle(BorderInlineStyle) shorthand: true,
   "border-inline-width": BorderInlineWidth(BorderInlineWidth) shorthand: true,
 
-  "border": Border(Border) shorthand: true,
-  "border-top": BorderTop(BorderTop) shorthand: true,
-  "border-bottom": BorderBottom(BorderBottom) shorthand: true,
-  "border-left": BorderLeft(BorderLeft) shorthand: true,
-  "border-right": BorderRight(BorderRight) shorthand: true,
-  "border-block": BorderBlock(BorderBlock) shorthand: true,
-  "border-block-start": BorderBlockStart(BorderBlockStart) shorthand: true,
-  "border-block-end": BorderBlockEnd(BorderBlockEnd) shorthand: true,
-  "border-inline": BorderInline(BorderInline) shorthand: true,
-  "border-inline-start": BorderInlineStart(BorderInlineStart) shorthand: true,
-  "border-inline-end": BorderInlineEnd(BorderInlineEnd) shorthand: true,
+  "border": Border(Border) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-top": BorderTop(BorderTop) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-bottom": BorderBottom(BorderBottom) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-left": BorderLeft(BorderLeft) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-right": BorderRight(BorderRight) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-block": BorderBlock(BorderBlock) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-block-start": BorderBlockStart(BorderBlockStart) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-block-end": BorderBlockEnd(BorderBlockEnd) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-inline": BorderInline(BorderInline) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-inline-start": BorderInlineStart(BorderInlineStart) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "border-inline-end": BorderInlineEnd(BorderInlineEnd) value_features: [COLOR_KEYWORDS] shorthand: true,
 
-  "outline": Outline(Outline) shorthand: true,
-  "outline-color": OutlineColor(CssColor),
+  "outline": Outline(Outline) value_features: [COLOR_KEYWORDS] shorthand: true,
+  "outline-color": OutlineColor(CssColor) value_features: [COLOR_KEYWORDS],
   "outline-style": OutlineStyle(OutlineStyle),
   "outline-width": OutlineWidth(BorderSideWidth),
 
@@ -1500,15 +1527,15 @@ define_properties! {
   // https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506
   "text-decoration-line": TextDecorationLine(TextDecorationLine, VendorPrefix) / WebKit / Moz,
   "text-decoration-style": TextDecorationStyle(TextDecorationStyle, VendorPrefix) / WebKit / Moz,
-  "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / WebKit / Moz,
+  "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / WebKit / Moz value_features: [COLOR_KEYWORDS],
   "text-decoration-thickness": TextDecorationThickness(TextDecorationThickness),
-  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / WebKit / Moz shorthand: true,
+  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / WebKit / Moz value_features: [COLOR_KEYWORDS] shorthand: true,
   "text-decoration-skip-ink": TextDecorationSkipInk(TextDecorationSkipInk, VendorPrefix) / WebKit,
   "text-emphasis-style": TextEmphasisStyle(TextEmphasisStyle<'i>, VendorPrefix) / WebKit,
-  "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / WebKit,
-  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit shorthand: true,
+  "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / WebKit value_features: [COLOR_KEYWORDS],
+  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit value_features: [COLOR_KEYWORDS] shorthand: true,
   "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / WebKit,
-  "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>),
+  "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>) value_features: [COLOR_KEYWORDS],
 
   // https://w3c.github.io/csswg-drafts/css-size-adjust/
   "text-size-adjust": TextSizeAdjust(TextSizeAdjust, VendorPrefix) / WebKit / Moz / Ms,
@@ -1523,11 +1550,11 @@ define_properties! {
   // https://www.w3.org/TR/2021/WD-css-ui-4-20210316
   "resize": Resize(Resize),
   "cursor": Cursor(Cursor<'i>),
-  "caret-color": CaretColor(ColorOrAuto),
+  "caret-color": CaretColor(ColorOrAuto) value_features: [COLOR_KEYWORDS],
   "caret-shape": CaretShape(CaretShape),
   "caret": Caret(Caret) shorthand: true,
   "user-select": UserSelect(UserSelect, VendorPrefix) / WebKit / Moz / Ms,
-  "accent-color": AccentColor(ColorOrAuto),
+  "accent-color": AccentColor(ColorOrAuto) value_features: [COLOR_KEYWORDS],
   "appearance": Appearance(Appearance<'i>, VendorPrefix) / WebKit / Moz / Ms,
 
   // https://www.w3.org/TR/2020/WD-css-lists-3-20201117
@@ -1541,10 +1568,10 @@ define_properties! {
   "composes": Composes(Composes<'i>) if css_modules,
 
   // https://www.w3.org/TR/SVG2/painting.html
-  "fill": Fill(SVGPaint<'i>),
+  "fill": Fill(SVGPaint<'i>) value_features: [COLOR_KEYWORDS],
   "fill-rule": FillRule(FillRule),
   "fill-opacity": FillOpacity(AlphaValue),
-  "stroke": Stroke(SVGPaint<'i>),
+  "stroke": Stroke(SVGPaint<'i>) value_features: [COLOR_KEYWORDS],
   "stroke-opacity": StrokeOpacity(AlphaValue),
   "stroke-width": StrokeWidth(LengthPercentage),
   "stroke-linecap": StrokeLinecap(StrokeLinecap),
