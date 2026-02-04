@@ -11,7 +11,6 @@ use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
-use cssparser::*;
 
 /// A [@import](https://drafts.csswg.org/css-cascade/#at-import) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -52,13 +51,13 @@ impl<'i> ToCss for ImportRule<'i> {
     dest.add_mapping(self.loc);
     dest.write_str("@import ")?;
     if let Some(dep) = dep {
-      serialize_string(&dep.placeholder, dest)?;
+      crate::serialize::string(&dep.placeholder, dest)?;
 
       if let Some(dependencies) = &mut dest.dependencies {
         dependencies.push(Dependency::Import(dep))
       }
     } else {
-      serialize_string(&self.url, dest)?;
+      crate::serialize::string(&self.url, dest)?;
     }
 
     if let Some(layer) = &self.layer {

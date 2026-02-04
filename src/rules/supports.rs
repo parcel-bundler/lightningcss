@@ -404,7 +404,7 @@ impl<'i> ToCss for SupportsCondition<'i> {
           }
 
           p.to_css(dest)?;
-          serialize_name(name, dest)?;
+          crate::serialize::name(name, dest)?;
           dest.delim(':', false)?;
           dest.write_str(value)?;
         }
