@@ -278,11 +278,13 @@ export interface PseudoClasses {
   focusWithin?: string
 }
 
-export interface TransformResult {
+type InIfTruthy<O extends { [P in K]?: boolean }, K extends string, T, F = void> = K extends keyof O? O[K] extends true? T : O[K] extends false? F : T | F : F;
+
+export interface TransformResult<O extends TransformOptions<any> | BundleOptions<any>> {
   /** The transformed code. */
   code: Uint8Array,
   /** The generated source map, if enabled. */
-  map: Uint8Array | void,
+  map: InIfTruthy<O, "sourceMap", Uint8Array>,
   /** CSS module exports, if enabled. */
   exports: CSSModuleExports | void,
   /** CSS module references, if `dashedIdents` is enabled. */
@@ -408,7 +410,7 @@ export interface ErrorLocation extends Location {
  * Compiles a CSS file, including optionally minifying and lowering syntax to the given
  * targets. A source map may also be generated, but this is not enabled by default.
  */
-export declare function transform<C extends CustomAtRules>(options: TransformOptions<C>): TransformResult;
+export declare function transform<C extends CustomAtRules, O extends TransformOptions<C>>(options: O): TransformResult<O>;
 
 export interface TransformAttributeOptions {
   /** The filename in which the style attribute appeared. Used for error messages and dependencies. */
@@ -462,14 +464,14 @@ export declare function transformStyleAttribute(options: TransformAttributeOptio
 export declare function browserslistToTargets(browserslist: string[]): Targets;
 
 /**
- * Bundles a CSS file and its dependencies, inlining @import rules.
+ * Bundles a CSS file and its dependencies, inlining `@import` rules.
  */
-export declare function bundle<C extends CustomAtRules>(options: BundleOptions<C>): TransformResult;
+export declare function bundle<C extends CustomAtRules, O extends BundleOptions<C>>(options: O): TransformResult<O>;
 
 /**
- * Bundles a CSS file and its dependencies asynchronously, inlining @import rules.
+ * Bundles a CSS file and its dependencies asynchronously, inlining `@import` rules.
  */
-export declare function bundleAsync<C extends CustomAtRules>(options: BundleAsyncOptions<C>): Promise<TransformResult>;
+export declare function bundleAsync<C extends CustomAtRules, O extends BundleAsyncOptions<C>>(options: O): Promise<TransformResult<O>>;
 
 /**
  * Composes multiple visitor objects into a single one.
