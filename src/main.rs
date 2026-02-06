@@ -175,6 +175,12 @@ pub fn main() -> Result<(), std::io::Error> {
         ..ParserOptions::default()
       };
 
+      if let (Some(_), Some(output_path)) = (&source_map, &output_file) {
+        if let Some(p) = output_path.parent() {
+          fs::create_dir_all(p)?
+        };
+      };
+
       let mut stylesheet = if cli_args.bundle {
         let mut bundler = Bundler::new(&fs, source_map.as_mut(), options);
         bundler.bundle(Path::new(&filename)).unwrap()
