@@ -187,7 +187,7 @@ impl<'i> Parse<'i> for BasePalette {
       if i.is_negative() {
         return Err(input.new_custom_error(ParserError::InvalidValue));
       }
-      return Ok(BasePalette::Integer(i as u16));
+      return Ok(BasePalette::Integer(*i as u16));
     }
 
     let location = input.current_source_location();
@@ -208,7 +208,7 @@ impl ToCss for BasePalette {
     match self {
       BasePalette::Light => dest.write_str("light"),
       BasePalette::Dark => dest.write_str("dark"),
-      BasePalette::Integer(i) => (*i as CSSInteger).to_css(dest),
+      BasePalette::Integer(i) => CSSInteger(i32::from(*i)).to_css(dest),
     }
   }
 }
@@ -226,7 +226,7 @@ impl<'i> Parse<'i> for OverrideColors {
     }
 
     Ok(OverrideColors {
-      index: index as u16,
+      index: (*index) as u16,
       color,
     })
   }
@@ -237,7 +237,7 @@ impl ToCss for OverrideColors {
   where
     W: std::fmt::Write,
   {
-    (self.index as CSSInteger).to_css(dest)?;
+    CSSInteger(self.index as i32).to_css(dest)?;
     dest.write_char(' ')?;
     self.color.to_css(dest)
   }
