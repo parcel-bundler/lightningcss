@@ -737,6 +737,77 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           let supports = context.handler_context.get_supports_rules(&style);
           let logical = context.handler_context.get_additional_rules(&style);
 
+          println!(
+            "rule '{}' has \n{}\n--\n{}",
+            style.selectors.to_css_string(Default::default()).unwrap(),
+            style
+              .rules
+              .0
+              .iter()
+              .map(|r| match r {
+                CssRule::Media(media_rule) => "Media".to_string(),
+                CssRule::Import(import_rule) => "Import".to_string(),
+                CssRule::Style(style_rule) => format!("{:#?}", style_rule.declarations),
+                CssRule::Keyframes(keyframes_rule) => "Keyframes".to_string(),
+                CssRule::FontFace(font_face_rule) => "FontFace".to_string(),
+                CssRule::FontPaletteValues(font_palette_values_rule) => "FontPaletteValues".to_string(),
+                CssRule::FontFeatureValues(font_feature_values_rule) => "FontFeatureValues".to_string(),
+                CssRule::Page(page_rule) => "Page".to_string(),
+                CssRule::Supports(supports_rule) => "Supports".to_string(),
+                CssRule::CounterStyle(counter_style_rule) => "CounterStyle".to_string(),
+                CssRule::Namespace(namespace_rule) => "Namespace".to_string(),
+                CssRule::MozDocument(moz_document_rule) => "MozDocument".to_string(),
+                CssRule::Nesting(nesting_rule) => "Nesting".to_string(),
+                CssRule::NestedDeclarations(nested_declarations_rule) => "NestedDeclarations".to_string(),
+                CssRule::Viewport(viewport_rule) => "Viewport".to_string(),
+                CssRule::CustomMedia(custom_media_rule) => "CustomMedia".to_string(),
+                CssRule::LayerStatement(layer_statement_rule) => "LayerStatement".to_string(),
+                CssRule::LayerBlock(layer_block_rule) => "LayerBlock".to_string(),
+                CssRule::Property(property_rule) => "Property".to_string(),
+                CssRule::Container(container_rule) => "Container".to_string(),
+                CssRule::Scope(scope_rule) => "Scope".to_string(),
+                CssRule::StartingStyle(starting_style_rule) => "StartingStyle".to_string(),
+                CssRule::ViewTransition(view_transition_rule) => "ViewTransition".to_string(),
+                CssRule::Ignored => "Ignored".to_string(),
+                CssRule::Unknown(unknown_at_rule) => "Unknown".to_string(),
+                CssRule::Custom(_) => "Custom".to_string(),
+              })
+              .collect::<Vec<_>>()
+              .join("\n"),
+            logical
+              .iter()
+              .map(|r| match r {
+                CssRule::Media(media_rule) => "Media".to_string(),
+                CssRule::Import(import_rule) => "Import".to_string(),
+                CssRule::Style(style_rule) => format!("{:#?}", style_rule.declarations),
+                CssRule::Keyframes(keyframes_rule) => "Keyframes".to_string(),
+                CssRule::FontFace(font_face_rule) => "FontFace".to_string(),
+                CssRule::FontPaletteValues(font_palette_values_rule) => "FontPaletteValues".to_string(),
+                CssRule::FontFeatureValues(font_feature_values_rule) => "FontFeatureValues".to_string(),
+                CssRule::Page(page_rule) => "Page".to_string(),
+                CssRule::Supports(supports_rule) => "Supports".to_string(),
+                CssRule::CounterStyle(counter_style_rule) => "CounterStyle".to_string(),
+                CssRule::Namespace(namespace_rule) => "Namespace".to_string(),
+                CssRule::MozDocument(moz_document_rule) => "MozDocument".to_string(),
+                CssRule::Nesting(nesting_rule) => "Nesting".to_string(),
+                CssRule::NestedDeclarations(nested_declarations_rule) => "NestedDeclarations".to_string(),
+                CssRule::Viewport(viewport_rule) => "Viewport".to_string(),
+                CssRule::CustomMedia(custom_media_rule) => "CustomMedia".to_string(),
+                CssRule::LayerStatement(layer_statement_rule) => "LayerStatement".to_string(),
+                CssRule::LayerBlock(layer_block_rule) => "LayerBlock".to_string(),
+                CssRule::Property(property_rule) => "Property".to_string(),
+                CssRule::Container(container_rule) => "Container".to_string(),
+                CssRule::Scope(scope_rule) => "Scope".to_string(),
+                CssRule::StartingStyle(starting_style_rule) => "StartingStyle".to_string(),
+                CssRule::ViewTransition(view_transition_rule) => "ViewTransition".to_string(),
+                CssRule::Ignored => "Ignored".to_string(),
+                CssRule::Unknown(unknown_at_rule) => "Unknown".to_string(),
+                CssRule::Custom(_) => "Custom".to_string(),
+              })
+              .collect::<Vec<_>>()
+              .join("\n"),
+          );
+
           let incompatible_rules = incompatible
             .into_iter()
             .map(|selector| {
