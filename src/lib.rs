@@ -30258,6 +30258,26 @@ mod tests {
     );
     minify_test(
       r#"
+      @container style(color: var(--bar, blue)) {
+        .foo {
+          color: white;
+        }
+      }
+    "#,
+      "@container style(color:var(--bar,#00f)){.foo{color:#fff}}",
+    );
+    minify_test(
+      r#"
+      @container style(background: linear-gradient(red, blue)) {
+        .foo {
+          color: white;
+        }
+      }
+    "#,
+      "@container style(background:linear-gradient(red,#00f)){.foo{color:#fff}}",
+    );
+    minify_test(
+      r#"
       @container style(--foo:) {
         .foo {
           color: red;
@@ -30265,6 +30285,26 @@ mod tests {
       }
     "#,
       "@container style(--foo:){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style(--foo: var(--bar, blue)) {
+        .foo {
+          color: white;
+        }
+      }
+    "#,
+      "@container style(--foo:var(--bar,blue)){.foo{color:#fff}}",
+    );
+    minify_test(
+      r#"
+      @container style(--foo: linear-gradient(red,   blue)) {
+        .foo {
+          color: white;
+        }
+      }
+    "#,
+      "@container style(--foo:linear-gradient(red, blue)){.foo{color:#fff}}",
     );
     minify_test(
       r#"
