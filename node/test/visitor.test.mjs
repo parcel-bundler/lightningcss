@@ -308,7 +308,7 @@ test('spacing with env substitution', () => {
     }
   });
 
-  assert.equal(res.code.toString(), '.test{background:var(--foo) var(--bar);border:var(--foo)solid;transform:scale(1.5) scale(1.5);padding:10px 20px;margin:10px auto;outline:red solid;cursor:url(cursor.png) 4 12, auto;stroke-dasharray:5 10 15;counter-increment:myCounter 2;background:linear-gradient(red 25%, blue 75%);content:"hello" " world";width:calc(10px - 20px)}');
+  assert.equal(res.code.toString(), '.test{background:var(--foo) var(--bar);border:var(--foo)solid;transform:scale(1.5) scale(1.5);padding:10px 20px;margin:10px auto;outline:red solid;cursor:url(cursor.png) 4 12, auto;stroke-dasharray:5 10 15;counter-increment:myCounter 2;background:linear-gradient(red 25%, #00f 75%);content:"hello" " world";width:calc(10px - 20px)}');
 });
 
 test('url', () => {
