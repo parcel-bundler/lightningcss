@@ -446,7 +446,7 @@ impl<'i> TokenList<'i> {
             tokens.push(TokenOrValue::Url(Url::parse(input)?));
           } else if f == "var" {
             let var = input.parse_nested_block(|input| {
-              let var = Variable::parse(input, options, depth + 1, parse_options.color_ident_mode)?;
+              let var = Variable::parse(input, options, depth + 1, parse_options)?;
               Ok(TokenOrValue::Var(var))
             })?;
             tokens.push(var);
@@ -1351,17 +1351,12 @@ impl<'i> Variable<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
     depth: usize,
-    color_ident_mode: ColorIdentMode,
+    parse_options: TokenListParseOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = DashedIdentReference::parse_with_options(input, options)?;
 
     let fallback = if input.try_parse(|input| input.expect_comma()).is_ok() {
-      Some(TokenList::parse_with_color_idents(
-        input,
-        options,
-        depth,
-        color_ident_mode,
-      )?)
+      Some(TokenList::read_token_list(input, options, depth, parse_options)?)
     } else {
       None
     };

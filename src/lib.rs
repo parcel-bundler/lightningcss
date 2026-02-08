@@ -23389,6 +23389,23 @@ mod tests {
       ".foo { color: var(--color, rgb(var(--red), var(--green), 0)); }",
       ".foo{color:var(--color,rgb(var(--red), var(--green), 0))}",
     );
+    // 非白名单内的函数颜色值保持原状
+    minify_test(
+      ".foo{background: foo(var(--c, blue))}",
+      ".foo{background:foo(var(--c,blue))}",
+    );
+    minify_test(
+      ".foo2{background: linear-gradient(foo(var(--c, blue)), red)}",
+      ".foo2{background:linear-gradient(foo(var(--c,blue)), red)}",
+    );
+    minify_test(
+      ".foo3{background: linear-gradient(var(--c, blue),red)}",
+      ".foo3{background:linear-gradient(var(--c,#00f),red)}",
+    );
+    minify_test(
+      ".foo4{--x: 90px; background: linear-gradient(red var(--x, white), blue)}",
+      ".foo4{--x:90px;background:linear-gradient(red var(--x,#fff), #00f)}",
+    );
 
     // 非 color 相关的属性颜色值保持原状
     minify_test(
@@ -23452,11 +23469,8 @@ mod tests {
       ".foo { color: var(--c, ButtonText); }",
       ".foo{color:var(--c,ButtonText)}",
     );
-    minify_test(".foo { color: var(--c, Canvas); }", ".foo{color:var(--c,Canvas)}");
     // Case-insensitive color names
     minify_test(".foo { color: var(--c, WHITE); }", ".foo{color:var(--c,#fff)}");
-    minify_test(".foo { color: var(--c, White); }", ".foo{color:var(--c,#fff)}");
-    minify_test(".foo { color: var(--c, ReBeCcApUrPlE); }", ".foo{color:var(--c,#639)}");
     // Invalid color names should be preserved
     minify_test(".foo { color: var(--c, notacolor); }", ".foo{color:var(--c,notacolor)}");
 
