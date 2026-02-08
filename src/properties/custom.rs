@@ -437,9 +437,15 @@ impl<'i> TokenList<'i> {
         Ok(&cssparser::Token::Function(ref f)) => {
           // Attempt to parse embedded color values into hex tokens.
           let f = f.into();
+          let allow_function_color_idents = parse_options.color_ident_mode == ColorIdentMode::FunctionsWhitelist
+            && allow_parser_color_whitelist(&f);
+          let function_parse_options =
+            TokenListParseOptions::in_css_function(parse_options.color_ident_mode, allow_function_color_idents);
           if let Some(color) = try_parse_color_token(&f, &state, input) {
             tokens.push(TokenOrValue::Color(color));
-          } else if let Ok(color) = input.try_parse(|input| UnresolvedColor::parse(&f, input, options)) {
+          } else if let Ok(color) =
+            input.try_parse(|input| UnresolvedColor::parse(&f, input, options, function_parse_options))
+          {
             tokens.push(TokenOrValue::UnresolvedColor(color));
           } else if f == "url" {
             input.reset(&state);
@@ -457,14 +463,12 @@ impl<'i> TokenList<'i> {
             })?;
             tokens.push(env);
           } else {
-            let allow_function_color_idents = parse_options.color_ident_mode == ColorIdentMode::FunctionsWhitelist
-              && allow_parser_color_whitelist(&f);
             let arguments = input.parse_nested_block(|input| {
               TokenList::read_token_list(
                 input,
                 options,
                 depth + 1,
-                TokenListParseOptions::in_css_function(parse_options.color_ident_mode, allow_function_color_idents),
+                function_parse_options,
               )
             })?;
             tokens.push(TokenOrValue::Function(Function {
@@ -614,6 +618,8 @@ fn has_color_function(name: &str) -> bool {
     | "color"
     | "color-mix"
     | "light-dark"
+    // TODO: Support contrast-color( <color> )
+    // https://drafts.csswg.org/css-color-5/#contrast-color
     | "linear-gradient"
     | "repeating-linear-gradient"
     | "radial-gradient"
@@ -1663,6 +1669,7 @@ impl<'i> UnresolvedColor<'i> {
     f: &CowArcStr<'i>,
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
+    parse_options: TokenListParseOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut parser = ComponentParser::new(false);
     match_ignore_ascii_case! { &*f,
@@ -1695,10 +1702,10 @@ impl<'i> UnresolvedColor<'i> {
       "light-dark" => {
         input.parse_nested_block(|input| {
           let light = input.parse_until_before(Delimiter::Comma, |input|
-            TokenList::parse(input, options, 0)
+            TokenList::read_token_list(input, options, 0, parse_options)
           )?;
           input.expect_comma()?;
-          let dark = TokenList::parse(input, options, 0)?;
+          let dark = TokenList::read_token_list(input, options, 0, parse_options)?;
           Ok(UnresolvedColor::LightDark { light, dark })
         })
       },

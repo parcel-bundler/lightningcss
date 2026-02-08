@@ -23106,6 +23106,20 @@ mod tests {
       ".foo{background-image:var(--foo,linear-gradient(#fff, #00000080))}",
     );
 
+    // Test in `light-dark()`
+    minify_test(
+      ".foo{background: light-dark(var(--c, white), black)}",
+      ".foo{background:light-dark(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background: light-dark(foo(var(--c, white)), black)}",
+      ".foo{background:light-dark(foo(var(--c,white)),#000)}",
+    );
+    minify_test(
+      ".foo{background: color-mix(in lch, var(--c, white) 50%, blue)}",
+      ".foo{background:color-mix(in lch, var(--c,#fff) 50%, #00f)}",
+    );
+
     // Test minify color in <image> functions
     minify_test(
       ".foo{background-image:linear-gradient(var(--c,white),black)}",
@@ -23472,7 +23486,7 @@ mod tests {
     // Case-insensitive color names
     minify_test(".foo { color: var(--c, WHITE); }", ".foo{color:var(--c,#fff)}");
     // Invalid color names should be preserved
-    minify_test(".foo { color: var(--c, notacolor); }", ".foo{color:var(--c,notacolor)}");
+    minify_test(".foo { color: var(--c, unknowColor); }", ".foo{color:var(--c,unknowColor)}");
 
     minify_test(".foo { width: attr( data-foo    % ); }", ".foo{width:attr(data-foo %)}");
 
