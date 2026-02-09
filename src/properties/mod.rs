@@ -1561,7 +1561,7 @@ define_properties! {
   "list-style-type": ListStyleType(ListStyleType<'i>),
   "list-style-image": ListStyleImage(Image<'i>) value_features: [MINIFY_COLORS_IN_FN],
   "list-style-position": ListStylePosition(ListStylePosition),
-  "list-style": ListStyle(ListStyle<'i>) shorthand: true,
+  "list-style": ListStyle(ListStyle<'i>) value_features: [MINIFY_COLORS_IN_FN] shorthand: true,
   "marker-side": MarkerSide(MarkerSide),
 
   // CSS modules

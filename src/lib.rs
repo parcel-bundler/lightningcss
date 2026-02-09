@@ -23116,8 +23116,8 @@ mod tests {
       ".foo{background:light-dark(foo(var(--c,white)),#000)}",
     );
     minify_test(
-      ".foo{background: color-mix(in lch, var(--c, white) 50%, blue)}",
-      ".foo{background:color-mix(in lch, var(--c,#fff) 50%, #00f)}",
+      ".foo{background: color-mix(in lch, var(--c, white) 50%, black)}",
+      ".foo{background:color-mix(in lch, var(--c,#fff) 50%, #000)}",
     );
 
     // Test minify color in <image> functions
@@ -23208,6 +23208,10 @@ mod tests {
     minify_test(
       ".foo{border-image:linear-gradient(var(--c,white),black) 30}",
       ".foo{border-image:linear-gradient(var(--c,#fff),#000) 30}",
+    );
+    minify_test(
+      ".foo{list-style:linear-gradient(var(--c,white),black)}",
+      ".foo{list-style:linear-gradient(var(--c,#fff),#000)}",
     );
     minify_test(
       ".foo{list-style-image:linear-gradient(var(--c,white),black)}",
