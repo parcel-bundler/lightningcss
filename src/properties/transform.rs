@@ -7,7 +7,6 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
-use crate::stylesheet::PrinterOptions;
 use crate::traits::{Parse, PropertyHandler, ToCss, Zero};
 use crate::values::{
   angle::Angle,
@@ -59,20 +58,6 @@ impl ToCss for TransformList {
 
     // TODO: Re-enable with a better solution
     //       See: https://github.com/parcel-bundler/lightningcss/issues/288
-    if dest.minify {
-      let mut base = String::new();
-      self.to_css_base(&mut Printer::new(
-        &mut base,
-        PrinterOptions {
-          minify: true,
-          ..PrinterOptions::default()
-        },
-      ))?;
-
-      dest.write_str(&base)?;
-
-      return Ok(());
-    }
     // if dest.minify {
     //   // Combine transforms into a single matrix.
     //   if let Some(matrix) = self.to_matrix() {
@@ -141,7 +126,13 @@ impl TransformList {
   where
     W: std::fmt::Write,
   {
+    let mut first = true;
     for item in &self.0 {
+      if first {
+        first = false;
+      } else {
+        dest.whitespace()?;
+      }
       item.to_css(dest)?;
     }
     Ok(())
