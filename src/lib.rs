@@ -8281,13 +8281,13 @@ mod tests {
     minify_test(".foo { rotate: acos(cos(45deg))", ".foo{rotate:45deg}");
     minify_test(".foo { rotate: acos(-1)", ".foo{rotate:180deg}");
     minify_test(".foo { rotate: acos(0)", ".foo{rotate:90deg}");
-    minify_test(".foo { rotate: acos(1)", ".foo{rotate:none}");
+    minify_test(".foo { rotate: acos(1)", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: acos(45deg)", ".foo{rotate:acos(45deg)}"); // invalid
     minify_test(".foo { rotate: acos(-20)", ".foo{rotate:acos(-20)}"); // evaluates to NaN
 
     minify_test(".foo { rotate: atan(tan(45deg))", ".foo{rotate:45deg}");
     minify_test(".foo { rotate: atan(1)", ".foo{rotate:45deg}");
-    minify_test(".foo { rotate: atan(0)", ".foo{rotate:none}");
+    minify_test(".foo { rotate: atan(0)", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: atan(45deg)", ".foo{rotate:atan(45deg)}"); // invalid
 
     minify_test(".foo { rotate: atan2(1px, -1px)", ".foo{rotate:135deg}");
@@ -8301,6 +8301,9 @@ mod tests {
     minify_test(".foo { rotate: atan2(-1, 1)", ".foo{rotate:-45deg}");
     // incompatible units
     minify_test(".foo { rotate: atan2(1px, -1vw)", ".foo{rotate:atan2(1px, -1vw)}");
+
+    minify_test(".foo { transform: rotate(acos(1)) }", ".foo{transform:rotate(0)}");
+    minify_test(".foo { transform: rotate(atan(0)) }", ".foo{transform:rotate(0)}");
   }
 
   #[test]
@@ -12832,16 +12835,31 @@ mod tests {
     minify_test(".foo { translate: 1px 2px 0px }", ".foo{translate:1px 2px}");
     minify_test(".foo { translate: 1px 0px 2px }", ".foo{translate:1px 0 2px}");
     minify_test(".foo { translate: none }", ".foo{translate:none}");
+    minify_test(".foo { rotate: none }", ".foo{rotate:none}");
+    minify_test(".foo { rotate: 0deg }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: -0deg }", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: z 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: 0 0 1 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: x 10deg }", ".foo{rotate:x 10deg}");
     minify_test(".foo { rotate: 1 0 0 10deg }", ".foo{rotate:x 10deg}");
-    minify_test(".foo { rotate: y 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: 2 0 0 10deg }", ".foo{rotate:x 10deg}");
+    minify_test(".foo { rotate: 0 2 0 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: 0 0 2 10deg }", ".foo{rotate:10deg}");
+    minify_test(".foo { rotate: 0 0 5.3 10deg }", ".foo{rotate:10deg}");
+    minify_test(".foo { rotate: 0 0 1 0deg }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: 10deg 0 0 -1 }", ".foo{rotate:-10deg}");
+    minify_test(".foo { rotate: 10deg 0 0 -233 }", ".foo{rotate:-10deg}");
+    minify_test(".foo { rotate: -1 0 0 0deg }", ".foo{rotate:x 0deg}");
+    minify_test(".foo { rotate: 0deg 0 0 1 }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: 0deg 0 0 -1 }", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: 0 1 0 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: x 0rad }", ".foo{rotate:x 0deg}");
+    // TODO: In minify mode, convert units to the shortest form.
+    // minify_test(".foo { rotate: y 0turn }", ".foo{rotate:y 0deg}");
+    minify_test(".foo { rotate: z 0deg }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: 10deg y }", ".foo{rotate:y 10deg}");
     minify_test(".foo { rotate: 1 1 1 10deg }", ".foo{rotate:1 1 1 10deg}");
-    minify_test(".foo { rotate: 0 0 1 0deg }", ".foo{rotate:none}");
-    minify_test(".foo { rotate: none }", ".foo{rotate:none}");
     minify_test(".foo { scale: 1 }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 1 }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 1 1 }", ".foo{scale:1}");
