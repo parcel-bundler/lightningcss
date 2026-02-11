@@ -1600,6 +1600,9 @@ define_properties! {
   "filter": Filter(FilterList<'i>, VendorPrefix) / WebKit,
   "backdrop-filter": BackdropFilter(FilterList<'i>, VendorPrefix) / WebKit,
 
+  // https://www.w3.org/TR/compositing-1/
+  "mix-blend-mode": MixBlendMode(BlendMode),
+
   // https://drafts.csswg.org/css2/
   "z-index": ZIndex(position::ZIndex),
 
