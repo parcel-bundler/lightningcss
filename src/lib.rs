@@ -28615,7 +28615,7 @@ mod tests {
 
   #[test]
   fn test_dependencies() {
-    fn dep_test(source: &str, expected: &str, deps: Vec<(&str, &str)>) {
+    fn dep_test(source: &str, expected: &str, deps: Vec<(&str, &str, u32)>) {
       let mut stylesheet = StyleSheet::parse(
         &source,
         ParserOptions {
@@ -28635,15 +28635,19 @@ mod tests {
       assert_eq!(res.code, expected);
       let dependencies = res.dependencies.unwrap();
       assert_eq!(dependencies.len(), deps.len());
-      for (i, (url, placeholder)) in deps.into_iter().enumerate() {
+      for (i, (url, placeholder, column)) in deps.into_iter().enumerate() {
         match &dependencies[i] {
           Dependency::Url(dep) => {
             assert_eq!(dep.url, url);
             assert_eq!(dep.placeholder, placeholder);
+            assert_eq!(dep.loc.start.line, 1);
+            assert_eq!(dep.loc.start.column, column);
           }
           Dependency::Import(dep) => {
             assert_eq!(dep.url, url);
             assert_eq!(dep.placeholder, placeholder);
+            assert_eq!(dep.loc.start.line, 1);
+            assert_eq!(dep.loc.start.column, column);
           }
         }
       }
@@ -28664,43 +28668,44 @@ mod tests {
     dep_test(
       ".foo { background: image-set('./img12x.png', './img21x.png' 2x)}",
       ".foo{background:image-set(\"hXFI8W\" 1x,\"5TkpBa\" 2x)}",
-      vec![("./img12x.png", "hXFI8W"), ("./img21x.png", "5TkpBa")],
+      // TODO wrong, it adds 4 for `url(`
+      vec![("./img12x.png", "hXFI8W", 30 + 4), ("./img21x.png", "5TkpBa", 46 + 4)],
     );
 
     dep_test(
       ".foo { background: image-set(url(./img12x.png), url('./img21x.png') 2x)}",
       ".foo{background:image-set(\"hXFI8W\" 1x,\"5TkpBa\" 2x)}",
-      vec![("./img12x.png", "hXFI8W"), ("./img21x.png", "5TkpBa")],
+      vec![("./img12x.png", "hXFI8W", 34), ("./img21x.png", "5TkpBa", 53)],
     );
 
     dep_test(
       ".foo { --test: url(/foo.png) }",
       ".foo{--test:url(\"lDnnrG\")}",
-      vec![("/foo.png", "lDnnrG")],
+      vec![("/foo.png", "lDnnrG", 20)],
     );
 
     dep_test(
       ".foo { --test: url(\"/foo.png\") }",
       ".foo{--test:url(\"lDnnrG\")}",
-      vec![("/foo.png", "lDnnrG")],
+      vec![("/foo.png", "lDnnrG", 20)],
     );
 
     dep_test(
       ".foo { --test: url(\"http://example.com/foo.png\") }",
       ".foo{--test:url(\"3X1zSW\")}",
-      vec![("http://example.com/foo.png", "3X1zSW")],
+      vec![("http://example.com/foo.png", "3X1zSW", 20)],
     );
 
     dep_test(
       ".foo { --test: url(\"data:image/svg+xml;utf8,<svg></svg>\") }",
       ".foo{--test:url(\"-vl-rG\")}",
-      vec![("data:image/svg+xml;utf8,<svg></svg>", "-vl-rG")],
+      vec![("data:image/svg+xml;utf8,<svg></svg>", "-vl-rG", 20)],
     );
 
     dep_test(
       ".foo { background: url(\"foo.png\") var(--test) }",
       ".foo{background:url(\"Vwkwkq\") var(--test)}",
-      vec![("foo.png", "Vwkwkq")],
+      vec![("foo.png", "Vwkwkq", 24)],
     );
 
     dep_error_test(
@@ -28723,19 +28728,32 @@ mod tests {
     dep_test(
       ".foo { behavior: url(#foo) }",
       ".foo{behavior:url(\"Zn9-2q\")}",
-      vec![("#foo", "Zn9-2q")],
+      vec![("#foo", "Zn9-2q", 22)],
+    );
+
+    dep_test(
+      ".foo { background-image: url(foo.png) }",
+      ".foo{background-image:url(\"Vwkwkq\")}",
+      vec![("foo.png", "Vwkwkq", 30)],
+    );
+
+    dep_test(
+      ".foo { list-style-image: url(foo.png) }",
+      ".foo{list-style-image:url(\"Vwkwkq\")}",
+      // TODO off-by-one
+      vec![("foo.png", "Vwkwkq", 30 - 1)],
     );
 
     dep_test(
       ".foo { --foo: url(#foo) }",
       ".foo{--foo:url(\"Zn9-2q\")}",
-      vec![("#foo", "Zn9-2q")],
+      vec![("#foo", "Zn9-2q", 19)],
     );
 
     dep_test(
       "@import \"test.css\"; .foo { color: red }",
       "@import \"hHsogW\";.foo{color:red}",
-      vec![("test.css", "hHsogW")],
+      vec![("test.css", "hHsogW", 9)],
     );
   }
 
