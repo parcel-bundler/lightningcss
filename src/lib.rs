@@ -28740,8 +28740,7 @@ mod tests {
     dep_test(
       ".foo { list-style-image: url(foo.png) }",
       ".foo{list-style-image:url(\"Vwkwkq\")}",
-      // TODO off-by-one
-      vec![("foo.png", "Vwkwkq", 30 - 1)],
+      vec![("foo.png", "Vwkwkq", 30)],
     );
 
     dep_test(
