@@ -97,11 +97,17 @@ enum Dependency {
 
 /// The result of [SourceProvider::resolve].
 #[derive(Debug)]
+#[cfg_attr(
+  any(feature = "serde", feature = "nodejs"),
+  derive(serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
 pub enum ResolveResult {
-  /// A file path.
-  File(PathBuf),
   /// An external URL.
   External(String),
+  /// A file path.
+  #[serde(untagged)]
+  File(PathBuf),
 }
 
 impl From<PathBuf> for ResolveResult {

@@ -365,7 +365,7 @@ test('resolve return non-string', async () => {
   }
 
   if (!error) throw new Error(`\`testResolveReturnNonString()\` failed. Expected \`bundleAsync()\` to throw, but it did not.`);
-  assert.equal(error.message, 'expect string or boolean, got: Number');
+  assert.equal(error.message, 'data did not match any variant of untagged enum ResolveResult');
   assert.equal(error.fileName, 'tests/testdata/foo.css');
   assert.equal(error.loc, {
     line: 1,
@@ -420,7 +420,7 @@ test('external import', async () => {
     resolver: {
       resolve(specifier, originatingFile) {
         if (specifier === './does_not_exist.css' || specifier.startsWith('https:')) {
-          return true;
+          return {external: specifier};
         }
         return path.resolve(path.dirname(originatingFile), specifier);
       }

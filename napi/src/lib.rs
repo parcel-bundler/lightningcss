@@ -166,33 +166,10 @@ mod bundle {
   unsafe impl Sync for JsSourceProvider {}
   unsafe impl Send for JsSourceProvider {}
 
-  enum StringOrBool {
-    String(String),
-    Bool(bool),
-  }
-
-  impl TryFrom<JsUnknown> for StringOrBool {
-    type Error = napi::Error;
-
-    fn try_from(value: JsUnknown) -> Result<Self, Self::Error> {
-      let ty: napi::ValueType = value.get_type()?;
-      match ty {
-        napi::ValueType::String => Ok(StringOrBool::String(
-          JsString::try_from(value)?.into_utf8()?.into_owned()?,
-        )),
-        napi::ValueType::Boolean => Ok(StringOrBool::Bool(JsBoolean::try_from(value)?.get_value()?)),
-        _ => Err(napi::Error::new(
-          napi::Status::InvalidArg,
-          format!("expect string or boolean, got: {}", ty),
-        )),
-      }
-    }
-  }
-
   // Allocate a single channel per thread to communicate with the JS thread.
   thread_local! {
     static CHANNEL: (Sender<napi::Result<String>>, Receiver<napi::Result<String>>) = crossbeam_channel::unbounded();
-    static RESOLVER_CHANNEL: (Sender<napi::Result<StringOrBool>>, Receiver<napi::Result<StringOrBool>>) = crossbeam_channel::unbounded();
+    static RESOLVER_CHANNEL: (Sender<napi::Result<ResolveResult>>, Receiver<napi::Result<ResolveResult>>) = crossbeam_channel::unbounded();
   }
 
   impl SourceProvider for JsSourceProvider {
@@ -237,19 +214,7 @@ mod bundle {
           };
 
           resolve.call(message, ThreadsafeFunctionCallMode::Blocking);
-          let result = channel.1.recv().unwrap();
-          match result {
-            Ok(StringOrBool::String(file)) => Ok(ResolveResult::File(PathBuf::from_str(&file).unwrap())),
-            Ok(StringOrBool::Bool(true)) => Ok(ResolveResult::External(specifier.to_owned())),
-            Ok(StringOrBool::Bool(false)) => Err(napi::Error::new(
-              napi::Status::InvalidArg,
-              format!(
-                "Invalid value `false` returned from `resolve` callback for `{}`",
-                specifier
-              ),
-            )),
-            Err(e) => Err(e),
-          }
+          channel.1.recv().unwrap()
         });
       }
 
@@ -260,7 +225,7 @@ mod bundle {
   struct ResolveMessage {
     specifier: String,
     originating_file: String,
-    tx: Sender<napi::Result<StringOrBool>>,
+    tx: Sender<napi::Result<ResolveResult>>,
   }
 
   struct ReadMessage {
@@ -307,7 +272,9 @@ mod bundle {
     let specifier = ctx.env.create_string(&ctx.value.specifier)?;
     let originating_file = ctx.env.create_string(&ctx.value.originating_file)?;
     let result = ctx.callback.unwrap().call(None, &[specifier, originating_file])?;
-    await_promise(ctx.env, result, ctx.value.tx, |unknown| unknown.try_into())
+    await_promise(ctx.env, result, ctx.value.tx, move |unknown| {
+      ctx.env.from_js_value(unknown)
+    })
   }
 
   fn handle_error<T>(tx: Sender<napi::Result<T>>, res: napi::Result<()>) -> napi::Result<()> {
