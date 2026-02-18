@@ -30395,14 +30395,20 @@ mod tests {
     minify_test(".foo { color-scheme: dark light; }", ".foo{color-scheme:light dark}");
     minify_test(".foo { color-scheme: only light; }", ".foo{color-scheme:light only}");
     minify_test(".foo { color-scheme: only dark; }", ".foo{color-scheme:dark only}");
+    minify_test(".foo { color-scheme: inherit; }", ".foo{color-scheme:inherit}");
+    minify_test(":root { color-scheme: unset; }", ":root{color-scheme:unset}");
+    minify_test(".foo { color-scheme: unknow; }", ".foo{color-scheme:unknow}");
+    minify_test(".foo { color-scheme: only; }", ".foo{color-scheme:only}");
+    minify_test(".foo { color-scheme: dark foo; }", ".foo{color-scheme:dark foo}");
+    minify_test(".foo { color-scheme: normal dark; }", ".foo{color-scheme:normal dark}");
     minify_test(
       ".foo { color-scheme: dark light only; }",
       ".foo{color-scheme:light dark only}",
     );
-    minify_test(".foo { color-scheme: foo bar light; }", ".foo{color-scheme:light}");
+    minify_test(".foo { color-scheme: foo bar light; }", ".foo{color-scheme:foo bar light}");
     minify_test(
       ".foo { color-scheme: only foo dark bar; }",
-      ".foo{color-scheme:dark only}",
+      ".foo{color-scheme:only foo dark bar}",
     );
     prefix_test(
       ".foo { color-scheme: dark; }",
