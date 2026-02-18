@@ -12633,6 +12633,35 @@ mod tests {
 
   #[test]
   fn test_transform() {
+    test(
+      ".foo { transform: perspective(500px)translate3d(10px, 0, 20px)rotateY(30deg) }",
+      indoc! {r#"
+      .foo {
+        transform: perspective(500px) translate3d(10px, 0, 20px) rotateY(30deg);
+      }
+      "#},
+    );
+    test(
+      ".foo { transform: translate3d(12px,50%,3em)scale(2,.5) }",
+      indoc! {r#"
+      .foo {
+        transform: translate3d(12px, 50%, 3em) scale(2, .5);
+      }
+      "#},
+    );
+    test(
+      ".foo { transform:matrix(1,2,-1,1,80,80) }",
+      indoc! {r#"
+      .foo {
+        transform: matrix(1, 2, -1, 1, 80, 80);
+      }
+      "#},
+    );
+
+    minify_test(
+      ".foo { transform: scale(  0.5 )translateX(10px ) }",
+      ".foo{transform:scale(.5)translate(10px)}",
+    );
     minify_test(
       ".foo { transform: translate(2px, 3px)",
       ".foo{transform:translate(2px,3px)}",
