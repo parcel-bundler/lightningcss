@@ -8281,13 +8281,13 @@ mod tests {
     minify_test(".foo { rotate: acos(cos(45deg))", ".foo{rotate:45deg}");
     minify_test(".foo { rotate: acos(-1)", ".foo{rotate:180deg}");
     minify_test(".foo { rotate: acos(0)", ".foo{rotate:90deg}");
-    minify_test(".foo { rotate: acos(1)", ".foo{rotate:none}");
+    minify_test(".foo { rotate: acos(1)", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: acos(45deg)", ".foo{rotate:acos(45deg)}"); // invalid
     minify_test(".foo { rotate: acos(-20)", ".foo{rotate:acos(-20)}"); // evaluates to NaN
 
     minify_test(".foo { rotate: atan(tan(45deg))", ".foo{rotate:45deg}");
     minify_test(".foo { rotate: atan(1)", ".foo{rotate:45deg}");
-    minify_test(".foo { rotate: atan(0)", ".foo{rotate:none}");
+    minify_test(".foo { rotate: atan(0)", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: atan(45deg)", ".foo{rotate:atan(45deg)}"); // invalid
 
     minify_test(".foo { rotate: atan2(1px, -1px)", ".foo{rotate:135deg}");
@@ -8301,6 +8301,9 @@ mod tests {
     minify_test(".foo { rotate: atan2(-1, 1)", ".foo{rotate:-45deg}");
     // incompatible units
     minify_test(".foo { rotate: atan2(1px, -1vw)", ".foo{rotate:atan2(1px, -1vw)}");
+
+    minify_test(".foo { transform: rotate(acos(1)) }", ".foo{transform:rotate(0)}");
+    minify_test(".foo { transform: rotate(atan(0)) }", ".foo{transform:rotate(0)}");
   }
 
   #[test]
@@ -12630,6 +12633,35 @@ mod tests {
 
   #[test]
   fn test_transform() {
+    test(
+      ".foo { transform: perspective(500px)translate3d(10px, 0, 20px)rotateY(30deg) }",
+      indoc! {r#"
+      .foo {
+        transform: perspective(500px) translate3d(10px, 0, 20px) rotateY(30deg);
+      }
+      "#},
+    );
+    test(
+      ".foo { transform: translate3d(12px,50%,3em)scale(2,.5) }",
+      indoc! {r#"
+      .foo {
+        transform: translate3d(12px, 50%, 3em) scale(2, .5);
+      }
+      "#},
+    );
+    test(
+      ".foo { transform:matrix(1,2,-1,1,80,80) }",
+      indoc! {r#"
+      .foo {
+        transform: matrix(1, 2, -1, 1, 80, 80);
+      }
+      "#},
+    );
+
+    minify_test(
+      ".foo { transform: scale(  0.5 )translateX(10px ) }",
+      ".foo{transform:scale(.5)translate(10px)}",
+    );
     minify_test(
       ".foo { transform: translate(2px, 3px)",
       ".foo{transform:translate(2px,3px)}",
@@ -12832,16 +12864,31 @@ mod tests {
     minify_test(".foo { translate: 1px 2px 0px }", ".foo{translate:1px 2px}");
     minify_test(".foo { translate: 1px 0px 2px }", ".foo{translate:1px 0 2px}");
     minify_test(".foo { translate: none }", ".foo{translate:none}");
+    minify_test(".foo { rotate: none }", ".foo{rotate:none}");
+    minify_test(".foo { rotate: 0deg }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: -0deg }", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: z 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: 0 0 1 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: x 10deg }", ".foo{rotate:x 10deg}");
     minify_test(".foo { rotate: 1 0 0 10deg }", ".foo{rotate:x 10deg}");
-    minify_test(".foo { rotate: y 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: 2 0 0 10deg }", ".foo{rotate:x 10deg}");
+    minify_test(".foo { rotate: 0 2 0 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: 0 0 2 10deg }", ".foo{rotate:10deg}");
+    minify_test(".foo { rotate: 0 0 5.3 10deg }", ".foo{rotate:10deg}");
+    minify_test(".foo { rotate: 0 0 1 0deg }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: 10deg 0 0 -1 }", ".foo{rotate:-10deg}");
+    minify_test(".foo { rotate: 10deg 0 0 -233 }", ".foo{rotate:-10deg}");
+    minify_test(".foo { rotate: -1 0 0 0deg }", ".foo{rotate:x 0deg}");
+    minify_test(".foo { rotate: 0deg 0 0 1 }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: 0deg 0 0 -1 }", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: 0 1 0 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: x 0rad }", ".foo{rotate:x 0deg}");
+    // TODO: In minify mode, convert units to the shortest form.
+    // minify_test(".foo { rotate: y 0turn }", ".foo{rotate:y 0deg}");
+    minify_test(".foo { rotate: z 0deg }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: 10deg y }", ".foo{rotate:y 10deg}");
     minify_test(".foo { rotate: 1 1 1 10deg }", ".foo{rotate:1 1 1 10deg}");
-    minify_test(".foo { rotate: 0 0 1 0deg }", ".foo{rotate:none}");
-    minify_test(".foo { rotate: none }", ".foo{rotate:none}");
     minify_test(".foo { scale: 1 }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 1 }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 1 1 }", ".foo{scale:1}");
@@ -27875,6 +27922,82 @@ mod tests {
   }
 
   #[test]
+  fn test_mix_blend_mode() {
+    minify_test(
+      ".foo { mix-blend-mode: normal }",
+      ".foo{mix-blend-mode:normal}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: multiply }",
+      ".foo{mix-blend-mode:multiply}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: screen }",
+      ".foo{mix-blend-mode:screen}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: overlay }",
+      ".foo{mix-blend-mode:overlay}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: darken }",
+      ".foo{mix-blend-mode:darken}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: lighten }",
+      ".foo{mix-blend-mode:lighten}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: color-dodge }",
+      ".foo{mix-blend-mode:color-dodge}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: color-burn }",
+      ".foo{mix-blend-mode:color-burn}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: hard-light }",
+      ".foo{mix-blend-mode:hard-light}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: soft-light }",
+      ".foo{mix-blend-mode:soft-light}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: difference }",
+      ".foo{mix-blend-mode:difference}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: exclusion }",
+      ".foo{mix-blend-mode:exclusion}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: hue }",
+      ".foo{mix-blend-mode:hue}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: saturation }",
+      ".foo{mix-blend-mode:saturation}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: color }",
+      ".foo{mix-blend-mode:color}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: luminosity }",
+      ".foo{mix-blend-mode:luminosity}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: plus-darker }",
+      ".foo{mix-blend-mode:plus-darker}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: plus-lighter }",
+      ".foo{mix-blend-mode:plus-lighter}",
+    );
+  }
+
+  #[test]
   fn test_viewport() {
     minify_test(
       r#"
@@ -30395,14 +30518,20 @@ mod tests {
     minify_test(".foo { color-scheme: dark light; }", ".foo{color-scheme:light dark}");
     minify_test(".foo { color-scheme: only light; }", ".foo{color-scheme:light only}");
     minify_test(".foo { color-scheme: only dark; }", ".foo{color-scheme:dark only}");
+    minify_test(".foo { color-scheme: inherit; }", ".foo{color-scheme:inherit}");
+    minify_test(":root { color-scheme: unset; }", ":root{color-scheme:unset}");
+    minify_test(".foo { color-scheme: unknow; }", ".foo{color-scheme:unknow}");
+    minify_test(".foo { color-scheme: only; }", ".foo{color-scheme:only}");
+    minify_test(".foo { color-scheme: dark foo; }", ".foo{color-scheme:dark foo}");
+    minify_test(".foo { color-scheme: normal dark; }", ".foo{color-scheme:normal dark}");
     minify_test(
       ".foo { color-scheme: dark light only; }",
       ".foo{color-scheme:light dark only}",
     );
-    minify_test(".foo { color-scheme: foo bar light; }", ".foo{color-scheme:light}");
+    minify_test(".foo { color-scheme: foo bar light; }", ".foo{color-scheme:foo bar light}");
     minify_test(
       ".foo { color-scheme: only foo dark bar; }",
-      ".foo{color-scheme:dark only}",
+      ".foo{color-scheme:only foo dark bar}",
     );
     prefix_test(
       ".foo { color-scheme: dark; }",

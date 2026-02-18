@@ -7,7 +7,6 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
-use crate::stylesheet::PrinterOptions;
 use crate::traits::{Parse, PropertyHandler, ToCss, Zero};
 use crate::values::{
   angle::Angle,
@@ -59,20 +58,6 @@ impl ToCss for TransformList {
 
     // TODO: Re-enable with a better solution
     //       See: https://github.com/parcel-bundler/lightningcss/issues/288
-    if dest.minify {
-      let mut base = String::new();
-      self.to_css_base(&mut Printer::new(
-        &mut base,
-        PrinterOptions {
-          minify: true,
-          ..PrinterOptions::default()
-        },
-      ))?;
-
-      dest.write_str(&base)?;
-
-      return Ok(());
-    }
     // if dest.minify {
     //   // Combine transforms into a single matrix.
     //   if let Some(matrix) = self.to_matrix() {
@@ -141,7 +126,13 @@ impl TransformList {
   where
     W: std::fmt::Write,
   {
+    let mut first = true;
     for item in &self.0 {
+      if first {
+        first = false;
+      } else {
+        dest.whitespace()?;
+      }
       item.to_css(dest)?;
     }
     Ok(())
@@ -1518,29 +1509,39 @@ impl Translate {
 /// A value for the [rotate](https://drafts.csswg.org/css-transforms-2/#propdef-rotate) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
-pub struct Rotate {
-  /// Rotation around the x axis.
-  pub x: f32,
-  /// Rotation around the y axis.
-  pub y: f32,
-  /// Rotation around the z axis.
-  pub z: f32,
-  /// The angle of rotation.
-  pub angle: Angle,
+pub enum Rotate {
+  /// The `none` keyword.
+  None,
+
+  /// Rotation on the x, y, and z axes.
+  #[cfg_attr(feature = "serde", serde(untagged))]
+  XYZ {
+    /// Rotation around the x axis.
+    x: f32,
+    /// Rotation around the y axis.
+    y: f32,
+    /// Rotation around the z axis.
+    z: f32,
+    /// The angle of rotation.
+    angle: Angle,
+  },
 }
 
 impl<'i> Parse<'i> for Rotate {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    // CSS Transforms 2 §5.1:
+    // "It must serialize as the keyword none if and only if none was originally specified."
+    // Keep `none` explicit so identity rotations (e.g. `0deg`) do not round-trip to `none`.
+    // https://drafts.csswg.org/css-transforms-2/#individual-transforms
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
-      return Ok(Rotate {
-        x: 0.0,
-        y: 0.0,
-        z: 1.0,
-        angle: Angle::Deg(0.0),
-      });
+      return Ok(Rotate::None);
     }
 
     let angle = input.try_parse(Angle::parse);
@@ -1564,7 +1565,7 @@ impl<'i> Parse<'i> for Rotate {
       )
       .unwrap_or((0.0, 0.0, 1.0));
     let angle = angle.or_else(|_| Angle::parse(input))?;
-    Ok(Rotate { x, y, z, angle })
+    Ok(Rotate::XYZ { x, y, z, angle })
   }
 }
 
@@ -1573,32 +1574,46 @@ impl ToCss for Rotate {
   where
     W: std::fmt::Write,
   {
-    if self.x == 0.0 && self.y == 0.0 && self.z == 1.0 && self.angle.is_zero() {
-      dest.write_str("none")?;
-      return Ok(());
+    match self {
+      Rotate::None => dest.write_str("none"),
+      Rotate::XYZ { x, y, z, angle } => {
+        // CSS Transforms 2 §5.1:
+        // "If the axis is parallel with the x or y axes, it must serialize as the appropriate keyword."
+        // "If a rotation about the z axis ... must serialize as just an <angle>."
+        // Normalize parallel vectors (including non-unit vectors); flip the angle for negative axis directions.
+        // https://drafts.csswg.org/css-transforms-2/#individual-transforms
+        if *y == 0.0 && *z == 0.0 && *x != 0.0 {
+          let angle = if *x < 0.0 { angle.clone() * -1.0 } else { angle.clone() };
+          dest.write_str("x ")?;
+          angle.to_css(dest)
+        } else if *x == 0.0 && *z == 0.0 && *y != 0.0 {
+          let angle = if *y < 0.0 { angle.clone() * -1.0 } else { angle.clone() };
+          dest.write_str("y ")?;
+          angle.to_css(dest)
+        } else if *x == 0.0 && *y == 0.0 && *z != 0.0 {
+          let angle = if *z < 0.0 { angle.clone() * -1.0 } else { angle.clone() };
+          angle.to_css(dest)
+        } else {
+          x.to_css(dest)?;
+          dest.write_char(' ')?;
+          y.to_css(dest)?;
+          dest.write_char(' ')?;
+          z.to_css(dest)?;
+          dest.write_char(' ')?;
+          angle.to_css(dest)
+        }
+      }
     }
-
-    if self.x == 1.0 && self.y == 0.0 && self.z == 0.0 {
-      dest.write_str("x ")?;
-    } else if self.x == 0.0 && self.y == 1.0 && self.z == 0.0 {
-      dest.write_str("y ")?;
-    } else if !(self.x == 0.0 && self.y == 0.0 && self.z == 1.0) {
-      self.x.to_css(dest)?;
-      dest.write_char(' ')?;
-      self.y.to_css(dest)?;
-      dest.write_char(' ')?;
-      self.z.to_css(dest)?;
-      dest.write_char(' ')?;
-    }
-
-    self.angle.to_css(dest)
   }
 }
 
 impl Rotate {
   /// Converts the rotation to a transform function.
   pub fn to_transform(&self) -> Transform {
-    Transform::Rotate3d(self.x, self.y, self.z, self.angle.clone())
+    match self {
+      Rotate::None => Transform::Rotate3d(0.0, 0.0, 1.0, Angle::Deg(0.0)),
+      Rotate::XYZ { x, y, z, angle } => Transform::Rotate3d(*x, *y, *z, angle.clone()),
+    }
   }
 }
 

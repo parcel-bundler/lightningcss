@@ -1,5 +1,6 @@
 //! CSS properties related to filters and effects.
 
+use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};
@@ -408,5 +409,47 @@ impl<'i> FallbackValues for FilterList<'i> {
 impl IsCompatible for FilterList<'_> {
   fn is_compatible(&self, _browsers: Browsers) -> bool {
     true
+  }
+}
+
+enum_property! {
+  /// A [`<blend-mode>`](https://www.w3.org/TR/compositing-1/#ltblendmodegt) value.
+  pub enum BlendMode {
+    /// The default blend mode; the top layer is drawn over the bottom layer.
+    Normal,
+    /// The source and destination are multiplied.
+    Multiply,
+    /// Multiplies the complements of the backdrop and source, then complements the result.
+    Screen,
+    /// Multiplies or screens, depending on the backdrop color.
+    Overlay,
+    /// Selects the darker of the backdrop and source.
+    Darken,
+    /// Selects the lighter of the backdrop and source.
+    Lighten,
+    /// Brightens the backdrop to reflect the source.
+    ColorDodge,
+    /// Darkens the backdrop to reflect the source.
+    ColorBurn,
+    /// Multiplies or screens, depending on the source color.
+    HardLight,
+    /// Darkens or lightens, depending on the source color.
+    SoftLight,
+    /// Subtracts the darker from the lighter.
+    Difference,
+    /// Similar to difference, but with lower contrast.
+    Exclusion,
+    /// The hue of the source with the saturation and luminosity of the backdrop.
+    Hue,
+    /// The saturation of the source with the hue and luminosity of the backdrop.
+    Saturation,
+    /// The hue and saturation of the source with the luminosity of the backdrop.
+    Color,
+    /// The luminosity of the source with the hue and saturation of the backdrop.
+    Luminosity,
+    /// Adds the source to the backdrop, producing a darker result.
+    PlusDarker,
+    /// Adds the source to the backdrop, producing a lighter result.
+    PlusLighter,
   }
 }

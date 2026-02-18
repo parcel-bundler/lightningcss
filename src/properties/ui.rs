@@ -433,33 +433,44 @@ bitflags! {
 impl<'i> Parse<'i> for ColorScheme {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut res = ColorScheme::empty();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &ident,
-      "normal" => return Ok(res),
-      "only" => res |= ColorScheme::Only,
-      "light" => res |= ColorScheme::Light,
-      "dark" => res |= ColorScheme::Dark,
-      _ => {}
-    };
+    let mut has_any = false;
 
-    while let Ok(ident) = input.try_parse(|input| input.expect_ident_cloned()) {
-      match_ignore_ascii_case! { &ident,
-        "normal" => return Err(input.new_custom_error(ParserError::InvalidValue)),
-        "only" => {
-          // Only must be at the start or the end, not in the middle.
-          if res.contains(ColorScheme::Only) {
-            return Err(input.new_custom_error(ParserError::InvalidValue));
-          }
-          res |= ColorScheme::Only;
-          return Ok(res);
-        },
-        "light" => res |= ColorScheme::Light,
-        "dark" => res |= ColorScheme::Dark,
-        _ => {}
-      };
+    if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
+      return Ok(res);
     }
 
-    Ok(res)
+    if input.try_parse(|input| input.expect_ident_matching("only")).is_ok() {
+      res |= ColorScheme::Only;
+      has_any = true;
+    }
+
+    loop {
+      if input.try_parse(|input| input.expect_ident_matching("light")).is_ok() {
+        res |= ColorScheme::Light;
+        has_any = true;
+        continue;
+      }
+
+      if input.try_parse(|input| input.expect_ident_matching("dark")).is_ok() {
+        res |= ColorScheme::Dark;
+        has_any = true;
+        continue;
+      }
+
+      break;
+    }
+
+    // Only is allowed at the start or the end.
+    if !res.contains(ColorScheme::Only) && input.try_parse(|input| input.expect_ident_matching("only")).is_ok() {
+      res |= ColorScheme::Only;
+      has_any = true;
+    }
+
+    if has_any {
+      return Ok(res);
+    }
+
+    Err(input.new_custom_error(ParserError::InvalidValue))
   }
 }
 
@@ -484,6 +495,10 @@ impl ToCss for ColorScheme {
     }
 
     if self.contains(ColorScheme::Only) {
+      // Avoid parsing `color-scheme: only` as `color-scheme:  only`
+      if !self.intersects(ColorScheme::Light | ColorScheme::Dark) {
+        return dest.write_str("only");
+      }
       dest.write_str(" only")?;
     }
 
