@@ -27922,6 +27922,82 @@ mod tests {
   }
 
   #[test]
+  fn test_mix_blend_mode() {
+    minify_test(
+      ".foo { mix-blend-mode: normal }",
+      ".foo{mix-blend-mode:normal}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: multiply }",
+      ".foo{mix-blend-mode:multiply}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: screen }",
+      ".foo{mix-blend-mode:screen}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: overlay }",
+      ".foo{mix-blend-mode:overlay}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: darken }",
+      ".foo{mix-blend-mode:darken}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: lighten }",
+      ".foo{mix-blend-mode:lighten}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: color-dodge }",
+      ".foo{mix-blend-mode:color-dodge}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: color-burn }",
+      ".foo{mix-blend-mode:color-burn}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: hard-light }",
+      ".foo{mix-blend-mode:hard-light}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: soft-light }",
+      ".foo{mix-blend-mode:soft-light}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: difference }",
+      ".foo{mix-blend-mode:difference}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: exclusion }",
+      ".foo{mix-blend-mode:exclusion}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: hue }",
+      ".foo{mix-blend-mode:hue}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: saturation }",
+      ".foo{mix-blend-mode:saturation}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: color }",
+      ".foo{mix-blend-mode:color}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: luminosity }",
+      ".foo{mix-blend-mode:luminosity}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: plus-darker }",
+      ".foo{mix-blend-mode:plus-darker}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: plus-lighter }",
+      ".foo{mix-blend-mode:plus-lighter}",
+    );
+  }
+
+  #[test]
   fn test_viewport() {
     minify_test(
       r#"
