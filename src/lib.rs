@@ -25260,6 +25260,21 @@ mod tests {
       "#},
     );
 
+    nesting_test(
+      r#"
+      .element::after {
+        .parent & {
+          color: red;
+        }
+      }
+      "#,
+      indoc! {r#"
+      .parent .element:after {
+        color: red;
+      }
+      "#},
+    );
+
     nesting_test_no_targets(
       r#"
         .foo {
