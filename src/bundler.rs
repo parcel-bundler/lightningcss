@@ -79,7 +79,7 @@ enum AtRuleParserValue<'a, T> {
 
 struct BundleStyleSheet<'i, 'o, T> {
   stylesheet: Option<StyleSheet<'i, 'o, T>>,
-  dependencies: Vec<u32>,
+  dependencies: Vec<Dependency>,
   css_modules_deps: Vec<u32>,
   parent_source_index: u32,
   parent_dep_index: u32,
@@ -87,6 +87,33 @@ struct BundleStyleSheet<'i, 'o, T> {
   supports: Option<SupportsCondition<'i>>,
   media: MediaList<'i>,
   loc: Location,
+}
+
+#[derive(Debug, Clone)]
+enum Dependency {
+  File(u32),
+  External(String),
+}
+
+/// The result of [SourceProvider::resolve].
+#[derive(Debug)]
+#[cfg_attr(
+  any(feature = "serde", feature = "nodejs"),
+  derive(serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+pub enum ResolveResult {
+  /// An external URL.
+  External(String),
+  /// A file path.
+  #[serde(untagged)]
+  File(PathBuf),
+}
+
+impl From<PathBuf> for ResolveResult {
+  fn from(path: PathBuf) -> Self {
+    ResolveResult::File(path)
+  }
 }
 
 /// A trait to provide the contents of files to a Bundler.
@@ -102,7 +129,7 @@ pub trait SourceProvider: Send + Sync {
 
   /// Resolves the given import specifier to a file path given the file
   /// which the import originated from.
-  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error>;
+  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<ResolveResult, Self::Error>;
 }
 
 /// Provides an implementation of [SourceProvider](SourceProvider)
@@ -136,9 +163,9 @@ impl SourceProvider for FileProvider {
     Ok(unsafe { &*ptr })
   }
 
-  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
+  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<ResolveResult, Self::Error> {
     // Assume the specifier is a relative file path and join it with current path.
-    Ok(originating_file.with_file_name(specifier))
+    Ok(originating_file.with_file_name(specifier).into())
   }
 }
 
@@ -162,6 +189,11 @@ pub enum BundleErrorKind<'i, T: std::error::Error> {
   UnsupportedLayerCombination,
   /// Unsupported media query boolean logic was encountered.
   UnsupportedMediaBooleanLogic,
+  /// An external module was referenced with a CSS module "from" clause.
+  ReferencedExternalModuleWithCssModuleFrom,
+  /// An external `@import` was found after a bundled `@import`.
+  /// This may result in unintended selector order.
+  ExternalImportAfterBundledImport,
   /// A custom resolver error.
   ResolverError(#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] T),
 }
@@ -183,6 +215,13 @@ impl<'i, T: std::error::Error> std::fmt::Display for BundleErrorKind<'i, T> {
       UnsupportedImportCondition => write!(f, "Unsupported import condition"),
       UnsupportedLayerCombination => write!(f, "Unsupported layer combination in @import"),
       UnsupportedMediaBooleanLogic => write!(f, "Unsupported boolean logic in @import media query"),
+      ReferencedExternalModuleWithCssModuleFrom => {
+        write!(f, "Referenced external module with CSS module \"from\" clause")
+      }
+      ExternalImportAfterBundledImport => write!(
+        f,
+        "An external `@import` was found after a bundled `@import`. This may result in unintended selector order."
+      ),
       ResolverError(err) => std::fmt::Display::fmt(&err, f),
     }
   }
@@ -265,7 +304,7 @@ where
 
     // Phase 3: concatenate.
     let mut rules: Vec<CssRule<'a, T::AtRule>> = Vec::new();
-    self.inline(&mut rules);
+    self.inline(&mut rules)?;
 
     let sources = self
       .stylesheets
@@ -428,7 +467,7 @@ where
     }
 
     // Collect and load dependencies for this stylesheet in parallel.
-    let dependencies: Result<Vec<u32>, _> = stylesheet
+    let dependencies: Result<Vec<Dependency>, _> = stylesheet
       .rules
       .0
       .par_iter_mut()
@@ -484,16 +523,19 @@ where
           };
 
           let result = match self.fs.resolve(&specifier, file) {
-            Ok(path) => self.load_file(
-              &path,
-              ImportRule {
-                layer,
-                media,
-                supports: combine_supports(rule.supports.clone(), &import.supports),
-                url: "".into(),
-                loc: import.loc,
-              },
-            ),
+            Ok(ResolveResult::File(path)) => self
+              .load_file(
+                &path,
+                ImportRule {
+                  layer,
+                  media,
+                  supports: combine_supports(rule.supports.clone(), &import.supports),
+                  url: "".into(),
+                  loc: import.loc,
+                },
+              )
+              .map(Dependency::File),
+            Ok(ResolveResult::External(url)) => Ok(Dependency::External(url)),
             Err(err) => Err(Error {
               kind: BundleErrorKind::ResolverError(err),
               loc: Some(ErrorLocation::new(
@@ -580,7 +622,7 @@ where
   ) -> Option<Result<u32, Error<BundleErrorKind<'a, P::Error>>>> {
     if let Some(Specifier::File(f)) = specifier {
       let result = match self.fs.resolve(&f, file) {
-        Ok(path) => {
+        Ok(ResolveResult::File(path)) => {
           let res = self.load_file(
             &path,
             ImportRule {
@@ -602,6 +644,13 @@ where
 
           res
         }
+        Ok(ResolveResult::External(_)) => Err(Error {
+          kind: BundleErrorKind::ReferencedExternalModuleWithCssModuleFrom,
+          loc: Some(ErrorLocation::new(
+            style_loc,
+            self.find_filename(style_loc.source_index),
+          )),
+        }),
         Err(err) => Err(Error {
           kind: BundleErrorKind::ResolverError(err),
           loc: Some(ErrorLocation::new(
@@ -646,7 +695,9 @@ where
       }
 
       for i in 0..stylesheets[source_index as usize].dependencies.len() {
-        let dep_source_index = stylesheets[source_index as usize].dependencies[i];
+        let Dependency::File(dep_source_index) = stylesheets[source_index as usize].dependencies[i] else {
+          continue;
+        };
         let resolved = &mut stylesheets[dep_source_index as usize];
 
         // In browsers, every instance of an @import is evaluated, so we preserve the last.
@@ -659,14 +710,16 @@ where
     }
   }
 
-  fn inline(&mut self, dest: &mut Vec<CssRule<'a, T::AtRule>>) {
-    process(self.stylesheets.get_mut().unwrap(), 0, dest);
-
-    fn process<'a, T>(
+  fn inline(
+    &mut self,
+    dest: &mut Vec<CssRule<'a, T::AtRule>>,
+  ) -> Result<(), Error<BundleErrorKind<'a, P::Error>>> {
+    fn process<'a, T, E: std::error::Error>(
       stylesheets: &mut Vec<BundleStyleSheet<'a, '_, T>>,
       source_index: u32,
       dest: &mut Vec<CssRule<'a, T>>,
-    ) {
+      filename: &String,
+    ) -> Result<(), Error<BundleErrorKind<'a, E>>> {
       let stylesheet = &mut stylesheets[source_index as usize];
       let mut rules = std::mem::take(&mut stylesheet.stylesheet.as_mut().unwrap().rules.0);
 
@@ -678,26 +731,47 @@ where
 
         // Include the dependency if this is the first instance as computed earlier.
         if resolved.parent_source_index == source_index && resolved.parent_dep_index == dep_index as u32 {
-          process(stylesheets, dep_source_index, dest);
+          process(stylesheets, dep_source_index, dest, filename)?;
         }
 
         dep_index += 1;
       }
 
       let mut import_index = 0;
+      let mut has_bundled_import = false;
       for rule in &mut rules {
         match rule {
-          CssRule::Import(_) => {
-            let dep_source_index = stylesheets[source_index as usize].dependencies[import_index];
-            let resolved = &stylesheets[dep_source_index as usize];
+          CssRule::Import(import_rule) => {
+            let dep_source = &stylesheets[source_index as usize].dependencies[import_index];
+            match dep_source {
+              Dependency::File(dep_source_index) => {
+                let resolved = &stylesheets[*dep_source_index as usize];
 
-            // Include the dependency if this is the last instance as computed earlier.
-            if resolved.parent_source_index == source_index && resolved.parent_dep_index == dep_index {
-              process(stylesheets, dep_source_index, dest);
+                // Include the dependency if this is the last instance as computed earlier.
+                if resolved.parent_source_index == source_index && resolved.parent_dep_index == dep_index {
+                  has_bundled_import = true;
+                  process(stylesheets, *dep_source_index, dest, filename)?;
+                }
+
+                *rule = CssRule::Ignored;
+                dep_index += 1;
+              }
+              Dependency::External(url) => {
+                if has_bundled_import {
+                  return Err(Error {
+                    kind: BundleErrorKind::ExternalImportAfterBundledImport,
+                    loc: Some(ErrorLocation {
+                      filename: filename.clone(),
+                      line: import_rule.loc.line,
+                      column: import_rule.loc.column,
+                    }),
+                  });
+                }
+                import_rule.url = url.to_owned().into();
+                let imp = std::mem::replace(rule, CssRule::Ignored);
+                dest.push(imp);
+              }
             }
-
-            *rule = CssRule::Ignored;
-            dep_index += 1;
             import_index += 1;
           }
           CssRule::LayerStatement(_) => {
@@ -739,7 +813,10 @@ where
       }
 
       dest.extend(rules);
+      Ok(())
     }
+
+    process(self.stylesheets.get_mut().unwrap(), 0, dest, &self.options.filename)
   }
 }
 
@@ -823,8 +900,12 @@ mod tests {
       Ok(self.map.get(file).unwrap())
     }
 
-    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
-      Ok(originating_file.with_file_name(specifier))
+    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<ResolveResult, Self::Error> {
+      if specifier.starts_with("https:") {
+        Ok(ResolveResult::External(specifier.to_owned()))
+      } else {
+        Ok(originating_file.with_file_name(specifier).into())
+      }
     }
   }
 
@@ -843,9 +924,9 @@ mod tests {
 
     /// Resolve by stripping a `foo:` prefix off any import. Specifiers without
     /// this prefix fail with an error.
-    fn resolve(&self, specifier: &str, _originating_file: &Path) -> Result<PathBuf, Self::Error> {
+    fn resolve(&self, specifier: &str, _originating_file: &Path) -> Result<ResolveResult, Self::Error> {
       if specifier.starts_with("foo:") {
-        Ok(Path::new(&specifier["foo:".len()..]).to_path_buf())
+        Ok(Path::new(&specifier["foo:".len()..]).to_path_buf().into())
       } else {
         let err = std::io::Error::new(
           std::io::ErrorKind::NotFound,
@@ -1546,6 +1627,49 @@ mod tests {
         }
       }
     "#}
+    );
+
+    let res = bundle(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+          @import './b.css';
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
+        @import "https://fonts.googleapis.com/css2?family=Roboto&display=swap";
+
+        .b {
+          color: green;
+        }
+    "#}
+    );
+
+    error_test(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import './b.css';
+          @import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
+      },
+      "/a.css",
+      Some(Box::new(|err| {
+        assert!(matches!(err, BundleErrorKind::ExternalImportAfterBundledImport));
+      })),
     );
 
     error_test(

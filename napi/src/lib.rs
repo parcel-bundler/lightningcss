@@ -121,8 +121,8 @@ pub fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
 mod bundle {
   use super::*;
   use crossbeam_channel::{self, Receiver, Sender};
-  use lightningcss::bundler::FileProvider;
-  use napi::{Env, JsFunction, JsString, NapiRaw};
+  use lightningcss::bundler::{FileProvider, ResolveResult};
+  use napi::{Env, JsBoolean, JsFunction, JsString, NapiRaw};
   use std::path::{Path, PathBuf};
   use std::str::FromStr;
   use std::sync::Mutex;
@@ -169,6 +169,7 @@ mod bundle {
   // Allocate a single channel per thread to communicate with the JS thread.
   thread_local! {
     static CHANNEL: (Sender<napi::Result<String>>, Receiver<napi::Result<String>>) = crossbeam_channel::unbounded();
+    static RESOLVER_CHANNEL: (Sender<napi::Result<ResolveResult>>, Receiver<napi::Result<ResolveResult>>) = crossbeam_channel::unbounded();
   }
 
   impl SourceProvider for JsSourceProvider {
@@ -203,9 +204,9 @@ mod bundle {
       }
     }
 
-    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
+    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<ResolveResult, Self::Error> {
       if let Some(resolve) = &self.resolve {
-        return CHANNEL.with(|channel| {
+        return RESOLVER_CHANNEL.with(|channel| {
           let message = ResolveMessage {
             specifier: specifier.to_owned(),
             originating_file: originating_file.to_str().unwrap().to_owned(),
@@ -213,22 +214,18 @@ mod bundle {
           };
 
           resolve.call(message, ThreadsafeFunctionCallMode::Blocking);
-          let result = channel.1.recv().unwrap();
-          match result {
-            Ok(result) => Ok(PathBuf::from_str(&result).unwrap()),
-            Err(e) => Err(e),
-          }
+          channel.1.recv().unwrap()
         });
       }
 
-      Ok(originating_file.with_file_name(specifier))
+      Ok(originating_file.with_file_name(specifier).into())
     }
   }
 
   struct ResolveMessage {
     specifier: String,
     originating_file: String,
-    tx: Sender<napi::Result<String>>,
+    tx: Sender<napi::Result<ResolveResult>>,
   }
 
   struct ReadMessage {
@@ -241,7 +238,11 @@ mod bundle {
     tx: Sender<napi::Result<String>>,
   }
 
-  fn await_promise(env: Env, result: JsUnknown, tx: Sender<napi::Result<String>>) -> napi::Result<()> {
+  fn await_promise<T, Cb>(env: Env, result: JsUnknown, tx: Sender<napi::Result<T>>, parse: Cb) -> napi::Result<()>
+  where
+    T: 'static,
+    Cb: 'static + Fn(JsUnknown) -> Result<T, napi::Error>,
+  {
     // If the result is a promise, wait for it to resolve, and send the result to the channel.
     // Otherwise, send the result immediately.
     if result.is_promise()? {
@@ -249,9 +250,8 @@ mod bundle {
       let then: JsFunction = get_named_property(&result, "then")?;
       let tx2 = tx.clone();
       let cb = env.create_function_from_closure("callback", move |ctx| {
-        let res = ctx.get::<JsString>(0)?.into_utf8()?;
-        let s = res.into_owned()?;
-        tx.send(Ok(s)).unwrap();
+        let res = parse(ctx.get::<JsUnknown>(0)?)?;
+        tx.send(Ok(res)).unwrap();
         ctx.env.get_undefined()
       })?;
       let eb = env.create_function_from_closure("error_callback", move |ctx| {
@@ -261,10 +261,8 @@ mod bundle {
       })?;
       then.call(Some(&result), &[cb, eb])?;
     } else {
-      let result: JsString = result.try_into()?;
-      let utf8 = result.into_utf8()?;
-      let s = utf8.into_owned()?;
-      tx.send(Ok(s)).unwrap();
+      let result = parse(result)?;
+      tx.send(Ok(result)).unwrap();
     }
 
     Ok(())
@@ -274,10 +272,12 @@ mod bundle {
     let specifier = ctx.env.create_string(&ctx.value.specifier)?;
     let originating_file = ctx.env.create_string(&ctx.value.originating_file)?;
     let result = ctx.callback.unwrap().call(None, &[specifier, originating_file])?;
-    await_promise(ctx.env, result, ctx.value.tx)
+    await_promise(ctx.env, result, ctx.value.tx, move |unknown| {
+      ctx.env.from_js_value(unknown)
+    })
   }
 
-  fn handle_error(tx: Sender<napi::Result<String>>, res: napi::Result<()>) -> napi::Result<()> {
+  fn handle_error<T>(tx: Sender<napi::Result<T>>, res: napi::Result<()>) -> napi::Result<()> {
     match res {
       Ok(_) => Ok(()),
       Err(e) => {
@@ -295,7 +295,9 @@ mod bundle {
   fn read_on_js_thread(ctx: ThreadSafeCallContext<ReadMessage>) -> napi::Result<()> {
     let file = ctx.env.create_string(&ctx.value.file)?;
     let result = ctx.callback.unwrap().call(None, &[file])?;
-    await_promise(ctx.env, result, ctx.value.tx)
+    await_promise(ctx.env, result, ctx.value.tx, |unknown| {
+      JsString::try_from(unknown)?.into_utf8()?.into_owned()
+    })
   }
 
   fn read_on_js_thread_wrapper(ctx: ThreadSafeCallContext<ReadMessage>) -> napi::Result<()> {
@@ -421,10 +423,10 @@ mod bundle {
 #[cfg(target_arch = "wasm32")]
 mod bundle {
   use super::*;
+  use lightningcss::bundler::ResolveResult;
   use napi::{Env, JsFunction, JsString, NapiRaw, NapiValue, Ref};
   use std::cell::UnsafeCell;
-  use std::path::{Path, PathBuf};
-  use std::str::FromStr;
+  use std::path::Path;
 
   pub fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
     let opts = ctx.get::<JsObject>(0)?;
@@ -497,7 +499,7 @@ mod bundle {
     );
   }
 
-  fn get_result(env: Env, mut value: JsUnknown) -> napi::Result<JsString> {
+  fn get_result(env: Env, mut value: JsUnknown) -> napi::Result<JsUnknown> {
     if value.is_promise()? {
       let mut result = std::ptr::null_mut();
       let mut error = std::ptr::null_mut();
@@ -513,7 +515,7 @@ mod bundle {
       value = unsafe { JsUnknown::from_raw(env.raw(), result)? };
     }
 
-    value.try_into()
+    Ok(value)
   }
 
   impl SourceProvider for JsSourceProvider {
@@ -523,7 +525,9 @@ mod bundle {
       let read: JsFunction = self.env.get_reference_value_unchecked(&self.read)?;
       let file = self.env.create_string(file.to_str().unwrap())?;
       let source: JsUnknown = read.call(None, &[file])?;
-      let source = get_result(self.env, source)?.into_utf8()?.into_owned()?;
+      let source = get_result(self.env, source)?;
+      let source: JsString = source.try_into()?;
+      let source = source.into_utf8()?.into_owned()?;
 
       // cache the result
       let ptr = Box::into_raw(Box::new(source));
@@ -535,16 +539,17 @@ mod bundle {
       Ok(unsafe { &*ptr })
     }
 
-    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
+    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<ResolveResult, Self::Error> {
       if let Some(resolve) = &self.resolve {
         let resolve: JsFunction = self.env.get_reference_value_unchecked(resolve)?;
         let specifier = self.env.create_string(specifier)?;
         let originating_file = self.env.create_string(originating_file.to_str().unwrap())?;
         let result: JsUnknown = resolve.call(None, &[specifier, originating_file])?;
-        let result = get_result(self.env, result)?.into_utf8()?;
-        Ok(PathBuf::from_str(result.as_str()?).unwrap())
+        let result = get_result(self.env, result)?;
+        let result = self.env.from_js_value(result)?;
+        Ok(result)
       } else {
-        Ok(originating_file.with_file_name(specifier))
+        Ok(ResolveResult::File(originating_file.with_file_name(specifier)))
       }
     }
   }

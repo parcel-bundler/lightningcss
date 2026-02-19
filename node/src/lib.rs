@@ -3,7 +3,7 @@
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use napi::{CallContext, JsObject, JsUnknown};
-use napi_derive::{js_function, module_exports};
+use napi_derive::js_function;
 
 #[js_function(1)]
 fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
@@ -26,7 +26,7 @@ pub fn bundle_async(ctx: CallContext) -> napi::Result<JsObject> {
   lightningcss_napi::bundle_async(ctx)
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), module_exports)]
+#[cfg_attr(not(target_arch = "wasm32"), napi_derive::module_exports)]
 fn init(mut exports: JsObject) -> napi::Result<()> {
   exports.create_named_method("transform", transform)?;
   exports.create_named_method("transformStyleAttribute", transform_style_attribute)?;
@@ -45,7 +45,6 @@ pub fn register_module() {
   unsafe fn register(raw_env: napi::sys::napi_env, raw_exports: napi::sys::napi_value) -> napi::Result<()> {
     use napi::{Env, JsObject, NapiValue};
 
-    let env = Env::from_raw(raw_env);
     let exports = JsObject::from_raw_unchecked(raw_env, raw_exports);
     init(exports)
   }
