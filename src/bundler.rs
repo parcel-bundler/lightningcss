@@ -191,6 +191,9 @@ pub enum BundleErrorKind<'i, T: std::error::Error> {
   UnsupportedMediaBooleanLogic,
   /// An external module was referenced with a CSS module "from" clause.
   ReferencedExternalModuleWithCssModuleFrom,
+  /// An external `@import` was found after a bundled `@import`.
+  /// This may result in unintended selector order.
+  ExternalImportAfterBundledImport,
   /// A custom resolver error.
   ResolverError(#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] T),
 }
@@ -215,6 +218,10 @@ impl<'i, T: std::error::Error> std::fmt::Display for BundleErrorKind<'i, T> {
       ReferencedExternalModuleWithCssModuleFrom => {
         write!(f, "Referenced external module with CSS module \"from\" clause")
       }
+      ExternalImportAfterBundledImport => write!(
+        f,
+        "An external `@import` was found after a bundled `@import`. This may result in unintended selector order."
+      ),
       ResolverError(err) => std::fmt::Display::fmt(&err, f),
     }
   }
@@ -297,7 +304,7 @@ where
 
     // Phase 3: concatenate.
     let mut rules: Vec<CssRule<'a, T::AtRule>> = Vec::new();
-    self.inline(&mut rules);
+    self.inline(&mut rules)?;
 
     let sources = self
       .stylesheets
@@ -703,14 +710,16 @@ where
     }
   }
 
-  fn inline(&mut self, dest: &mut Vec<CssRule<'a, T::AtRule>>) {
-    process(self.stylesheets.get_mut().unwrap(), 0, dest);
-
-    fn process<'a, T>(
+  fn inline(
+    &mut self,
+    dest: &mut Vec<CssRule<'a, T::AtRule>>,
+  ) -> Result<(), Error<BundleErrorKind<'a, P::Error>>> {
+    fn process<'a, T, E: std::error::Error>(
       stylesheets: &mut Vec<BundleStyleSheet<'a, '_, T>>,
       source_index: u32,
       dest: &mut Vec<CssRule<'a, T>>,
-    ) {
+      filename: &String,
+    ) -> Result<(), Error<BundleErrorKind<'a, E>>> {
       let stylesheet = &mut stylesheets[source_index as usize];
       let mut rules = std::mem::take(&mut stylesheet.stylesheet.as_mut().unwrap().rules.0);
 
@@ -722,13 +731,14 @@ where
 
         // Include the dependency if this is the first instance as computed earlier.
         if resolved.parent_source_index == source_index && resolved.parent_dep_index == dep_index as u32 {
-          process(stylesheets, dep_source_index, dest);
+          process(stylesheets, dep_source_index, dest, filename)?;
         }
 
         dep_index += 1;
       }
 
       let mut import_index = 0;
+      let mut has_bundled_import = false;
       for rule in &mut rules {
         match rule {
           CssRule::Import(import_rule) => {
@@ -739,13 +749,24 @@ where
 
                 // Include the dependency if this is the last instance as computed earlier.
                 if resolved.parent_source_index == source_index && resolved.parent_dep_index == dep_index {
-                  process(stylesheets, *dep_source_index, dest);
+                  has_bundled_import = true;
+                  process(stylesheets, *dep_source_index, dest, filename)?;
                 }
 
                 *rule = CssRule::Ignored;
                 dep_index += 1;
               }
               Dependency::External(url) => {
+                if has_bundled_import {
+                  return Err(Error {
+                    kind: BundleErrorKind::ExternalImportAfterBundledImport,
+                    loc: Some(ErrorLocation {
+                      filename: filename.clone(),
+                      line: import_rule.loc.line,
+                      column: import_rule.loc.column,
+                    }),
+                  });
+                }
                 import_rule.url = url.to_owned().into();
                 let imp = std::mem::replace(rule, CssRule::Ignored);
                 dest.push(imp);
@@ -792,7 +813,10 @@ where
       }
 
       dest.extend(rules);
+      Ok(())
     }
+
+    process(self.stylesheets.get_mut().unwrap(), 0, dest, &self.options.filename)
   }
 }
 
@@ -1628,6 +1652,24 @@ mod tests {
           color: green;
         }
     "#}
+    );
+
+    error_test(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import './b.css';
+          @import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
+      },
+      "/a.css",
+      Some(Box::new(|err| {
+        assert!(matches!(err, BundleErrorKind::ExternalImportAfterBundledImport));
+      })),
     );
 
     error_test(
