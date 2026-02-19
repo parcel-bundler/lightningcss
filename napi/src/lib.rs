@@ -423,10 +423,10 @@ mod bundle {
 #[cfg(target_arch = "wasm32")]
 mod bundle {
   use super::*;
+  use lightningcss::bundler::ResolveResult;
   use napi::{Env, JsFunction, JsString, NapiRaw, NapiValue, Ref};
   use std::cell::UnsafeCell;
-  use std::path::{Path, PathBuf};
-  use std::str::FromStr;
+  use std::path::Path;
 
   pub fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
     let opts = ctx.get::<JsObject>(0)?;
@@ -499,7 +499,7 @@ mod bundle {
     );
   }
 
-  fn get_result(env: Env, mut value: JsUnknown) -> napi::Result<JsString> {
+  fn get_result(env: Env, mut value: JsUnknown) -> napi::Result<JsUnknown> {
     if value.is_promise()? {
       let mut result = std::ptr::null_mut();
       let mut error = std::ptr::null_mut();
@@ -515,7 +515,7 @@ mod bundle {
       value = unsafe { JsUnknown::from_raw(env.raw(), result)? };
     }
 
-    value.try_into()
+    Ok(value)
   }
 
   impl SourceProvider for JsSourceProvider {
@@ -525,7 +525,9 @@ mod bundle {
       let read: JsFunction = self.env.get_reference_value_unchecked(&self.read)?;
       let file = self.env.create_string(file.to_str().unwrap())?;
       let source: JsUnknown = read.call(None, &[file])?;
-      let source = get_result(self.env, source)?.into_utf8()?.into_owned()?;
+      let source = get_result(self.env, source)?;
+      let source: JsString = source.try_into()?;
+      let source = source.into_utf8()?.into_owned()?;
 
       // cache the result
       let ptr = Box::into_raw(Box::new(source));
@@ -537,16 +539,17 @@ mod bundle {
       Ok(unsafe { &*ptr })
     }
 
-    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
+    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<ResolveResult, Self::Error> {
       if let Some(resolve) = &self.resolve {
         let resolve: JsFunction = self.env.get_reference_value_unchecked(resolve)?;
         let specifier = self.env.create_string(specifier)?;
         let originating_file = self.env.create_string(originating_file.to_str().unwrap())?;
         let result: JsUnknown = resolve.call(None, &[specifier, originating_file])?;
-        let result = get_result(self.env, result)?.into_utf8()?;
-        Ok(PathBuf::from_str(result.as_str()?).unwrap())
+        let result = get_result(self.env, result)?;
+        let result = self.env.from_js_value(result)?;
+        Ok(result)
       } else {
-        Ok(originating_file.with_file_name(specifier))
+        Ok(ResolveResult::File(originating_file.with_file_name(specifier)))
       }
     }
   }
