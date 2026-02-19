@@ -1717,8 +1717,11 @@ where
     // Otherwise, use an :is() pseudo class.
     // Type selectors are only allowed at the start of a compound selector,
     // so use :is() if that is not the case.
+    // Also, :is() cannot contain pseudo-elements, so we must serialize directly in that case.
     if ctx.selectors.0.len() == 1
-      && (first || (!has_type_selector(&ctx.selectors.0[0]) && is_simple(&ctx.selectors.0[0])))
+      && (first
+        || (!has_type_selector(&ctx.selectors.0[0]) && is_simple(&ctx.selectors.0[0]))
+        || ctx.selectors.0[0].has_pseudo_element())
     {
       serialize_selector(ctx.selectors.0.first().unwrap(), dest, ctx.parent, false)
     } else {
