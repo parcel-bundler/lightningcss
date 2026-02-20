@@ -17,11 +17,9 @@ use pathdiff::diff_paths;
 #[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::Serialize;
 use smallvec::{smallvec, SmallVec};
-use std::borrow::Cow;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::fmt::Write;
-use std::hash::{Hash, Hasher};
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 
 /// Configuration for CSS modules.
@@ -289,17 +287,27 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
     let hashes = sources
       .iter()
       .map(|path| {
-        // Make paths relative to project root so hashes are stable.
-        let source = match project_root {
-          Some(project_root) if path.is_absolute() => {
-            diff_paths(path, project_root).map_or(Cow::Borrowed(*path), Cow::Owned)
+        // Make paths relative to project root so hashes are stable
+        let relative_path = match project_root {
+          Some(root) => {
+            if path.is_absolute() && root.is_absolute() {
+              diff_paths(path, root).unwrap_or_else(|| path.to_path_buf())
+            } else {
+              // For relative or Unix-style paths, use string-based prefix matching
+              let path_str = path.to_string_lossy();
+              let root_str = root.to_string_lossy();
+              path_str
+                .strip_prefix(&*root_str)
+                .map(|s| s.trim_start_matches(['/', '\\']))
+                .unwrap_or(&path_str)
+                .to_string()
+                .into()
+            }
           }
-          _ => Cow::Borrowed(*path),
+          _ => path.to_path_buf(),
         };
-        hash(
-          &source.to_string_lossy(),
-          matches!(config.pattern.segments[0], Segment::Hash),
-        )
+        let normalized = relative_path.to_string_lossy().replace('\\', "/");
+        hash(&normalized, matches!(config.pattern.segments[0], Segment::Hash))
       })
       .collect();
     Self {
