@@ -3933,6 +3933,10 @@ pub mod tests {
     assert!(parse("foo::details-content").is_ok());
     assert!(parse("foo::target-text").is_ok());
 
+    assert!(parse("::highlight").is_err());
+    assert!(parse("::highlight()").is_err());
+    assert!(parse("::highlight(custom-highlight-name)").is_ok());
+
     assert!(parse("select::picker").is_err());
     assert!(parse("::picker()").is_err());
     assert!(parse("::picker(select)").is_ok());
