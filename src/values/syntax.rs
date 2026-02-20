@@ -552,7 +552,11 @@ mod tests {
 
     test("foo|<color>+|<integer>", "foo", ParsedComponent::Literal("foo".into()));
 
-    test("foo | <color>+ | <integer>", "2", ParsedComponent::Integer(2));
+    test(
+      "foo | <color>+ | <integer>",
+      "2",
+      ParsedComponent::Integer(CSSInteger(2)),
+    );
 
     test(
       "foo | <color>+ | <integer>",

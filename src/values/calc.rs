@@ -601,7 +601,55 @@ impl<
               node = node * (1.0 / val);
               continue;
             }
+            // Division by zero produces infinity (IEEE-754 semantics)
+            if val == 0.0 {
+              // IEEE-754: 0 / -0 = NaN, not infinity
+              if let Calc::Number(node_val) = node {
+                if node_val == 0.0 {
+                  // 0 / 0 or 0 / -0 = NaN
+                  node = Calc::Number(f32::NAN);
+                  continue;
+                }
+                // Number / 0 = infinity
+                let infinity = if val.is_sign_positive() {
+                  if node.is_sign_negative() {
+                    Calc::Number(-f32::INFINITY)
+                  } else {
+                    Calc::Number(f32::INFINITY)
+                  }
+                } else {
+                  if node.is_sign_negative() {
+                    Calc::Number(f32::INFINITY)
+                  } else {
+                    Calc::Number(-f32::INFINITY)
+                  }
+                };
+                node = infinity;
+                continue;
+              }
+              // Non-Number (like Length) / 0 = infinity
+              // For Length values, we keep them as-is and let ToCss handle serialization
+              // Use f32::INFINITY as marker for division by zero
+              // In ToCss, we'll output /0 or /-0 based on the marker
+              let marker = if f32::is_sign_negative(val) {
+                -f32::INFINITY
+              } else {
+                f32::INFINITY
+              };
+              node = Calc::Product(marker, Box::new(node));
+              continue;
+            }
+            // Division by infinity
+            if val.is_infinite() {
+              if node.is_sign_negative() {
+                node = Calc::Number(-0.0);
+              } else {
+                node = Calc::Number(0.0);
+              }
+              continue;
+            }
           }
+          // Non-Number / 0 case handled above
           return Err(input.new_custom_error(ParserError::InvalidValue));
         }
         _ => {
@@ -987,7 +1035,22 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
         }
       }
       Calc::Product(num, calc) => {
-        if num.abs() < 1.0 {
+        // Special case: Product(INFINITY, value) represents value/0 (division by positive zero)
+        // Special case: Product(-INFINITY, value) represents value/-0 (division by negative zero)
+        // Serialize as calc(value/0) or calc(value/-0) instead of calc(INFINITY * value)
+        if num.is_infinite() {
+          calc.to_css(dest)?;
+          dest.delim('/', true)?;
+          if f32::is_sign_negative(*num) {
+            dest.write_str("-0")
+          } else {
+            dest.write_str("0")
+          }
+        } else if *num == 1.0 {
+          calc.to_css(dest)?;
+          dest.delim('/', true)?;
+          dest.write_str("0")
+        } else if num.abs() < 1.0 {
           let div = 1.0 / num;
           calc.to_css(dest)?;
           dest.delim('/', true)?;
