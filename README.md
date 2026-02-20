@@ -28,7 +28,7 @@ An extremely fast CSS parser, transformer, and minifier written in Rust. Use it 
   - CSS Nesting
   - Custom media queries (draft spec)
   - Logical properties
-  * [Color Level 5](https://drafts.csswg.org/css-color-5/)
+  - [Color Level 5](https://drafts.csswg.org/css-color-5/)
     - `color-mix()` function
     - Relative color syntax, e.g. `lab(from purple calc(l * .8) a b)`
   - [Color Level 4](https://drafts.csswg.org/css-color-4/)
@@ -68,7 +68,7 @@ Lightning CSS can be used from [Parcel](https://parceljs.org), as a standalone l
 <img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022599-28246659-f94a-46a4-9de0-b6d17adb0e22.png#gh-light-mode-only">
 <img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022693-6956b044-422b-4f56-9628-d59c6f791095.png#gh-dark-mode-only">
 
-```
+```sh
 $ node bench.js bootstrap-4.css
 cssnano: 544.809ms
 159636 bytes
