@@ -27759,9 +27759,23 @@ mod tests {
       ".foo{filter:url(filters.svg#filter-id)}",
     );
     minify_test(".foo { filter: blur(5px); }", ".foo{filter:blur(5px)}");
-    minify_test(".foo { filter: blur(0px); }", ".foo{filter:blur()}");
+    minify_test(".foo { filter: blur(0px); }", ".foo{filter:blur(0)}");
+    minify_test(".foo { filter: brightness(0.520); }", ".foo{filter:brightness(.52)}");
     minify_test(".foo { filter: brightness(10%); }", ".foo{filter:brightness(10%)}");
-    minify_test(".foo { filter: brightness(100%); }", ".foo{filter:brightness()}");
+    minify_test(".foo { filter: brightness(100%); }", ".foo{filter:brightness(100%)}");
+    minify_test(".foo { filter: brightness(1); }", ".foo{filter:brightness(1)}");
+    minify_test(".foo { filter: contrast(100%); }", ".foo{filter:contrast(100%)}");
+    minify_test(".foo { filter: contrast(1); }", ".foo{filter:contrast(1)}");
+    minify_test(".foo { filter: grayscale(100%); }", ".foo{filter:grayscale(100%)}");
+    minify_test(".foo { filter: grayscale(1); }", ".foo{filter:grayscale(1)}");
+    minify_test(".foo { filter: invert(100%); }", ".foo{filter:invert(100%)}");
+    minify_test(".foo { filter: invert(1); }", ".foo{filter:invert(1)}");
+    minify_test(".foo { filter: opacity(100%); }", ".foo{filter:opacity(100%)}");
+    minify_test(".foo { filter: opacity(1); }", ".foo{filter:opacity(1)}");
+    minify_test(".foo { filter: saturate(100%); }", ".foo{filter:saturate(100%)}");
+    minify_test(".foo { filter: saturate(1); }", ".foo{filter:saturate(1)}");
+    minify_test(".foo { filter: sepia(100%); }", ".foo{filter:sepia(100%)}");
+    minify_test(".foo { filter: sepia(1); }", ".foo{filter:sepia(1)}");
     minify_test(
       ".foo { filter: drop-shadow(16px 16px 20px yellow); }",
       ".foo{filter:drop-shadow(16px 16px 20px #ff0)}",
@@ -27770,7 +27784,21 @@ mod tests {
       ".foo { filter: contrast(175%) brightness(3%); }",
       ".foo{filter:contrast(175%)brightness(3%)}",
     );
-    minify_test(".foo { filter: hue-rotate(0) }", ".foo{filter:hue-rotate()}");
+    minify_test(".foo { filter: hue-rotate(0) }", ".foo{filter:hue-rotate(0)}");
+
+    prefix_test(
+      ".foo { filter: brightness(1) }",
+      indoc! { r#"
+        .foo {
+          -webkit-filter: brightness(1);
+          filter: brightness(1);
+        }
+      "#},
+      Browsers {
+        chrome: Some(20 << 16),
+        ..Browsers::default()
+      },
+    );
 
     prefix_test(
       ".foo { filter: blur(5px) }",
