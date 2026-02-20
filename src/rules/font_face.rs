@@ -244,7 +244,7 @@ impl<'i> ToCss for FontFormat<'i> {
     };
     // Browser support for keywords rather than strings is very limited.
     // https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/src
-    serialize_string(&s, dest)?;
+    crate::serialize::string(&s, dest)?;
     Ok(())
   }
 }

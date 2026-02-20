@@ -766,6 +766,7 @@ dependencies = [
  "const-str",
  "cssparser",
  "cssparser-color",
+ "cssparser-macros",
  "dashmap",
  "data-encoding",
  "getrandom 0.3.3",

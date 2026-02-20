@@ -35,6 +35,7 @@ pub mod printer;
 pub mod properties;
 pub mod rules;
 pub mod selector;
+mod serialize;
 pub mod stylesheet;
 pub mod targets;
 pub mod traits;

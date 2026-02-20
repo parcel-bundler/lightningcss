@@ -238,7 +238,7 @@ impl<'i> ToCss for DashedIdentReference<'i> {
       Some(css_module) if css_module.config.dashed_idents => {
         if let Some(name) = css_module.reference_dashed(&self.ident.0, &self.from, dest.loc.source_index) {
           dest.write_str("--")?;
-          serialize_name(&name, dest)?;
+          crate::serialize::name(&name, dest)?;
           return Ok(());
         }
       }
@@ -269,7 +269,7 @@ impl<'i> ToCss for Ident<'i> {
   where
     W: std::fmt::Write,
   {
-    serialize_identifier(&self.0, dest)?;
+    crate::serialize::identifier(&self.0, dest)?;
     Ok(())
   }
 }
@@ -279,7 +279,7 @@ impl<'i> cssparser::ToCss for Ident<'i> {
   where
     W: std::fmt::Write,
   {
-    serialize_identifier(&self.0, dest)
+    crate::serialize::identifier(&self.0, dest)
   }
 }
 

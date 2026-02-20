@@ -53,7 +53,7 @@ impl<'i> ToCss for Url<'i> {
     // be replaced without escaping more easily. Quotes may be removed later during minification.
     if let Some(dep) = dep {
       dest.write_str("url(")?;
-      serialize_string(&dep.placeholder, dest)?;
+      crate::serialize::string(&dep.placeholder, dest)?;
       dest.write_char(')')?;
 
       if let Some(dependencies) = &mut dest.dependencies {
@@ -72,7 +72,7 @@ impl<'i> ToCss for Url<'i> {
       // then serialize as a string and choose the shorter version.
       if buf.len() > self.url.len() + 7 {
         let mut buf2 = String::new();
-        serialize_string(&self.url, &mut buf2)?;
+        crate::serialize::string(&self.url, &mut buf2)?;
         if buf2.len() + 5 < buf.len() {
           dest.write_str("url(")?;
           dest.write_str(&buf2)?;
@@ -83,7 +83,7 @@ impl<'i> ToCss for Url<'i> {
       dest.write_str(&buf)?;
     } else {
       dest.write_str("url(")?;
-      serialize_string(&self.url, dest)?;
+      crate::serialize::string(&self.url, dest)?;
       dest.write_char(')')?;
     }
 
