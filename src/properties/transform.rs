@@ -1058,20 +1058,9 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
       Translate3d(x, y, z) => {
-        if dest.minify && !x.is_zero() && y.is_zero() && z.is_zero() {
-          dest.write_str("translate(")?;
-          x.to_css(dest)?;
-        } else if dest.minify && x.is_zero() && !y.is_zero() && z.is_zero() {
-          dest.write_str("translateY(")?;
-          y.to_css(dest)?;
-        } else if dest.minify && x.is_zero() && y.is_zero() && !z.is_zero() {
+        if dest.minify && x.is_zero() && y.is_zero() {
           dest.write_str("translateZ(")?;
           z.to_css(dest)?;
-        } else if dest.minify && z.is_zero() {
-          dest.write_str("translate(")?;
-          x.to_css(dest)?;
-          dest.delim(',', false)?;
-          y.to_css(dest)?;
         } else {
           dest.write_str("translate3d(")?;
           x.to_css(dest)?;
@@ -1120,28 +1109,10 @@ impl ToCss for Transform {
         let x: f32 = x.into();
         let y: f32 = y.into();
         let z: f32 = z.into();
-        if dest.minify && z == 1.0 && x == y {
-          // scale3d(x, x, 1) => scale(x)
-          dest.write_str("scale(")?;
-          x.to_css(dest)?;
-        } else if dest.minify && x != 1.0 && y == 1.0 && z == 1.0 {
-          // scale3d(x, 1, 1) => scaleX(x)
-          dest.write_str("scaleX(")?;
-          x.to_css(dest)?;
-        } else if dest.minify && x == 1.0 && y != 1.0 && z == 1.0 {
-          // scale3d(1, y, 1) => scaleY(y)
-          dest.write_str("scaleY(")?;
-          y.to_css(dest)?;
-        } else if dest.minify && x == 1.0 && y == 1.0 && z != 1.0 {
+        if dest.minify && x == 1.0 && y == 1.0 && z != 1.0 {
           // scale3d(1, 1, z) => scaleZ(z)
           dest.write_str("scaleZ(")?;
           z.to_css(dest)?;
-        } else if dest.minify && z == 1.0 {
-          // scale3d(x, y, 1) => scale(x, y)
-          dest.write_str("scale(")?;
-          x.to_css(dest)?;
-          dest.delim(',', false)?;
-          y.to_css(dest)?;
         } else {
           dest.write_str("scale3d(")?;
           x.to_css(dest)?;
@@ -1168,7 +1139,7 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
       RotateZ(angle) => {
-        dest.write_str(if dest.minify { "rotate(" } else { "rotateZ(" })?;
+        dest.write_str("rotateZ(")?;
         angle.to_css_with_unitless_zero(dest)?;
         dest.write_char(')')
       }
@@ -1182,8 +1153,8 @@ impl ToCss for Transform {
           dest.write_str("rotateY(")?;
           angle.to_css_with_unitless_zero(dest)?;
         } else if dest.minify && *x == 0.0 && *y == 0.0 && *z == 1.0 {
-          // rotate3d(0, 0, 1, a) => rotate(a)
-          dest.write_str("rotate(")?;
+          // rotate3d(0, 0, 1, a) => rotateZ(a)
+          dest.write_str("rotateZ(")?;
           angle.to_css_with_unitless_zero(dest)?;
         } else {
           dest.write_str("rotate3d(")?;
