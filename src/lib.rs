@@ -12718,7 +12718,7 @@ mod tests {
     minify_test(".foo { transform: scale3d(1, 2, 1)", ".foo{transform:scale3d(1,2,1)}");
     minify_test(".foo { transform: scale3d(1, 1, 2)", ".foo{transform:scaleZ(2)}");
     minify_test(".foo { transform: scale3d(2, 2, 1)", ".foo{transform:scale3d(2,2,1)}");
-    minify_test(".foo { transform: scale3d(1, 1, 1)", ".foo{transform:scale3d(1,1,1)}");
+    minify_test(".foo { transform: scale3d(1, 1, 1)", ".foo{transform:scaleZ(1)}");
     minify_test(".foo { transform: rotate(20deg)", ".foo{transform:rotate(20deg)}");
     minify_test(".foo { transform: rotateX(20deg)", ".foo{transform:rotateX(20deg)}");
     minify_test(".foo { transform: rotateY(20deg)", ".foo{transform:rotateY(20deg)}");

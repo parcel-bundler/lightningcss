@@ -1109,7 +1109,7 @@ impl ToCss for Transform {
         let x: f32 = x.into();
         let y: f32 = y.into();
         let z: f32 = z.into();
-        if dest.minify && x == 1.0 && y == 1.0 && z != 1.0 {
+        if dest.minify && x == 1.0 && y == 1.0 {
           // scale3d(1, 1, z) => scaleZ(z)
           dest.write_str("scaleZ(")?;
           z.to_css(dest)?;
