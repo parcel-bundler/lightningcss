@@ -29,6 +29,8 @@ let { code, map } = transform({
 });
 ```
 
+If you want compact output formatting without enabling semantic minification optimizations, use `minifyWhitespace: true` and leave `minify` disabled. For example, `minify: false, minifyWhitespace: true` outputs compact CSS without beautifying whitespace/newlines.
+
 See [Transpilation](transpilation.html) for details about syntax lowering and vendor prefixing CSS for your browser targets, and the draft syntax support in Lightning CSS. You can also use the `bundle` API to process `@import` rules and inline them – see [Bundling](bundling.html) for details.
 
 The [TypeScript definitions](https://github.com/parcel-bundler/lightningcss/blob/master/node/index.d.ts) also include documentation for all API options.
@@ -160,6 +162,8 @@ Then, you can run the `lightningcss` command via `npx`, `yarn`, or by setting up
   }
 }
 ```
+
+Use `--minify-whitespace` to force compact output formatting and `--no-minify-whitespace` to force pretty output formatting. These flags are useful when you want to control whitespace/newlines independently from semantic minification (`--minify`).
 
 To see all of the available options, use the `--help` argument:
 
