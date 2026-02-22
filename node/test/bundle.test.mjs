@@ -121,6 +121,11 @@ test('sync bundle supports minifyWhitespace and omitted minify', () => {
     const compact = bundle({
       filename: file,
       minifyWhitespace: true,
+      resolver: {
+        read(filePath) {
+          return fs.readFileSync(filePath, 'utf8');
+        }
+      }
     }).code.toString('utf-8');
 
     assert.equal(compact, '.a{color:red}.a{color:#00f}');
@@ -129,6 +134,11 @@ test('sync bundle supports minifyWhitespace and omitted minify', () => {
       filename: file,
       minify: true,
       minifyWhitespace: false,
+      resolver: {
+        read(filePath) {
+          return fs.readFileSync(filePath, 'utf8');
+        }
+      }
     }).code.toString('utf-8');
 
     assert.ok(pretty.includes('\n'));
