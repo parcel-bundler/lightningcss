@@ -1,18 +1,20 @@
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
 import {webcrypto as crypto} from 'node:crypto';
 
-let bundleAsync;
+let bundle, bundleAsync;
 if (process.env.TEST_WASM === 'node') {
-  bundleAsync = (await import('../../wasm/wasm-node.mjs')).bundleAsync;
+  ({ bundle, bundleAsync } = await import('../../wasm/wasm-node.mjs'));
 } else if (process.env.TEST_WASM === 'browser') {
   // Define crypto globally for old node.
   // @ts-ignore
   globalThis.crypto ??= crypto;
   let wasm = await import('../../wasm/index.mjs');
   await wasm.default();
+  bundle = wasm.bundle;
   bundleAsync = function (options) {
     if (!options.resolver?.read) {
       options.resolver = {
@@ -24,7 +26,7 @@ if (process.env.TEST_WASM === 'node') {
     return wasm.bundleAsync(options);
   }
 } else {
-  bundleAsync = (await import('../index.mjs')).bundleAsync;
+  ({ bundle, bundleAsync } = await import('../index.mjs'));
 }
 
 test('resolver', async () => {
@@ -76,6 +78,75 @@ test('resolver', async () => {
 }
      `.trim();
   if (code !== expected) throw new Error(`\`testResolver()\` failed. Expected:\n${expected}\n\nGot:\n${code}`);
+});
+
+test('minifyWhitespace can compact bundle output without semantic minification', async () => {
+  const { code: buffer } = await bundleAsync({
+    filename: 'foo.css',
+    minify: false,
+    minifyWhitespace: true,
+    resolver: {
+      read() {
+        return '.a { color: red; } .a { color: blue; }';
+      }
+    }
+  });
+
+  assert.equal(buffer.toString('utf-8'), '.a{color:red}.a{color:#00f}');
+});
+
+test('minifyWhitespace can force pretty bundle output with semantic minification', async () => {
+  const { code: buffer } = await bundleAsync({
+    filename: 'foo.css',
+    minify: true,
+    minifyWhitespace: false,
+    resolver: {
+      read() {
+        return '.a { color: red; } .a { color: blue; }';
+      }
+    }
+  });
+  const code = buffer.toString('utf-8');
+
+  assert.ok(code.includes('\n'));
+  assert.ok(code.includes('color: #00f;'));
+  assert.ok(!code.includes('color: red;'));
+});
+
+test('sync bundle supports minifyWhitespace and omitted minify', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightningcss-bundle-test-'));
+  const file = path.join(dir, 'foo.css');
+  fs.writeFileSync(file, '.a { color: red; } .a { color: blue; }');
+  try {
+    const compact = bundle({
+      filename: file,
+      minifyWhitespace: true,
+      resolver: {
+        read(filePath) {
+          return fs.readFileSync(filePath, 'utf8');
+        }
+      }
+    }).code.toString('utf-8');
+
+    assert.equal(compact, '.a{color:red}.a{color:#00f}');
+
+    const pretty = bundle({
+      filename: file,
+      minify: true,
+      minifyWhitespace: false,
+      resolver: {
+        read(filePath) {
+          return fs.readFileSync(filePath, 'utf8');
+        }
+      }
+    }).code.toString('utf-8');
+
+    assert.ok(pretty.includes('\n'));
+    assert.ok(pretty.includes('color: #00f;'));
+    assert.ok(!pretty.includes('color: red;'));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('only custom read', async () => {

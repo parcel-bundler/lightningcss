@@ -12,6 +12,11 @@ export interface TransformOptions<C extends CustomAtRules> {
   code: Uint8Array,
   /** Whether to enable minification. */
   minify?: boolean,
+  /**
+   * Controls whitespace/newline minification during serialization only.
+   * When omitted, output formatting follows existing `minify` behavior.
+   */
+  minifyWhitespace?: boolean,
   /** Whether to output a source map. */
   sourceMap?: boolean,
   /** An input source map to extend. */
@@ -417,6 +422,11 @@ export interface TransformAttributeOptions {
   code: Uint8Array,
   /** Whether to enable minification. */
   minify?: boolean,
+  /**
+   * Controls whitespace/newline minification during serialization only.
+   * When omitted, output formatting follows existing `minify` behavior.
+   */
+  minifyWhitespace?: boolean,
   /** The browser targets for the generated code. */
   targets?: Targets,
   /**

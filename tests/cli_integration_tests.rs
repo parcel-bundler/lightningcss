@@ -168,6 +168,67 @@ fn valid_input_file() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn minify_whitespace_without_minify_compacts_without_optimizing() -> Result<(), Box<dyn std::error::Error>> {
+  let infile = assert_fs::NamedTempFile::new("test2.css")?;
+  infile.write_str(".a { color: red; } .a { color: blue; }")?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(infile.path());
+  cmd.arg("--minify-whitespace");
+  cmd
+    .assert()
+    .success()
+    .stdout(predicate::str::contains(".a{color:red}.a{color:#00f}"));
+
+  Ok(())
+}
+
+#[test]
+fn minify_and_no_minify_whitespace_pretty_prints_optimized_output() -> Result<(), Box<dyn std::error::Error>> {
+  let infile = assert_fs::NamedTempFile::new("test2.css")?;
+  infile.write_str(".a { color: red; } .a { color: blue; }")?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(infile.path());
+  cmd.arg("--minify");
+  cmd.arg("--no-minify-whitespace");
+  cmd
+    .assert()
+    .success()
+    .stdout(predicate::str::contains("color: #00f;"))
+    .stdout(predicate::str::contains("color: red;").not())
+    .stdout(predicate::str::contains("\n"));
+
+  Ok(())
+}
+
+#[test]
+fn minify_whitespace_flags_conflict() -> Result<(), Box<dyn std::error::Error>> {
+  let infile = test_file()?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(infile.path());
+  cmd.arg("--minify-whitespace");
+  cmd.arg("--no-minify-whitespace");
+  cmd.assert().failure().stderr(predicate::str::contains("cannot be used with"));
+
+  Ok(())
+}
+
+#[test]
+fn help_lists_minify_whitespace_flags() -> Result<(), Box<dyn std::error::Error>> {
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg("--help");
+  cmd
+    .assert()
+    .success()
+    .stdout(predicate::str::contains("--minify-whitespace"))
+    .stdout(predicate::str::contains("--no-minify-whitespace"));
+
+  Ok(())
+}
+
+#[test]
 fn empty_input_file() -> Result<(), Box<dyn std::error::Error>> {
   let file = assert_fs::NamedTempFile::new("test.css")?;
   file.write_str("")?;

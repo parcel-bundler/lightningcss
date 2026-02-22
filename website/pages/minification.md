@@ -17,6 +17,43 @@ let { code, map } = transform({
 });
 ```
 
+## Output formatting vs semantic minification
+
+Lightning CSS has separate concepts for:
+
+- semantic minification optimizations (e.g. merging adjacent rules, reducing values)
+- output formatting (compact vs pretty whitespace/newlines)
+
+By default, output formatting follows `minify`. In the JavaScript APIs and CLI, you can override formatting with `minifyWhitespace` (or the CLI flags `--minify-whitespace` / `--no-minify-whitespace`).
+
+For example, this produces compact output without semantic minification optimizations:
+
+```js
+let { code } = transform({
+  // ...
+  minify: false,
+  minifyWhitespace: true
+});
+```
+
+And this produces pretty output while still applying semantic minification optimizations:
+
+```js
+let { code } = transform({
+  // ...
+  minify: true,
+  minifyWhitespace: false
+});
+```
+
+When `minifyWhitespace` is omitted, Lightning CSS preserves the existing `minify`-driven formatting behavior.
+
+<div class="warning">
+
+`minifyWhitespace` controls serializer formatting only. Lightning CSS still parses and reserializes your CSS, so output formatting is not preserved byte-for-byte from the input.
+
+</div>
+
 ## Optimizations
 
 The Lightning CSS minifier includes many optimizations to generate the smallest possible output for all rules, properties, and values in your stylesheet. Lightning CSS does not perform any optimizations that change the behavior of your CSS unless it can prove that it is safe to do so. For example, only adjacent style rules are merged to avoid changing the order and potentially breaking the styles.
