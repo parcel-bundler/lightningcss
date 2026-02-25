@@ -64,6 +64,10 @@ pub enum CssColor {
   #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "LightDark"))]
   LightDark(Box<CssColor>, Box<CssColor>),
+  /// The [`contrast-color()`](https://drafts.csswg.org/css-color-5/#contrast-color) function.
+  #[cfg_attr(feature = "visitor", skip_type)]
+  #[cfg_attr(feature = "serde", serde(with = "ContrastColor"))]
+  ContrastColor(Box<CssColor>),
   /// A [system color](https://drafts.csswg.org/css-color/#css-system-colors) keyword.
   System(SystemColor),
 }
@@ -153,6 +157,38 @@ impl<'de> LightDark {
     let v: LightDark = serde::Deserialize::deserialize(deserializer)?;
     match v {
       LightDark::LightDark { light, dark } => Ok((Box::new(light), Box::new(dark))),
+    }
+  }
+}
+
+// For AST serialization.
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum ContrastColor {
+  ContrastColor { value: CssColor },
+}
+
+#[cfg(feature = "serde")]
+impl<'de> ContrastColor {
+  pub fn serialize<S>(value: &Box<CssColor>, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    let wrapper = ContrastColor::ContrastColor {
+      value: (**value).clone(),
+    };
+    serde::Serialize::serialize(&wrapper, serializer)
+  }
+
+  pub fn deserialize<D>(deserializer: D) -> Result<Box<CssColor>, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let v: ContrastColor = serde::Deserialize::deserialize(deserializer)?;
+    match v {
+      ContrastColor::ContrastColor { value } => Ok(Box::new(value)),
     }
   }
 }
@@ -334,6 +370,7 @@ impl CssColor {
       CssColor::LightDark(light, dark) => {
         Ok(CssColor::LightDark(Box::new(light.to_rgb()?), Box::new(dark.to_rgb()?)))
       }
+      CssColor::ContrastColor(value) => Ok(CssColor::ContrastColor(Box::new(value.to_rgb()?))),
       _ => Ok(RGBA::try_from(self)?.into()),
     }
   }
@@ -344,6 +381,7 @@ impl CssColor {
       CssColor::LightDark(light, dark) => {
         Ok(CssColor::LightDark(Box::new(light.to_lab()?), Box::new(dark.to_lab()?)))
       }
+      CssColor::ContrastColor(value) => Ok(CssColor::ContrastColor(Box::new(value.to_lab()?))),
       _ => Ok(LAB::try_from(self)?.into()),
     }
   }
@@ -354,6 +392,7 @@ impl CssColor {
       CssColor::LightDark(light, dark) => {
         Ok(CssColor::LightDark(Box::new(light.to_p3()?), Box::new(dark.to_p3()?)))
       }
+      CssColor::ContrastColor(value) => Ok(CssColor::ContrastColor(Box::new(value.to_p3()?))),
       _ => Ok(P3::try_from(self)?.into()),
     }
   }
@@ -382,6 +421,9 @@ impl CssColor {
       },
       CssColor::LightDark(light, dark) => {
         return light.get_possible_fallbacks(targets) | dark.get_possible_fallbacks(targets);
+      }
+      CssColor::ContrastColor(value) => {
+        return value.get_possible_fallbacks(targets);
       }
     };
 
@@ -473,6 +515,9 @@ impl CssColor {
         features |= light.get_features();
         features |= dark.get_features();
       }
+      CssColor::ContrastColor(value) => {
+        features |= value.get_features();
+      }
       _ => {}
     }
 
@@ -495,6 +540,7 @@ impl IsCompatible for CssColor {
       CssColor::LightDark(light, dark) => {
         Feature::LightDark.is_compatible(browsers) && light.is_compatible(browsers) && dark.is_compatible(browsers)
       }
+      CssColor::ContrastColor(value) => value.is_compatible(browsers),
       CssColor::System(system) => system.is_compatible(browsers),
     }
   }
@@ -645,6 +691,11 @@ impl ToCss for CssColor {
         light.to_css(dest)?;
         dest.delim(',', false)?;
         dark.to_css(dest)?;
+        dest.write_char(')')
+      }
+      CssColor::ContrastColor(value) => {
+        dest.write_str("contrast-color(")?;
+        value.to_css(dest)?;
         dest.write_char(')')
       }
       CssColor::System(system) => system.to_css(dest),
@@ -1089,6 +1140,15 @@ fn parse_color_function<'i, 't>(
           dark => Box::new(dark)
         };
         Ok(CssColor::LightDark(light, dark))
+      })
+    },
+    "contrast-color" => {
+      input.parse_nested_block(|input| {
+        let value = match CssColor::parse(input)? {
+          CssColor::ContrastColor(value) => value,
+          value => Box::new(value),
+        };
+        Ok(CssColor::ContrastColor(value))
       })
     },
     _ => Err(location.new_unexpected_token_error(
@@ -2971,6 +3031,7 @@ macro_rules! color_space {
           CssColor::Float(float) => (**float).into(),
           CssColor::CurrentColor => return Err(()),
           CssColor::LightDark(..) => return Err(()),
+          CssColor::ContrastColor(..) => return Err(()),
           CssColor::System(..) => return Err(()),
         })
       }
@@ -2986,6 +3047,7 @@ macro_rules! color_space {
           CssColor::Float(float) => (*float).into(),
           CssColor::CurrentColor => return Err(()),
           CssColor::LightDark(..) => return Err(()),
+          CssColor::ContrastColor(..) => return Err(()),
           CssColor::System(..) => return Err(()),
         })
       }
@@ -3363,8 +3425,8 @@ impl CssColor {
       + From<OKLCH>
       + Copy,
   {
-    if matches!(self, CssColor::CurrentColor | CssColor::System(..))
-      || matches!(other, CssColor::CurrentColor | CssColor::System(..))
+    if matches!(self, CssColor::CurrentColor | CssColor::System(..) | CssColor::ContrastColor(..))
+      || matches!(other, CssColor::CurrentColor | CssColor::System(..) | CssColor::ContrastColor(..))
     {
       return Err(());
     }
