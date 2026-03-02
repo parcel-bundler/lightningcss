@@ -1170,4 +1170,119 @@ test('visit stylesheet', () => {
   assert.equal(res.code.toString(), '.bar{width:80px}.foo{width:32px}');
 });
 
+test('visitor function', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @dep "foo.js";
+
+      .foo {
+        width: 32px;
+      }
+    `),
+    visitor: ({addDependency}) => ({
+      Rule: {
+        unknown: {
+          dep(rule) {
+            let file = rule.prelude[0].value.value;
+            addDependency({
+              type: 'file',
+              filePath: file
+            });
+            return [];
+          }
+        }
+      }
+    })
+  });
+
+  assert.equal(res.code.toString(), '.foo{width:32px}');
+  assert.equal(res.dependencies, [{
+    type: 'file',
+    filePath: 'foo.js'
+  }]);
+});
+
+test('visitor function works with style attributes', () => {
+  let res = transformStyleAttribute({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from('height: 12px'),
+    visitor: ({addDependency}) => ({
+      Length() {
+        addDependency({
+          type: 'file',
+          filePath: 'test.json'
+        });
+      }
+    })
+  });
+
+  assert.equal(res.dependencies, [{
+    type: 'file',
+    filePath: 'test.json'
+  }]);
+});
+
+test('visitor function works with bundler', () => {
+  let res = bundle({
+    filename: 'tests/testdata/a.css',
+    minify: true,
+    visitor: ({addDependency}) => ({
+      Length() {
+        addDependency({
+          type: 'file',
+          filePath: 'test.json'
+        });
+      }
+    })
+  });
+
+  assert.equal(res.dependencies, [
+    {
+      type: 'file',
+      filePath: 'test.json'
+    },
+    {
+      type: 'file',
+      filePath: 'test.json'
+    },
+    {
+      type: 'file',
+      filePath: 'test.json'
+    }
+  ]);
+});
+
+test('works with async bundler', async () => {
+  let res = await bundleAsync({
+    filename: 'tests/testdata/a.css',
+    minify: true,
+    visitor: ({addDependency}) => ({
+      Length() {
+        addDependency({
+          type: 'file',
+          filePath: 'test.json'
+        });
+      }
+    })
+  });
+
+  assert.equal(res.dependencies, [
+    {
+      type: 'file',
+      filePath: 'test.json'
+    },
+    {
+      type: 'file',
+      filePath: 'test.json'
+    },
+    {
+      type: 'file',
+      filePath: 'test.json'
+    }
+  ]);
+});
+
 test.run();
