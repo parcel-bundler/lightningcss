@@ -48,6 +48,9 @@ pub mod visitor;
 mod serialization;
 
 #[cfg(test)]
+mod test_helpers;
+
+#[cfg(test)]
 mod tests {
   use crate::css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, CssModuleReferences};
   use crate::dependencies::Dependency;
@@ -58,6 +61,7 @@ mod tests {
   use crate::rules::CssRule;
   use crate::rules::Location;
   use crate::stylesheet::*;
+  use crate::test_helpers::panic_with_test_error;
   use crate::targets::{Browsers, Features, Targets};
   use crate::traits::{Parse, ToCss};
   use crate::values::color::CssColor;
@@ -68,86 +72,130 @@ mod tests {
   use std::collections::HashMap;
   use std::sync::{Arc, RwLock};
 
+  #[track_caller]
   fn test(source: &str, expected: &str) {
     test_with_options(source, expected, ParserOptions::default())
   }
 
+  #[track_caller]
   fn test_with_options<'i, 'o>(source: &'i str, expected: &'i str, options: ParserOptions<'o, 'i>) {
-    let mut stylesheet = StyleSheet::parse(&source, options).unwrap();
-    stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    let mut stylesheet = match StyleSheet::parse(&source, options) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("test_with_options", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
+      panic_with_test_error("test_with_options", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions::default()) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("test_with_options", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn test_with_printer_options<'i, 'o>(source: &'i str, expected: &'i str, options: PrinterOptions<'o>) {
-    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
-    stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet.to_css(options).unwrap();
+    let mut stylesheet = match StyleSheet::parse(&source, ParserOptions::default()) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("test_with_printer_options", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
+      panic_with_test_error("test_with_printer_options", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(options) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("test_with_printer_options", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn minify_test(source: &str, expected: &str) {
     minify_test_with_options(source, expected, ParserOptions::default())
   }
 
   #[track_caller]
   fn minify_test_with_options<'i, 'o>(source: &'i str, expected: &'i str, options: ParserOptions<'o, 'i>) {
-    let mut stylesheet = StyleSheet::parse(&source, options.clone()).unwrap();
-    stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet
-      .to_css(PrinterOptions {
-        minify: true,
-        ..PrinterOptions::default()
-      })
-      .unwrap();
+    let mut stylesheet = match StyleSheet::parse(&source, options) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("minify_test_with_options", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
+      panic_with_test_error("minify_test_with_options", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions {
+      minify: true,
+      ..PrinterOptions::default()
+    }) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("minify_test_with_options", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn minify_error_test_with_options<'i, 'o>(
     source: &'i str,
     error: MinifyErrorKind,
     options: ParserOptions<'o, 'i>,
   ) {
-    let mut stylesheet = StyleSheet::parse(&source, options.clone()).unwrap();
+    let mut stylesheet = match StyleSheet::parse(&source, options) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("minify_error_test_with_options", "parse", source, e),
+    };
     match stylesheet.minify(MinifyOptions::default()) {
       Err(e) => assert_eq!(e.kind, error),
-      _ => unreachable!(),
+      Ok(()) => panic!(
+        "minify_error_test_with_options: expected minify error {:?}, but minification succeeded.\nsource:\n{source}",
+        error
+      ),
     }
   }
 
+  #[track_caller]
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
-    stylesheet
-      .minify(MinifyOptions {
-        targets: targets.into(),
-        ..MinifyOptions::default()
-      })
-      .unwrap();
-    let res = stylesheet
-      .to_css(PrinterOptions {
-        targets: targets.into(),
-        ..PrinterOptions::default()
-      })
-      .unwrap();
+    let mut stylesheet = match StyleSheet::parse(&source, ParserOptions::default()) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("prefix_test", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions {
+      targets: targets.into(),
+      ..MinifyOptions::default()
+    }) {
+      panic_with_test_error("prefix_test", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions {
+      targets: targets.into(),
+      ..PrinterOptions::default()
+    }) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("prefix_test", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn attr_test(source: &str, expected: &str, minify: bool, targets: Option<Browsers>) {
-    let mut attr = StyleAttribute::parse(source, ParserOptions::default()).unwrap();
+    let mut attr = match StyleAttribute::parse(source, ParserOptions::default()) {
+      Ok(attr) => attr,
+      Err(e) => panic_with_test_error("attr_test", "parse", source, e),
+    };
     attr.minify(MinifyOptions {
       targets: targets.into(),
       ..MinifyOptions::default()
     });
-    let res = attr
-      .to_css(PrinterOptions {
-        targets: targets.into(),
-        minify,
-        ..PrinterOptions::default()
-      })
-      .unwrap();
+    let res = match attr.to_css(PrinterOptions {
+      targets: targets.into(),
+      minify,
+      ..PrinterOptions::default()
+    }) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("attr_test", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn nesting_test(source: &str, expected: &str) {
     nesting_test_with_targets(
       source,
@@ -160,30 +208,45 @@ mod tests {
     );
   }
 
+  #[track_caller]
   fn nesting_test_with_targets(source: &str, expected: &str, targets: Targets) {
-    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
-    stylesheet
-      .minify(MinifyOptions {
-        targets,
-        ..MinifyOptions::default()
-      })
-      .unwrap();
-    let res = stylesheet
-      .to_css(PrinterOptions {
-        targets,
-        ..PrinterOptions::default()
-      })
-      .unwrap();
+    let mut stylesheet = match StyleSheet::parse(&source, ParserOptions::default()) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("nesting_test_with_targets", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions {
+      targets,
+      ..MinifyOptions::default()
+    }) {
+      panic_with_test_error("nesting_test_with_targets", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions {
+      targets,
+      ..PrinterOptions::default()
+    }) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("nesting_test_with_targets", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn nesting_test_no_targets(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
-    stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    let mut stylesheet = match StyleSheet::parse(&source, ParserOptions::default()) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("nesting_test_no_targets", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
+      panic_with_test_error("nesting_test_no_targets", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions::default()) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("nesting_test_no_targets", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn css_modules_test<'i>(
     source: &'i str,
     expected: &str,
@@ -192,47 +255,64 @@ mod tests {
     config: crate::css_modules::Config<'i>,
     minify: bool,
   ) {
-    let mut stylesheet = StyleSheet::parse(
+    let mut stylesheet = match StyleSheet::parse(
       &source,
       ParserOptions {
         filename: "test.css".into(),
         css_modules: Some(config),
         ..ParserOptions::default()
       },
-    )
-    .unwrap();
-    stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet
-      .to_css(PrinterOptions {
-        minify,
-        ..Default::default()
-      })
-      .unwrap();
+    ) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("css_modules_test", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
+      panic_with_test_error("css_modules_test", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions {
+      minify,
+      ..Default::default()
+    }) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("css_modules_test", "print", source, e),
+    };
     assert_eq!(res.code, expected);
-    assert_eq!(res.exports.unwrap(), expected_exports);
-    assert_eq!(res.references.unwrap(), expected_references);
+    match res.exports {
+      Some(exports) => assert_eq!(exports, expected_exports),
+      None => panic!("css_modules_test: expected CSS module exports, but got None.\nsource:\n{source}"),
+    }
+    match res.references {
+      Some(references) => assert_eq!(references, expected_references),
+      None => panic!("css_modules_test: expected CSS module references, but got None.\nsource:\n{source}"),
+    }
   }
 
+  #[track_caller]
   fn custom_media_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse(
+    let mut stylesheet = match StyleSheet::parse(
       &source,
       ParserOptions {
         flags: ParserFlags::CUSTOM_MEDIA,
         ..ParserOptions::default()
       },
-    )
-    .unwrap();
-    stylesheet
-      .minify(MinifyOptions {
-        targets: Browsers {
-          chrome: Some(95 << 16),
-          ..Browsers::default()
-        }
-        .into(),
-        ..MinifyOptions::default()
-      })
-      .unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    ) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("custom_media_test", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions {
+      targets: Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      }
+      .into(),
+      ..MinifyOptions::default()
+    }) {
+      panic_with_test_error("custom_media_test", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions::default()) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("custom_media_test", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
@@ -260,7 +340,14 @@ mod tests {
         Err(e) => unreachable!("parser error should be recovered, but got {e:?}"),
       }
     }
-    Arc::into_inner(warnings).unwrap().into_inner().unwrap()
+    let warnings = match Arc::into_inner(warnings) {
+      Some(warnings) => warnings,
+      None => panic!("error_recovery_test: expected a single Arc owner for warnings"),
+    };
+    match warnings.into_inner() {
+      Ok(warnings) => warnings,
+      Err(e) => panic!("error_recovery_test: warnings lock is poisoned: {e}"),
+    }
   }
 
   fn css_modules_error_test(source: &str, error: ParserError) {
