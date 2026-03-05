@@ -15342,6 +15342,50 @@ mod tests {
         ..Browsers::default()
       },
     );
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-appearance: none;
+        appearance: textfield;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        -webkit-appearance: none;
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+      "#},
+      Browsers {
+        chrome: Some(87 << 16),
+        firefox: Some(78 << 16),
+        safari: Some(14 << 16),
+        edge: Some(88 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        appearance: textfield;
+        -webkit-appearance: none;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        -moz-appearance: textfield;
+        appearance: textfield;
+        -webkit-appearance: none;
+      }
+      "#},
+      Browsers {
+        chrome: Some(87 << 16),
+        firefox: Some(78 << 16),
+        safari: Some(14 << 16),
+        edge: Some(88 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
