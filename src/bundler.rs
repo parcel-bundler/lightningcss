@@ -864,6 +864,9 @@ fn visit_vars<'a, 'b>(
             stack.push(light.0.iter_mut());
             stack.push(dark.0.iter_mut());
           }
+          UnresolvedColor::ContrastColor { value } => {
+            stack.push(value.0.iter_mut());
+          }
         },
         None => {
           stack.pop();

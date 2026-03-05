@@ -30758,6 +30758,96 @@ mod tests {
   }
 
   #[test]
+  fn test_contrast_color() {
+    // WPT reference:
+    // https://github.com/web-platform-tests/wpt/blob/e4a69111d7a6e24b80b71e6c6ef4536f84754f22/css/css-color/parsing/color-valid-contrast-color-function.html
+    minify_test(".foo { color: contrast-color(green); }", ".foo{color:contrast-color(green)}");
+    minify_test(
+      ".foo { color: contrast-color(hwb(120deg 0 49.8%)); }",
+      ".foo{color:contrast-color(green)}",
+    );
+    minify_test(
+      ".foo { color: contrast-color(rgb(70 130 180)); }",
+      ".foo{color:contrast-color(#4682b4)}",
+    );
+    minify_test(
+      ".foo { color: contrast-color(hsl(0deg 100% 0%)); }",
+      ".foo{color:contrast-color(#000)}",
+    );
+    // relative colors
+    minify_test(
+      ".foo { color: contrast-color(rgb(from red r g b)); }",
+      ".foo{color:contrast-color(red)}",
+    );
+    minify_test(
+      ".foo { color: rgb(from contrast-color(black) r g b); }",
+      ".foo{color:rgb(from contrast-color(#000) r g b)}",
+    );
+    // color-mix()
+    minify_test(
+      ".foo { color: color-mix(in srgb, contrast-color(blue) 100%, purple); }",
+      ".foo{color:color-mix(in srgb, contrast-color(#00f) 100%, purple)}",
+    );
+    // light-dark()
+    minify_test(
+      ".foo { color: contrast-color(light-dark(red, white)); }",
+      ".foo{color:contrast-color(light-dark(red,#fff))}",
+    );
+    minify_test(
+      ".foo { color: light-dark(contrast-color(red), white); }",
+      ".foo{color:light-dark(contrast-color(red),#fff)}",
+    );
+    minify_test(
+      ".foo { color: contrast-color(currentcolor); }",
+      ".foo{color:contrast-color(currentColor)}",
+    );
+    minify_test(
+      ".foo { color: contrast-color(transparent); }",
+      ".foo{color:contrast-color(#0000)}",
+    );
+
+    // Nested contrast-color() should be flattened.
+    minify_test(
+      ".foo { color: contrast-color(contrast-color(blue)); }",
+      ".foo{color:contrast-color(#00f)}",
+    );
+    minify_test(
+      ".foo { color: contrast-color(contrast-color(contrast-color(blue))); }",
+      ".foo{color:contrast-color(#00f)}",
+    );
+
+    // var() and unresolved token list paths should be preserved and flattened safely.
+    minify_test(
+      ".foo { color: contrast-color(var(--bg)); }",
+      ".foo{color:contrast-color(var(--bg))}",
+    );
+    minify_test(
+      ".foo { color: contrast-color(contrast-color(var(--bg))); }",
+      ".foo{color:contrast-color(var(--bg))}",
+    );
+    minify_test(
+      ".foo { --x: contrast-color(contrast-color(var(--bg))); }",
+      ".foo{--x:contrast-color(var(--bg))}",
+    );
+
+    // Should not panic for unsupported interpolation inputs.
+    minify_test(
+      ".foo { color: color-mix(in srgb, contrast-color(blue), red); }",
+      ".foo{color:color-mix(in srgb, contrast-color(#00f), red)}",
+    );
+
+    minify_test(
+      ".foo { background: linear-gradient( contrast-color(black) ); }",
+      ".foo{background:linear-gradient(contrast-color(#000))}",
+    );
+    minify_test(
+      ".foo { background: contrast-color(color(srgb calc(0.5) calc(-1 + 1 / 1) 1 / .99)); }",
+      ".foo{background:contrast-color(color(srgb .5 0 1/.99))}",
+    );
+
+  }
+
+  #[test]
   fn test_print_color_adjust() {
     prefix_test(
       ".foo { print-color-adjust: exact; }",
