@@ -216,6 +216,8 @@ minifies to:
 .foo{transform:translateY(50px)}
 ```
 
+To avoid changing transform dimensionality, Lightning CSS preserves 3D transform functions rather than lowering them to 2D equivalents. For example, `translate3d(..., ..., 0)` and `scale3d(..., ..., 1)` remain 3D, and `rotate3d(0, 0, 1, a)` is normalized to `rotateZ(a)`.
+
 In addition, the `matrix()` and `matrix3d()` functions are converted to their equivalent transforms when shorter:
 
 ```css
