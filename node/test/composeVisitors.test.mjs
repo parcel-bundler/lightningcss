@@ -800,4 +800,61 @@ test('StyleSheet', () => {
   assert.equal(styleSheetExitCalledCount, 2);
 });
 
+test('visitor function', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @dep "foo.js";
+      @dep2 "bar.js";
+
+      .foo {
+        width: 32px;
+      }
+    `),
+    visitor: composeVisitors([
+      ({addDependency}) => ({
+        Rule: {
+          unknown: {
+            dep(rule) {
+              let file = rule.prelude[0].value.value;
+              addDependency({
+                type: 'file',
+                filePath: file
+              });
+              return [];
+            }
+          }
+        }
+      }),
+      ({addDependency}) => ({
+        Rule: {
+          unknown: {
+            dep2(rule) {
+              let file = rule.prelude[0].value.value;
+              addDependency({
+                type: 'file',
+                filePath: file
+              });
+              return [];
+            }
+          }
+        }
+      })
+    ])
+  });
+
+  assert.equal(res.code.toString(), '.foo{width:32px}');
+  assert.equal(res.dependencies, [
+    {
+      type: 'file',
+      filePath: 'foo.js'
+    },
+    {
+      type: 'file',
+      filePath: 'bar.js'
+    }
+  ]);
+});
+
 test.run();

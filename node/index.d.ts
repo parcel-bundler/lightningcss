@@ -63,7 +63,7 @@ export interface TransformOptions<C extends CustomAtRules> {
    * For optimal performance, visitors should be as specific as possible about what types of values
    * they care about so that JavaScript has to be called as little as possible.
    */
-  visitor?: Visitor<C>,
+  visitor?: Visitor<C> | VisitorFunction<C>,
   /**
    * Defines how to parse custom CSS at-rules. Each at-rule can have a prelude, defined using a CSS
    * [syntax string](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings), and
@@ -213,6 +213,13 @@ export interface Visitor<C extends CustomAtRules> {
   EnvironmentVariableExit?: EnvironmentVariableVisitor | EnvironmentVariableVisitors;
 }
 
+export type VisitorDependency = FileDependency | GlobDependency;
+export interface VisitorOptions {
+  addDependency: (dep: VisitorDependency) => void
+}
+
+export type VisitorFunction<C extends CustomAtRules> = (options: VisitorOptions) => Visitor<C>;
+
 export interface CustomAtRules {
   [name: string]: CustomAtRuleDefinition
 }
@@ -358,7 +365,7 @@ export interface DependencyCSSModuleReference {
   specifier: string
 }
 
-export type Dependency = ImportDependency | UrlDependency;
+export type Dependency = ImportDependency | UrlDependency | FileDependency | GlobDependency;
 
 export interface ImportDependency {
   type: 'import',
@@ -382,6 +389,16 @@ export interface UrlDependency {
   loc: SourceLocation,
   /** The placeholder that the url was replaced with. */
   placeholder: string
+}
+
+export interface FileDependency {
+  type: 'file',
+  filePath: string
+}
+
+export interface GlobDependency {
+  type: 'glob',
+  glob: string
 }
 
 export interface SourceLocation {
@@ -438,7 +455,7 @@ export interface TransformAttributeOptions {
    * For optimal performance, visitors should be as specific as possible about what types of values
    * they care about so that JavaScript has to be called as little as possible.
    */
-  visitor?: Visitor<never>
+  visitor?: Visitor<never> | VisitorFunction<never>
 }
 
 export interface TransformAttributeResult {
@@ -474,4 +491,4 @@ export declare function bundleAsync<C extends CustomAtRules>(options: BundleAsyn
 /**
  * Composes multiple visitor objects into a single one.
  */
-export declare function composeVisitors<C extends CustomAtRules>(visitors: Visitor<C>[]): Visitor<C>;
+export declare function composeVisitors<C extends CustomAtRules>(visitors: (Visitor<C> | VisitorFunction<C>)[]): Visitor<C> | VisitorFunction<C>;
