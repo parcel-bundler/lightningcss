@@ -677,7 +677,7 @@ where
         } else {
           dest.delim(',', false)?;
         }
-        serialize_identifier(lang, dest)?;
+        crate::serialize::identifier(lang, dest)?;
       }
       return dest.write_str(")");
     }
@@ -1587,7 +1587,7 @@ where
       if dest.minify {
         // Serialize as both an identifier and a string and choose the shorter one.
         let mut id = String::new();
-        serialize_identifier(&value, &mut id)?;
+        crate::serialize::identifier(&value, &mut id)?;
 
         let s = value.to_css_string(Default::default())?;
 

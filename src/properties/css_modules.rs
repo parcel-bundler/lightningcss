@@ -128,7 +128,7 @@ impl<'i> ToCss for Specifier<'i> {
   {
     match self {
       Specifier::Global => dest.write_str("global")?,
-      Specifier::File(file) => serialize_string(&file, dest)?,
+      Specifier::File(file) => crate::serialize::string(&file, dest)?,
       Specifier::SourceIndex(..) => {}
     }
     Ok(())
