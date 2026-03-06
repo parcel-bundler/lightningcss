@@ -13815,8 +13815,8 @@ mod tests {
         div {
           background-image: radial-gradient(to left, white, black), repeating-linear-gradient(to bottom right, black, white), repeating-radial-gradient(to top, aqua, red);
         }
-        .old-radial {
-          background: radial-gradient(0 50%, ellipse farthest-corner, black, white);
+        .old-webkit-radial {
+          background: -webkit-radial-gradient(0 50%, ellipse farthest-corner, #000, #fff);
         }
         .simple1 {
           background: linear-gradient(black, white);
@@ -13830,8 +13830,8 @@ mod tests {
         .simple4 {
           background: linear-gradient(to right top, black, white);
         }
-        .direction {
-          background: linear-gradient(top left, black, rgba(0, 0, 0, 0.5), white);
+        .direction-old-webkit-gradient {
+          background: -webkit-linear-gradient(top left, black, rgba(0, 0, 0, 0.5), white);
         }
         .silent {
           background: -webkit-linear-gradient(top left, black, white);
@@ -13940,11 +13940,11 @@ mod tests {
         }
 
         div {
-          background-image: radial-gradient(to left, white, black), repeating-linear-gradient(to bottom right, black, white), repeating-radial-gradient(to top, aqua, red);
+          background-image: radial-gradient(to left, #fff, #000), repeating-linear-gradient(to bottom right, #000, #fff), repeating-radial-gradient(to top, #0ff, red);
         }
 
-        .old-radial {
-          background: radial-gradient(0 50%, ellipse farthest-corner, black, white);
+        .old-webkit-radial {
+          background: -webkit-radial-gradient(0 50%, ellipse farthest-corner, #000, #fff);
         }
 
         .simple1 {
@@ -13975,8 +13975,8 @@ mod tests {
           background: linear-gradient(to top right, #000, #fff);
         }
 
-        .direction {
-          background: linear-gradient(top left, black, rgba(0, 0, 0, .5), white);
+        .direction-old-webkit-gradient {
+          background: -webkit-linear-gradient(top left, #000, rgba(0, 0, 0, .5), #fff);
         }
 
         .silent {
@@ -14070,11 +14070,11 @@ mod tests {
         }
 
         .cover {
-          background: radial-gradient(ellipse cover at center, white, black);
+          background: radial-gradient(ellipse cover at center, #fff, #000);
         }
 
         .contain {
-          background: radial-gradient(contain at center, white, black);
+          background: radial-gradient(contain at center, #fff, #000);
         }
 
         .no-div {
@@ -20595,18 +20595,23 @@ mod tests {
         &format!("color({} 7 -20.5 100 / 0)", result_color_space),
       );
 
+      minify_test(
+        ".foo { border: lch(from rebeccapurple l c calc(h + 180)); }",
+        ".foo{border:lch(from #639 l c calc(h + 180))}",
+      );
+
       // https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/relative-color-invalid.html
       minify_test(
-        ".foo{color:rgb(from rebeccapurple r 10deg 10)}",
-        ".foo{color:rgb(from rebeccapurple r 10deg 10)}",
+        ".foo{color: rgb(from rebeccapurple r 10deg 10) }",
+        ".foo{color:rgb(from #639 r 10deg 10)}",
       );
       minify_test(
-        ".foo{color:rgb(from rebeccapurple l g b)}",
-        ".foo{color:rgb(from rebeccapurple l g b)}",
+        ".foo{ color: rgb(from rebeccapurple l g b) }",
+        ".foo{color:rgb(from #639 l g b)}",
       );
       minify_test(
-        ".foo{color:hsl(from rebeccapurple s h l)}",
-        ".foo{color:hsl(from rebeccapurple s h l)}",
+        ".foo{color: hsl(from rebeccapurple s h l) }",
+        ".foo{color:hsl(from #639 s h l)}",
       );
       minify_test(".foo{color:hsl(from rebeccapurple s s s / s)}", ".foo{color:#bfaa40}");
       minify_test(
@@ -20714,19 +20719,19 @@ mod tests {
     );
     minify_test(
       ".foo { color: color-mix(in srgb, currentColor, blue); }",
-      ".foo{color:color-mix(in srgb, currentColor, blue)}",
+      ".foo{color:color-mix(in srgb, currentColor, #00f)}",
     );
     minify_test(
       ".foo { color: color-mix(in srgb, blue, currentColor); }",
-      ".foo{color:color-mix(in srgb, blue, currentColor)}",
+      ".foo{color:color-mix(in srgb, #00f, currentColor)}",
     );
     minify_test(
       ".foo { color: color-mix(in srgb, accentcolor, blue); }",
-      ".foo{color:color-mix(in srgb, accentcolor, blue)}",
+      ".foo{color:color-mix(in srgb, accentcolor, #00f)}",
     );
     minify_test(
-      ".foo { color: color-mix(in srgb, blue, accentcolor); }",
-      ".foo{color:color-mix(in srgb, blue, accentcolor)}",
+      ".foo { color: color-mix(in srgb, rebeccapurple, accentcolor); }",
+      ".foo{color:color-mix(in srgb, #639, accentcolor)}",
     );
 
     // regex for converting web platform tests:
@@ -23138,6 +23143,149 @@ mod tests {
       ".foo { height: calc(var(--spectrum-global-dimension-size-300) / 2);",
       ".foo{height:calc(var(--spectrum-global-dimension-size-300) / 2)}",
     );
+
+    minify_test(
+      ".foo { mask: linear-gradient(90deg, white, var(--bar, rgba(0, 0, 0, .5)) ) }",  
+      ".foo{mask:linear-gradient(90deg, #fff, var(--bar,#00000080))}",
+    );
+    minify_test(
+      ".foo { background-image: var( --foo, linear-gradient(white, rgba(0 0 0 / 50%)) ) }",  
+      ".foo{background-image:var(--foo,linear-gradient(#fff, #00000080))}",
+    );
+
+    // Test in `light-dark()`
+    minify_test(
+      ".foo{background: light-dark(var(--c, white), black)}",
+      ".foo{background:light-dark(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background: light-dark(foo(var(--c, white)), black)}",
+      ".foo{background:light-dark(foo(var(--c,white)),#000)}",
+    );
+    minify_test(
+      ".foo{background: color-mix(in lch, var(--c, white) 50%, black)}",
+      ".foo{background:color-mix(in lch, var(--c,#fff) 50%, #000)}",
+    );
+
+    // Test minify color in <image> functions
+    minify_test(
+      ".foo{background-image:linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:repeating-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:repeating-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:repeating-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:repeating-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:conic-gradient(var(--c,white),black)}",
+      ".foo{background-image:conic-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:repeating-conic-gradient(var(--c,white),black)}",
+      ".foo{background-image:repeating-conic-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:image-set(linear-gradient(var(--c,white),black) 1x)}",
+      ".foo{background-image:image-set(linear-gradient(var(--c,#fff),#000) 1x)}",
+    );
+    minify_test(
+      ".foo{background-image:-webkit-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-webkit-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-webkit-repeating-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-webkit-repeating-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-webkit-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-webkit-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-webkit-repeating-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-webkit-repeating-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-moz-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-moz-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-moz-repeating-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-moz-repeating-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-moz-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-moz-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-moz-repeating-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-moz-repeating-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-o-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-o-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-o-repeating-linear-gradient(var(--c,white),black)}",
+      ".foo{background-image:-o-repeating-linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-o-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-o-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-o-repeating-radial-gradient(var(--c,white),black)}",
+      ".foo{background-image:-o-repeating-radial-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{background-image:-webkit-image-set(linear-gradient(var(--c,white),black) 1x)}",
+      ".foo{background-image:-webkit-image-set(linear-gradient(var(--c,#fff),#000) 1x)}",
+    );
+    minify_test(
+      ".foo{border-image-source:linear-gradient(var(--c,white),black)}",
+      ".foo{border-image-source:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{border-image:linear-gradient(var(--c,white),black) 30}",
+      ".foo{border-image:linear-gradient(var(--c,#fff),#000) 30}",
+    );
+    minify_test(
+      ".foo{list-style:linear-gradient(var(--c,white),black)}",
+      ".foo{list-style:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{list-style-image:linear-gradient(var(--c,white),black)}",
+      ".foo{list-style-image:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{mask-image:linear-gradient(var(--c,white),black)}",
+      ".foo{mask-image:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{mask-border-source:linear-gradient(var(--c,white),black)}",
+      ".foo{mask-border-source:linear-gradient(var(--c,#fff),#000)}",
+    );
+    minify_test(
+      ".foo{mask-border:linear-gradient(var(--c,white),black) 30}",
+      ".foo{mask-border:linear-gradient(var(--c,#fff),#000) 30}",
+    );
+    minify_test(
+      ".foo{-webkit-mask-box-image:linear-gradient(var(--c,white),black) 30}",
+      ".foo{-webkit-mask-box-image:linear-gradient(var(--c,#fff),#000) 30}",
+    );
+    minify_test(
+      ".foo{-webkit-mask-box-image-source:linear-gradient(var(--c,white),black)}",
+      ".foo{-webkit-mask-box-image-source:linear-gradient(var(--c,#fff),#000)}",
+    );
+
+    // Test minify color in var() fallbak
     minify_test(
       ".foo { color: var(--color, rgb(255, 255, 0)); }",
       ".foo{color:var(--color,#ff0)}",
@@ -23147,9 +23295,194 @@ mod tests {
       ".foo{color:var(--color,#ff0)}",
     );
     minify_test(
+      ".foo { color: var(--color, rgb(255 255 255 / .9)); }",
+      ".foo{color:var(--color,#ffffffe6)}",
+    );
+    minify_test(
+      ".foo { color: var(--color, hsl(0deg 100% 50%)); }",
+      ".foo{color:var(--color,red)}",
+    );
+    minify_test(
+      ".test-color { color: var(--c, white); }",
+      ".test-color{color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-background-color { background-color: var(--c, white); }",
+      ".test-background-color{background-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-background { background: var(--c, white); }",
+      ".test-background{background:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border { border: var(--c, white); }",
+      ".test-border{border:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-top { border-top: var(--c, white); }",
+      ".test-border-top{border-top:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-right { border-right: var(--c, white); }",
+      ".test-border-right{border-right:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-bottom { border-bottom: var(--c, white); }",
+      ".test-border-bottom{border-bottom:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-left { border-left: var(--c, white); }",
+      ".test-border-left{border-left:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block { border-block: var(--c, white); }",
+      ".test-border-block{border-block:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block-start { border-block-start: var(--c, white); }",
+      ".test-border-block-start{border-block-start:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block-end { border-block-end: var(--c, white); }",
+      ".test-border-block-end{border-block-end:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline { border-inline: var(--c, white); }",
+      ".test-border-inline{border-inline:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline-start { border-inline-start: var(--c, white); }",
+      ".test-border-inline-start{border-inline-start:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline-end { border-inline-end: var(--c, white); }",
+      ".test-border-inline-end{border-inline-end:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-color { border-color: var(--c, white); }",
+      ".test-border-color{border-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block-color { border-block-color: var(--c, white); }",
+      ".test-border-block-color{border-block-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline-color { border-inline-color: var(--c, white); }",
+      ".test-border-inline-color{border-inline-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-top-color { border-top-color: var(--c, white); }",
+      ".test-border-top-color{border-top-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-bottom-color { border-bottom-color: var(--c, white); }",
+      ".test-border-bottom-color{border-bottom-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-left-color { border-left-color: var(--c, white); }",
+      ".test-border-left-color{border-left-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-right-color { border-right-color: var(--c, white); }",
+      ".test-border-right-color{border-right-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block-start-color { border-block-start-color: var(--c, white); }",
+      ".test-border-block-start-color{border-block-start-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-block-end-color { border-block-end-color: var(--c, white); }",
+      ".test-border-block-end-color{border-block-end-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline-start-color { border-inline-start-color: var(--c, white); }",
+      ".test-border-inline-start-color{border-inline-start-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-border-inline-end-color { border-inline-end-color: var(--c, white); }",
+      ".test-border-inline-end-color{border-inline-end-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-outline { outline: var(--c, white); }",
+      ".test-outline{outline:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-outline-color { outline-color: var(--c, white); }",
+      ".test-outline-color{outline-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-box-shadow { box-shadow: var(--s, 0 0 white); }",
+      ".test-box-shadow{box-shadow:var(--s,0 0 #fff)}",
+    );
+    minify_test(
+      ".test-text-shadow { text-shadow: var(--s, 0 0 white); }",
+      ".test-text-shadow{text-shadow:var(--s,0 0 #fff)}",
+    );
+    minify_test(
+      ".test-text-decoration-color { text-decoration-color: var(--c, white); }",
+      ".test-text-decoration-color{text-decoration-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-text-decoration { text-decoration: var(--c, white); }",
+      ".test-text-decoration{text-decoration:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-text-emphasis-color { text-emphasis-color: var(--c, white); }",
+      ".test-text-emphasis-color{text-emphasis-color:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-text-emphasis { text-emphasis: var(--c, white); }",
+      ".test-text-emphasis{text-emphasis:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-caret-color { caret-color: var(--c, currentcolor); }",
+      ".test-caret-color{caret-color:var(--c,currentColor)}",
+    );
+    minify_test(
+      ".test-accent-color { accent-color: var(--c, transparent); }",
+      ".test-accent-color{accent-color:var(--c,#0000)}",
+    );
+    minify_test(
+      ".test-fill { fill: var(--c, white); }",
+      ".test-fill{fill:var(--c,#fff)}",
+    );
+    minify_test(
+      ".test-stroke { stroke: var(--c, white); }",
+      ".test-stroke{stroke:var(--c,#fff)}",
+    );
+    minify_test(
       ".foo { color: var(--color, rgb(var(--red), var(--green), 0)); }",
       ".foo{color:var(--color,rgb(var(--red), var(--green), 0))}",
     );
+    // 非白名单内的函数颜色值保持原状
+    minify_test(
+      ".foo{background: foo(var(--c, blue))}",
+      ".foo{background:foo(var(--c,blue))}",
+    );
+    minify_test(
+      ".foo2{background: linear-gradient(foo(var(--c, blue)), red)}",
+      ".foo2{background:linear-gradient(foo(var(--c,blue)), red)}",
+    );
+    minify_test(
+      ".foo3{background: linear-gradient(var(--c, blue),red)}",
+      ".foo3{background:linear-gradient(var(--c,#00f),red)}",
+    );
+    minify_test(
+      ".foo4{--x: 90px; background: linear-gradient(red var(--x, white), blue)}",
+      ".foo4{--x:90px;background:linear-gradient(red var(--x,#fff), #00f)}",
+    );
+
+    // 非 color 相关的属性颜色值保持原状
+    minify_test(
+      ".foo { width: var(--w, white); height: var(--h, transparent); }",
+      ".foo{width:var(--w,white);height:var(--h,transparent)}",
+    );
+    // supports 中的颜色值保持原状
+    minify_test(
+      "@supports (color: var(--c, white)) { .foo { color: red; } }",
+      "@supports (color:var(--c, white)){.foo{color:red}}",
+    );
+
     minify_test(".foo { --test: .5s; }", ".foo{--test:.5s}");
     minify_test(".foo { --theme-sizes-1\\/12: 2 }", ".foo{--theme-sizes-1\\/12:2}");
     minify_test(".foo { --test: 0px; }", ".foo{--test:0px}");
@@ -23179,6 +23512,32 @@ mod tests {
       ".foo { width: attr(data-width type(<length>), 100px); }",
       ".foo{width:attr(data-width type(<length>), 100px)}",
     );
+    minify_test(
+      ".foo { color: attr(lightblue type(<color>), blue); }",
+      // TODO: Once we implement structured parsing for attr(), we can minify the blue color.
+      ".foo{color:attr(lightblue type(<color>), blue)}",
+    );
+
+    // TODO var() in attr()
+    // minify_test(
+    //   ".foo { color: attr(lightblue type(<color>), var(--foo, hsl(0deg 100% 50%))); }",
+    //   ".foo{color:attr(lightblue type(<color>), red)}",
+    // );
+    minify_test(
+      ".foo { color: var(--lightblue, blue); }",
+      ".foo{color:var(--lightblue,#00f)}",
+    );
+
+    // Edge cases for color keyword minification in var() fallbacks
+    // System colors should be preserved
+    minify_test(
+      ".foo { color: var(--c, ButtonText); }",
+      ".foo{color:var(--c,ButtonText)}",
+    );
+    // Case-insensitive color names
+    minify_test(".foo { color: var(--c, WHITE); }", ".foo{color:var(--c,#fff)}");
+    // Invalid color names should be preserved
+    minify_test(".foo { color: var(--c, unknowColor); }", ".foo{color:var(--c,unknowColor)}");
 
     minify_test(".foo { width: attr( data-foo    % ); }", ".foo{width:attr(data-foo %)}");
 
@@ -30036,7 +30395,27 @@ mod tests {
         }
       }
     "#,
-      "@container style(color:yellow){.foo{color:red}}",
+      "@container style(color:#ff0){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style(color: var(--bar, blue)) {
+        .foo {
+          color: white;
+        }
+      }
+    "#,
+      "@container style(color:var(--bar,#00f)){.foo{color:#fff}}",
+    );
+    minify_test(
+      r#"
+      @container style(background: linear-gradient(red, blue)) {
+        .foo {
+          color: white;
+        }
+      }
+    "#,
+      "@container style(background:linear-gradient(red,#00f)){.foo{color:#fff}}",
     );
     minify_test(
       r#"
@@ -30047,6 +30426,26 @@ mod tests {
       }
     "#,
       "@container style(--foo:){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style(--foo: var(--bar, blue)) {
+        .foo {
+          color: white;
+        }
+      }
+    "#,
+      "@container style(--foo:var(--bar,blue)){.foo{color:#fff}}",
+    );
+    minify_test(
+      r#"
+      @container style(--foo: linear-gradient(red,   blue)) {
+        .foo {
+          color: white;
+        }
+      }
+    "#,
+      "@container style(--foo:linear-gradient(red, blue)){.foo{color:#fff}}",
     );
     minify_test(
       r#"
