@@ -938,32 +938,32 @@ impl<'i> Parse<'i> for Transform {
           Ok(Transform::Translate3d(x, y, z))
         },
         "scale" => {
-          let x = NumberOrPercentage::parse(input)?;
+          let x = convert_percentage_to_number(input)?;
           if input.try_parse(|input| input.expect_comma()).is_ok() {
-            let y = NumberOrPercentage::parse(input)?;
+            let y = convert_percentage_to_number(input)?;
             Ok(Transform::Scale(x, y))
           } else {
             Ok(Transform::Scale(x.clone(), x))
           }
         },
         "scalex" => {
-          let x = NumberOrPercentage::parse(input)?;
+          let x = convert_percentage_to_number(input)?;
           Ok(Transform::ScaleX(x))
         },
         "scaley" => {
-          let y = NumberOrPercentage::parse(input)?;
+          let y = convert_percentage_to_number(input)?;
           Ok(Transform::ScaleY(y))
         },
         "scalez" => {
-          let z = NumberOrPercentage::parse(input)?;
+          let z = convert_percentage_to_number(input)?;
           Ok(Transform::ScaleZ(z))
         },
         "scale3d" => {
-          let x = NumberOrPercentage::parse(input)?;
+          let x = convert_percentage_to_number(input)?;
           input.expect_comma()?;
-          let y = NumberOrPercentage::parse(input)?;
+          let y = convert_percentage_to_number(input)?;
           input.expect_comma()?;
-          let z = NumberOrPercentage::parse(input)?;
+          let z = convert_percentage_to_number(input)?;
           Ok(Transform::Scale3d(x, y, z))
         },
         "rotate" => {
@@ -1102,16 +1102,19 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
       ScaleX(x) => {
+        let x: f32 = x.into();
         dest.write_str("scaleX(")?;
         x.to_css(dest)?;
         dest.write_char(')')
       }
       ScaleY(y) => {
+        let y: f32 = y.into();
         dest.write_str("scaleY(")?;
         y.to_css(dest)?;
         dest.write_char(')')
       }
       ScaleZ(z) => {
+        let z: f32 = z.into();
         dest.write_str("scaleZ(")?;
         z.to_css(dest)?;
         dest.write_char(')')
@@ -1643,16 +1646,25 @@ pub enum Scale {
   },
 }
 
+fn convert_percentage_to_number<'i, 't>(
+  input: &mut Parser<'i, 't>,
+) -> Result<NumberOrPercentage, ParseError<'i, ParserError<'i>>> {
+  Ok(match NumberOrPercentage::parse(input)? {
+    NumberOrPercentage::Number(number) => NumberOrPercentage::Number(number),
+    NumberOrPercentage::Percentage(percent) => NumberOrPercentage::Number(percent.0),
+  })
+}
+
 impl<'i> Parse<'i> for Scale {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Scale::None);
     }
 
-    let x = NumberOrPercentage::parse(input)?;
-    let y = input.try_parse(NumberOrPercentage::parse);
+    let x = convert_percentage_to_number(input)?;
+    let y = input.try_parse(convert_percentage_to_number);
     let z = if y.is_ok() {
-      input.try_parse(NumberOrPercentage::parse).ok()
+      input.try_parse(convert_percentage_to_number).ok()
     } else {
       None
     };
@@ -1675,12 +1687,14 @@ impl ToCss for Scale {
         dest.write_str("none")?;
       }
       Scale::XYZ { x, y, z } => {
+        let x: f32 = x.into();
+        let y: f32 = y.into();
+        let z: f32 = z.into();
         x.to_css(dest)?;
-        let zv: f32 = z.into();
-        if y != x || zv != 1.0 {
+        if y != x || z != 1.0 {
           dest.write_char(' ')?;
           y.to_css(dest)?;
-          if zv != 1.0 {
+          if z != 1.0 {
             dest.write_char(' ')?;
             z.to_css(dest)?;
           }
