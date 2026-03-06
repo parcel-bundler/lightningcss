@@ -573,6 +573,7 @@ struct Config {
   #[serde(default)]
   pub exclude: u32,
   pub minify: Option<bool>,
+  pub minify_whitespace: Option<bool>,
   pub source_map: Option<bool>,
   pub input_source_map: Option<String>,
   pub drafts: Option<Drafts>,
@@ -629,6 +630,7 @@ struct BundleConfig {
   #[serde(default)]
   pub exclude: u32,
   pub minify: Option<bool>,
+  pub minify_whitespace: Option<bool>,
   pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
   pub non_standard: Option<NonStandard>,
@@ -753,13 +755,22 @@ fn compile<'i>(
       exclude: Features::from_bits_truncate(config.exclude),
     };
 
-    stylesheet.minify(MinifyOptions {
-      targets,
-      unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
-    })?;
+    let format_minify = config.minify_whitespace.unwrap_or(config.minify.unwrap_or_default());
+    let should_optimize = if config.minify_whitespace.is_some() {
+      config.minify.unwrap_or_default()
+    } else {
+      true
+    };
+
+    if should_optimize {
+      stylesheet.minify(MinifyOptions {
+        targets,
+        unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
+      })?;
+    }
 
     stylesheet.to_css(PrinterOptions {
-      minify: config.minify.unwrap_or_default(),
+      minify: format_minify,
       source_map: source_map.as_mut(),
       project_root,
       targets,
@@ -889,13 +900,22 @@ fn compile_bundle<
       exclude: Features::from_bits_truncate(config.exclude),
     };
 
-    stylesheet.minify(MinifyOptions {
-      targets,
-      unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
-    })?;
+    let format_minify = config.minify_whitespace.unwrap_or(config.minify.unwrap_or_default());
+    let should_optimize = if config.minify_whitespace.is_some() {
+      config.minify.unwrap_or_default()
+    } else {
+      true
+    };
+
+    if should_optimize {
+      stylesheet.minify(MinifyOptions {
+        targets,
+        unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
+      })?;
+    }
 
     stylesheet.to_css(PrinterOptions {
-      minify: config.minify.unwrap_or_default(),
+      minify: format_minify,
       source_map: source_map.as_mut(),
       project_root,
       targets,
@@ -951,6 +971,7 @@ struct AttrConfig {
   pub exclude: u32,
   #[serde(default)]
   pub minify: bool,
+  pub minify_whitespace: Option<bool>,
   #[serde(default)]
   pub analyze_dependencies: bool,
   #[serde(default)]
@@ -1012,12 +1033,21 @@ fn compile_attr<'i>(
       exclude: Features::from_bits_truncate(config.exclude),
     };
 
-    attr.minify(MinifyOptions {
-      targets,
-      ..MinifyOptions::default()
-    });
+    let format_minify = config.minify_whitespace.unwrap_or(config.minify);
+    let should_optimize = if config.minify_whitespace.is_some() {
+      config.minify
+    } else {
+      true
+    };
+
+    if should_optimize {
+      attr.minify(MinifyOptions {
+        targets,
+        ..MinifyOptions::default()
+      });
+    }
     attr.to_css(PrinterOptions {
-      minify: config.minify,
+      minify: format_minify,
       source_map: None,
       project_root: None,
       targets,

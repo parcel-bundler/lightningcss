@@ -29,9 +29,16 @@ struct CliArgs {
   /// Destination directory to output into.
   #[clap(short = 'd', long, group = "output_file", value_parser)]
   output_dir: Option<String>,
-  /// Minify the output
+  /// Enable minification. By default this also enables compact output formatting.
+  /// When a whitespace override flag is set, this controls semantic minification/optimizations.
   #[clap(short, long, value_parser)]
   minify: bool,
+  /// Minify whitespace/newlines in the serialized output, independent of semantic optimizations.
+  #[clap(long, value_parser, conflicts_with = "no-minify-whitespace")]
+  minify_whitespace: bool,
+  /// Disable whitespace/newline minification in the serialized output.
+  #[clap(long, value_parser, conflicts_with = "minify-whitespace")]
+  no_minify_whitespace: bool,
   /// Enable parsing CSS nesting
   // Now on by default, but left for backward compatibility.
   #[clap(long, value_parser, hide = true)]
@@ -74,6 +81,13 @@ struct SourceMapJson<'a> {
 pub fn main() -> Result<(), std::io::Error> {
   let cli_args = CliArgs::parse();
   let project_root = std::env::current_dir()?;
+  let minify_whitespace_override = if cli_args.minify_whitespace {
+    Some(true)
+  } else if cli_args.no_minify_whitespace {
+    Some(false)
+  } else {
+    None
+  };
 
   // If we're given an input file, read from it and adjust its name.
   //
@@ -196,16 +210,25 @@ pub fn main() -> Result<(), std::io::Error> {
       }
       .into();
 
-      stylesheet
-        .minify(MinifyOptions {
-          targets,
-          ..MinifyOptions::default()
-        })
-        .unwrap();
+      let format_minify = minify_whitespace_override.unwrap_or(cli_args.minify);
+      let should_optimize = if minify_whitespace_override.is_some() {
+        cli_args.minify
+      } else {
+        true
+      };
+
+      if should_optimize {
+        stylesheet
+          .minify(MinifyOptions {
+            targets,
+            ..MinifyOptions::default()
+          })
+          .unwrap();
+      }
 
       stylesheet
         .to_css(PrinterOptions {
-          minify: cli_args.minify,
+          minify: format_minify,
           source_map: source_map.as_mut(),
           project_root: Some(&project_root.to_string_lossy()),
           targets,
