@@ -1,5 +1,6 @@
 use cssparser::*;
 use lightningcss::{
+  css_modules::Config,
   declaration::DeclarationBlock,
   error::{ParserError, PrinterError},
   printer::Printer,
@@ -45,28 +46,68 @@ fn test_inline() {
   )
 }
 
+#[test]
+#[cfg(feature = "serde")]
+fn test_options_serialize() {
+  let source = r#"
+.foo {
+  color: red;
+}
+.bar {
+  color: blue;
+}
+  "#;
+  let options = ParserOptions {
+    css_modules: Some(Default::default()),
+    ..Default::default()
+  };
+  let stylesheet = StyleSheet::parse_with(&source, options, &mut TestAtRuleParser).unwrap();
+
+  let stylesheet_serialized = serde_json::to_string(&stylesheet).unwrap();
+  let mut recovered_stylesheet = serde_json::from_str::<StyleSheet>(&stylesheet_serialized).unwrap();
+
+  recovered_stylesheet.minify(Default::default()).unwrap();
+
+  let res = recovered_stylesheet
+    .to_css(PrinterOptions {
+      minify: true,
+      ..Default::default()
+    })
+    .unwrap();
+
+  assert_eq!(res.code, "._8Z4fiW_foo{color:red}._8Z4fiW_bar{color:#00f}");
+}
+
 enum Prelude<'i> {
   Block(Ident<'i>),
   Inline(Ident<'i>),
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 enum AtRule<'i> {
+  #[cfg_attr(feature = "serde", serde(bound(deserialize = "'de: 'i")))]
   Block(BlockRule<'i>),
+  #[cfg_attr(feature = "serde", serde(bound(deserialize = "'de: 'i")))]
   Inline(InlineRule<'i>),
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 struct BlockRule<'i> {
+  #[cfg_attr(feature = "serde", serde(bound(deserialize = "'de: 'i")))]
   name: Ident<'i>,
   declarations: DeclarationBlock<'i>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 struct InlineRule<'i> {
+  #[cfg_attr(feature = "serde", serde(bound(deserialize = "'de: 'i")))]
   name: Ident<'i>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Default)]
 struct TestAtRuleParser;
 impl<'i> AtRuleParser<'i> for TestAtRuleParser {
