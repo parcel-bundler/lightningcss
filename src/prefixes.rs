@@ -1414,6 +1414,7 @@ impl Feature {
         }
       }
       Feature::TextSizeAdjust => {
+        prefixes |= VendorPrefix::WebKit;
         if browsers.firefox.is_some() {
           prefixes |= VendorPrefix::Moz;
         }
@@ -1425,11 +1426,6 @@ impl Feature {
         if let Some(version) = browsers.ie {
           if version >= 655360 {
             prefixes |= VendorPrefix::Ms;
-          }
-        }
-        if let Some(version) = browsers.ios_saf {
-          if version >= 327680 {
-            prefixes |= VendorPrefix::WebKit;
           }
         }
       }
