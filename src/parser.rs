@@ -47,6 +47,11 @@ use std::sync::{Arc, RwLock};
 bitflags! {
   /// Parser feature flags to enable.
   #[derive(Clone, Debug, Default)]
+  #[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(rename_all = "camelCase")
+  )]
   pub struct ParserFlags: u8 {
     /// Whether the enable the [CSS nesting](https://www.w3.org/TR/css-nesting-1/) draft syntax.
     const NESTING = 1 << 0;
@@ -59,9 +64,15 @@ bitflags! {
 
 /// CSS parsing options.
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 pub struct ParserOptions<'o, 'i> {
   /// Filename to use in error messages.
   pub filename: String,
+  #[cfg_attr(feature = "serde", serde(bound(deserialize = "'de: 'o")))]
   /// Whether the enable [CSS modules](https://github.com/css-modules/css-modules).
   pub css_modules: Option<crate::css_modules::Config<'o>>,
   /// The source index to assign to all parsed rules. Impacts the source map when
@@ -70,6 +81,7 @@ pub struct ParserOptions<'o, 'i> {
   /// Whether to ignore invalid rules and declarations rather than erroring.
   pub error_recovery: bool,
   /// A list that will be appended to when a warning occurs.
+  #[cfg_attr(feature = "serde", serde(skip))]
   pub warnings: Option<Arc<RwLock<Vec<Error<ParserError<'i>>>>>>,
   /// Feature flags to enable.
   pub flags: ParserFlags,

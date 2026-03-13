@@ -48,6 +48,7 @@ serde = [
   "cssparser/serde",
   "parcel_selectors/serde",
   "into_owned",
+  "bitflags/serde"
 ]
 sourcemap = ["parcel_sourcemap"]
 visitor = []
