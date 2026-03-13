@@ -3,7 +3,7 @@
 use crate::traits::{Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
-use cssparser::{serialize_string, CowRcStr};
+use cssparser::CowRcStr;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer};
 #[cfg(any(feature = "serde", feature = "nodejs"))]
@@ -342,7 +342,7 @@ impl<'i> ToCss for CSSString<'i> {
   where
     W: std::fmt::Write,
   {
-    serialize_string(&self.0, dest)?;
+    crate::serialize::string(&self.0, dest)?;
     Ok(())
   }
 }
@@ -352,7 +352,7 @@ impl<'i> cssparser::ToCss for CSSString<'i> {
   where
     W: fmt::Write,
   {
-    serialize_string(&self.0, dest)
+    crate::serialize::string(&self.0, dest)
   }
 }
 
