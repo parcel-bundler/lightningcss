@@ -1088,6 +1088,11 @@ fn parse_color_function<'i, 't>(
           CssColor::LightDark(_, dark) => dark,
           dark => Box::new(dark)
         };
+
+        if light==dark {
+            return Ok(*light);
+        }
+
         Ok(CssColor::LightDark(light, dark))
       })
     },

@@ -18076,6 +18076,7 @@ mod tests {
     minify_test(".foo { color: hwb(194 50% 0%) }", ".foo{color:#80e1ff}");
     minify_test(".foo { color: hwb(194 50 0) }", ".foo{color:#80e1ff}");
     minify_test(".foo { color: hwb(194 50% 50%) }", ".foo{color:gray}");
+    minify_test(".foo { color: light-dark(#FFF, #FFF) }", ".foo{color:#fff}");
     // minify_test(".foo { color: ActiveText }", ".foo{color:ActiveTet}");
     minify_test(
       ".foo { color: lab(29.2345% 39.3825 20.0664); }",
