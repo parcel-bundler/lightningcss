@@ -464,6 +464,18 @@ addValue(compat, {
   ios_saf: parseVersion('10.3')
 }, 'LangSelectorList');
 
+addValue(compat, {
+  chrome: parseVersion('135'),
+  edge: parseVersion('135'),
+  android: parseVersion('135')
+}, 'TargetCurrent');
+
+addValue(compat, {
+  chrome: parseVersion('142'),
+  edge: parseVersion('142'),
+  android: parseVersion('142')
+}, 'TargetBeforeAfter');
+
 let prefixMapping = {
   webkit: 'WebKit',
   moz: 'Moz',

@@ -148,6 +148,12 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "local-link" => LocalLink,
       "target" => Target,
       "target-within" => TargetWithin,
+
+      // https://drafts.csswg.org/css-overflow-5/#active-before-after-scroll-markers
+      "target-current" => TargetCurrent,
+      "target-before" => TargetBefore,
+      "target-after" => TargetAfter,
+
       "visited" => Visited,
 
       // https://drafts.csswg.org/selectors-4/#input-pseudos
@@ -482,7 +488,15 @@ pub enum PseudoClass<'i> {
   LocalLink,
   /// The [:target](https://drafts.csswg.org/selectors-4/#the-target-pseudo) pseudo class.
   Target,
+
+  /// The [:target-current](https://drafts.csswg.org/css-overflow-5/#selectordef-target-current) pseudo class.
+  TargetCurrent,
+  /// The [:target-before](https://drafts.csswg.org/css-overflow-5/#selectordef-target-before) pseudo class.
+  TargetBefore,
+  /// The [:target-after](https://drafts.csswg.org/css-overflow-5/#selectordef-target-after) pseudo class.
+  TargetAfter,
   /// The [:target-within](https://drafts.csswg.org/selectors-4/#the-target-within-pseudo) pseudo class.
+
   TargetWithin,
   /// The [:visited](https://drafts.csswg.org/selectors-4/#visited-pseudo) pseudo class.
   Visited,
@@ -782,6 +796,12 @@ where
     LocalLink => dest.write_str(":local-link"),
     Target => dest.write_str(":target"),
     TargetWithin => dest.write_str(":target-within"),
+
+    // https://drafts.csswg.org/css-overflow-5/#active-before-after-scroll-markers
+    TargetCurrent => dest.write_str(":target-current"),
+    TargetBefore => dest.write_str(":target-before"),
+    TargetAfter => dest.write_str(":target-after"),
+
     Visited => dest.write_str(":visited"),
 
     // https://drafts.csswg.org/selectors-4/#input-pseudos
@@ -1931,6 +1951,9 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
             PseudoClass::Dir { direction: _ } => Feature::DirSelector,
             PseudoClass::Optional => Feature::OptionalPseudo,
             PseudoClass::PlaceholderShown(prefix) if *prefix == VendorPrefix::None => Feature::PlaceholderShown,
+
+            PseudoClass::TargetCurrent => Feature::TargetCurrent,
+            PseudoClass::TargetBefore | PseudoClass::TargetAfter => Feature::TargetBeforeAfter,
 
             PseudoClass::ReadOnly(prefix) | PseudoClass::ReadWrite(prefix) if *prefix == VendorPrefix::None => {
               Feature::ReadOnlyWrite

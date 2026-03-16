@@ -197,6 +197,8 @@ pub enum Feature {
   StringListStyleType,
   SymbolsListStyleType,
   TamilListStyleType,
+  TargetBeforeAfter,
+  TargetCurrent,
   TargetText,
   TeluguListStyleType,
   TextDecorationThicknessPercent,
@@ -3628,6 +3630,58 @@ impl Feature {
           }
         }
         if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::TargetCurrent => {
+        if let Some(version) = browsers.chrome {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::TargetBeforeAfter => {
+        if let Some(version) = browsers.chrome {
+          if version < 9306112 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 9306112 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 9306112 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
           return false;
         }
       }

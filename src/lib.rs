@@ -6720,6 +6720,22 @@ mod tests {
       ".test:where(.foo, .bar) {color:red}",
       ".test:where(.foo,.bar){color:red}",
     );
+    minify_test("a:target-current { color: green }", "a:target-current{color:green}");
+    minify_test("a:target-before { color: green }", "a:target-before{color:green}");
+    minify_test("a:target-after { color: green }", "a:target-after{color:green}");
+    minify_test(
+      ":is(a:target-before, a:target-after) { color: green }",
+      ":is(a:target-before,a:target-after){color:green}",
+    );
+    minify_test(
+      "a:where(:target-before, :target-after) { color: green }",
+      "a:where(:target-before,:target-after){color:green}",
+    );
+    error_test(
+      "a::before:target-current { color: green }",
+      ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
+    );
+
     minify_test(":host {color:red}", ":host{color:red}");
     minify_test(":host(.foo) {color:red}", ":host(.foo){color:red}");
     minify_test("::slotted(span) {color:red", "::slotted(span){color:red}");
@@ -8660,6 +8676,63 @@ mod tests {
         ..Browsers::default()
       },
     );
+  }
+
+  #[test]
+  fn test_selector_compatibility() {
+    fn selectors(source: &str) -> crate::selector::SelectorList<'_> {
+      let stylesheet = StyleSheet::parse(source, ParserOptions::default()).unwrap();
+      match &stylesheet.rules.0[0] {
+        CssRule::Style(rule) => rule.selectors.clone(),
+        _ => unreachable!(),
+      }
+    }
+
+    let target_current = selectors("a:target-current { color: green }");
+    assert!(!crate::selector::is_compatible(
+      &target_current.0,
+      Browsers {
+        chrome: Some(134 << 16),
+        ..Browsers::default()
+      }
+      .into()
+    ));
+    assert!(crate::selector::is_compatible(
+      &target_current.0,
+      Browsers {
+        chrome: Some(135 << 16),
+        ..Browsers::default()
+      }
+      .into()
+    ));
+
+    let target_before = selectors("a:target-before { color: green }");
+    assert!(!crate::selector::is_compatible(
+      &target_before.0,
+      Browsers {
+        chrome: Some(141 << 16),
+        ..Browsers::default()
+      }
+      .into()
+    ));
+    assert!(crate::selector::is_compatible(
+      &target_before.0,
+      Browsers {
+        chrome: Some(142 << 16),
+        ..Browsers::default()
+      }
+      .into()
+    ));
+
+    let target_after = selectors("a:target-after { color: green }");
+    assert!(crate::selector::is_compatible(
+      &target_after.0,
+      Browsers {
+        chrome: Some(142 << 16),
+        ..Browsers::default()
+      }
+      .into()
+    ));
   }
 
   #[test]

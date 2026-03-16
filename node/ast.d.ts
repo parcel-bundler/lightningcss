@@ -6728,6 +6728,15 @@ export type PseudoClass =
       kind: "target";
     }
   | {
+      kind: "target-current";
+    }
+  | {
+      kind: "target-before";
+    }
+  | {
+      kind: "target-after";
+    }
+  | {
       kind: "target-within";
     }
   | {
