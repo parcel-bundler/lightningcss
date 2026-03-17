@@ -77,6 +77,7 @@ pub struct ParseOptions {
   filename: *const c_char,
   nesting: bool,
   custom_media: bool,
+  scroll_navigation_controls: bool,
   css_modules: bool,
   css_modules_pattern: *const c_char,
   css_modules_dashed_idents: bool,
@@ -259,6 +260,10 @@ pub extern "C" fn lightningcss_stylesheet_parse(
   let warnings = Arc::new(RwLock::new(Vec::new()));
   let mut flags = ParserFlags::empty();
   flags.set(ParserFlags::CUSTOM_MEDIA, options.custom_media);
+  flags.set(
+    ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+    options.scroll_navigation_controls,
+  );
   let opts = ParserOptions {
     filename: if options.filename.is_null() {
       String::new()

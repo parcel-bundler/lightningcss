@@ -100,6 +100,10 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     name: CowRcStr<'i>,
   ) -> Result<PseudoClass<'i>, ParseError<'i, Self::Error>> {
     use PseudoClass::*;
+    let scroll_navigation_controls = self
+      .options
+      .flags
+      .contains(ParserFlags::SCROLL_NAVIGATION_CONTROLS);
     let pseudo_class = match_ignore_ascii_case! { &name,
       // https://drafts.csswg.org/selectors-4/#useraction-pseudos
       "hover" => Hover,
@@ -150,9 +154,9 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "target-within" => TargetWithin,
 
       // https://drafts.csswg.org/css-overflow-5/#active-before-after-scroll-markers
-      "target-current" => TargetCurrent,
-      "target-before" => TargetBefore,
-      "target-after" => TargetAfter,
+      "target-current" if scroll_navigation_controls => TargetCurrent,
+      "target-before" if scroll_navigation_controls => TargetBefore,
+      "target-after" if scroll_navigation_controls => TargetAfter,
 
       "visited" => Visited,
 

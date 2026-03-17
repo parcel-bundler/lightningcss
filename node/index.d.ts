@@ -270,6 +270,11 @@ export interface Resolver {
 export interface Drafts {
   /** Whether to enable @custom-media rules. */
   customMedia?: boolean
+  /** 
+   * Whether to enable the scroll navigation controls.
+   * https://drafts.csswg.org/css-overflow-5/#scroll-navigation
+   */
+  scrollNavigationControls?: boolean
 }
 
 export interface NonStandard {

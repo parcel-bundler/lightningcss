@@ -29,6 +29,20 @@ test('can enable non-standard syntax', () => {
   assert.equal(res.code.toString(), '.foo>>>.bar{color:red}');
 });
 
+test('can enable scroll navigation controls draft syntax', () => {
+  let res = transform({
+    filename: 'test.css',
+    code: Buffer.from('a:target-current { color: red }'),
+    drafts: {
+      scrollNavigationControls: true
+    },
+    minify: true
+  });
+
+  assert.equal(res.code.toString(), 'a:target-current{color:red}');
+  assert.equal(res.warnings, []);
+});
+
 test('can enable features without targets', () => {
   let res = transform({
     filename: 'test.css',

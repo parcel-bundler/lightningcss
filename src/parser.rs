@@ -54,6 +54,8 @@ bitflags! {
     const CUSTOM_MEDIA = 1 << 1;
     /// Whether to enable the non-standard >>> and /deep/ selector combinators used by Vue and Angular.
     const DEEP_SELECTOR_COMBINATOR = 1 << 2;
+    /// Whether to enable the [scroll navigation controls](https://drafts.csswg.org/css-overflow-5/#scroll-navigation-controls) draft syntax.
+    const SCROLL_NAVIGATION_CONTROLS = 1 << 3;
   }
 }
 

@@ -105,6 +105,10 @@ function reflectPlaygroundState(playgroundState) {
     customMedia.checked = playgroundState.customMedia;
   }
 
+  if (typeof playgroundState.scrollNavigationControls !== 'undefined') {
+    scrollNavigationControls.checked = playgroundState.scrollNavigationControls;
+  }
+
   if (typeof playgroundState.visitorEnabled !== 'undefined') {
     visitorEnabled.checked = playgroundState.visitorEnabled;
   }
@@ -140,6 +144,7 @@ function savePlaygroundState() {
   const playgroundState = {
     minify: minify.checked,
     customMedia: customMedia.checked,
+    scrollNavigationControls: scrollNavigationControls.checked,
     cssModules: cssModules.checked,
     analyzeDependencies: analyzeDependencies.checked,
     targets: getTargets(),
@@ -210,7 +215,8 @@ function update() {
       include,
       exclude,
       drafts: {
-        customMedia: customMedia.checked
+        customMedia: customMedia.checked,
+        scrollNavigationControls: scrollNavigationControls.checked
       },
       cssModules: cssModules.checked,
       analyzeDependencies: analyzeDependencies.checked,

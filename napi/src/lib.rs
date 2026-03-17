@@ -667,6 +667,8 @@ impl<'a> Into<PseudoClasses<'a>> for &'a OwnedPseudoClasses {
 struct Drafts {
   #[serde(default)]
   custom_media: bool,
+  #[serde(default)]
+  scroll_navigation_controls: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -699,6 +701,10 @@ fn compile<'i>(
   let res = {
     let mut flags = ParserFlags::empty();
     flags.set(ParserFlags::CUSTOM_MEDIA, matches!(drafts, Some(d) if d.custom_media));
+    flags.set(
+      ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+      matches!(drafts, Some(d) if d.scroll_navigation_controls),
+    );
     flags.set(
       ParserFlags::DEEP_SELECTOR_COMBINATOR,
       matches!(non_standard, Some(v) if v.deep_selector_combinator),
@@ -834,6 +840,10 @@ fn compile_bundle<
     let non_standard = config.non_standard.as_ref();
     let mut flags = ParserFlags::empty();
     flags.set(ParserFlags::CUSTOM_MEDIA, matches!(drafts, Some(d) if d.custom_media));
+    flags.set(
+      ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+      matches!(drafts, Some(d) if d.scroll_navigation_controls),
+    );
     flags.set(
       ParserFlags::DEEP_SELECTOR_COMBINATOR,
       matches!(non_standard, Some(v) if v.deep_selector_combinator),
