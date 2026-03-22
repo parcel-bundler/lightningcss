@@ -37,7 +37,7 @@ crate-type = ["rlib"]
 default = ["bundler", "nodejs", "sourcemap"]
 browserslist = ["browserslist-rs"]
 bundler = ["dashmap", "sourcemap", "rayon"]
-cli = ["atty", "clap", "serde_json", "browserslist", "jemallocator"]
+cli = ["clap", "serde_json", "browserslist", "jemallocator"]
 jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
 nodejs = ["dep:serde", "dep:serde-content"]
 serde = [
@@ -77,7 +77,6 @@ ahash = "0.8.7"
 pastey = "0.1.0"
 indexmap = { version = "2.2.6", features = ["serde"] }
 # CLI deps
-atty = { version = "0.2", optional = true }
 clap = { version = "3.0.6", features = ["derive"], optional = true }
 browserslist-rs = { version = "0.19.0", optional = true }
 rayon = { version = "1.5.1", optional = true }

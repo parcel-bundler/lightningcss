@@ -759,7 +759,6 @@ dependencies = [
  "ahash 0.8.12",
  "assert_cmd",
  "assert_fs",
- "atty",
  "bitflags 2.6.0",
  "browserslist-rs",
  "clap",

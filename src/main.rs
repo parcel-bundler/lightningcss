@@ -1,4 +1,3 @@
-use atty::Stream;
 use clap::{ArgGroup, Parser};
 use lightningcss::bundler::{Bundler, FileProvider};
 use lightningcss::stylesheet::{MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, StyleSheet};
@@ -6,6 +5,7 @@ use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 use serde::Serialize;
 use std::borrow::Cow;
+use std::io::IsTerminal;
 use std::sync::{Arc, RwLock};
 use std::{ffi, fs, io, path::Path};
 
@@ -105,14 +105,15 @@ pub fn main() -> Result<(), std::io::Error> {
       .collect::<Result<_, _>>()?
   } else {
     // Don't silently wait for input if stdin was not redirected.
-    if atty::is(Stream::Stdin) {
+    let stdin = io::stdin();
+    if stdin.is_terminal() {
       return Err(io::Error::new(
         io::ErrorKind::Other,
         "Not reading from stdin as it was not redirected",
       ));
     }
     let filename = format!("stdin-{}", std::process::id());
-    let contents = io::read_to_string(io::stdin())?;
+    let contents = io::read_to_string(stdin)?;
     vec![(filename, contents)]
   };
 
