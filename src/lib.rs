@@ -13208,6 +13208,10 @@ mod tests {
       ".foo{background:linear-gradient(135deg,#ff0,#00f)}",
     );
     minify_test(
+      ".foo { background: linear-gradient(-1.42109e-14deg, rgba(10, 132, 255, 0.14) 0%, rgba(112, 183, 255, 0.14) 100%); }",
+      ".foo{background:linear-gradient(-1.42109e-14deg,#0a84ff24 0%,#70b7ff24 100%)}",
+    );
+    minify_test(
       ".foo { background: linear-gradient(yellow, blue 20%, #0f0); }",
       ".foo{background:linear-gradient(#ff0,#00f 20%,#0f0)}",
     );

@@ -499,8 +499,12 @@ where
     let mut s = String::new();
     token.to_css(&mut s)?;
     if value < 0.0 {
-      dest.write_char('-')?;
-      dest.write_str(s.trim_start_matches("-0"))
+      if let Some(stripped) = s.strip_prefix("-0") {
+        dest.write_char('-')?;
+        dest.write_str(stripped)
+      } else {
+        dest.write_str(&s)
+      }
     } else {
       dest.write_str(s.trim_start_matches('0'))
     }
