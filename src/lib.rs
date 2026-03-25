@@ -22304,6 +22304,26 @@ mod tests {
         &format!(".foo{{color:color({} .3 .4 .5/none)}}", result_color_space),
       );
     }
+
+    // Test: color-mix in polar color spaces with zero alpha should not produce inf/NaN.
+    // This exercises the polar_premultiply unpremultiply path where alpha=0.
+    // When alpha is 0, unpremultiply should not divide by zero.
+    minify_test(
+      ".foo { color: color-mix(in hsl, hsl(0 100% 50% / 0), hsl(200 100% 50% / 0)); }",
+      ".foo{color:#0000}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in oklch, oklch(0.5 0.2 120 / 0), oklch(0.7 0.1 240 / 0)); }",
+      ".foo{color:oklch(0% 0 180/0)}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in lch, lch(50 30 120 / 0), lch(70 10 240 / 0)); }",
+      ".foo{color:lch(0% 0 180/0)}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb, hwb(0 0% 50% / 0), hwb(200 0% 50% / 0)); }",
+      ".foo{color:#a0f0}",
+    );
   }
 
   #[test]

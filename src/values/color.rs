@@ -3512,7 +3512,7 @@ macro_rules! polar_premultiply {
 
     fn unpremultiply(&mut self, alpha_multiplier: f32) {
       self.h %= 360.0;
-      if !self.alpha.is_nan() {
+      if !self.alpha.is_nan() && self.alpha != 0.0 {
         self.$a /= self.alpha;
         self.$b /= self.alpha;
         self.alpha *= alpha_multiplier;
