@@ -189,7 +189,6 @@ let cssFeatures = [
   'css-autofill',
   'css-namespaces',
   'shadowdomv1',
-  'css-rrggbbaa',
   'css-nesting',
   'css-not-sel-list',
   'css-has',
@@ -200,7 +199,6 @@ let cssFeatures = [
 
 let cssFeatureMappings = {
   'css-dir-pseudo': 'DirSelector',
-  'css-rrggbbaa': 'HexAlphaColors',
   'css-not-sel-list': 'NotSelectorList',
   'css-has': 'HasSelector',
   'css-matches-pseudo': 'IsSelector',
@@ -288,6 +286,7 @@ let mdnFeatures = {
   logicalInset: mdn.css.properties['inset-inline-start'].__compat.support,
   logicalSize: mdn.css.properties['inline-size'].__compat.support,
   logicalTextAlign: mdn.css.properties['text-align'].start.__compat.support,
+  hexAlphaColors: mdn.css.types.color.rgb_hexadecimal_notation.alpha_hexadecimal_notation.__compat.support,
   labColors: mdn.css.types.color.lab.__compat.support,
   oklabColors: mdn.css.types.color.oklab.__compat.support,
   colorFunction: mdn.css.types.color.color.__compat.support,
