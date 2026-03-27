@@ -24,7 +24,7 @@ serde = ["dep:serde", "smallvec/serde"]
 
 [dependencies]
 bitflags = "2.2.1"
-cssparser = "0.33.0"
+cssparser = "0.37.0"
 rustc-hash = "2"
 log = "0.4"
 phf = "0.11.2"

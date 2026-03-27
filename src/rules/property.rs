@@ -169,6 +169,7 @@ impl<'i> cssparser::DeclarationParser<'i> for PropertyRuleDeclarationParser<'i> 
     &mut self,
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
+    _declaration_start: &ParserState,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     match_ignore_ascii_case! { &name,
       "syntax" => {

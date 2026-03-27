@@ -313,6 +313,7 @@ impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PageRuleParser<'a, 'o, 'i>
     &mut self,
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
+    _declaration_start: &ParserState,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     parse_declaration(
       name,

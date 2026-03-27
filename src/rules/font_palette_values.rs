@@ -101,6 +101,7 @@ impl<'i> cssparser::DeclarationParser<'i> for FontPaletteValuesDeclarationParser
     &mut self,
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
+    _declaration_start: &ParserState,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     let state = input.state();
     match_ignore_ascii_case! { &name,

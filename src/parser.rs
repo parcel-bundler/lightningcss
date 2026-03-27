@@ -1008,6 +1008,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> cssparser::DeclarationParse
     &mut self,
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
+    _declaration_start: &ParserState,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     if self.rules.0.is_empty() {
       parse_declaration(
