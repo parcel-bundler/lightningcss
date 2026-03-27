@@ -71,7 +71,7 @@ bitflags = "2.2.1"
 parcel_sourcemap = { version = "2.1.1", features = ["json"], optional = true }
 data-encoding = "2.3.2"
 lazy_static = "1.4.0"
-const-str = "0.3.1"
+const-str = "1.1.0"
 pathdiff = "0.2.1"
 ahash = "0.8.7"
 pastey = "0.1.0"
