@@ -7163,6 +7163,14 @@ mod tests {
       ":root:active-view-transition-type(slide-in, reverse) {position: fixed}",
       ":root:active-view-transition-type(slide-in,reverse){position:fixed}",
     );
+    minify_test(
+      ":root:interest-target,:root:interest-source {position: fixed}",
+      ":root:interest-target,:root:interest-source{position:fixed}",
+    );
+    minify_test(
+      ":is(:interest-source,.interest-source) {color: red}",
+      ":is(:interest-source,.interest-source){color:red}",
+    );
 
     for name in &[
       "view-transition-group",
@@ -29953,6 +29961,28 @@ mod tests {
     error_test(
       ".a{--foo: url(foo\\) b\\)ar)}",
       ParserError::UnexpectedToken(Token::BadUrl("foo\\) b\\)ar".into())),
+    );
+  }
+
+  #[test]
+  fn test_interest_pseudo_classes() {
+    assert_eq!(
+      error_recovery_test(
+        r#"
+        :root:interest-target {
+          color: red;
+        }
+
+        :root:interest-source {
+          color: blue;
+        }
+
+        :is(:interest-source, .interest-source) {
+          color: green;
+        }
+      "#
+      ),
+      vec![]
     );
   }
 

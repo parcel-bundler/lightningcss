@@ -147,6 +147,8 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "link" => Link,
       "local-link" => LocalLink,
       "target" => Target,
+      "interest-target" => InterestTarget,
+      "interest-source" => InterestSource,
       "target-within" => TargetWithin,
       "visited" => Visited,
 
@@ -482,6 +484,10 @@ pub enum PseudoClass<'i> {
   LocalLink,
   /// The [:target](https://drafts.csswg.org/selectors-4/#the-target-pseudo) pseudo class.
   Target,
+  /// The [:interest-target](https://drafts.csswg.org/css-anchor-position-1/#selectordef-interest-target) pseudo class.
+  InterestTarget,
+  /// The [:interest-source](https://drafts.csswg.org/css-anchor-position-1/#selectordef-interest-source) pseudo class.
+  InterestSource,
   /// The [:target-within](https://drafts.csswg.org/selectors-4/#the-target-within-pseudo) pseudo class.
   TargetWithin,
   /// The [:visited](https://drafts.csswg.org/selectors-4/#visited-pseudo) pseudo class.
@@ -781,6 +787,8 @@ where
     Link => dest.write_str(":link"),
     LocalLink => dest.write_str(":local-link"),
     Target => dest.write_str(":target"),
+    InterestTarget => dest.write_str(":interest-target"),
+    InterestSource => dest.write_str(":interest-source"),
     TargetWithin => dest.write_str(":target-within"),
     Visited => dest.write_str(":visited"),
 
@@ -1955,6 +1963,8 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
             | PseudoClass::Buffering
             | PseudoClass::Muted
             | PseudoClass::VolumeLocked
+            | PseudoClass::InterestTarget
+            | PseudoClass::InterestSource
             | PseudoClass::TargetWithin
             | PseudoClass::LocalLink
             | PseudoClass::Blank
