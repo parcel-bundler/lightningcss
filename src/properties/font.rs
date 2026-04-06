@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use super::{Property, PropertyId};
+use crate::properties::custom::CustomPropertyName;
 use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
@@ -885,6 +886,13 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
           .insert(FontProperty::try_from(&val.property_id).unwrap());
         dest.push(property.clone());
       }
+      Custom(val) if is_font_variant_property(&val.name) => {
+        // ensure font-variant isn't reordered in front of the font shorthand
+        if self.has_any {
+          self.flush(dest, context);
+        }
+        dest.push(property.clone());
+      }
       _ => return false,
     }
 
@@ -1030,6 +1038,15 @@ fn compatible_font_family(mut family: Option<Vec<FontFamily>>, is_supported: boo
   }
 
   return family;
+}
+
+#[inline]
+fn is_font_variant_property(name: &CustomPropertyName) -> bool {
+  if let CustomPropertyName::Unknown(name) = name {
+    name.as_ref().starts_with("font-variant")
+  } else {
+    false
+  }
 }
 
 #[inline]

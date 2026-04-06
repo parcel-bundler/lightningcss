@@ -6646,6 +6646,23 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    minify_test(
+      ".foo { font: 10px serif; font-variant-numeric: oldstyle-nums; }",
+      ".foo{font:10px serif;font-variant-numeric:oldstyle-nums}",
+    );
+    minify_test(
+      ".foo { font-variant-numeric: oldstyle-nums; font: 10px serif; }",
+      ".foo{font-variant-numeric:oldstyle-nums;font:10px serif}",
+    );
+    minify_test(
+      ".foo { font: 10px serif; font-variant-numeric: oldstyle-nums; font-variant-alternates: stylistic(my-style); }",
+      ".foo{font:10px serif;font-variant-numeric:oldstyle-nums;font-variant-alternates:stylistic(my-style)}",
+    );
+    minify_test(
+      ".foo { font: 10px serif; font-variant: small-caps; }",
+      ".foo{font:10px serif;font-variant:small-caps}",
+    );
   }
 
   #[test]
