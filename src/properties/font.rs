@@ -886,8 +886,8 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
           .insert(FontProperty::try_from(&val.property_id).unwrap());
         dest.push(property.clone());
       }
-      Custom(val) if is_font_variant_property(&val.name) => {
-        // ensure font-variant isn't reordered in front of the font shorthand
+      Custom(val) if is_longhand_font_property(&val.name) => {
+        // ensure font-variant, font-kerning, etc. aren't reordered in front of the font shorthand
         if self.has_any {
           self.flush(dest, context);
         }
@@ -1041,9 +1041,9 @@ fn compatible_font_family(mut family: Option<Vec<FontFamily>>, is_supported: boo
 }
 
 #[inline]
-fn is_font_variant_property(name: &CustomPropertyName) -> bool {
+fn is_longhand_font_property(name: &CustomPropertyName) -> bool {
   if let CustomPropertyName::Unknown(name) = name {
-    name.as_ref().starts_with("font-variant")
+    name.as_ref().starts_with("font-")
   } else {
     false
   }
