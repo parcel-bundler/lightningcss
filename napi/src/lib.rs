@@ -581,6 +581,7 @@ struct Config {
   pub analyze_dependencies: Option<AnalyzeDependenciesOption>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
+  pub known_pseudo_classes: Option<Vec<String>>,
   pub error_recovery: Option<bool>,
   pub custom_at_rules: Option<HashMap<String, CustomAtRuleConfig>>,
 }
@@ -636,6 +637,7 @@ struct BundleConfig {
   pub analyze_dependencies: Option<AnalyzeDependenciesOption>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
+  pub known_pseudo_classes: Option<Vec<String>>,
   pub error_recovery: Option<bool>,
   pub custom_at_rules: Option<HashMap<String, CustomAtRuleConfig>>,
 }
@@ -704,6 +706,12 @@ fn compile<'i>(
       matches!(non_standard, Some(v) if v.deep_selector_combinator),
     );
 
+    let known_pseudo_classes: HashSet<String> = config
+      .known_pseudo_classes
+      .as_ref()
+      .map(|v| v.iter().cloned().collect())
+      .unwrap_or_default();
+
     let mut stylesheet = StyleSheet::parse_with(
       &code,
       ParserOptions {
@@ -736,6 +744,7 @@ fn compile<'i>(
         source_index: 0,
         error_recovery: config.error_recovery.unwrap_or_default(),
         warnings: warnings.clone(),
+        known_pseudo_classes: known_pseudo_classes.clone(),
       },
       &mut CustomAtRuleParser {
         configs: config.custom_at_rules.clone().unwrap_or_default(),
@@ -756,6 +765,7 @@ fn compile<'i>(
     stylesheet.minify(MinifyOptions {
       targets,
       unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
+      known_pseudo_classes,
     })?;
 
     stylesheet.to_css(PrinterOptions {
@@ -839,6 +849,12 @@ fn compile_bundle<
       matches!(non_standard, Some(v) if v.deep_selector_combinator),
     );
 
+    let known_pseudo_classes: HashSet<String> = config
+      .known_pseudo_classes
+      .as_ref()
+      .map(|v| v.iter().cloned().collect())
+      .unwrap_or_default();
+
     let parser_options = ParserOptions {
       flags,
       css_modules: if let Some(css_modules) = &config.css_modules {
@@ -869,6 +885,7 @@ fn compile_bundle<
       warnings: warnings.clone(),
       filename: String::new(),
       source_index: 0,
+      known_pseudo_classes: known_pseudo_classes.clone(),
     };
 
     let mut at_rule_parser = CustomAtRuleParser {
@@ -892,6 +909,7 @@ fn compile_bundle<
     stylesheet.minify(MinifyOptions {
       targets,
       unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
+      known_pseudo_classes,
     })?;
 
     stylesheet.to_css(PrinterOptions {

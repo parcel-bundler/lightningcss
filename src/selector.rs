@@ -199,7 +199,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       },
 
       _ => {
-        if !name.starts_with('-') {
+        if !name.starts_with('-') && !self.options.known_pseudo_classes.contains(name.as_ref()) {
           self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name.clone())));
         }
         Custom { name: name.into() }
@@ -237,7 +237,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "local" if self.options.css_modules.is_some() => Local { selector: Box::new(Selector::parse(self, parser)?) },
       "global" if self.options.css_modules.is_some() => Global { selector: Box::new(Selector::parse(self, parser)?) },
       _ => {
-        if !name.starts_with('-') {
+        if !name.starts_with('-') && !self.options.known_pseudo_classes.contains(name.as_ref()) {
           self.options.warn(parser.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name.clone())));
         }
         let mut args = Vec::new();
@@ -1809,7 +1809,7 @@ where
   Ok(())
 }
 
-pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
+pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets, known_pseudo_classes: &HashSet<String>) -> bool {
   for selector in selectors {
     let iter = selector.iter_raw_match_order();
     for component in iter {
@@ -1867,7 +1867,7 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
         Component::Empty | Component::Root => Feature::Selectors3,
         Component::Negation(selectors) => {
           // :not() selector list is not forgiving.
-          if !targets.is_compatible(Feature::Selectors3) || !is_compatible(&*selectors, targets) {
+          if !targets.is_compatible(Feature::Selectors3) || !is_compatible(&*selectors, targets, known_pseudo_classes) {
             return false;
           }
           continue;
@@ -1879,7 +1879,7 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           _ => Feature::Selectors3,
         },
         Component::NthOf(n) => {
-          if !targets.is_compatible(Feature::NthChildOf) || !is_compatible(n.selectors(), targets) {
+          if !targets.is_compatible(Feature::NthChildOf) || !is_compatible(n.selectors(), targets, known_pseudo_classes) {
             return false;
           }
           continue;
@@ -1888,7 +1888,7 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
         // These support forgiving selector lists, so no need to check nested selectors.
         Component::Is(selectors) => {
           // ... except if we are going to unwrap them.
-          if should_unwrap_is(selectors) && is_compatible(selectors, targets) {
+          if should_unwrap_is(selectors) && is_compatible(selectors, targets, known_pseudo_classes) {
             continue;
           }
 
@@ -1897,7 +1897,7 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
         Component::Where(_) | Component::Nesting => Feature::IsSelector,
         Component::Any(..) => return false,
         Component::Has(selectors) => {
-          if !targets.is_compatible(Feature::HasSelector) || !is_compatible(&*selectors, targets) {
+          if !targets.is_compatible(Feature::HasSelector) || !is_compatible(&*selectors, targets, known_pseudo_classes) {
             return false;
           }
           continue;
@@ -1964,6 +1964,8 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
             | PseudoClass::ActiveViewTransition
             | PseudoClass::ActiveViewTransitionType { .. } => return false,
 
+            PseudoClass::Custom { name } if known_pseudo_classes.contains(name.as_ref()) => continue,
+            PseudoClass::CustomFunction { name, .. } if known_pseudo_classes.contains(name.as_ref()) => continue,
             PseudoClass::Custom { .. } | _ => return false,
           }
         }

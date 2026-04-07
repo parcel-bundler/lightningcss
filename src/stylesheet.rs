@@ -99,6 +99,11 @@ pub struct MinifyOptions {
   /// A list of known unused symbols, including CSS class names,
   /// ids, and `@keyframe` names. The declarations of these will be removed.
   pub unused_symbols: HashSet<String>,
+  /// A set of pseudo-class names (without the leading `:`) that should be treated
+  /// as compatible with all target browsers. This prevents unknown pseudo-classes
+  /// (e.g. `global`, `local`) from causing selectors to be wrapped in `:is()`
+  /// during minification.
+  pub known_pseudo_classes: HashSet<String>,
 }
 
 /// A result returned from `to_css`, including the serialize CSS
@@ -252,6 +257,7 @@ where
       important_handler: &mut important_handler,
       handler_context: context,
       unused_symbols: &options.unused_symbols,
+      known_pseudo_classes: &options.known_pseudo_classes,
       custom_media,
       css_modules: self.options.css_modules.is_some(),
       pure_css_modules: self.options.css_modules.as_ref().map(|c| c.pure).unwrap_or_default(),

@@ -525,6 +525,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub important_handler: &'a mut DeclarationHandler<'i>,
   pub handler_context: PropertyHandlerContext<'i, 'a>,
   pub unused_symbols: &'a HashSet<String>,
+  pub known_pseudo_classes: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>,
   pub css_modules: bool,
   pub pure_css_modules: bool,
@@ -673,7 +674,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           // we need to either wrap in :is() or split them into multiple rules.
           let incompatible = if style.selectors.0.len() > 1
             && context.targets.current.should_compile_selectors()
-            && !style.is_compatible(context.targets.current)
+            && !style.is_compatible(context.targets.current, context.known_pseudo_classes)
           {
             // The :is() selector accepts a forgiving selector list, so use that if possible.
             // Note that :is() does not allow pseudo elements, so we need to check for that.
@@ -698,7 +699,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
                 .cloned()
                 .partition::<SmallVec<[Selector; 1]>, _>(|selector| {
                   let list = SelectorList::new(smallvec![selector.clone()]);
-                  is_compatible(&list.0, context.targets.current)
+                  is_compatible(&list.0, context.targets.current, context.known_pseudo_classes)
                 });
               style.selectors = SelectorList::new(compatible);
               incompatible
@@ -965,8 +966,8 @@ fn merge_style_rules<'i, T>(
 ) -> bool {
   // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
   if style.selectors == last_style_rule.selectors
-    && style.is_compatible(context.targets.current)
-    && last_style_rule.is_compatible(context.targets.current)
+    && style.is_compatible(context.targets.current, context.known_pseudo_classes)
+    && last_style_rule.is_compatible(context.targets.current, context.known_pseudo_classes)
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
     && (!context.css_modules || style.loc.source_index == last_style_rule.loc.source_index)
@@ -1004,7 +1005,7 @@ fn merge_style_rules<'i, T>(
     }
 
     // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
-    if style.is_compatible(context.targets.current) && last_style_rule.is_compatible(context.targets.current) {
+    if style.is_compatible(context.targets.current, context.known_pseudo_classes) && last_style_rule.is_compatible(context.targets.current, context.known_pseudo_classes) {
       last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
       if style.vendor_prefix.contains(VendorPrefix::None) && context.targets.current.should_compile_selectors() {
         last_style_rule.vendor_prefix = style.vendor_prefix;
