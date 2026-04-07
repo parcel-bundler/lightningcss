@@ -825,6 +825,7 @@ pub(crate) struct FontHandler<'i> {
   line_height: Option<LineHeight>,
   variant_caps: Option<FontVariantCaps>,
   flushed_properties: FontProperty,
+  longhand_properties: Vec<Property<'i>>,
   has_any: bool,
 }
 
@@ -876,6 +877,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
         self.stretch = Some(val.stretch.clone());
         self.line_height = Some(val.line_height.clone());
         self.variant_caps = Some(val.variant_caps.clone());
+        self.longhand_properties.clear();
         self.has_any = true;
         // TODO: reset other properties
       }
@@ -887,11 +889,9 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
         dest.push(property.clone());
       }
       Custom(val) if is_longhand_font_property(&val.name) => {
-        // ensure font-variant, font-kerning, etc. aren't reordered in front of the font shorthand
-        if self.has_any {
-          self.flush(dest, context);
-        }
-        dest.push(property.clone());
+        // Store font-variant, font-kerning, font-optical-sizing, font-size-adjust, etc. to ensure they're
+        // omitted if they precede a `font` shorthand property, and won't be reordered if they follow one
+        self.longhand_properties.push(property.clone());
       }
       _ => return false,
     }
@@ -908,6 +908,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
 impl<'i> FontHandler<'i> {
   fn flush(&mut self, decls: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
+      decls.extend(self.longhand_properties.drain(..));
       return;
     }
 
@@ -999,6 +1000,8 @@ impl<'i> FontHandler<'i> {
         push!(LineHeight, val);
       }
     }
+
+    decls.extend(self.longhand_properties.drain(..));
   }
 }
 
