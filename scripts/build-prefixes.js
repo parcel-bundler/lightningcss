@@ -339,6 +339,7 @@ let mdnFeatures = {
   viewTransition: mdn.css.selectors['view-transition'].__compat.support,
   detailsContent: mdn.css.selectors['details-content'].__compat.support,
   targetText: mdn.css.selectors['target-text'].__compat.support,
+  searchText: mdn.css.selectors['search-text'].__compat.support,
   picker: mdn.css.selectors.picker.__compat.support,
   pickerIcon: mdn.css.selectors['picker-icon'].__compat.support,
   checkmark: mdn.css.selectors.checkmark.__compat.support,

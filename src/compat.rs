@@ -180,6 +180,7 @@ pub enum Feature {
   RicUnit,
   RlhUnit,
   RoundFunction,
+  SearchText,
   Selection,
   Selectors2,
   Selectors3,
@@ -3673,6 +3674,36 @@ impl Feature {
           }
         }
         if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::SearchText => {
+        if let Some(version) = browsers.chrome {
+          if version < 9437184 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 9437184 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 6225920 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 9437184 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
           return false;
         }
       }
