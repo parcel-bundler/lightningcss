@@ -417,6 +417,13 @@ pub enum PrinterErrorKind {
   InvalidComposesSelector,
   /// The CSS modules pattern must end with `[local]` for use in CSS grid.
   InvalidCssModulesPatternInGrid,
+  /// A CSS modules `composes` property references a class name that is not defined.
+  MissingComposesName {
+    /// The referenced class name.
+    name: String,
+    /// The referenced specifier (file path), or `None` for same-file references.
+    specifier: Option<String>,
+  },
 }
 
 impl From<fmt::Error> for PrinterError {
@@ -437,6 +444,16 @@ impl fmt::Display for PrinterErrorKind {
       InvalidComposesNesting => write!(f, "The `composes` property cannot be used within nested rules"),
       InvalidComposesSelector => write!(f, "The `composes` property cannot be used with a simple class selector"),
       InvalidCssModulesPatternInGrid => write!(f, "The CSS modules `pattern` config must end with `[local]` for use in CSS grid line names."),
+      MissingComposesName { name, specifier: Some(specifier) } => write!(
+        f,
+        "The `composes` property references a class name \"{}\" that is not defined in \"{}\"",
+        name, specifier
+      ),
+      MissingComposesName { name, specifier: None } => write!(
+        f,
+        "The `composes` property references a class name \"{}\" that is not defined",
+        name
+      ),
     }
   }
 }

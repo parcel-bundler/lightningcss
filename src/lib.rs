@@ -26320,6 +26320,63 @@ mod tests {
       unreachable!()
     }
 
+    // `composes:` referencing a same-file class that does not exist must error,
+    // not silently emit a dangling reference. Regression test for a silent
+    // correctness failure where typos in `composes:` produced hashed class
+    // names that had no corresponding CSS rule.
+    let stylesheet = StyleSheet::parse(
+      r#"
+        .historyChevron {
+          color: blue;
+        }
+
+        .historyChevronOpen {
+          composes: historychevron;
+          transform: rotate(180deg);
+        }
+      "#,
+      ParserOptions {
+        css_modules: Some(Default::default()),
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+    match stylesheet.to_css(PrinterOptions::default()) {
+      Err(err) => assert_eq!(
+        err.kind,
+        PrinterErrorKind::MissingComposesName {
+          name: "historychevron".into(),
+          specifier: None,
+        }
+      ),
+      Ok(_) => unreachable!("expected MissingComposesName error"),
+    }
+
+    // Fully missing same-file class (no case mismatch, just a typo).
+    let stylesheet = StyleSheet::parse(
+      r#"
+        .foo {
+          composes: bar;
+          color: red;
+        }
+      "#,
+      ParserOptions {
+        css_modules: Some(Default::default()),
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+    match stylesheet.to_css(PrinterOptions::default()) {
+      Err(err) => assert_eq!(
+        err.kind,
+        PrinterErrorKind::MissingComposesName {
+          name: "bar".into(),
+          specifier: None,
+        }
+      ),
+      Ok(_) => unreachable!("expected MissingComposesName error"),
+    }
+
     css_modules_test(
       r#"
       @property --foo {
