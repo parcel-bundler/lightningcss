@@ -6492,7 +6492,7 @@ export type ZIndex =
  * A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property. Establishes the element as a query container for the purpose of container queries.
  */
 export type ContainerType =
-  "normal"
+  | "normal"
   | "inline-size"
   | "size"
   | "scroll-state"
@@ -7531,12 +7531,12 @@ export type ContainerCondition<D = Declaration> = | {
     value: StyleQuery<D>;
   }
 | {
-    type: "anchored";
-    value: AnchoredQuery;
-  }
-| {
     type: "scroll-state";
     value: ScrollStateQuery;
+  }
+| {
+    type: "anchored";
+    value: AnchoredQuery;
   }
 | {
     type: "unknown";
@@ -7637,45 +7637,6 @@ export type StyleQuery<D = Declaration> = | {
     type: "operation";
   };
 /**
- * Represents an anchored query within a container condition.
- */
-export type AnchoredQuery = | {
-    type: "feature";
-    value: AnchoredFeature;
-  }
-| {
-    type: "not";
-    value: AnchoredQuery;
-  }
-| {
-    /**
-     * The conditions for the operator.
-     */
-    conditions: AnchoredQuery[];
-    /**
-     * The operator for the conditions.
-     */
-    operator: Operator;
-    type: "operation";
-  };
-/**
- * An anchored container feature.
- */
-export interface AnchoredFeature {
-  /**
-   * The feature name.
-   */
-  name: AnchoredFeatureName;
-  /**
-   * The feature value.
-   */
-  value: TokenOrValue[];
-}
-/**
- * An anchored container feature identifier.
- */
-export type AnchoredFeatureName = "fallback";
-/**
  * Represents a scroll state query within a container condition.
  */
 export type ScrollStateQuery =
@@ -7766,6 +7727,33 @@ export type MediaFeatureNameFor_ScrollStateFeatureId = ScrollStateFeatureId | St
  * A container query scroll state feature identifier.
  */
 export type ScrollStateFeatureId = "stuck" | "snapped" | "scrollable" | "scrolled";
+/**
+ * Represents an anchored query within a container condition.
+ */
+export type AnchoredQuery =
+  | {
+      type: "feature";
+      value: AnchoredFeature;
+    }
+  | {
+      type: "not";
+      value: AnchoredQuery;
+    }
+  | {
+      /**
+       * The conditions for the operator.
+       */
+      conditions: AnchoredQuery[];
+      /**
+       * The operator for the conditions.
+       */
+      operator: Operator;
+      type: "operation";
+    };
+/**
+ * An anchored container feature identifier.
+ */
+export type AnchoredFeatureName = "fallback";
 /**
  * A property within a `@view-transition` rule.
  *
@@ -9930,6 +9918,22 @@ export interface ContainerRule<D = Declaration, M = MediaQuery> {
    * The rules within the `@container` rule.
    */
   rules: Rule<D, M>[];
+}
+/**
+ * An anchored container feature.
+ */
+export interface AnchoredFeature {
+  /**
+   * The feature name.
+   */
+  name: AnchoredFeatureName;
+  /**
+   * The feature value.
+   */
+  value: ValueWrapperFor_ArrayOf_TokenOrValue;
+}
+export interface ValueWrapperFor_ArrayOf_TokenOrValue {
+  value: TokenOrValue[];
 }
 /**
  * A [@scope](https://drafts.csswg.org/css-cascade-6/#scope-atrule) rule.
