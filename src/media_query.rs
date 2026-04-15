@@ -565,6 +565,13 @@ pub(crate) trait QueryCondition<'i>: Sized {
     Err(input.new_error_for_next_token())
   }
 
+  fn parse_anchored_query<'t>(
+    input: &mut Parser<'i, 't>,
+    _options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Err(input.new_error_for_next_token())
+  }
+
   fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool;
 }
 
@@ -608,6 +615,8 @@ bitflags! {
     const ALLOW_STYLE = 1 << 1;
     /// Whether to allow scroll state container queries.
     const ALLOW_SCROLL_STATE = 1 << 2;
+    /// Whether to allow anchor positioning container queries.
+    const ALLOW_ANCHORED = 1 << 3;
   }
 }
 
@@ -703,6 +712,7 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
     None,
     Style,
     ScrollState,
+    Anchored,
   }
 
   let (is_negation, function) = match *input.next()? {
@@ -717,6 +727,11 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
       if flags.contains(QueryConditionFlags::ALLOW_SCROLL_STATE) && f.eq_ignore_ascii_case("scroll-state") =>
     {
       (false, QueryFunction::ScrollState)
+    }
+    Token::Function(ref f)
+      if flags.contains(QueryConditionFlags::ALLOW_ANCHORED) && f.eq_ignore_ascii_case("anchored") =>
+    {
+      (false, QueryFunction::Anchored)
     }
     ref t => return Err(location.new_unexpected_token_error(t.clone())),
   };
@@ -734,9 +749,14 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
       let inner_condition = P::parse_scroll_state_query(input, options)?;
       return Ok(P::create_negation(Box::new(inner_condition)));
     }
+    (true, QueryFunction::Anchored) => {
+      let inner_condition = P::parse_anchored_query(input, options)?;
+      return Ok(P::create_negation(Box::new(inner_condition)));
+    }
     (false, QueryFunction::None) => parse_paren_block(input, flags, options)?,
     (false, QueryFunction::Style) => P::parse_style_query(input, options)?,
     (false, QueryFunction::ScrollState) => P::parse_scroll_state_query(input, options)?,
+    (false, QueryFunction::Anchored) => P::parse_anchored_query(input, options)?,
   };
 
   let operator = match input.try_parse(Operator::parse) {
@@ -766,7 +786,7 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
   }
 }
 
-/// Parse a media condition in parentheses, or a style() function.
+/// Parse a query condition in parentheses, or one of the query functions.
 fn parse_parens_or_function<'t, 'i, P: QueryCondition<'i>>(
   input: &mut Parser<'i, 't>,
   flags: QueryConditionFlags,
@@ -784,6 +804,11 @@ fn parse_parens_or_function<'t, 'i, P: QueryCondition<'i>>(
       if flags.contains(QueryConditionFlags::ALLOW_SCROLL_STATE) && f.eq_ignore_ascii_case("scroll-state") =>
     {
       P::parse_scroll_state_query(input, options)
+    }
+    Token::Function(ref f)
+      if flags.contains(QueryConditionFlags::ALLOW_ANCHORED) && f.eq_ignore_ascii_case("anchored") =>
+    {
+      P::parse_anchored_query(input, options)
     }
     ref t => return Err(location.new_unexpected_token_error(t.clone())),
   }

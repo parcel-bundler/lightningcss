@@ -30578,6 +30578,11 @@ mod tests {
       ".foo{ container-type: inline-size }",
       ".foo{container-type:inline-size}",
     );
+    minify_test(".foo{ container-type: anchored }", ".foo{container-type:anchored}");
+    minify_test(
+      ".foo{ container-type: anchored inline-size }",
+      ".foo{container-type:inline-size anchored}",
+    );
     minify_test(".foo{ container-name: none; }", ".foo{container-name:none}");
     minify_test(".foo{ container-name: foo; }", ".foo{container-name:foo}");
     minify_test(".foo{ container: foo / normal; }", ".foo{container:foo}");
@@ -30585,6 +30590,7 @@ mod tests {
       ".foo{ container: foo / inline-size; }",
       ".foo{container:foo/inline-size}",
     );
+    minify_test(".foo{ container: foo / anchored; }", ".foo{container:foo/anchored}");
     minify_test(".foo { width: calc(1cqw + 2cqw) }", ".foo{width:3cqw}");
     minify_test(".foo { width: calc(1cqh + 2cqh) }", ".foo{width:3cqh}");
     minify_test(".foo { width: calc(1cqi + 2cqi) }", ".foo{width:3cqi}");
@@ -30800,6 +30806,46 @@ mod tests {
       }
     "#,
       "@container not scroll-state(scrollable:top){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:flip-block){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container popover anchored(fallback: flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container popover anchored(fallback:flip-block){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container not anchored(fallback: flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container not anchored(fallback:flip-block){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container (inline-size > 45em) and anchored(fallback: flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container (inline-size>45em) and anchored(fallback:flip-block){.foo{color:red}}",
     );
 
     // Disallow 'none', 'not', 'and', 'or' as a `<container-name>`

@@ -6491,7 +6491,19 @@ export type ZIndex =
 /**
  * A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property. Establishes the element as a query container for the purpose of container queries.
  */
-export type ContainerType = "normal" | "inline-size" | "size" | "scroll-state";
+export type ContainerType =
+  "normal"
+  | "inline-size"
+  | "size"
+  | "scroll-state"
+  | "anchored"
+  | "inline-size scroll-state"
+  | "size scroll-state"
+  | "inline-size anchored"
+  | "size anchored"
+  | "scroll-state anchored"
+  | "inline-size scroll-state anchored"
+  | "size scroll-state anchored";
 /**
  * A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
  */
@@ -7519,6 +7531,10 @@ export type ContainerCondition<D = Declaration> = | {
     value: StyleQuery<D>;
   }
 | {
+    type: "anchored";
+    value: AnchoredQuery;
+  }
+| {
     type: "scroll-state";
     value: ScrollStateQuery;
   }
@@ -7620,6 +7636,45 @@ export type StyleQuery<D = Declaration> = | {
     operator: Operator;
     type: "operation";
   };
+/**
+ * Represents an anchored query within a container condition.
+ */
+export type AnchoredQuery = | {
+    type: "feature";
+    value: AnchoredFeature;
+  }
+| {
+    type: "not";
+    value: AnchoredQuery;
+  }
+| {
+    /**
+     * The conditions for the operator.
+     */
+    conditions: AnchoredQuery[];
+    /**
+     * The operator for the conditions.
+     */
+    operator: Operator;
+    type: "operation";
+  };
+/**
+ * An anchored container feature.
+ */
+export interface AnchoredFeature {
+  /**
+   * The feature name.
+   */
+  name: AnchoredFeatureName;
+  /**
+   * The feature value.
+   */
+  value: TokenOrValue[];
+}
+/**
+ * An anchored container feature identifier.
+ */
+export type AnchoredFeatureName = "fallback";
 /**
  * Represents a scroll state query within a container condition.
  */
