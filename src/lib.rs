@@ -6653,7 +6653,7 @@ mod tests {
     );
     minify_test(
       ".foo { font-variant-numeric: oldstyle-nums; font: 10px serif; }",
-      ".foo{font:10px serif}",
+      ".foo{font-variant-numeric:oldstyle-nums;font:10px serif}",
     );
     minify_test(
       ".foo { font: 10px serif; font-variant-numeric: oldstyle-nums; font-variant-alternates: stylistic(my-style); }",
@@ -6665,7 +6665,7 @@ mod tests {
     );
     minify_test(
       ".foo { font-kerning: none; font: 10px serif; }",
-      ".foo{font:10px serif}",
+      ".foo{font-kerning:none;font:10px serif}",
     );
     minify_test(
       ".foo { font: 10px serif; font-kerning: none; }",
@@ -6673,7 +6673,7 @@ mod tests {
     );
     minify_test(
       ".foo { font-optical-sizing: none; font: 10px serif; }",
-      ".foo{font:10px serif}",
+      ".foo{font-optical-sizing:none;font:10px serif}",
     );
     minify_test(
       ".foo { font: 10px serif; font-optical-sizing: none; }",
@@ -6681,19 +6681,11 @@ mod tests {
     );
     minify_test(
       ".foo { font-synthesis-style: oblique-only; font: 10px serif; }",
-      ".foo{font:10px serif}",
+      ".foo{font-synthesis-style:oblique-only;font:10px serif}",
     );
     minify_test(
       ".foo { font: 10px serif; font-synthesis-style: oblique-only; }",
       ".foo{font:10px serif;font-synthesis-style:oblique-only}",
-    );
-    minify_test(
-      ".foo { font-kerning: none; }",
-      ".foo{font-kerning:none}",
-    );
-    minify_test(
-      ".foo { font-kerning: none; font: 10px serif; font-optical-sizing: none; }",
-      ".foo{font:10px serif;font-optical-sizing:none}",
     );
   }
 
