@@ -2,8 +2,7 @@
 
 use std::collections::HashSet;
 
-use super::{Property, PropertyId};
-use crate::properties::custom::CustomPropertyName;
+use super::{Property, PropertyId, CustomPropertyName};
 use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
