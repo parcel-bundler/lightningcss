@@ -3515,6 +3515,83 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    // Issue #927: logical property shorthands with calc(var()) values should be converted
+    // when the target doesn't support them.
+    prefix_test(
+      r#"
+      .foo {
+        margin-block: calc(var(--test));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-top: calc(var(--test));
+        margin-bottom: calc(var(--test));
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-block: calc(var(--test));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-block-start: calc(var(--test));
+        margin-block-end: calc(var(--test));
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline: calc(var(--test));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-left: calc(var(--test));
+        margin-right: calc(var(--test));
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline: calc(var(--test));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline: calc(var(--test));
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -17291,6 +17368,81 @@ mod tests {
     "#},
       Browsers {
         safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Issue #927: inset shorthands with calc(var()) values should be converted
+    // when the target doesn't support them.
+    prefix_test(
+      r#"
+      .foo {
+        inset: calc(var(--test));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        top: calc(var(--test));
+        bottom: calc(var(--test));
+        left: calc(var(--test));
+        right: calc(var(--test));
+      }
+    "#},
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        inset-block: calc(var(--test));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        top: calc(var(--test));
+        bottom: calc(var(--test));
+      }
+    "#},
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        inset-inline: calc(var(--test));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        left: calc(var(--test));
+        right: calc(var(--test));
+      }
+    "#},
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        inset: calc(var(--test));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        inset: calc(var(--test));
+      }
+    "#},
+      Browsers {
+        safari: Some(15 << 16),
         ..Browsers::default()
       },
     );
