@@ -24230,6 +24230,58 @@ mod tests {
     nesting_test(
       r#"
         .foo {
+          @apply --mixin;
+          @apply --mixin-no-args();
+          @apply --mixin-args(1, 2);
+          @apply --mixin-with-empty-body {};
+          @apply --mixin-with-body {
+            color: red;
+          }
+          .bar {
+            @apply --nested;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          @apply --mixin;
+          @apply --mixin-no-args();
+          @apply --mixin-args(1, 2);
+          @apply --mixin-with-empty-body {
+            
+          }
+          @apply --mixin-with-body {
+            color: red;
+          }
+        }
+
+        .foo .bar {
+          @apply --nested;
+        }
+      "#},
+    );
+
+    minify_test(
+      r#"
+        .foo {
+          @apply --mixin;
+          @apply --mixin-no-args();
+          @apply --mixin-args(1,2);
+          @apply --mixin-with-empty-body {};
+          @apply --mixin-with-body {
+            color: red;
+          };
+          .bar {
+            @apply --nested;
+          }
+        }
+      "#,
+      ".foo{@apply --mixin;@apply --mixin-no-args();@apply --mixin-args(1,2);@apply --mixin-with-empty-body{}@apply --mixin-with-body{color: red;}& .bar{@apply --nested;}}",
+    );
+
+    nesting_test(
+      r#"
+        .foo {
           color: blue;
           & > .bar { color: red; }
         }
