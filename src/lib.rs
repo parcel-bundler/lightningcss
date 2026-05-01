@@ -31211,4 +31211,67 @@ mod tests {
       },
     );
   }
+
+  /// `merge_style_rules` collapses four longhands into a `border-radius`
+  /// shorthand; a later duplicate of the post-merge content must dedup.
+  #[test]
+  fn test_dedup_finds_duplicate_after_merge_collapses_longhands() {
+    minify_test(
+      ".a { border-top-left-radius: 16px } \
+       .a { border-top-right-radius: 16px } \
+       .a { border-bottom-left-radius: 16px } \
+       .a { border-bottom-right-radius: 16px } \
+       .x { color: red } \
+       .a { border-radius: 16px }",
+      ".x{color:red}.a{border-radius:16px}",
+    );
+  }
+
+  /// A later rule matching only an earlier rule's *pre-merge* content must
+  /// not false-positive against a rule whose declarations were extended by
+  /// `sel_eq` merge. Guards a partial fix that omits dedup-map refresh.
+  #[test]
+  fn test_dedup_after_merge_preserves_merged_declarations() {
+    minify_test(
+      ".a { color: red } .a { background: blue } .b { background: blue } .a { color: red }",
+      ".a{color:red;background:#00f}.b{background:#00f}.a{color:red}",
+    );
+  }
+
+  /// The cascade path (decl_eq + sel_eq + `rules.pop()`) must also refresh
+  /// the cascade target's `style_rules` entry; a later duplicate of the
+  /// fully-cascaded content must dedup.
+  #[test]
+  fn test_dedup_finds_duplicate_after_cascading_merge() {
+    minify_test(
+      ".d { border-top-left-radius: 16px } \
+       .e { border-top-left-radius: 16px } \
+       .d { border-top-right-radius: 16px } \
+       .e { border-top-right-radius: 16px } \
+       .d { border-bottom-left-radius: 16px } \
+       .e { border-bottom-left-radius: 16px } \
+       .d { border-bottom-right-radius: 16px } \
+       .e { border-bottom-right-radius: 16px } \
+       .x { color: red } \
+       .d, .e { border-radius: 16px }",
+      ".x{color:red}.d,.e{border-radius:16px}",
+    );
+  }
+
+  /// `rules.pop()` in the cascade loop must drop the popped rule's
+  /// `style_rules` entry, otherwise a later rule matching the popped
+  /// rule's pre-pop content would dedup against an orphaned entry.
+  /// Guards the cascade-pop arm of the partial-fix regression.
+  #[test]
+  fn test_cascade_pop_clears_orphaned_style_rules_entry() {
+    minify_test(
+      ".d { border-top-left-radius: 16px } \
+       .e { border-top-left-radius: 16px } \
+       .d { border-top-right-radius: 16px } \
+       .e { border-top-right-radius: 16px } \
+       .foo { padding: 5px } \
+       .d, .e { border-top-right-radius: 16px }",
+      ".d,.e{border-top-left-radius:16px;border-top-right-radius:16px}.foo{padding:5px}.d,.e{border-top-right-radius:16px}",
+    );
+  }
 }
