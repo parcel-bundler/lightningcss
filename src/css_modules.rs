@@ -11,8 +11,9 @@
 use crate::error::PrinterErrorKind;
 use crate::properties::css_modules::{Composes, Specifier};
 use crate::selector::SelectorList;
-use data_encoding::{Encoding, Specification};
+use data_encoding::{Encoding, Specification, BASE64_NOPAD};
 use lazy_static::lazy_static;
+use md4::{Digest as Md4Digest, Md4};
 use pathdiff::diff_paths;
 #[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::Serialize;
@@ -23,6 +24,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
+use xxhash_rust::xxh64::xxh64;
 
 /// Configuration for CSS modules.
 #[derive(Clone, Debug, PartialEq)]
@@ -545,5 +547,117 @@ pub(crate) fn hash(s: &str, at_start: bool) -> String {
     format!("_{}", hash)
   } else {
     hash
+  }
+}
+
+/// The algorithm used to hash a CSS module name input.
+///
+/// Used in [Segment::Hash](Segment::Hash) and [Segment::ContentHash](Segment::ContentHash) to
+/// override the default lightningcss hash algorithm. When unspecified, the default algorithm
+/// (an internal SipHash variant) is used, which preserves byte compatibility with previous
+/// lightningcss output.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize, serde::Deserialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(rename_all = "lowercase"))]
+pub enum HashAlgorithm {
+  /// MD4. Matches webpack's `md4` hash function for css-loader/postcss-modules parity.
+  Md4,
+  /// xxHash64. Matches webpack's default `xxhash64` hash function.
+  Xxhash64,
+}
+
+/// The digest encoding used when stringifying a hash for inclusion in a CSS module name.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize, serde::Deserialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(rename_all = "lowercase"))]
+pub enum DigestType {
+  /// Hexadecimal (lowercase, `[0-9a-f]`).
+  Hex,
+  /// Standard base64 alphabet (`[A-Za-z0-9+/]`, no padding). Matches Node's `hash.digest("base64")`
+  /// output without the trailing `=`. Use this for css-loader/postcss-modules parity.
+  Base64,
+}
+
+/// Compute the hash of `input` using `algo`, encode it with `digest`, and truncate to `length`
+/// bytes (UTF-8) if specified. The output is suitable for inclusion in a scoped CSS module name.
+///
+/// `length` truncates the encoded string, not the raw digest, matching webpack's
+/// `loader-utils.getHashDigest(content, algo, digest, maxLength)`.
+pub(crate) fn hash_with_options(
+  input: &[u8],
+  algo: HashAlgorithm,
+  digest: DigestType,
+  length: Option<usize>,
+) -> String {
+  let raw: Vec<u8> = match algo {
+    HashAlgorithm::Md4 => Md4::digest(input).to_vec(),
+    HashAlgorithm::Xxhash64 => xxh64(input, 0).to_be_bytes().to_vec(),
+  };
+  let encoded = match digest {
+    DigestType::Hex => {
+      let mut s = String::with_capacity(raw.len() * 2);
+      for b in &raw {
+        let _ = write!(s, "{:02x}", b);
+      }
+      s
+    }
+    DigestType::Base64 => BASE64_NOPAD.encode(&raw),
+  };
+  match length {
+    Some(n) if n < encoded.len() => encoded[..n].to_string(),
+    _ => encoded,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn md4_base64_truncated_matches_webpack() {
+    // Reproduces `loader-utils.getHashDigest(content, "md4", "base64", 5)` from a captured
+    // Vite/postcss-modules build with hashPrefix="\0\0\0\0", file="src/styles/Alpha.module.css",
+    // local="foo".
+    let input = b"\x00\x00\x00\x00src/styles/Alpha.module.css\x00foo";
+    let got = hash_with_options(input, HashAlgorithm::Md4, DigestType::Base64, Some(5));
+    assert_eq!(got, "YTbdH");
+  }
+
+  #[test]
+  fn md4_base64_truncated_matches_webpack_with_slash_in_digest() {
+    let input = b"\x00\x00\x00\x00src/styles/Alpha.module.css\x00cls_4";
+    let got = hash_with_options(input, HashAlgorithm::Md4, DigestType::Base64, Some(5));
+    // Note: raw digest contains `/` (standard base64 alphabet); post-processing of `/` -> `-`
+    // happens later (in the fork). Here we only verify the digest itself.
+    assert_eq!(got, "LOY/5");
+  }
+
+  #[test]
+  fn md4_hex_full() {
+    let got = hash_with_options(b"abc", HashAlgorithm::Md4, DigestType::Hex, None);
+    assert_eq!(got, "a448017aaf21d8525fc10ae87aa6729d");
+  }
+
+  #[test]
+  fn xxhash64_hex() {
+    // xxh64 of "abc" with seed 0 = 0x44bc2cf5ad770999
+    let got = hash_with_options(b"abc", HashAlgorithm::Xxhash64, DigestType::Hex, None);
+    assert_eq!(got, "44bc2cf5ad770999");
+  }
+
+  #[test]
+  fn length_truncates_encoded_not_raw() {
+    let full = hash_with_options(b"abc", HashAlgorithm::Md4, DigestType::Hex, None);
+    let trunc = hash_with_options(b"abc", HashAlgorithm::Md4, DigestType::Hex, Some(8));
+    assert_eq!(trunc, &full[..8]);
+  }
+
+  #[test]
+  fn base64_uses_standard_alphabet() {
+    // Inputs picked to make the digest contain both `+` and `/`, confirming the standard
+    // base64 alphabet (post-processing happens later in the css-loader-compat layer).
+    let input = b"\x00\x00\x00\x00src/styles/Alpha.module.css\x00cls_48";
+    let got = hash_with_options(input, HashAlgorithm::Md4, DigestType::Base64, Some(5));
+    assert_eq!(got, "/ta+0");
   }
 }
