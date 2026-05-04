@@ -49,6 +49,15 @@ pub struct Config {
   pub container: bool,
   /// Whether to check for pure CSS modules.
   pub pure: bool,
+  /// A prefix prepended to the hash input for every source. Matches Vite/postcss-modules'
+  /// `hashPrefix` option and css-loader's `hashSalt`; setting it to `"\x00\x00\x00\x00"`
+  /// makes the hashed bytes match css-loader's tier-0 salt input, which is how a Vite or
+  /// postcss-modules build can produce the same scoped-name hashes as webpack/css-loader.
+  ///
+  /// Applies to both legacy `[hash]` and `[<algo>:hash:<digest>:<length>]` segments. Has
+  /// no effect on `[content-hash]`. Default is `None` (no prefix; lightningcss output is
+  /// unchanged from prior versions).
+  pub hash_prefix: Option<Cow<'static, str>>,
 }
 
 impl Default for Config {
@@ -61,6 +70,7 @@ impl Default for Config {
       container: true,
       custom_idents: true,
       pure: false,
+      hash_prefix: None,
     }
   }
 }
@@ -390,6 +400,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
   ) -> Self {
     let project_root = project_root.map(|p| Path::new(p));
     let sources: Vec<&Path> = sources.iter().map(|filename| Path::new(filename)).collect();
+    let prefix = config.hash_prefix.as_deref().unwrap_or("");
     let hash_inputs = sources
       .iter()
       .map(|path| {
@@ -400,7 +411,12 @@ impl<'a, 'c> CssModule<'a, 'c> {
           }
           _ => Cow::Borrowed(*path),
         };
-        source.to_string_lossy().into_owned()
+        let rel = source.to_string_lossy();
+        if prefix.is_empty() {
+          rel.into_owned()
+        } else {
+          format!("{}{}", prefix, rel)
+        }
       })
       .collect();
     Self {
@@ -836,6 +852,25 @@ mod tests {
     assert!(Pattern::parse("[md4:extra:hash:5]").is_err());
     // No "hash" keyword:
     assert!(Pattern::parse("[md4:base64:5]").is_err());
+  }
+
+  #[test]
+  fn hash_prefix_is_prepended_to_hash_inputs() {
+    let mut refs = HashMap::new();
+    let sources = vec!["src/styles/Alpha.module.css".to_string()];
+    let mut config = Config::default();
+    config.hash_prefix = Some(std::borrow::Cow::Borrowed("\x00\x00\x00\x00"));
+    let m = CssModule::new(&config, &sources, None, &mut refs, &None);
+    assert_eq!(m.hash_inputs[0], "\x00\x00\x00\x00src/styles/Alpha.module.css");
+  }
+
+  #[test]
+  fn hash_prefix_default_none_leaves_input_unchanged() {
+    let mut refs = HashMap::new();
+    let sources = vec!["src/styles/Alpha.module.css".to_string()];
+    let config = Config::default();
+    let m = CssModule::new(&config, &sources, None, &mut refs, &None);
+    assert_eq!(m.hash_inputs[0], "src/styles/Alpha.module.css");
   }
 
   #[test]
