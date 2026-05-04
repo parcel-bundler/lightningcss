@@ -65,6 +65,19 @@ pub struct Config {
   ///
   /// Default is `false` (preserves lightningcss's per-file hashing behavior).
   pub hash_local_name: bool,
+  /// When `true`, every rendered scoped name is post-processed using the same rules as
+  /// css-loader/postcss-modules' `genericNames`:
+  ///
+  /// - Characters outside `[a-zA-Z0-9\-_ -￿]` are replaced with `-`. Notably,
+  ///   the `+` and `/` chars produced by standard base64 digests become `-`.
+  /// - A leading `-?[0-9]` or `--` is prefixed with `_` so the output is a valid CSS
+  ///   identifier even when the rendered name starts with a digit.
+  ///
+  /// The `--` prefix on dashed (custom property) idents is excluded from this processing
+  /// — it's prepended after the rendered pattern is escaped.
+  ///
+  /// Default is `false`.
+  pub escape_scoped_names: bool,
 }
 
 impl Default for Config {
@@ -79,6 +92,7 @@ impl Default for Config {
       pure: false,
       hash_prefix: None,
       hash_local_name: false,
+      escape_scoped_names: false,
     }
   }
 }
@@ -285,7 +299,7 @@ impl Pattern {
   }
 
   #[inline]
-  fn write_to_string(
+  pub(crate) fn write_to_string(
     &self,
     mut res: String,
     hash_input: &str,
@@ -448,26 +462,38 @@ impl<'a, 'c> CssModule<'a, 'c> {
     }
   }
 
+  /// Apply the css-loader/postcss-modules post-processing pipeline to a rendered scoped
+  /// name when [Config::escape_scoped_names] is set; otherwise return `s` unchanged.
+  pub(crate) fn maybe_escape(&self, s: String) -> String {
+    if self.config.escape_scoped_names {
+      escape_scoped_name(&s)
+    } else {
+      s
+    }
+  }
+
   pub fn add_local(&mut self, exported: &str, local: &str, source_index: u32) {
     let hash_input = self.hash_input_for(source_index, local).into_owned();
+    let body = self
+      .config
+      .pattern
+      .write_to_string(
+        String::new(),
+        &hash_input,
+        &self.sources[source_index as usize],
+        local,
+        if let Some(content_hashes) = &self.content_hashes {
+          &content_hashes[source_index as usize]
+        } else {
+          ""
+        },
+      )
+      .unwrap();
+    let name = self.maybe_escape(body);
     self.exports_by_source_index[source_index as usize]
       .entry(exported.into())
-      .or_insert_with(|| CssModuleExport {
-        name: self
-          .config
-          .pattern
-          .write_to_string(
-            String::new(),
-            &hash_input,
-            &self.sources[source_index as usize],
-            local,
-            if let Some(content_hashes) = &self.content_hashes {
-              &content_hashes[source_index as usize]
-            } else {
-              ""
-            },
-          )
-          .unwrap(),
+      .or_insert(CssModuleExport {
+        name,
         composes: vec![],
         is_referenced: false,
       });
@@ -475,24 +501,26 @@ impl<'a, 'c> CssModule<'a, 'c> {
 
   pub fn add_dashed(&mut self, local: &str, source_index: u32) {
     let hash_input = self.hash_input_for(source_index, &local[2..]).into_owned();
+    let body = self
+      .config
+      .pattern
+      .write_to_string(
+        String::new(),
+        &hash_input,
+        &self.sources[source_index as usize],
+        &local[2..],
+        if let Some(content_hashes) = &self.content_hashes {
+          &content_hashes[source_index as usize]
+        } else {
+          ""
+        },
+      )
+      .unwrap();
+    let name = format!("--{}", self.maybe_escape(body));
     self.exports_by_source_index[source_index as usize]
       .entry(local.into())
-      .or_insert_with(|| CssModuleExport {
-        name: self
-          .config
-          .pattern
-          .write_to_string(
-            "--".into(),
-            &hash_input,
-            &self.sources[source_index as usize],
-            &local[2..],
-            if let Some(content_hashes) = &self.content_hashes {
-              &content_hashes[source_index as usize]
-            } else {
-              ""
-            },
-          )
-          .unwrap(),
+      .or_insert(CssModuleExport {
+        name,
         composes: vec![],
         is_referenced: false,
       });
@@ -505,22 +533,28 @@ impl<'a, 'c> CssModule<'a, 'c> {
         entry.get_mut().is_referenced = true;
       }
       std::collections::hash_map::Entry::Vacant(entry) => {
+        let body = self
+          .config
+          .pattern
+          .write_to_string(
+            String::new(),
+            &hash_input,
+            &self.sources[source_index as usize],
+            name,
+            if let Some(content_hashes) = &self.content_hashes {
+              &content_hashes[source_index as usize]
+            } else {
+              ""
+            },
+          )
+          .unwrap();
+        let escaped = if self.config.escape_scoped_names {
+          escape_scoped_name(&body)
+        } else {
+          body
+        };
         entry.insert(CssModuleExport {
-          name: self
-            .config
-            .pattern
-            .write_to_string(
-              String::new(),
-              &hash_input,
-              &self.sources[source_index as usize],
-              name,
-              if let Some(content_hashes) = &self.content_hashes {
-                &content_hashes[source_index as usize]
-              } else {
-                ""
-              },
-            )
-            .unwrap(),
+          name: escaped,
           composes: vec![],
           is_referenced: true,
         });
@@ -540,48 +574,49 @@ impl<'a, 'c> CssModule<'a, 'c> {
       ),
       Some(Specifier::SourceIndex(source_index)) => {
         let hash_input = self.hash_input_for(*source_index, &name[2..]).into_owned();
-        return Some(
-          self
-            .config
-            .pattern
-            .write_to_string(
-              String::new(),
-              &hash_input,
-              &self.sources[*source_index as usize],
-              &name[2..],
-              if let Some(content_hashes) = &self.content_hashes {
-                &content_hashes[*source_index as usize]
-              } else {
-                ""
-              },
-            )
-            .unwrap(),
-        )
+        let body = self
+          .config
+          .pattern
+          .write_to_string(
+            String::new(),
+            &hash_input,
+            &self.sources[*source_index as usize],
+            &name[2..],
+            if let Some(content_hashes) = &self.content_hashes {
+              &content_hashes[*source_index as usize]
+            } else {
+              ""
+            },
+          )
+          .unwrap();
+        return Some(self.maybe_escape(body));
       }
       None => {
         // Local export. Mark as used.
         let hash_input = self.hash_input_for(source_index, &name[2..]).into_owned();
+        let body = self
+          .config
+          .pattern
+          .write_to_string(
+            String::new(),
+            &hash_input,
+            &self.sources[source_index as usize],
+            &name[2..],
+            if let Some(content_hashes) = &self.content_hashes {
+              &content_hashes[source_index as usize]
+            } else {
+              ""
+            },
+          )
+          .unwrap();
+        let scoped = format!("--{}", self.maybe_escape(body));
         match self.exports_by_source_index[source_index as usize].entry(name.into()) {
           std::collections::hash_map::Entry::Occupied(mut entry) => {
             entry.get_mut().is_referenced = true;
           }
           std::collections::hash_map::Entry::Vacant(entry) => {
             entry.insert(CssModuleExport {
-              name: self
-                .config
-                .pattern
-                .write_to_string(
-                  "--".into(),
-                  &hash_input,
-                  &self.sources[source_index as usize],
-                  &name[2..],
-                  if let Some(content_hashes) = &self.content_hashes {
-                    &content_hashes[source_index as usize]
-                  } else {
-                    ""
-                  },
-                )
-                .unwrap(),
+              name: scoped,
               composes: vec![],
               is_referenced: true,
             });
@@ -615,22 +650,23 @@ impl<'a, 'c> CssModule<'a, 'c> {
               let reference = match &composes.from {
                 None => {
                   let hash_input = self.hash_input_for(source_index, name.0.as_ref()).into_owned();
+                  let body = self
+                    .config
+                    .pattern
+                    .write_to_string(
+                      String::new(),
+                      &hash_input,
+                      &self.sources[source_index as usize],
+                      name.0.as_ref(),
+                      if let Some(content_hashes) = &self.content_hashes {
+                        &content_hashes[source_index as usize]
+                      } else {
+                        ""
+                      },
+                    )
+                    .unwrap();
                   CssModuleReference::Local {
-                    name: self
-                      .config
-                      .pattern
-                      .write_to_string(
-                        String::new(),
-                        &hash_input,
-                        &self.sources[source_index as usize],
-                        name.0.as_ref(),
-                        if let Some(content_hashes) = &self.content_hashes {
-                          &content_hashes[source_index as usize]
-                        } else {
-                          ""
-                        },
-                      )
-                      .unwrap(),
+                    name: self.maybe_escape(body),
                   }
                 },
                 Some(Specifier::SourceIndex(dep_source_index)) => {
@@ -705,6 +741,33 @@ pub enum HashAlgorithm {
   Md4,
   /// xxHash64. Matches webpack's default `xxhash64` hash function.
   Xxhash64,
+}
+
+/// Post-process a rendered scoped name using css-loader/postcss-modules' `genericNames`
+/// rules: replace any char outside `[a-zA-Z0-9\-_]` (plus the latin-1+ unicode range
+/// `U+00A0..=U+FFFF`) with `-`, then prefix `_` when the result starts with `-?[0-9]`
+/// or `--` so the output remains a valid CSS identifier.
+pub(crate) fn escape_scoped_name(s: &str) -> String {
+  let mut out = String::with_capacity(s.len() + 1);
+  for ch in s.chars() {
+    let keep =
+      ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || (ch as u32 >= 0x00A0 && (ch as u32) <= 0xFFFF);
+    out.push(if keep { ch } else { '-' });
+  }
+  // /^((-?[0-9])|--)/ -> "_$1"
+  let bytes = out.as_bytes();
+  let needs_prefix = matches!(
+    (bytes.first(), bytes.get(1)),
+    (Some(b'0'..=b'9'), _) | (Some(b'-'), Some(b'0'..=b'9' | b'-'))
+  );
+  if needs_prefix {
+    let mut prefixed = String::with_capacity(out.len() + 1);
+    prefixed.push('_');
+    prefixed.push_str(&out);
+    prefixed
+  } else {
+    out
+  }
 }
 
 fn parse_digest(s: &str) -> Option<DigestType> {
@@ -936,6 +999,47 @@ mod tests {
     let hi = m.hash_input_for(0, "foo");
     let digest = hash_with_options(hi.as_bytes(), HashAlgorithm::Md4, DigestType::Base64, Some(5));
     assert_eq!(digest, "YTbdH");
+  }
+
+  #[test]
+  fn escape_replaces_invalid_chars_with_dash() {
+    // Standard base64 alphabet contains `+/`; both should become `-`.
+    assert_eq!(escape_scoped_name("LOY/5"), "LOY-5");
+    assert_eq!(escape_scoped_name("/ta+0"), "-ta-0");
+  }
+
+  #[test]
+  fn escape_prefixes_leading_digit() {
+    assert_eq!(escape_scoped_name("2kP0r"), "_2kP0r");
+    assert_eq!(escape_scoped_name("2lUK7"), "_2lUK7");
+  }
+
+  #[test]
+  fn escape_prefixes_leading_dash_digit() {
+    // `-0F5/` -> after invalid-char replace: `-0F5-` -> leading -? followed by digit -> `_-0F5-`.
+    assert_eq!(escape_scoped_name("-0F5-"), "_-0F5-");
+  }
+
+  #[test]
+  fn escape_prefixes_leading_double_dash() {
+    // `//GdO` -> `--GdO` -> leading `--` -> `_--GdO`.
+    assert_eq!(escape_scoped_name("--GdO"), "_--GdO");
+  }
+
+  #[test]
+  fn escape_keeps_dash_letter_unprefixed() {
+    // `/rXwJ` -> `-rXwJ` -> leading `-` followed by letter -> unchanged.
+    assert_eq!(escape_scoped_name("-rXwJ"), "-rXwJ");
+  }
+
+  #[test]
+  fn escape_keeps_clean_input_unchanged() {
+    assert_eq!(escape_scoped_name("Alpha-module__foo__YTbdH"), "Alpha-module__foo__YTbdH");
+  }
+
+  #[test]
+  fn escape_keeps_unicode_above_a0() {
+    assert_eq!(escape_scoped_name("Café"), "Café");
   }
 
   #[test]
