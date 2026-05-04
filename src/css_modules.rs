@@ -115,22 +115,26 @@ impl std::error::Error for PatternParseError {}
 
 impl Pattern {
   /// Parse a pattern from a string.
+  ///
+  /// Supported placeholders are:
+  /// - `[name]`, `[local]`, `[content-hash]`, `[hash]`
+  /// - `[<algo>:hash:<digest>:<length>]` (webpack-compatible). Any of `algo`, `digest`,
+  ///   and `length` can be omitted, e.g. `[hash:base64:5]`, `[md4:hash]`, `[hash:8]`.
+  ///   Recognized algorithms: `md4`, `xxhash64`. Recognized digests: `hex`, `base64`.
+  ///   When the `hash` keyword is bare (`[hash]`) the legacy lightningcss hash is used;
+  ///   otherwise [hash_with_options](hash_with_options) applies.
   pub fn parse(mut input: &str) -> Result<Self, PatternParseError> {
     let mut segments = SmallVec::new();
     let mut start_idx: usize = 0;
     while !input.is_empty() {
       if input.starts_with('[') {
         if let Some(end_idx) = input.find(']') {
-          let segment = match &input[0..=end_idx] {
+          let raw = &input[0..=end_idx];
+          let segment = match raw {
             "[name]" => Segment::Name,
             "[local]" => Segment::Local,
-            "[hash]" => Segment::Hash {
-              algo: None,
-              digest: None,
-              length: None,
-            },
             "[content-hash]" => Segment::ContentHash,
-            s => return Err(PatternParseError::UnknownPlaceholder(s.into(), start_idx)),
+            _ => Self::parse_hash_segment(raw, start_idx)?,
           };
           segments.push(segment);
           start_idx += end_idx + 1;
@@ -147,6 +151,58 @@ impl Pattern {
     }
 
     Ok(Pattern { segments })
+  }
+
+  /// Parse a `[hash]` placeholder, including webpack-style `[<algo>:hash:<digest>:<length>]`.
+  /// `raw` includes the surrounding brackets. Returns an error for any other placeholder.
+  fn parse_hash_segment(raw: &str, start_idx: usize) -> Result<Segment, PatternParseError> {
+    let inner = &raw[1..raw.len() - 1];
+    let parts: Vec<&str> = inner.split(':').collect();
+    let unknown = || PatternParseError::UnknownPlaceholder(raw.into(), start_idx);
+    let hash_pos = parts
+      .iter()
+      .position(|p| p.eq_ignore_ascii_case("hash"))
+      .ok_or_else(unknown)?;
+    if hash_pos > 1 {
+      // At most one part may precede `hash` (the algo).
+      return Err(unknown());
+    }
+    let algo = if hash_pos == 1 {
+      Some(match parts[0].to_ascii_lowercase().as_str() {
+        "md4" => HashAlgorithm::Md4,
+        "xxhash64" => HashAlgorithm::Xxhash64,
+        _ => return Err(unknown()),
+      })
+    } else {
+      None
+    };
+    let after = &parts[hash_pos + 1..];
+    let (digest, length) = match after {
+      [] => (None, None),
+      [a] => {
+        if let Ok(n) = a.parse::<usize>() {
+          (None, Some(n))
+        } else {
+          (Some(parse_digest(a).ok_or_else(unknown)?), None)
+        }
+      }
+      [a, b] => {
+        let d = parse_digest(a).ok_or_else(unknown)?;
+        let n = b.parse::<usize>().map_err(|_| unknown())?;
+        (Some(d), Some(n))
+      }
+      _ => return Err(unknown()),
+    };
+    if algo.is_none() && digest.is_none() && length.is_none() {
+      // Bare `[hash]` keeps the legacy code path.
+      Ok(Segment::Hash {
+        algo: None,
+        digest: None,
+        length: None,
+      })
+    } else {
+      Ok(Segment::Hash { algo, digest, length })
+    }
   }
 
   /// Whether the pattern contains any `[content-hash]` segments.
@@ -608,6 +664,14 @@ pub enum HashAlgorithm {
   Xxhash64,
 }
 
+fn parse_digest(s: &str) -> Option<DigestType> {
+  match s.to_ascii_lowercase().as_str() {
+    "hex" => Some(DigestType::Hex),
+    "base64" => Some(DigestType::Base64),
+    _ => None,
+  }
+}
+
 /// The digest encoding used when stringifying a hash for inclusion in a CSS module name.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize, serde::Deserialize))]
@@ -701,5 +765,99 @@ mod tests {
     let input = b"\x00\x00\x00\x00src/styles/Alpha.module.css\x00cls_48";
     let got = hash_with_options(input, HashAlgorithm::Md4, DigestType::Base64, Some(5));
     assert_eq!(got, "/ta+0");
+  }
+
+  fn first_hash(p: &Pattern) -> &Segment {
+    p.segments
+      .iter()
+      .find(|s| matches!(s, Segment::Hash { .. }))
+      .unwrap()
+  }
+
+  fn parse_hash(s: &str) -> (Option<HashAlgorithm>, Option<DigestType>, Option<usize>) {
+    let p = Pattern::parse(s).unwrap();
+    match first_hash(&p) {
+      Segment::Hash { algo, digest, length } => (*algo, *digest, *length),
+      _ => unreachable!(),
+    }
+  }
+
+  #[test]
+  fn parse_bare_hash_keeps_legacy() {
+    let p = Pattern::parse("[hash]").unwrap();
+    assert!(matches!(
+      first_hash(&p),
+      Segment::Hash {
+        algo: None,
+        digest: None,
+        length: None
+      }
+    ));
+  }
+
+  #[test]
+  fn parse_full_webpack_pattern() {
+    assert_eq!(
+      parse_hash("[md4:hash:base64:5]"),
+      (Some(HashAlgorithm::Md4), Some(DigestType::Base64), Some(5))
+    );
+    assert_eq!(
+      parse_hash("[xxhash64:hash:hex:12]"),
+      (Some(HashAlgorithm::Xxhash64), Some(DigestType::Hex), Some(12))
+    );
+  }
+
+  #[test]
+  fn parse_omitted_fields() {
+    assert_eq!(parse_hash("[hash:base64]"), (None, Some(DigestType::Base64), None));
+    assert_eq!(parse_hash("[hash:5]"), (None, None, Some(5)));
+    assert_eq!(parse_hash("[hash:base64:5]"), (None, Some(DigestType::Base64), Some(5)));
+    assert_eq!(parse_hash("[md4:hash]"), (Some(HashAlgorithm::Md4), None, None));
+    assert_eq!(parse_hash("[md4:hash:5]"), (Some(HashAlgorithm::Md4), None, Some(5)));
+    assert_eq!(
+      parse_hash("[md4:hash:base64]"),
+      (Some(HashAlgorithm::Md4), Some(DigestType::Base64), None)
+    );
+  }
+
+  #[test]
+  fn parse_is_case_insensitive() {
+    assert_eq!(
+      parse_hash("[MD4:HASH:BASE64:5]"),
+      (Some(HashAlgorithm::Md4), Some(DigestType::Base64), Some(5))
+    );
+  }
+
+  #[test]
+  fn parse_rejects_unknown_algo_and_digest() {
+    assert!(Pattern::parse("[sha1:hash:hex:8]").is_err());
+    assert!(Pattern::parse("[md4:hash:base32:5]").is_err());
+    // Two parts before "hash":
+    assert!(Pattern::parse("[md4:extra:hash:5]").is_err());
+    // No "hash" keyword:
+    assert!(Pattern::parse("[md4:base64:5]").is_err());
+  }
+
+  #[test]
+  fn write_uses_options_to_match_webpack_output() {
+    // Reproduce the [name]__[local]__[md4:hash:base64:5] pattern from a captured Vite build,
+    // using the digest only (no css-loader content composition / post-process). The hash
+    // segment alone must produce "YTbdH" given the same input bytes.
+    let pattern = Pattern::parse("[md4:hash:base64:5]").unwrap();
+    let mut out = String::new();
+    let path = std::path::Path::new("src/styles/Alpha.module.css");
+    pattern
+      .write(
+        "\x00\x00\x00\x00src/styles/Alpha.module.css\x00foo",
+        path,
+        "foo",
+        "",
+        |s| {
+          out.push_str(s);
+          Ok::<_, std::fmt::Error>(())
+        },
+      )
+      .unwrap();
+    assert_eq!(out, "YTbdH");
   }
 }
