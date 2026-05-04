@@ -25980,6 +25980,119 @@ mod tests {
   ");
   }
 
+  /// End-to-end byte-parity test against ground truth captured from a Vite/postcss-modules
+  /// build using:
+  ///
+  /// ```js
+  /// css.modules = {
+  ///   generateScopedName: "[name]__[local]__[md4:hash:base64:5]",
+  ///   hashPrefix: "\0\0\0\0",
+  /// }
+  /// ```
+  ///
+  /// Every captured class name must be reproduced exactly. Cases cover all post-processing
+  /// branches: clean digest, +/-/-mid-cleanup, leading-digit prefix, leading -digit prefix,
+  /// leading -- prefix, leading -letter (no prefix).
+  #[test]
+  fn css_modules_webpack_parity() {
+    use crate::css_modules::{Config as CssModulesConfig, Pattern};
+    use std::borrow::Cow;
+
+    fn parity_for(filename: &str, source: &str) -> CssModuleExports {
+      let pattern = Pattern::parse("[name]__[local]__[md4:hash:base64:5]").unwrap();
+      let config = CssModulesConfig {
+        pattern,
+        hash_prefix: Some(Cow::Borrowed("\x00\x00\x00\x00")),
+        hash_local_name: true,
+        escape_scoped_names: true,
+        ..CssModulesConfig::default()
+      };
+      let mut stylesheet = StyleSheet::parse(
+        source,
+        ParserOptions {
+          filename: filename.into(),
+          css_modules: Some(config),
+          ..ParserOptions::default()
+        },
+      )
+      .unwrap();
+      stylesheet.minify(MinifyOptions::default()).unwrap();
+      let res = stylesheet
+        .to_css(PrinterOptions {
+          minify: false,
+          ..PrinterOptions::default()
+        })
+        .unwrap();
+      res.exports.unwrap()
+    }
+
+    let exports_a = parity_for(
+      "src/styles/Alpha.module.css",
+      r#"
+.foo { color: red; }
+.bar-baz { color: blue; }
+.qux { color: green; }
+.cls_3 { color: cyan; }
+.cls_4 { color: magenta; }
+.cls_48 { color: yellow; }
+.cls_9 { color: pink; }
+.cls_90 { color: orange; }
+.cls_533 { color: purple; }
+"#,
+    );
+
+    let cases_a: &[(&str, &str)] = &[
+      ("foo", "Alpha-module__foo__YTbdH"),
+      ("bar-baz", "Alpha-module__bar-baz__Wu8mb"),
+      ("qux", "Alpha-module__qux__pVaUd"),
+      ("cls_3", "Alpha-module__cls_3__2kP0r"),
+      // digest LOY/5 -> escape -> LOY-5
+      ("cls_4", "Alpha-module__cls_4__LOY-5"),
+      // digest /ta+0 -> escape -> -ta-0
+      ("cls_48", "Alpha-module__cls_48__-ta-0"),
+      // digest /rXwJ -> escape -> -rXwJ (leading -letter; no prefix added because the rendered
+      // name starts with `Alpha`, not `-`)
+      ("cls_9", "Alpha-module__cls_9__-rXwJ"),
+      // digest +0F5/ -> escape -> -0F5-
+      ("cls_90", "Alpha-module__cls_90__-0F5-"),
+      // digest //GdO -> escape -> --GdO
+      ("cls_533", "Alpha-module__cls_533__--GdO"),
+    ];
+
+    for (local, expected) in cases_a {
+      let got = exports_a.get(*local).unwrap_or_else(|| panic!("missing export {local}"));
+      assert_eq!(
+        got.name, *expected,
+        "mismatch for Alpha.module.css#{local}: got {} want {expected}",
+        got.name
+      );
+    }
+
+    let exports_b = parity_for(
+      "src/nested/dir/Beta.module.css",
+      r#"
+.foo { color: red; }
+.hello { color: blue; }
+.world123 { color: green; }
+"#,
+    );
+
+    let cases_b: &[(&str, &str)] = &[
+      ("foo", "Beta-module__foo__EvqJr"),
+      ("hello", "Beta-module__hello__2lUK7"),
+      ("world123", "Beta-module__world123__28h2N"),
+    ];
+
+    for (local, expected) in cases_b {
+      let got = exports_b.get(*local).unwrap_or_else(|| panic!("missing export {local}"));
+      assert_eq!(
+        got.name, *expected,
+        "mismatch for Beta.module.css#{local}: got {} want {expected}",
+        got.name
+      );
+    }
+  }
+
   #[test]
   fn test_css_modules() {
     css_modules_test(
