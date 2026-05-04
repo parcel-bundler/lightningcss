@@ -293,7 +293,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
         let dest = &mut self.dest;
         let mut first = true;
         css_module.config.pattern.write(
-          &css_module.hashes[self.loc.source_index as usize],
+          &css_module.hash_inputs[self.loc.source_index as usize],
           &css_module.sources[self.loc.source_index as usize],
           ident,
           if let Some(content_hashes) = &css_module.content_hashes {
@@ -328,7 +328,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
       Some(css_module) if css_module.config.dashed_idents => {
         let dest = &mut self.dest;
         css_module.config.pattern.write(
-          &css_module.hashes[self.loc.source_index as usize],
+          &css_module.hash_inputs[self.loc.source_index as usize],
           &css_module.sources[self.loc.source_index as usize],
           &ident[2..],
           if let Some(content_hashes) = &css_module.content_hashes {

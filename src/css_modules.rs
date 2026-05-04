@@ -75,7 +75,15 @@ pub struct Pattern {
 impl Default for Pattern {
   fn default() -> Self {
     Pattern {
-      segments: smallvec![Segment::Hash, Segment::Literal(Cow::Borrowed("_")), Segment::Local],
+      segments: smallvec![
+        Segment::Hash {
+          algo: None,
+          digest: None,
+          length: None,
+        },
+        Segment::Literal(Cow::Borrowed("_")),
+        Segment::Local
+      ],
     }
   }
 }
@@ -116,7 +124,11 @@ impl Pattern {
           let segment = match &input[0..=end_idx] {
             "[name]" => Segment::Name,
             "[local]" => Segment::Local,
-            "[hash]" => Segment::Hash,
+            "[hash]" => Segment::Hash {
+              algo: None,
+              digest: None,
+              length: None,
+            },
             "[content-hash]" => Segment::ContentHash,
             s => return Err(PatternParseError::UnknownPlaceholder(s.into(), start_idx)),
           };
@@ -143,9 +155,15 @@ impl Pattern {
   }
 
   /// Write the substituted pattern to a destination.
+  ///
+  /// `hash_input` is the raw string used as input to compute hashes for `[hash]` segments
+  /// (typically the project-root-relative source path). For legacy `[hash]` segments (no
+  /// algo/digest/length specified) the existing siphash + custom-base64 algorithm is used,
+  /// preserving byte compatibility with previous lightningcss output. Segments with any
+  /// option specified use [hash_with_options](hash_with_options).
   pub fn write<W, E>(
     &self,
-    hash: &str,
+    hash_input: &str,
     path: &Path,
     local: &str,
     content_hash: &str,
@@ -154,7 +172,7 @@ impl Pattern {
   where
     W: FnMut(&str) -> Result<(), E>,
   {
-    for segment in &self.segments {
+    for (idx, segment) in self.segments.iter().enumerate() {
       match segment {
         Segment::Literal(s) => {
           write(s)?;
@@ -170,8 +188,19 @@ impl Pattern {
         Segment::Local => {
           write(local)?;
         }
-        Segment::Hash => {
-          write(hash)?;
+        Segment::Hash { algo, digest, length } => {
+          if algo.is_none() && digest.is_none() && length.is_none() {
+            let h = hash(hash_input, idx == 0);
+            write(&h)?;
+          } else {
+            let h = hash_with_options(
+              hash_input.as_bytes(),
+              algo.unwrap_or(HashAlgorithm::Xxhash64),
+              digest.unwrap_or(DigestType::Hex),
+              *length,
+            );
+            write(&h)?;
+          }
         }
         Segment::ContentHash => {
           write(content_hash)?;
@@ -185,12 +214,12 @@ impl Pattern {
   fn write_to_string(
     &self,
     mut res: String,
-    hash: &str,
+    hash_input: &str,
     path: &Path,
     local: &str,
     content_hash: &str,
   ) -> Result<String, std::fmt::Error> {
-    self.write(hash, path, local, content_hash, |s| res.write_str(s))?;
+    self.write(hash_input, path, local, content_hash, |s| res.write_str(s))?;
     Ok(res)
   }
 }
@@ -207,7 +236,20 @@ pub enum Segment {
   /// The original class name.
   Local,
   /// A hash of the file name.
-  Hash,
+  ///
+  /// When all of `algo`, `digest`, and `length` are `None`, the legacy lightningcss
+  /// hash (siphash + custom base64) is used and the result is prefixed with `_` if
+  /// it starts with a digit and the segment is at the start of the pattern. When any
+  /// is `Some`, [hash_with_options](hash_with_options) is used with `Xxhash64` as the
+  /// default algorithm and `Hex` as the default digest.
+  Hash {
+    /// The hash algorithm to use, or `None` for the legacy default.
+    algo: Option<HashAlgorithm>,
+    /// The digest encoding, or `None` to default to `Hex` when any option is set.
+    digest: Option<DigestType>,
+    /// The maximum encoded length in characters, or `None` for full digest.
+    length: Option<usize>,
+  },
   /// A hash of the file contents.
   ContentHash,
 }
@@ -273,7 +315,10 @@ lazy_static! {
 pub(crate) struct CssModule<'a, 'c> {
   pub config: &'a Config,
   pub sources: Vec<&'c Path>,
-  pub hashes: Vec<String>,
+  /// Raw input strings used to compute `[hash]` segments. One per source, holding the
+  /// project-root-relative path (or the raw path when no project_root is set). Hashing
+  /// happens at write time inside [Pattern::write] so per-segment options can apply.
+  pub hash_inputs: Vec<String>,
   pub content_hashes: &'a Option<Vec<String>>,
   pub exports_by_source_index: Vec<CssModuleExports>,
   pub references: &'a mut HashMap<String, CssModuleReference>,
@@ -289,7 +334,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
   ) -> Self {
     let project_root = project_root.map(|p| Path::new(p));
     let sources: Vec<&Path> = sources.iter().map(|filename| Path::new(filename)).collect();
-    let hashes = sources
+    let hash_inputs = sources
       .iter()
       .map(|path| {
         // Make paths relative to project root so hashes are stable.
@@ -299,17 +344,14 @@ impl<'a, 'c> CssModule<'a, 'c> {
           }
           _ => Cow::Borrowed(*path),
         };
-        hash(
-          &source.to_string_lossy(),
-          matches!(config.pattern.segments[0], Segment::Hash),
-        )
+        source.to_string_lossy().into_owned()
       })
       .collect();
     Self {
       config,
       exports_by_source_index: sources.iter().map(|_| HashMap::new()).collect(),
       sources,
-      hashes,
+      hash_inputs,
       content_hashes,
       references,
     }
@@ -324,7 +366,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
           .pattern
           .write_to_string(
             String::new(),
-            &self.hashes[source_index as usize],
+            &self.hash_inputs[source_index as usize],
             &self.sources[source_index as usize],
             local,
             if let Some(content_hashes) = &self.content_hashes {
@@ -348,7 +390,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
           .pattern
           .write_to_string(
             "--".into(),
-            &self.hashes[source_index as usize],
+            &self.hash_inputs[source_index as usize],
             &self.sources[source_index as usize],
             &local[2..],
             if let Some(content_hashes) = &self.content_hashes {
@@ -375,7 +417,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
             .pattern
             .write_to_string(
               String::new(),
-              &self.hashes[source_index as usize],
+              &self.hash_inputs[source_index as usize],
               &self.sources[source_index as usize],
               name,
               if let Some(content_hashes) = &self.content_hashes {
@@ -409,7 +451,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
             .pattern
             .write_to_string(
               String::new(),
-              &self.hashes[*source_index as usize],
+              &self.hash_inputs[*source_index as usize],
               &self.sources[*source_index as usize],
               &name[2..],
               if let Some(content_hashes) = &self.content_hashes {
@@ -434,7 +476,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
                 .pattern
                 .write_to_string(
                   "--".into(),
-                  &self.hashes[source_index as usize],
+                  &self.hash_inputs[source_index as usize],
                   &self.sources[source_index as usize],
                   &name[2..],
                   if let Some(content_hashes) = &self.content_hashes {
@@ -453,10 +495,10 @@ impl<'a, 'c> CssModule<'a, 'c> {
       }
     };
 
-    let hash = hash(
-      &format!("{}_{}_{}", self.hashes[source_index as usize], name, key),
-      false,
-    );
+    // Reuse the legacy filename hash as a stable short id here, preserving
+    // backward-compatible output for dashed (custom property) cross-file references.
+    let source_id = hash(&self.hash_inputs[source_index as usize], false);
+    let hash = hash(&format!("{}_{}_{}", source_id, name, key), false);
     let name = format!("--{}", hash);
 
     self.references.insert(name.clone(), reference);
@@ -481,7 +523,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
                     .pattern
                     .write_to_string(
                       String::new(),
-                      &self.hashes[source_index as usize],
+                      &self.hash_inputs[source_index as usize],
                       &self.sources[source_index as usize],
                       name.0.as_ref(),
                       if let Some(content_hashes) = &self.content_hashes {
