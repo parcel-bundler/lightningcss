@@ -58,6 +58,13 @@ pub struct Config {
   /// no effect on `[content-hash]`. Default is `None` (no prefix; lightningcss output is
   /// unchanged from prior versions).
   pub hash_prefix: Option<Cow<'static, str>>,
+  /// When `true`, the local class/ident name is appended to the hash input separated by
+  /// a NUL byte: `<prefix><relative-path>\0<local>`. This matches the per-local hashing
+  /// done by css-loader and postcss-modules — without it, every export from a given file
+  /// shares one hash. Required for css-loader/postcss-modules byte parity.
+  ///
+  /// Default is `false` (preserves lightningcss's per-file hashing behavior).
+  pub hash_local_name: bool,
 }
 
 impl Default for Config {
@@ -71,6 +78,7 @@ impl Default for Config {
       custom_idents: true,
       pure: false,
       hash_prefix: None,
+      hash_local_name: false,
     }
   }
 }
@@ -429,7 +437,19 @@ impl<'a, 'c> CssModule<'a, 'c> {
     }
   }
 
+  /// Build the hash input for a `[hash]` segment, optionally appending the local class
+  /// name when [Config::hash_local_name] is enabled.
+  pub(crate) fn hash_input_for(&self, source_index: u32, local: &str) -> Cow<'_, str> {
+    let base = &self.hash_inputs[source_index as usize];
+    if self.config.hash_local_name {
+      Cow::Owned(format!("{}\x00{}", base, local))
+    } else {
+      Cow::Borrowed(base)
+    }
+  }
+
   pub fn add_local(&mut self, exported: &str, local: &str, source_index: u32) {
+    let hash_input = self.hash_input_for(source_index, local).into_owned();
     self.exports_by_source_index[source_index as usize]
       .entry(exported.into())
       .or_insert_with(|| CssModuleExport {
@@ -438,7 +458,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
           .pattern
           .write_to_string(
             String::new(),
-            &self.hash_inputs[source_index as usize],
+            &hash_input,
             &self.sources[source_index as usize],
             local,
             if let Some(content_hashes) = &self.content_hashes {
@@ -454,6 +474,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
   }
 
   pub fn add_dashed(&mut self, local: &str, source_index: u32) {
+    let hash_input = self.hash_input_for(source_index, &local[2..]).into_owned();
     self.exports_by_source_index[source_index as usize]
       .entry(local.into())
       .or_insert_with(|| CssModuleExport {
@@ -462,7 +483,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
           .pattern
           .write_to_string(
             "--".into(),
-            &self.hash_inputs[source_index as usize],
+            &hash_input,
             &self.sources[source_index as usize],
             &local[2..],
             if let Some(content_hashes) = &self.content_hashes {
@@ -478,6 +499,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
   }
 
   pub fn reference(&mut self, name: &str, source_index: u32) {
+    let hash_input = self.hash_input_for(source_index, name).into_owned();
     match self.exports_by_source_index[source_index as usize].entry(name.into()) {
       std::collections::hash_map::Entry::Occupied(mut entry) => {
         entry.get_mut().is_referenced = true;
@@ -489,7 +511,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
             .pattern
             .write_to_string(
               String::new(),
-              &self.hash_inputs[source_index as usize],
+              &hash_input,
               &self.sources[source_index as usize],
               name,
               if let Some(content_hashes) = &self.content_hashes {
@@ -517,13 +539,14 @@ impl<'a, 'c> CssModule<'a, 'c> {
         file.as_ref(),
       ),
       Some(Specifier::SourceIndex(source_index)) => {
+        let hash_input = self.hash_input_for(*source_index, &name[2..]).into_owned();
         return Some(
           self
             .config
             .pattern
             .write_to_string(
               String::new(),
-              &self.hash_inputs[*source_index as usize],
+              &hash_input,
               &self.sources[*source_index as usize],
               &name[2..],
               if let Some(content_hashes) = &self.content_hashes {
@@ -537,6 +560,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
       }
       None => {
         // Local export. Mark as used.
+        let hash_input = self.hash_input_for(source_index, &name[2..]).into_owned();
         match self.exports_by_source_index[source_index as usize].entry(name.into()) {
           std::collections::hash_map::Entry::Occupied(mut entry) => {
             entry.get_mut().is_referenced = true;
@@ -548,7 +572,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
                 .pattern
                 .write_to_string(
                   "--".into(),
-                  &self.hash_inputs[source_index as usize],
+                  &hash_input,
                   &self.sources[source_index as usize],
                   &name[2..],
                   if let Some(content_hashes) = &self.content_hashes {
@@ -589,22 +613,25 @@ impl<'a, 'c> CssModule<'a, 'c> {
           parcel_selectors::parser::Component::Class(ref id) => {
             for name in &composes.names {
               let reference = match &composes.from {
-                None => CssModuleReference::Local {
-                  name: self
-                    .config
-                    .pattern
-                    .write_to_string(
-                      String::new(),
-                      &self.hash_inputs[source_index as usize],
-                      &self.sources[source_index as usize],
-                      name.0.as_ref(),
-                      if let Some(content_hashes) = &self.content_hashes {
-                        &content_hashes[source_index as usize]
-                      } else {
-                        ""
-                      },
-                    )
-                    .unwrap(),
+                None => {
+                  let hash_input = self.hash_input_for(source_index, name.0.as_ref()).into_owned();
+                  CssModuleReference::Local {
+                    name: self
+                      .config
+                      .pattern
+                      .write_to_string(
+                        String::new(),
+                        &hash_input,
+                        &self.sources[source_index as usize],
+                        name.0.as_ref(),
+                        if let Some(content_hashes) = &self.content_hashes {
+                          &content_hashes[source_index as usize]
+                        } else {
+                          ""
+                        },
+                      )
+                      .unwrap(),
+                  }
                 },
                 Some(Specifier::SourceIndex(dep_source_index)) => {
                   if let Some(entry) =
@@ -871,6 +898,44 @@ mod tests {
     let config = Config::default();
     let m = CssModule::new(&config, &sources, None, &mut refs, &None);
     assert_eq!(m.hash_inputs[0], "src/styles/Alpha.module.css");
+  }
+
+  #[test]
+  fn hash_local_name_appends_local_after_nul() {
+    let mut refs = HashMap::new();
+    let sources = vec!["src/styles/Alpha.module.css".to_string()];
+    let mut config = Config::default();
+    config.hash_prefix = Some(std::borrow::Cow::Borrowed("\x00\x00\x00\x00"));
+    config.hash_local_name = true;
+    let m = CssModule::new(&config, &sources, None, &mut refs, &None);
+    let hi = m.hash_input_for(0, "foo");
+    assert_eq!(&*hi, "\x00\x00\x00\x00src/styles/Alpha.module.css\x00foo");
+  }
+
+  #[test]
+  fn hash_local_name_disabled_returns_path_only() {
+    let mut refs = HashMap::new();
+    let sources = vec!["src/styles/Alpha.module.css".to_string()];
+    let config = Config::default();
+    let m = CssModule::new(&config, &sources, None, &mut refs, &None);
+    let hi = m.hash_input_for(0, "foo");
+    assert_eq!(&*hi, "src/styles/Alpha.module.css");
+  }
+
+  #[test]
+  fn parity_full_input_matches_webpack_digest() {
+    // End-to-end: with hash_prefix + hash_local_name set, the bytes hashed for
+    // (path="src/styles/Alpha.module.css", local="foo") match Vite's captured md4 base64
+    // truncated digest "YTbdH".
+    let mut refs = HashMap::new();
+    let sources = vec!["src/styles/Alpha.module.css".to_string()];
+    let mut config = Config::default();
+    config.hash_prefix = Some(std::borrow::Cow::Borrowed("\x00\x00\x00\x00"));
+    config.hash_local_name = true;
+    let m = CssModule::new(&config, &sources, None, &mut refs, &None);
+    let hi = m.hash_input_for(0, "foo");
+    let digest = hash_with_options(hi.as_bytes(), HashAlgorithm::Md4, DigestType::Base64, Some(5));
+    assert_eq!(digest, "YTbdH");
   }
 
   #[test]
