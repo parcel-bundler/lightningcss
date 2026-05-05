@@ -326,7 +326,28 @@ export interface CSSModulesConfig {
   /** Whether to enable hashing for custom identifiers. */
   customIdents?: boolean,
   /** Whether to require at least one class or id selector in each rule. */
-  pure?: boolean
+  pure?: boolean,
+  /**
+   * Prepend this string to the bytes hashed for every `[hash]` segment. Mirrors
+   * Vite/postcss-modules' `hashPrefix` option and css-loader's `hashSalt` (when
+   * set to "\x00\x00\x00\x00", lightningcss reproduces css-loader's tier-0 salt
+   * input byte-for-byte). Default: empty.
+   */
+  hashPrefix?: string,
+  /**
+   * Append the local class/ident name (separated by NUL) to each hash input.
+   * Required to match css-loader/postcss-modules' per-(file, local) hashing.
+   * Default: false (lightningcss hashes once per file).
+   */
+  hashLocalName?: boolean,
+  /**
+   * Run css-loader/postcss-modules' `genericNames` post-process on every rendered
+   * scoped name: replace any char outside `[a-zA-Z0-9\-_ -￿]` with `-`,
+   * and prefix `_` when the result starts with `-?[0-9]` or `--`. Required for
+   * standard-base64 digests like `[md4:hash:base64:5]` to produce valid CSS
+   * identifiers. Default: false.
+   */
+  escapeScopedNames?: boolean
 }
 
 export type CSSModuleExports = {
