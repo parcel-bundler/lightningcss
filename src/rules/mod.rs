@@ -50,6 +50,7 @@ pub mod media;
 pub mod namespace;
 pub mod nesting;
 pub mod page;
+pub mod position_try;
 pub mod property;
 pub mod scope;
 pub mod starting_style;
@@ -92,6 +93,7 @@ use media::MediaRule;
 use namespace::NamespaceRule;
 use nesting::{NestedDeclarationsRule, NestingRule};
 use page::PageRule;
+use position_try::PositionTryRule;
 use scope::ScopeRule;
 use smallvec::{smallvec, SmallVec};
 use starting_style::StartingStyleRule;
@@ -184,6 +186,8 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   StartingStyle(StartingStyleRule<'i, R>),
   /// A `@view-transition` rule.
   ViewTransition(ViewTransitionRule<'i>),
+  /// A `@position-try` rule.
+  PositionTry(PositionTryRule<'i>),
   /// A placeholder for a rule that was removed.
   Ignored,
   /// An unknown at-rule.
@@ -353,6 +357,11 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
           ViewTransitionRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::ViewTransition(rule))
       }
+      "position-try" => {
+        let rule =
+          PositionTryRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
+        Ok(CssRule::PositionTry(rule))
+      }
       "ignored" => Ok(CssRule::Ignored),
       "unknown" => {
         let rule =
@@ -397,6 +406,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
       CssRule::Container(container) => container.to_css(dest),
       CssRule::Scope(scope) => scope.to_css(dest),
       CssRule::ViewTransition(rule) => rule.to_css(dest),
+      CssRule::PositionTry(rule) => rule.to_css(dest),
       CssRule::Unknown(unknown) => unknown.to_css(dest),
       CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError {
         kind: PrinterErrorKind::FmtError,
@@ -873,6 +883,11 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             continue;
           } else {
             font_feature_values_rules.push(rules.len());
+          }
+        }
+        CssRule::PositionTry(rule) => {
+          if context.unused_symbols.contains(rule.name.0.as_ref()) {
+            continue;
           }
         }
         CssRule::Property(property) => {

@@ -14621,6 +14621,39 @@ mod tests {
   }
 
   #[test]
+  fn test_position_try() {
+    minify_test(
+      r#"@position-try --outside-right-to-bottom {
+        left: anchor(left);
+        margin: 0;
+        width: auto;
+      }"#,
+      "@position-try --outside-right-to-bottom{left:anchor(left);margin:0;width:auto}",
+    );
+    test(
+      r#"@position-try --foo {
+  top: anchor(bottom);
+  left: anchor(right);
+}"#,
+      indoc! {r#"
+        @position-try --foo {
+          top: anchor(bottom);
+          left: anchor(right);
+        }
+      "#},
+    );
+    // Nested inside @supports
+    minify_test(
+      r#"@supports (anchor-name: --foo) {
+        @position-try --bar {
+          top: anchor(bottom);
+        }
+      }"#,
+      "@supports (anchor-name:--foo){@position-try --bar{top:anchor(bottom)}}",
+    );
+  }
+
+  #[test]
   fn test_font_feature_values() {
     // https://github.com/clagnut/TODS/blob/e693d52ad411507b960cf01a9734265e3efab102/tods.css#L116-L142
     minify_test(
