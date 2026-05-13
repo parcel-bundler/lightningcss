@@ -127,6 +127,7 @@ use crate::parser::starts_with_ignore_ascii_case;
 use crate::parser::ParserOptions;
 use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
+use crate::rules::raw::Raw;
 use crate::targets::Targets;
 use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
@@ -691,6 +692,8 @@ macro_rules! define_properties {
       All(CSSWideKeyword),
       /// An unparsed property.
       Unparsed(UnparsedProperty<'i>),
+      /// A raw declaration recovered from invalid CSS.
+      Raw(Raw<'i>),
       /// A custom or unknown property.
       Custom(CustomProperty<'i>),
     }
@@ -735,6 +738,7 @@ macro_rules! define_properties {
           )+
           All(_) => PropertyId::All,
           Unparsed(unparsed) => unparsed.property_id.clone(),
+          Raw(_) => panic!("raw declarations do not have a property id"),
           Custom(custom) => PropertyId::Custom(custom.name.clone())
         }
       }
@@ -785,6 +789,9 @@ macro_rules! define_properties {
           All(keyword) => keyword.to_css(dest),
           Unparsed(unparsed) => {
             unparsed.value.to_css(dest, false)
+          }
+          Raw(raw) => {
+            dest.write_str(raw.declaration_text())
           }
           Custom(custom) => {
             custom.value.to_css(dest, matches!(custom.name, CustomPropertyName::Custom(..)))
@@ -849,6 +856,10 @@ macro_rules! define_properties {
               prefix = VendorPrefix::None;
             }
             (unparsed.property_id.name(), prefix)
+          },
+          Raw(raw) => {
+            dest.write_str(raw.declaration_text())?;
+            return Ok(())
           },
           Custom(custom) => {
             custom.name.to_css(dest)?;
@@ -943,6 +954,12 @@ macro_rules! define_properties {
             s.serialize_field("value", unparsed)?;
             return s.end()
           }
+          Raw(raw) => {
+            let mut s = serializer.serialize_struct("Property", 2)?;
+            s.serialize_field("property", "raw")?;
+            s.serialize_field("value", raw)?;
+            return s.end()
+          }
           Custom(unparsed) => {
             let mut s = serializer.serialize_struct("Property", 2)?;
             s.serialize_field("property", "custom")?;
@@ -977,7 +994,7 @@ macro_rules! define_properties {
           All(value) => {
             s.serialize_field("value", value)?;
           }
-          Unparsed(_) | Custom(_) => unreachable!()
+          Unparsed(_) | Custom(_) | Raw(_) => unreachable!()
         }
 
         s.end()
@@ -1075,7 +1092,10 @@ macro_rules! define_properties {
             },
           )+
           PropertyId::Custom(name) => {
-            if name.as_ref() == "unparsed" {
+            if name.as_ref() == "raw" {
+              let value = Raw::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
+              Ok(Property::Raw(value))
+            } else if name.as_ref() == "unparsed" {
               let value = UnparsedProperty::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
               Ok(Property::Unparsed(value))
             } else {

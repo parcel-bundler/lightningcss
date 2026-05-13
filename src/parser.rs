@@ -1,8 +1,9 @@
 use crate::declaration::{parse_declaration, DeclarationBlock, DeclarationList};
-use crate::error::{Error, ParserError, PrinterError};
+use crate::error::{Error, ParserError, PrinterError, SelectorError};
 use crate::media_query::*;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
+use crate::properties::Property;
 use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
 use crate::rules::font_feature_values::FontFeatureValuesRule;
 use crate::rules::font_palette_values::FontPaletteValuesRule;
@@ -27,6 +28,7 @@ use crate::rules::{
   namespace::NamespaceRule,
   nesting::NestingRule,
   page::{PageRule, PageSelector},
+  raw::Raw,
   style::StyleRule,
   supports::{SupportsCondition, SupportsRule},
   unknown::UnknownAtRule,
@@ -83,6 +85,14 @@ impl<'o, 'i> ParserOptions<'o, 'i> {
         warnings.push(Error::from(warning, self.filename.clone()));
       }
     }
+  }
+}
+
+pub(crate) fn location(source_index: u32, loc: SourceLocation) -> Location {
+  Location {
+    source_index,
+    line: loc.line,
+    column: loc.column,
   }
 }
 
@@ -165,6 +175,12 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> TopLevelRuleParser<'a, 
       rules: &mut self.rules,
       is_in_style_rule: false,
       allow_declarations: false,
+    }
+  }
+
+  pub(crate) fn recover_raw(&mut self, raw: &'i str, loc: Location) {
+    if !raw.trim().is_empty() {
+      self.rules.0.push(CssRule::Raw(Raw::from(raw, loc)));
     }
   }
 }
@@ -467,16 +483,19 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'o
     while let Some(result) = iter.next() {
       match result {
         Ok(()) => {}
-        Err((e, _)) => {
+        Err((e, raw)) => {
+          if iter.parser.options.error_recovery {
+            let loc = location(iter.parser.options.source_index, e.location);
+            iter.parser.recover_raw(raw, loc, parse_declarations);
+            iter.parser.options.warn(e);
+            continue;
+          }
+
           if parse_declarations {
             iter.parser.declarations.clear();
             iter.parser.important_declarations.clear();
             errors.push(e);
           } else {
-            if iter.parser.options.error_recovery {
-              iter.parser.options.warn(e);
-              continue;
-            }
             return Err(e);
           }
         }
@@ -530,11 +549,18 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'o
   }
 
   fn loc(&self, start: &ParserState) -> Location {
-    let loc = start.source_location();
-    Location {
-      source_index: self.options.source_index,
-      line: loc.line,
-      column: loc.column,
+    location(self.options.source_index, start.source_location())
+  }
+
+  fn recover_raw(&mut self, raw: &'i str, loc: Location, parse_declarations: bool) {
+    if raw.trim().is_empty() {
+      return;
+    }
+
+    if parse_declarations && !raw.contains('{') {
+      self.declarations.push(Property::Raw(Raw::from(raw, loc)));
+    } else {
+      self.rules.0.push(CssRule::Raw(Raw::from(raw, loc)));
     }
   }
 }
@@ -961,21 +987,36 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i>
       is_nesting_allowed: true,
       options: &self.options,
     };
-    if self.is_in_style_rule {
+    let start_location = input.current_source_location();
+    let recovery = if self.options.error_recovery {
+      ParseErrorRecovery::IgnoreInvalidSelector
+    } else {
+      ParseErrorRecovery::DiscardList
+    };
+    let selectors = if self.is_in_style_rule {
       SelectorList::parse_relative(
         &selector_parser,
         input,
-        ParseErrorRecovery::DiscardList,
+        recovery,
         NestingRequirement::Implicit,
       )
     } else {
       SelectorList::parse(
         &selector_parser,
         input,
-        ParseErrorRecovery::DiscardList,
+        recovery,
         NestingRequirement::None,
       )
+    }?;
+
+    if selectors.0.is_empty() {
+      return Err(ParseError {
+        kind: ParseErrorKind::Custom(ParserError::SelectorError(SelectorError::EmptySelector)),
+        location: start_location,
+      });
     }
+
+    Ok(selectors)
   }
 
   fn parse_block<'t>(

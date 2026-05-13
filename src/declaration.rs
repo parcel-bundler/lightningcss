@@ -5,6 +5,7 @@ use std::ops::Range;
 
 use crate::context::{DeclarationContext, PropertyHandlerContext};
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
+use crate::parser::location;
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
@@ -34,6 +35,7 @@ use crate::properties::{
   ui::ColorSchemeHandler,
 };
 use crate::properties::{Property, PropertyId};
+use crate::rules::raw::Raw;
 use crate::selector::SelectorList;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::values::ident::DashedIdent;
@@ -82,8 +84,12 @@ impl<'i> DeclarationBlock<'i> {
     };
     let mut parser = RuleBodyParser::new(input, &mut decl_parser);
     while let Some(res) = parser.next() {
-      if let Err((err, _)) = res {
+      if let Err((err, raw)) = res {
         if options.error_recovery {
+          parser.parser.declarations.push(Property::Raw(Raw::from(
+            raw,
+            location(options.source_index, err.location),
+          )));
           options.warn(err);
           continue;
         }
@@ -244,6 +250,10 @@ impl<'i> DeclarationBlock<'i> {
     macro_rules! handle {
       ($decls: expr, $handler: expr, $important: literal) => {
         for decl in $decls.iter() {
+          if matches!(decl, Property::Raw(_)) {
+            continue;
+          }
+
           context.is_important = $important;
           let handled = $handler.handle_property(decl, context);
 

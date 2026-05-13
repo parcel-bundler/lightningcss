@@ -29866,6 +29866,8 @@ mod tests {
       }
     "#,
       indoc! { r#"
+      h1(>h1) {
+
       .foo {
         color: red;
       }
@@ -29875,6 +29877,8 @@ mod tests {
       }
 
       @media (hover) {
+        h1(>h1) {
+
         .bar {
           color: red;
         }
@@ -29942,6 +29946,97 @@ mod tests {
         },
       ]
     )
+  }
+
+  #[test]
+  fn test_error_recovery_raw_nodes() {
+    let source = ".a { *zoom: 1; color: red } h1(>h1) { color: red }";
+    let stylesheet = StyleSheet::parse(
+      source,
+      ParserOptions {
+        error_recovery: true,
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+
+    match &stylesheet.rules.0[0] {
+      CssRule::Style(rule) => assert!(matches!(rule.declarations.declarations[0], Property::Raw(_))),
+      rule => panic!("expected style rule, got {rule:?}"),
+    }
+
+    assert!(matches!(stylesheet.rules.0[1], CssRule::Raw(_)));
+    assert!(StyleSheet::parse(source, ParserOptions::default()).is_err());
+  }
+
+  #[test]
+  fn test_error_recovery_invalid_selector_raw() {
+    let source = indoc! { r#"
+      invalid@selector,
+      .green {
+        text-decoration: none;
+        color: hsla(160, 100%, 37%, 1);
+        transition: 0.4s;
+        padding: 3px;
+      }
+    "#};
+
+    let stylesheet = StyleSheet::parse(
+      source,
+      ParserOptions {
+        error_recovery: true,
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+
+    assert_eq!(stylesheet.rules.0.len(), 1);
+    match &stylesheet.rules.0[0] {
+      CssRule::Style(rule) => {
+        assert_eq!(rule.selectors.to_css_string(PrinterOptions::default()).unwrap(), ".green");
+        assert_eq!(rule.declarations.declarations.len(), 4);
+      }
+      rule => panic!("expected style rule, got {rule:?}"),
+    }
+
+    assert!(StyleSheet::parse(source, ParserOptions::default()).is_err());
+  }
+
+  #[test]
+  fn test_error_recovery_invalid_declaration_raw() {
+    let source = indoc! { r#"
+      a {
+        text-decoration:; none;
+      }
+    "#};
+
+    let stylesheet = StyleSheet::parse(
+      source,
+      ParserOptions {
+        error_recovery: true,
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+
+    assert_eq!(stylesheet.rules.0.len(), 1);
+    match &stylesheet.rules.0[0] {
+      CssRule::Style(rule) => {
+        assert_eq!(rule.declarations.declarations.len(), 2);
+        assert!(matches!(rule.declarations.declarations[1], Property::Raw(_)));
+      }
+      rule => panic!("expected style rule, got {rule:?}"),
+    }
+
+    assert!(StyleSheet::parse(source, ParserOptions::default()).is_err());
+    minify_test_with_options(
+      source,
+      "a{text-decoration:none}",
+      ParserOptions {
+        error_recovery: true,
+        ..ParserOptions::default()
+      },
+    );
   }
 
   #[test]

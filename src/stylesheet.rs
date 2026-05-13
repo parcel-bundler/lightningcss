@@ -8,7 +8,7 @@ use crate::css_modules::{hash, CssModule, CssModuleExports, CssModuleReferences}
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::{DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
+use crate::parser::{location, DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
 use crate::printer::Printer;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::{should_compile, Targets, TargetsWithSupportsScope};
@@ -190,14 +190,15 @@ where
     while let Some(rule) = rule_list_parser.next() {
       match rule {
         Ok(()) => {}
-        Err((e, _)) => {
-          let options = &mut rule_list_parser.parser.options;
-          if options.error_recovery {
-            options.warn(e);
+        Err((e, raw)) => {
+          if rule_list_parser.parser.options.error_recovery {
+            let loc = location(rule_list_parser.parser.options.source_index, e.location);
+            rule_list_parser.parser.recover_raw(raw, loc);
+            rule_list_parser.parser.options.warn(e);
             continue;
           }
 
-          return Err(Error::from(e, options.filename.clone()));
+          return Err(Error::from(e, rule_list_parser.parser.options.filename.clone()));
         }
       }
     }
