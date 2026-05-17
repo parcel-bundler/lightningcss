@@ -42,11 +42,8 @@ impl ToCss for Percentage {
     W: std::fmt::Write,
   {
     use cssparser::ToCss;
-    let int_value = if (self.0 * 100.0).fract() == 0.0 {
-      Some(self.0 as i32)
-    } else {
-      None
-    };
+    let v = self.0 * 100.0;
+    let int_value = if (v).fract() == 0.0 { Some(v as i32) } else { None };
     let percent = Token::Percentage {
       has_sign: self.0 < 0.0,
       unit_value: self.0,

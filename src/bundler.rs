@@ -63,12 +63,12 @@ use std::{
 
 /// A Bundler combines a CSS file and all imported dependencies together into
 /// a single merged style sheet.
-pub struct Bundler<'a, 'o, 's, P, T: AtRuleParser<'a>> {
+pub struct Bundler<'a, 's, P, T: AtRuleParser<'a>> {
   source_map: Option<Mutex<&'s mut SourceMap>>,
   fs: &'a P,
   source_indexes: DashMap<PathBuf, u32>,
-  stylesheets: Mutex<Vec<BundleStyleSheet<'a, 'o, T::AtRule>>>,
-  options: ParserOptions<'o, 'a>,
+  stylesheets: Mutex<Vec<BundleStyleSheet<'a, T::AtRule>>>,
+  options: ParserOptions<'a>,
   at_rule_parser: Mutex<AtRuleParserValue<'s, T>>,
 }
 
@@ -77,8 +77,8 @@ enum AtRuleParserValue<'a, T> {
   Borrowed(&'a mut T),
 }
 
-struct BundleStyleSheet<'i, 'o, T> {
-  stylesheet: Option<StyleSheet<'i, 'o, T>>,
+struct BundleStyleSheet<'i, T> {
+  stylesheet: Option<StyleSheet<'i, T>>,
   dependencies: Vec<Dependency>,
   css_modules_deps: Vec<u32>,
   parent_source_index: u32,
@@ -235,15 +235,15 @@ impl<'i, T: std::error::Error> BundleErrorKind<'i, T> {
   }
 }
 
-impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P, DefaultAtRuleParser> {
+impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P, DefaultAtRuleParser> {
   /// Creates a new Bundler using the given source provider.
   /// If a source map is given, the content of each source file included in the bundle will
   /// be added accordingly.
   pub fn new(
     fs: &'a P,
     source_map: Option<&'s mut SourceMap>,
-    options: ParserOptions<'o, 'a>,
-  ) -> Bundler<'a, 'o, 's, P, DefaultAtRuleParser> {
+    options: ParserOptions<'a>,
+  ) -> Bundler<'a, 's, P, DefaultAtRuleParser> {
     Bundler {
       source_map: source_map.map(Mutex::new),
       fs,
@@ -255,7 +255,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P, DefaultAtRuleParser> 
   }
 }
 
-impl<'a, 'o, 's, P: SourceProvider, T: AtRuleParser<'a> + Clone + Sync + Send> Bundler<'a, 'o, 's, P, T>
+impl<'a, 's, P: SourceProvider, T: AtRuleParser<'a> + Clone + Sync + Send> Bundler<'a, 's, P, T>
 where
   T::AtRule: Sync + Send + ToCss + Clone,
 {
@@ -265,7 +265,7 @@ where
   pub fn new_with_at_rule_parser(
     fs: &'a P,
     source_map: Option<&'s mut SourceMap>,
-    options: ParserOptions<'o, 'a>,
+    options: ParserOptions<'a>,
     at_rule_parser: &'s mut T,
   ) -> Self {
     Bundler {
@@ -282,7 +282,7 @@ where
   pub fn bundle<'e>(
     &mut self,
     entry: &'e Path,
-  ) -> Result<StyleSheet<'a, 'o, T::AtRule>, Error<BundleErrorKind<'a, P::Error>>> {
+  ) -> Result<StyleSheet<'a, T::AtRule>, Error<BundleErrorKind<'a, P::Error>>> {
     // Phase 1: load and parse all files. This is done in parallel.
     self.load_file(
       &entry,
@@ -669,7 +669,7 @@ where
     process(self.stylesheets.get_mut().unwrap(), 0, &mut HashSet::new());
 
     fn process<'i, T>(
-      stylesheets: &mut Vec<BundleStyleSheet<'i, '_, T>>,
+      stylesheets: &mut Vec<BundleStyleSheet<'i, T>>,
       source_index: u32,
       visited: &mut HashSet<u32>,
     ) {
@@ -715,7 +715,7 @@ where
     dest: &mut Vec<CssRule<'a, T::AtRule>>,
   ) -> Result<(), Error<BundleErrorKind<'a, P::Error>>> {
     fn process<'a, T, E: std::error::Error>(
-      stylesheets: &mut Vec<BundleStyleSheet<'a, '_, T>>,
+      stylesheets: &mut Vec<BundleStyleSheet<'a, T>>,
       source_index: u32,
       dest: &mut Vec<CssRule<'a, T>>,
       filename: &String,

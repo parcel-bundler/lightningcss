@@ -53,7 +53,7 @@ impl<'i> MediaList<'i> {
   /// Parse a media query list from CSS.
   pub fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut media_queries = vec![];
     if input.is_exhausted() {
@@ -279,7 +279,7 @@ pub struct MediaQuery<'i> {
 impl<'i> ParseWithOptions<'i> for MediaQuery<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (qualifier, explicit_media_type) = input
       .try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
@@ -547,20 +547,20 @@ pub enum MediaCondition<'i> {
 pub(crate) trait QueryCondition<'i>: Sized {
   fn parse_feature<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
   fn create_negation(condition: Box<Self>) -> Self;
   fn create_operation(operator: Operator, conditions: Vec<Self>) -> Self;
   fn parse_style_query<'t>(
     input: &mut Parser<'i, 't>,
-    _options: &ParserOptions<'_, 'i>,
+    _options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Err(input.new_error_for_next_token())
   }
 
   fn parse_scroll_state_query<'t>(
     input: &mut Parser<'i, 't>,
-    _options: &ParserOptions<'_, 'i>,
+    _options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Err(input.new_error_for_next_token())
   }
@@ -572,7 +572,7 @@ impl<'i> QueryCondition<'i> for MediaCondition<'i> {
   #[inline]
   fn parse_feature<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let feature = MediaFeature::parse_with_options(input, options)?;
     Ok(Self::Feature(feature))
@@ -616,7 +616,7 @@ impl<'i> MediaCondition<'i> {
   fn parse_with_flags<'t>(
     input: &mut Parser<'i, 't>,
     flags: QueryConditionFlags,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input
       .try_parse(|input| parse_query_condition(input, flags, options))
@@ -686,7 +686,7 @@ impl<'i> MediaCondition<'i> {
 impl<'i> ParseWithOptions<'i> for MediaCondition<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Self::parse_with_flags(input, QueryConditionFlags::ALLOW_OR, options)
   }
@@ -696,7 +696,7 @@ impl<'i> ParseWithOptions<'i> for MediaCondition<'i> {
 pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
   input: &mut Parser<'i, 't>,
   flags: QueryConditionFlags,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
 ) -> Result<P, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   enum QueryFunction {
@@ -770,7 +770,7 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
 fn parse_parens_or_function<'t, 'i, P: QueryCondition<'i>>(
   input: &mut Parser<'i, 't>,
   flags: QueryConditionFlags,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
 ) -> Result<P, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   match *input.next()? {
@@ -792,7 +792,7 @@ fn parse_parens_or_function<'t, 'i, P: QueryCondition<'i>>(
 fn parse_paren_block<'t, 'i, P: QueryCondition<'i>>(
   input: &mut Parser<'i, 't>,
   flags: QueryConditionFlags,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
 ) -> Result<P, ParseError<'i, ParserError<'i>>> {
   input.parse_nested_block(|input| {
     // Detect empty brackets and provide a clearer error message.
@@ -1016,7 +1016,7 @@ where
 {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(|input| Self::parse_name_first(input, options)) {
       Ok(res) => Ok(res),
@@ -1037,7 +1037,7 @@ where
 {
   fn parse_name_first<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (name, legacy_op) = MediaFeatureName::parse(input)?;
 

@@ -61,8 +61,8 @@ mod tests {
   use crate::rules::CssRule;
   use crate::rules::Location;
   use crate::stylesheet::*;
-  use crate::test_helpers::panic_with_test_error;
   use crate::targets::{Browsers, Features, Targets};
+  use crate::test_helpers::panic_with_test_error;
   use crate::traits::{Parse, ToCss};
   use crate::values::color::CssColor;
   use crate::vendor_prefix::VendorPrefix;
@@ -78,7 +78,7 @@ mod tests {
   }
 
   #[track_caller]
-  fn test_with_options<'i, 'o>(source: &'i str, expected: &'i str, options: ParserOptions<'o, 'i>) {
+  fn test_with_options<'i>(source: &'i str, expected: &'i str, options: ParserOptions<'i>) {
     let mut stylesheet = match StyleSheet::parse(&source, options) {
       Ok(stylesheet) => stylesheet,
       Err(e) => panic_with_test_error("test_with_options", "parse", source, e),
@@ -94,7 +94,7 @@ mod tests {
   }
 
   #[track_caller]
-  fn test_with_printer_options<'i, 'o>(source: &'i str, expected: &'i str, options: PrinterOptions<'o>) {
+  fn test_with_printer_options<'i>(source: &'i str, expected: &'i str, options: PrinterOptions<'i>) {
     let mut stylesheet = match StyleSheet::parse(&source, ParserOptions::default()) {
       Ok(stylesheet) => stylesheet,
       Err(e) => panic_with_test_error("test_with_printer_options", "parse", source, e),
@@ -115,19 +115,15 @@ mod tests {
   }
 
   #[track_caller]
-  fn minify_test_with_options<'i, 'o>(
-    source: &'i str,
-    expected: &'i str,
-    options: ParserOptions<'o, 'i>,
-  ) {
+  fn minify_test_with_options<'i>(source: &'i str, expected: &'i str, options: ParserOptions<'i>) {
     minify_test_with_options_and_browsers(source, expected, options, None)
   }
 
   #[track_caller]
-  fn minify_test_with_options_and_browsers<'i, 'o>(
+  fn minify_test_with_options_and_browsers<'i>(
     source: &'i str,
     expected: &'i str,
-    options: ParserOptions<'o, 'i>,
+    options: ParserOptions<'i>,
     browsers: Option<Browsers>,
   ) {
     let targets = browsers.into();
@@ -153,11 +149,7 @@ mod tests {
   }
 
   #[track_caller]
-  fn minify_error_test_with_options<'i, 'o>(
-    source: &'i str,
-    error: MinifyErrorKind,
-    options: ParserOptions<'o, 'i>,
-  ) {
+  fn minify_error_test_with_options<'i>(source: &'i str, error: MinifyErrorKind, options: ParserOptions<'i>) {
     let mut stylesheet = match StyleSheet::parse(&source, options) {
       Ok(stylesheet) => stylesheet,
       Err(e) => panic_with_test_error("minify_error_test_with_options", "parse", source, e),
@@ -271,7 +263,7 @@ mod tests {
     expected: &str,
     expected_exports: CssModuleExports,
     expected_references: CssModuleReferences,
-    config: crate::css_modules::Config<'i>,
+    config: crate::css_modules::Config,
     minify: bool,
   ) {
     let mut stylesheet = match StyleSheet::parse(
@@ -12992,32 +12984,68 @@ mod tests {
     minify_test(".foo { transform: scale(100%, 100%) }", ".foo{transform:scale(1)}");
     minify_test(".foo { transform: scale3d(100%, 100%, 1) }", ".foo{transform:scale(1)}");
     minify_test(".foo { transform: scale(-100%, -100%) }", ".foo{transform:scale(-1)}");
-    minify_test(".foo { transform: scale3d(-100%, -100%, 1) }", ".foo{transform:scale(-1)}");
+    minify_test(
+      ".foo { transform: scale3d(-100%, -100%, 1) }",
+      ".foo{transform:scale(-1)}",
+    );
     minify_test(".foo { transform: scale(100%, 200%) }", ".foo{transform:scaleY(2)}");
-    minify_test(".foo { transform: scale3d(100%, 200%, 1) }", ".foo{transform:scaleY(2)}");
-    minify_test(".foo { transform: scale3d(100%, 100%, 0%) }", ".foo{transform:scaleZ(0)}");
-    minify_test(".foo { transform: scale3d(100%, 100%, 100%) }", ".foo{transform:scale(1)}");
-    minify_test(".foo { transform: scale3d(-0%, -0%, -0%) }", ".foo{transform:scale3d(0,0,0)}");
+    minify_test(
+      ".foo { transform: scale3d(100%, 200%, 1) }",
+      ".foo{transform:scaleY(2)}",
+    );
+    minify_test(
+      ".foo { transform: scale3d(100%, 100%, 0%) }",
+      ".foo{transform:scaleZ(0)}",
+    );
+    minify_test(
+      ".foo { transform: scale3d(100%, 100%, 100%) }",
+      ".foo{transform:scale(1)}",
+    );
+    minify_test(
+      ".foo { transform: scale3d(-0%, -0%, -0%) }",
+      ".foo{transform:scale3d(0,0,0)}",
+    );
     // Additional edge cases: mixed inputs and computed percentages.
     minify_test(".foo { transform: scale(2, 100%) }", ".foo{transform:scaleX(2)}");
     minify_test(".foo { transform: scale(2, -50%) }", ".foo{transform:scale(2,-.5)}");
     minify_test(".foo { transform: scale(-90%, -1) }", ".foo{transform:scale(-.9,-1)}");
-    minify_test(".foo { transform: scale(calc(10% + 20%)) }", ".foo{transform:scale(.3)}");
-    minify_test(".foo { transform: scale(calc(150% - 50%), 200%) }", ".foo{transform:scaleY(2)}");
-    minify_test(".foo { transform: scale(200%, calc(50% - 80%)) }", ".foo{transform:scale(2,-.3)}");
+    minify_test(
+      ".foo { transform: scale(calc(10% + 20%)) }",
+      ".foo{transform:scale(.3)}",
+    );
+    minify_test(
+      ".foo { transform: scale(calc(150% - 50%), 200%) }",
+      ".foo{transform:scaleY(2)}",
+    );
+    minify_test(
+      ".foo { transform: scale(200%, calc(50% - 80%)) }",
+      ".foo{transform:scale(2,-.3)}",
+    );
     // TODO: For infinite decimals, please do not attempt to resolve calc
     // Expected: calc(1 / 3)
     // https://github.com/parcel-bundler/lightningcss/issues/12
-    minify_test(".foo { transform: scale(calc(100% / 3)) }", ".foo{transform:scale(.333333)}");
+    minify_test(
+      ".foo { transform: scale(calc(100% / 3)) }",
+      ".foo{transform:scale(.333333)}",
+    );
     // Transform::ScaleX/Y/Z
     minify_test(".foo { transform: scaleX(10%) }", ".foo{transform:scaleX(.1)}");
     minify_test(".foo { transform: scaleY(20%) }", ".foo{transform:scaleY(.2)}");
     minify_test(".foo { transform: scaleZ(30%) }", ".foo{transform:scaleZ(.3)}");
     minify_test(".foo { transform: scaleX(0%) }", ".foo{transform:scaleX(0)}");
     minify_test(".foo { transform: scaleX(-0%) }", ".foo{transform:scaleX(0)}");
-    minify_test(".foo { transform: scaleX(calc(10% + 20%)) }", ".foo{transform:scaleX(.3)}");
-    minify_test(".foo { transform: scaleX(calc(180% - 20%)) }", ".foo{transform:scaleX(1.6)}");
-    minify_test(".foo { transform: scaleX(calc(50% - 80%)) }", ".foo{transform:scaleX(-.3)}");
+    minify_test(
+      ".foo { transform: scaleX(calc(10% + 20%)) }",
+      ".foo{transform:scaleX(.3)}",
+    );
+    minify_test(
+      ".foo { transform: scaleX(calc(180% - 20%)) }",
+      ".foo{transform:scaleX(1.6)}",
+    );
+    minify_test(
+      ".foo { transform: scaleX(calc(50% - 80%)) }",
+      ".foo{transform:scaleX(-.3)}",
+    );
 
     minify_test(".foo { transform: rotate(20deg)", ".foo{transform:rotate(20deg)}");
     minify_test(".foo { transform: rotateX(20deg)", ".foo{transform:rotateX(20deg)}");
@@ -13373,6 +13401,10 @@ mod tests {
     minify_test(
       ".foo { background: linear-gradient(135deg, yellow, blue); }",
       ".foo{background:linear-gradient(135deg,#ff0,#00f)}",
+    );
+    minify_test(
+      ".foo { background: linear-gradient(-1.42109e-14deg, rgba(10, 132, 255, 0.14) 0%, rgba(112, 183, 255, 0.14) 100%); }",
+      ".foo{background:linear-gradient(-1.42109e-14deg,#0a84ff24 0%,#70b7ff24 100%)}",
     );
     minify_test(
       ".foo { background: linear-gradient(yellow, blue 20%, #0f0); }",
@@ -14785,6 +14817,39 @@ mod tests {
       },
     );
     minify_test(".foo { font-palette: --Custom; }", ".foo{font-palette:--Custom}");
+  }
+
+  #[test]
+  fn test_position_try() {
+    minify_test(
+      r#"@position-try --outside-right-to-bottom {
+        left: anchor(left);
+        margin: 0;
+        width: auto;
+      }"#,
+      "@position-try --outside-right-to-bottom{left:anchor(left);margin:0;width:auto}",
+    );
+    test(
+      r#"@position-try --foo {
+  top: anchor(bottom);
+  left: anchor(right);
+}"#,
+      indoc! {r#"
+        @position-try --foo {
+          top: anchor(bottom);
+          left: anchor(right);
+        }
+      "#},
+    );
+    // Nested inside @supports
+    minify_test(
+      r#"@supports (anchor-name: --foo) {
+        @position-try --bar {
+          top: anchor(bottom);
+        }
+      }"#,
+      "@supports (anchor-name:--foo){@position-try --bar{top:anchor(bottom)}}",
+    );
   }
 
   #[test]
@@ -18243,6 +18308,7 @@ mod tests {
     minify_test(".foo { color: hwb(194 50% 0%) }", ".foo{color:#80e1ff}");
     minify_test(".foo { color: hwb(194 50 0) }", ".foo{color:#80e1ff}");
     minify_test(".foo { color: hwb(194 50% 50%) }", ".foo{color:gray}");
+    minify_test(".foo { color: light-dark(#FFF, #FFF) }", ".foo{color:#fff}");
     // minify_test(".foo { color: ActiveText }", ".foo{color:ActiveTet}");
     minify_test(
       ".foo { color: lab(29.2345% 39.3825 20.0664); }",
@@ -22634,7 +22700,7 @@ mod tests {
     test(
       r#"
       .test-miss-areas-2 {
-        grid-template-columns: 1fr 1fr 1fr;      
+        grid-template-columns: 1fr 1fr 1fr;
         grid-template-rows: 30px 60px 100px;
         grid-template-areas: "a a a" "b c c";
       }
@@ -24394,6 +24460,58 @@ mod tests {
 
   #[test]
   fn test_nesting() {
+    nesting_test(
+      r#"
+        .foo {
+          @apply --mixin;
+          @apply --mixin-no-args();
+          @apply --mixin-args(1, 2);
+          @apply --mixin-with-empty-body {};
+          @apply --mixin-with-body {
+            color: red;
+          }
+          .bar {
+            @apply --nested;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          @apply --mixin;
+          @apply --mixin-no-args();
+          @apply --mixin-args(1, 2);
+          @apply --mixin-with-empty-body {
+            
+          }
+          @apply --mixin-with-body {
+            color: red;
+          }
+        }
+
+        .foo .bar {
+          @apply --nested;
+        }
+      "#},
+    );
+
+    minify_test(
+      r#"
+        .foo {
+          @apply --mixin;
+          @apply --mixin-no-args();
+          @apply --mixin-args(1,2);
+          @apply --mixin-with-empty-body {};
+          @apply --mixin-with-body {
+            color: red;
+          };
+          .bar {
+            @apply --nested;
+          }
+        }
+      "#,
+      ".foo{@apply --mixin;@apply --mixin-no-args();@apply --mixin-args(1,2);@apply --mixin-with-empty-body{}@apply --mixin-with-body{color: red;}& .bar{@apply --nested;}}",
+    );
+
     nesting_test(
       r#"
         .foo {
@@ -28302,70 +28420,25 @@ mod tests {
 
   #[test]
   fn test_mix_blend_mode() {
-    minify_test(
-      ".foo { mix-blend-mode: normal }",
-      ".foo{mix-blend-mode:normal}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: multiply }",
-      ".foo{mix-blend-mode:multiply}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: screen }",
-      ".foo{mix-blend-mode:screen}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: overlay }",
-      ".foo{mix-blend-mode:overlay}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: darken }",
-      ".foo{mix-blend-mode:darken}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: lighten }",
-      ".foo{mix-blend-mode:lighten}",
-    );
+    minify_test(".foo { mix-blend-mode: normal }", ".foo{mix-blend-mode:normal}");
+    minify_test(".foo { mix-blend-mode: multiply }", ".foo{mix-blend-mode:multiply}");
+    minify_test(".foo { mix-blend-mode: screen }", ".foo{mix-blend-mode:screen}");
+    minify_test(".foo { mix-blend-mode: overlay }", ".foo{mix-blend-mode:overlay}");
+    minify_test(".foo { mix-blend-mode: darken }", ".foo{mix-blend-mode:darken}");
+    minify_test(".foo { mix-blend-mode: lighten }", ".foo{mix-blend-mode:lighten}");
     minify_test(
       ".foo { mix-blend-mode: color-dodge }",
       ".foo{mix-blend-mode:color-dodge}",
     );
-    minify_test(
-      ".foo { mix-blend-mode: color-burn }",
-      ".foo{mix-blend-mode:color-burn}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: hard-light }",
-      ".foo{mix-blend-mode:hard-light}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: soft-light }",
-      ".foo{mix-blend-mode:soft-light}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: difference }",
-      ".foo{mix-blend-mode:difference}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: exclusion }",
-      ".foo{mix-blend-mode:exclusion}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: hue }",
-      ".foo{mix-blend-mode:hue}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: saturation }",
-      ".foo{mix-blend-mode:saturation}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: color }",
-      ".foo{mix-blend-mode:color}",
-    );
-    minify_test(
-      ".foo { mix-blend-mode: luminosity }",
-      ".foo{mix-blend-mode:luminosity}",
-    );
+    minify_test(".foo { mix-blend-mode: color-burn }", ".foo{mix-blend-mode:color-burn}");
+    minify_test(".foo { mix-blend-mode: hard-light }", ".foo{mix-blend-mode:hard-light}");
+    minify_test(".foo { mix-blend-mode: soft-light }", ".foo{mix-blend-mode:soft-light}");
+    minify_test(".foo { mix-blend-mode: difference }", ".foo{mix-blend-mode:difference}");
+    minify_test(".foo { mix-blend-mode: exclusion }", ".foo{mix-blend-mode:exclusion}");
+    minify_test(".foo { mix-blend-mode: hue }", ".foo{mix-blend-mode:hue}");
+    minify_test(".foo { mix-blend-mode: saturation }", ".foo{mix-blend-mode:saturation}");
+    minify_test(".foo { mix-blend-mode: color }", ".foo{mix-blend-mode:color}");
+    minify_test(".foo { mix-blend-mode: luminosity }", ".foo{mix-blend-mode:luminosity}");
     minify_test(
       ".foo { mix-blend-mode: plus-darker }",
       ".foo{mix-blend-mode:plus-darker}",
@@ -30907,7 +30980,10 @@ mod tests {
       ".foo { color-scheme: dark light only; }",
       ".foo{color-scheme:light dark only}",
     );
-    minify_test(".foo { color-scheme: foo bar light; }", ".foo{color-scheme:foo bar light}");
+    minify_test(
+      ".foo { color-scheme: foo bar light; }",
+      ".foo{color-scheme:foo bar light}",
+    );
     minify_test(
       ".foo { color-scheme: only foo dark bar; }",
       ".foo{color-scheme:only foo dark bar}",

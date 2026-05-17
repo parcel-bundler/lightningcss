@@ -697,7 +697,7 @@ macro_rules! define_properties {
 
     impl<'i> Property<'i> {
       /// Parses a CSS property by name.
-      pub fn parse<'t>(property_id: PropertyId<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions<'_, 'i>) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
+      pub fn parse<'t>(property_id: PropertyId<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions<'i>) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
         let state = input.state();
 
         match property_id {
@@ -740,7 +740,7 @@ macro_rules! define_properties {
       }
 
       /// Parses a CSS property from a string.
-      pub fn parse_string(property_id: PropertyId<'i>, input: &'i str, options: ParserOptions<'_, 'i>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+      pub fn parse_string(property_id: PropertyId<'i>, input: &'i str, options: ParserOptions<'i>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let mut input = ParserInput::new(input);
         let mut parser = Parser::new(&mut input);
         Self::parse(property_id, &mut parser, &options)

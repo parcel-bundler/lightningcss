@@ -85,12 +85,12 @@ impl<'i> SelectorImpl<'i> for Selectors {
   }
 }
 
-pub(crate) struct SelectorParser<'a, 'o, 'i> {
+pub(crate) struct SelectorParser<'a, 'i> {
   pub is_nesting_allowed: bool,
-  pub options: &'a ParserOptions<'o, 'i>,
+  pub options: &'a ParserOptions<'i>,
 }
 
-impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o, 'i> {
+impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
   type Impl = Selectors;
   type Error = ParserError<'i>;
 
@@ -283,6 +283,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "first-letter" => FirstLetter,
       "details-content" => DetailsContent,
       "target-text" => TargetText,
+      "search-text" => SearchText,
       "cue" => Cue,
       "cue-region" => CueRegion,
       "selection" => Selection(VendorPrefix::None),
@@ -940,6 +941,8 @@ pub enum PseudoElement<'i> {
   DetailsContent,
   /// The [::target-text](https://drafts.csswg.org/css-pseudo-4/#selectordef-target-text)
   TargetText,
+  /// The [::search-text](https://drafts.csswg.org/css-pseudo-4/#selectordef-search-text) pseudo element.
+  SearchText,
   /// The [::selection](https://drafts.csswg.org/css-pseudo-4/#selectordef-selection) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Selection(VendorPrefix),
@@ -1216,6 +1219,7 @@ where
     FirstLetter => dest.write_str(":first-letter"),
     DetailsContent => dest.write_str("::details-content"),
     TargetText => dest.write_str("::target-text"),
+    SearchText => dest.write_str("::search-text"),
     HighlightFunction { name } => {
       dest.write_str("::highlight(")?;
       name.to_css(dest)?;
@@ -2001,6 +2005,7 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           PseudoElement::FirstLetter => Feature::FirstLetter,
           PseudoElement::DetailsContent => Feature::DetailsContent,
           PseudoElement::TargetText => Feature::TargetText,
+          PseudoElement::SearchText => Feature::SearchText,
           PseudoElement::Selection(prefix) if *prefix == VendorPrefix::None => Feature::Selection,
           PseudoElement::Placeholder(prefix) if *prefix == VendorPrefix::None => Feature::Placeholder,
           PseudoElement::HighlightFunction { name: _ } => Feature::Highlight,
@@ -2313,7 +2318,7 @@ impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>> Visit<'i, T, V> for Sel
 impl<'i> ParseWithOptions<'i> for Selector<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Selector::parse(
       &SelectorParser {
@@ -2328,7 +2333,7 @@ impl<'i> ParseWithOptions<'i> for Selector<'i> {
 impl<'i> ParseWithOptions<'i> for SelectorList<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     SelectorList::parse(
       &SelectorParser {

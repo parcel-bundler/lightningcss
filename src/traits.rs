@@ -49,13 +49,13 @@ pub trait ParseWithOptions<'i>: Sized {
   /// Parse a value of this type with the given options.
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
 
   /// Parse a value from a string with the given options.
   fn parse_string_with_options(
     input: &'i str,
-    options: ParserOptions<'_, 'i>,
+    options: ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
@@ -334,7 +334,7 @@ pub trait AtRuleParser<'i>: Sized {
     &mut self,
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     let _ = name;
     let _ = input;
@@ -354,7 +354,7 @@ pub trait AtRuleParser<'i>: Sized {
     &mut self,
     prelude: Self::Prelude,
     start: &ParserState,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     is_nested: bool,
   ) -> Result<Self::AtRule, ()> {
     let _ = prelude;
@@ -379,7 +379,7 @@ pub trait AtRuleParser<'i>: Sized {
     prelude: Self::Prelude,
     start: &ParserState,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     is_nested: bool,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
     let _ = prelude;

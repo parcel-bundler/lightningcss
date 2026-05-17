@@ -69,9 +69,9 @@ pub struct DeclarationBlock<'i> {
 
 impl<'i> DeclarationBlock<'i> {
   /// Parses a declaration block from CSS syntax.
-  pub fn parse<'a, 'o, 't>(
+  pub fn parse<'a, 't>(
     input: &mut Parser<'i, 't>,
-    options: &'a ParserOptions<'o, 'i>,
+    options: &'a ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut important_declarations = DeclarationList::new();
     let mut declarations = DeclarationList::new();
@@ -100,7 +100,7 @@ impl<'i> DeclarationBlock<'i> {
   /// Parses a declaration block from a string.
   pub fn parse_string<'o>(
     input: &'i str,
-    options: ParserOptions<'o, 'i>,
+    options: ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
@@ -456,14 +456,14 @@ impl<'i> DeclarationBlock<'i> {
   }
 }
 
-struct PropertyDeclarationParser<'a, 'o, 'i> {
+struct PropertyDeclarationParser<'a, 'i> {
   important_declarations: &'a mut Vec<Property<'i>>,
   declarations: &'a mut Vec<Property<'i>>,
-  options: &'a ParserOptions<'o, 'i>,
+  options: &'a ParserOptions<'i>,
 }
 
 /// Parse a declaration within {} block: `color: blue`
-impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
+impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 'i> {
   type Declaration = ();
   type Error = ParserError<'i>;
 
@@ -471,6 +471,7 @@ impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<
     &mut self,
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
+    _declaration_start: &ParserState,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     parse_declaration(
       name,
@@ -483,19 +484,19 @@ impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<
 }
 
 /// Default methods reject all at rules.
-impl<'a, 'o, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
+impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'i> {
   type Prelude = ();
   type AtRule = ();
   type Error = ParserError<'i>;
 }
 
-impl<'a, 'o, 'i> QualifiedRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
+impl<'a, 'i> QualifiedRuleParser<'i> for PropertyDeclarationParser<'a, 'i> {
   type Prelude = ();
   type QualifiedRule = ();
   type Error = ParserError<'i>;
 }
 
-impl<'a, 'o, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for PropertyDeclarationParser<'a, 'o, 'i> {
+impl<'a, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for PropertyDeclarationParser<'a, 'i> {
   fn parse_qualified(&self) -> bool {
     false
   }
@@ -510,7 +511,7 @@ pub(crate) fn parse_declaration<'i, 't>(
   input: &mut cssparser::Parser<'i, 't>,
   declarations: &mut DeclarationList<'i>,
   important_declarations: &mut DeclarationList<'i>,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
 ) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
   // Stop if we hit a `{` token in a non-custom property to
   // avoid ambiguity between nested rules and declarations.

@@ -180,6 +180,7 @@ pub enum Feature {
   RicUnit,
   RlhUnit,
   RoundFunction,
+  SearchText,
   Selection,
   Selectors2,
   Selectors3,
@@ -1349,51 +1350,6 @@ impl Feature {
           return false;
         }
       }
-      Feature::HexAlphaColors => {
-        if let Some(version) = browsers.edge {
-          if version < 5177344 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.firefox {
-          if version < 3211264 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.chrome {
-          if version < 4063232 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.safari {
-          if version < 655360 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.opera {
-          if version < 3407872 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.ios_saf {
-          if version < 655360 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.android {
-          if version < 9502720 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.samsung {
-          if version < 524800 {
-            return false;
-          }
-        }
-        if browsers.ie.is_some() {
-          return false;
-        }
-      }
       Feature::Nesting => {
         if let Some(version) = browsers.edge {
           if version < 7864320 {
@@ -2265,6 +2221,51 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version < 2424832 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::HexAlphaColors => {
+        if let Some(version) = browsers.chrome {
+          if version < 4063232 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 3211264 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 3080192 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 655360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 590592 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 524288 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 4063232 {
             return false;
           }
         }
@@ -3727,6 +3728,36 @@ impl Feature {
           }
         }
         if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::SearchText => {
+        if let Some(version) = browsers.chrome {
+          if version < 9437184 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 9437184 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 6225920 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 9437184 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
           return false;
         }
       }

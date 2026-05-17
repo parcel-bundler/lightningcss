@@ -8,6 +8,7 @@ use crate::rules::font_feature_values::FontFeatureValuesRule;
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::nesting::NestedDeclarationsRule;
+use crate::rules::position_try::PositionTryRule;
 use crate::rules::property::PropertyRule;
 use crate::rules::scope::ScopeRule;
 use crate::rules::starting_style::StartingStyleRule;
@@ -47,6 +48,7 @@ use std::sync::{Arc, RwLock};
 bitflags! {
   /// Parser feature flags to enable.
   #[derive(Clone, Debug, Default)]
+  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct ParserFlags: u8 {
     /// Whether the enable the [CSS nesting](https://www.w3.org/TR/css-nesting-1/) draft syntax.
     const NESTING = 1 << 0;
@@ -61,11 +63,11 @@ bitflags! {
 
 /// CSS parsing options.
 #[derive(Clone, Debug, Default)]
-pub struct ParserOptions<'o, 'i> {
+pub struct ParserOptions<'i> {
   /// Filename to use in error messages.
   pub filename: String,
   /// Whether the enable [CSS modules](https://github.com/css-modules/css-modules).
-  pub css_modules: Option<crate::css_modules::Config<'o>>,
+  pub css_modules: Option<crate::css_modules::Config>,
   /// The source index to assign to all parsed rules. Impacts the source map when
   /// the style sheet is serialized.
   pub source_index: u32,
@@ -77,7 +79,27 @@ pub struct ParserOptions<'o, 'i> {
   pub flags: ParserFlags,
 }
 
-impl<'o, 'i> ParserOptions<'o, 'i> {
+#[cfg(feature = "into_owned")]
+impl<'i, 'any> static_self::IntoOwned<'any> for ParserOptions<'i> {
+  type Owned = ParserOptions<'any>;
+
+  fn into_owned(self) -> Self::Owned {
+    ParserOptions {
+      warnings: self.warnings.and_then(|warnings| {
+        if let Ok(errors) = warnings.read() {
+          Some(Arc::new(RwLock::new(
+            errors.iter().map(|e| e.clone().into_owned()).collect(),
+          )))
+        } else {
+          None
+        }
+      }),
+      ..self
+    }
+  }
+}
+
+impl<'i> ParserOptions<'i> {
   #[inline]
   pub(crate) fn warn(&self, warning: ParseError<'i, ParserError<'i>>) {
     if let Some(warnings) = &self.warnings {
@@ -137,16 +159,16 @@ enum State {
 }
 
 /// The parser for the top-level rules in a stylesheet.
-pub struct TopLevelRuleParser<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> {
-  pub options: &'a ParserOptions<'o, 'i>,
+pub struct TopLevelRuleParser<'a, 'i, T: crate::traits::AtRuleParser<'i>> {
+  pub options: &'a ParserOptions<'i>,
   state: State,
   at_rule_parser: &'a mut T,
   rules: &'a mut CssRuleList<'i, T::AtRule>,
 }
 
-impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> TopLevelRuleParser<'a, 'o, 'i, T> {
+impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> TopLevelRuleParser<'a, 'i, T> {
   pub fn new(
-    options: &'a ParserOptions<'o, 'i>,
+    options: &'a ParserOptions<'i>,
     at_rule_parser: &'a mut T,
     rules: &'a mut CssRuleList<'i, T::AtRule>,
   ) -> Self {
@@ -158,7 +180,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> TopLevelRuleParser<'a, 
     }
   }
 
-  pub fn nested<'x: 'b>(&'x mut self) -> NestedRuleParser<'x, 'o, 'i, T> {
+  pub fn nested<'x: 'b>(&'x mut self) -> NestedRuleParser<'x, 'i, T> {
     NestedRuleParser {
       options: &self.options,
       at_rule_parser: self.at_rule_parser,
@@ -214,6 +236,8 @@ pub enum AtRulePrelude<'i, T> {
   Layer(Vec<LayerName<'i>>),
   /// An @property prelude.
   Property(DashedIdent<'i>),
+  /// An @position-try prelude.
+  PositionTry(DashedIdent<'i>),
   /// A @container prelude.
   /// Spec: https://drafts.csswg.org/css-conditional-5/#container-rule
   /// @container [ <container-name>? <container-query>? ]!
@@ -256,6 +280,7 @@ impl<'i, T> AtRulePrelude<'i, T> {
       | Self::Keyframes(..)
       | Self::Page(..)
       | Self::Property(..)
+      | Self::PositionTry(..)
       | Self::Import(..)
       | Self::CustomMedia(..)
       | Self::Viewport(..)
@@ -265,7 +290,7 @@ impl<'i, T> AtRulePrelude<'i, T> {
   }
 }
 
-impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for TopLevelRuleParser<'a, 'o, 'i, T> {
+impl<'a, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i, T> {
   type Prelude = AtRulePrelude<'i, T::Prelude>;
   type AtRule = ();
   type Error = ParserError<'i>;
@@ -409,9 +434,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for TopLev
   }
 }
 
-impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i>
-  for TopLevelRuleParser<'a, 'o, 'i, T>
-{
+impl<'a, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i> for TopLevelRuleParser<'a, 'i, T> {
   type Prelude = SelectorList<'i>;
   type QualifiedRule = ();
   type Error = ParserError<'i>;
@@ -436,8 +459,8 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i>
   }
 }
 
-pub struct NestedRuleParser<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> {
-  pub options: &'a ParserOptions<'o, 'i>,
+pub struct NestedRuleParser<'a, 'i, T: crate::traits::AtRuleParser<'i>> {
+  pub options: &'a ParserOptions<'i>,
   pub at_rule_parser: &'a mut T,
   declarations: DeclarationList<'i>,
   important_declarations: DeclarationList<'i>,
@@ -446,7 +469,7 @@ pub struct NestedRuleParser<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> {
   allow_declarations: bool,
 }
 
-impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'o, 'i, T> {
+impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'i, T> {
   pub fn parse_nested<'t>(
     &mut self,
     input: &mut Parser<'i, 't>,
@@ -541,7 +564,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'o
   }
 }
 
-impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i, T> {
+impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for NestedRuleParser<'a, 'i, T> {
   type Prelude = AtRulePrelude<'i, T::Prelude>;
   type AtRule = ();
   type Error = ParserError<'i>;
@@ -708,6 +731,11 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       "property" => {
         let name = DashedIdent::parse(input)?;
         return Ok(AtRulePrelude::Property(name))
+      },
+
+      "position-try" => {
+        let name = DashedIdent::parse(input)?;
+        return Ok(AtRulePrelude::PositionTry(name))
       },
 
       _ => parse_custom_at_rule_prelude(&name, input, self.options, self.at_rule_parser)?
@@ -886,6 +914,14 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         self.rules.0.push(CssRule::Property(PropertyRule::parse(name, input, loc)?));
         Ok(())
       }
+      AtRulePrelude::PositionTry(name) => {
+        self.rules.0.push(CssRule::PositionTry(PositionTryRule {
+          name,
+          declarations: DeclarationBlock::parse(input, self.options)?,
+          loc,
+        }));
+        Ok(())
+      }
       AtRulePrelude::Import(..)
       | AtRulePrelude::Namespace(..)
       | AtRulePrelude::CustomMedia(..)
@@ -948,9 +984,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
   }
 }
 
-impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i>
-  for NestedRuleParser<'a, 'o, 'i, T>
-{
+impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i> for NestedRuleParser<'a, 'i, T> {
   type Prelude = SelectorList<'i>;
   type QualifiedRule = ();
   type Error = ParserError<'i>;
@@ -1000,9 +1034,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i>
 }
 
 /// Parse a declaration within {} block: `color: blue`
-impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> cssparser::DeclarationParser<'i>
-  for NestedRuleParser<'a, 'o, 'i, T>
-{
+impl<'a, 'i, T: crate::traits::AtRuleParser<'i>> cssparser::DeclarationParser<'i> for NestedRuleParser<'a, 'i, T> {
   type Declaration = ();
   type Error = ParserError<'i>;
 
@@ -1010,6 +1042,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> cssparser::DeclarationParse
     &mut self,
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
+    _declaration_start: &ParserState,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     if self.rules.0.is_empty() {
       parse_declaration(
@@ -1048,8 +1081,8 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> cssparser::DeclarationParse
   }
 }
 
-impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> RuleBodyItemParser<'i, (), ParserError<'i>>
-  for NestedRuleParser<'a, 'o, 'i, T>
+impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> RuleBodyItemParser<'i, (), ParserError<'i>>
+  for NestedRuleParser<'a, 'i, T>
 {
   fn parse_qualified(&self) -> bool {
     true
@@ -1063,7 +1096,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> RuleBodyItemParser<'i, 
 fn parse_custom_at_rule_prelude<'i, 't, T: crate::traits::AtRuleParser<'i>>(
   name: &CowRcStr<'i>,
   input: &mut Parser<'i, 't>,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
   at_rule_parser: &mut T,
 ) -> Result<AtRulePrelude<'i, T::Prelude>, ParseError<'i, ParserError<'i>>> {
   match at_rule_parser.parse_prelude(name.clone(), input, options) {
@@ -1093,7 +1126,7 @@ fn parse_custom_at_rule_body<'i, 't, T: crate::traits::AtRuleParser<'i>>(
   prelude: T::Prelude,
   input: &mut Parser<'i, 't>,
   start: &ParserState,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
   at_rule_parser: &mut T,
   is_nested: bool,
 ) -> Result<CssRule<'i, T::AtRule>, ParseError<'i, ParserError<'i>>> {
@@ -1112,7 +1145,7 @@ fn parse_custom_at_rule_body<'i, 't, T: crate::traits::AtRuleParser<'i>>(
 fn parse_custom_at_rule_without_block<'i, 't, T: crate::traits::AtRuleParser<'i>>(
   prelude: T::Prelude,
   start: &ParserState,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
   at_rule_parser: &mut T,
   is_nested: bool,
 ) -> Result<CssRule<'i, T::AtRule>, ()> {
@@ -1121,9 +1154,9 @@ fn parse_custom_at_rule_without_block<'i, 't, T: crate::traits::AtRuleParser<'i>
     .map(|prelude| CssRule::Custom(prelude))
 }
 
-pub fn parse_rule_list<'a, 'o, 'i, 't, T: crate::traits::AtRuleParser<'i>>(
+pub fn parse_rule_list<'a, 'i, 't, T: crate::traits::AtRuleParser<'i>>(
   input: &mut Parser<'i, 't>,
-  options: &'a ParserOptions<'o, 'i>,
+  options: &'a ParserOptions<'i>,
   at_rule_parser: &mut T,
 ) -> Result<CssRuleList<'i, T::AtRule>, ParseError<'i, ParserError<'i>>> {
   let mut parser = NestedRuleParser {
@@ -1140,9 +1173,9 @@ pub fn parse_rule_list<'a, 'o, 'i, 't, T: crate::traits::AtRuleParser<'i>>(
   Ok(rules)
 }
 
-pub fn parse_style_block<'a, 'o, 'i, 't, T: crate::traits::AtRuleParser<'i>>(
+pub fn parse_style_block<'a, 'i, 't, T: crate::traits::AtRuleParser<'i>>(
   input: &mut Parser<'i, 't>,
-  options: &'a ParserOptions<'o, 'i>,
+  options: &'a ParserOptions<'i>,
   at_rule_parser: &mut T,
   is_nested: bool,
 ) -> Result<CssRuleList<'i, T::AtRule>, ParseError<'i, ParserError<'i>>> {

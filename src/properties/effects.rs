@@ -1,7 +1,7 @@
 //! CSS properties related to filters and effects.
 
-use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss, Zero};

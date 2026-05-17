@@ -137,9 +137,9 @@ mod bundle {
 
     // This is pretty silly, but works around a rust limitation that you cannot
     // explicitly annotate lifetime bounds on closures.
-    fn annotate<'i, 'o, F>(f: F) -> F
+    fn annotate<'i, F>(f: F) -> F
     where
-      F: FnOnce(&mut StyleSheet<'i, 'o, AtRule<'i>>) -> napi::Result<()>,
+      F: FnOnce(&mut StyleSheet<'i, AtRule<'i>>) -> napi::Result<()>,
     {
       f
     }
@@ -234,7 +234,7 @@ mod bundle {
   }
 
   struct VisitMessage {
-    stylesheet: &'static mut StyleSheet<'static, 'static, AtRule<'static>>,
+    stylesheet: &'static mut StyleSheet<'static, AtRule<'static>>,
     tx: Sender<napi::Result<String>>,
   }
 
@@ -394,10 +394,9 @@ mod bundle {
                 // SAFETY: we immediately lock the thread until we get a response,
                 // so stylesheet cannot be dropped in that time.
                 stylesheet: unsafe {
-                  std::mem::transmute::<
-                    &'_ mut StyleSheet<'_, '_, AtRule>,
-                    &'static mut StyleSheet<'static, 'static, AtRule>,
-                  >(stylesheet)
+                  std::mem::transmute::<&'_ mut StyleSheet<'_, AtRule>, &'static mut StyleSheet<'static, AtRule>>(
+                    stylesheet,
+                  )
                 },
                 tx: channel.0.clone(),
               };
@@ -451,9 +450,9 @@ mod bundle {
 
     // This is pretty silly, but works around a rust limitation that you cannot
     // explicitly annotate lifetime bounds on closures.
-    fn annotate<'i, 'o, F>(f: F) -> F
+    fn annotate<'i, F>(f: F) -> F
     where
-      F: FnOnce(&mut StyleSheet<'i, 'o, AtRule<'i>>) -> napi::Result<()>,
+      F: FnOnce(&mut StyleSheet<'i, AtRule<'i>>) -> napi::Result<()>,
     {
       f
     }
@@ -815,12 +814,7 @@ fn compile<'i>(
 }
 
 #[cfg(feature = "bundler")]
-fn compile_bundle<
-  'i,
-  'o,
-  P: SourceProvider,
-  F: FnOnce(&mut StyleSheet<'i, 'o, AtRule<'i>>) -> napi::Result<()>,
->(
+fn compile_bundle<'i, 'o, P: SourceProvider, F: FnOnce(&mut StyleSheet<'i, AtRule<'i>>) -> napi::Result<()>>(
   fs: &'i P,
   config: &'o BundleConfig,
   visit: Option<F>,

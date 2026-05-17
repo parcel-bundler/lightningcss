@@ -178,7 +178,7 @@ impl<'i> PageRule<'i> {
     selectors: Vec<PageSelector<'i>>,
     input: &mut Parser<'i, 't>,
     loc: Location,
-    options: &ParserOptions<'o, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut declarations = DeclarationBlock::new();
     let mut rules = Vec::new();
@@ -299,13 +299,13 @@ impl<'i> ToCss for PageSelector<'i> {
   }
 }
 
-struct PageRuleParser<'a, 'o, 'i> {
+struct PageRuleParser<'a, 'i> {
   declarations: &'a mut DeclarationBlock<'i>,
   rules: &'a mut Vec<PageMarginRule<'i>>,
-  options: &'a ParserOptions<'o, 'i>,
+  options: &'a ParserOptions<'i>,
 }
 
-impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PageRuleParser<'a, 'o, 'i> {
+impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PageRuleParser<'a, 'i> {
   type Declaration = ();
   type Error = ParserError<'i>;
 
@@ -313,6 +313,7 @@ impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PageRuleParser<'a, 'o, 'i>
     &mut self,
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
+    _declaration_start: &ParserState,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     parse_declaration(
       name,
@@ -324,7 +325,7 @@ impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PageRuleParser<'a, 'o, 'i>
   }
 }
 
-impl<'a, 'o, 'i> AtRuleParser<'i> for PageRuleParser<'a, 'o, 'i> {
+impl<'a, 'i> AtRuleParser<'i> for PageRuleParser<'a, 'i> {
   type Prelude = PageMarginBox;
   type AtRule = ();
   type Error = ParserError<'i>;
@@ -360,13 +361,13 @@ impl<'a, 'o, 'i> AtRuleParser<'i> for PageRuleParser<'a, 'o, 'i> {
   }
 }
 
-impl<'a, 'o, 'i> QualifiedRuleParser<'i> for PageRuleParser<'a, 'o, 'i> {
+impl<'a, 'i> QualifiedRuleParser<'i> for PageRuleParser<'a, 'i> {
   type Prelude = ();
   type QualifiedRule = ();
   type Error = ParserError<'i>;
 }
 
-impl<'a, 'o, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for PageRuleParser<'a, 'o, 'i> {
+impl<'a, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for PageRuleParser<'a, 'i> {
   fn parse_qualified(&self) -> bool {
     false
   }

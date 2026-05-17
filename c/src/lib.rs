@@ -12,8 +12,8 @@ use lightningcss::stylesheet::{MinifyOptions, ParserFlags, ParserOptions, Printe
 use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 
-pub struct StyleSheetWrapper<'i, 'o> {
-  stylesheet: StyleSheet<'i, 'o>,
+pub struct StyleSheetWrapper<'i> {
+  stylesheet: StyleSheet<'i>,
   source: &'i str,
   warnings: Vec<CssError<'i>>,
 }
@@ -588,9 +588,7 @@ pub extern "C" fn lightningcss_error_free(error: *mut CssError) {
 }
 
 #[no_mangle]
-pub extern "C" fn lightningcss_stylesheet_get_warning_count<'i>(
-  stylesheet: *mut StyleSheetWrapper<'i, '_>,
-) -> usize {
+pub extern "C" fn lightningcss_stylesheet_get_warning_count<'i>(stylesheet: *mut StyleSheetWrapper<'i>) -> usize {
   match unsafe { stylesheet.as_mut() } {
     Some(s) => s.warnings.len(),
     None => 0,
@@ -599,7 +597,7 @@ pub extern "C" fn lightningcss_stylesheet_get_warning_count<'i>(
 
 #[no_mangle]
 pub extern "C" fn lightningcss_stylesheet_get_warning<'i>(
-  stylesheet: *mut StyleSheetWrapper<'i, '_>,
+  stylesheet: *mut StyleSheetWrapper<'i>,
   index: usize,
 ) -> *const c_char {
   let stylesheet = match unsafe { stylesheet.as_mut() } {
