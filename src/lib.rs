@@ -335,7 +335,7 @@ mod tests {
     }
   }
 
-  fn error_test_with_options<'i>(source: &'i str, error: ParserError<'i>, options: ParserOptions<'_, 'i>) {
+  fn error_test_with_options<'i>(source: &'i str, error: ParserError<'i>, options: ParserOptions<'i>) {
     let res = StyleSheet::parse(&source, options);
     match res {
       Ok(_) => unreachable!(),
