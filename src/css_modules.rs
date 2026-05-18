@@ -54,14 +54,14 @@ pub struct Config {
   /// makes the hashed bytes match css-loader's tier-0 salt input, which is how a Vite or
   /// postcss-modules build can produce the same scoped-name hashes as webpack/css-loader.
   ///
-  /// Applies to both legacy `[hash]` and `[<algo>:hash:<digest>:<length>]` segments. Has
-  /// no effect on `[content-hash]`. Default is `None` (no prefix; lightningcss output is
+  /// Applies to both default `[hash]` and `[<algo>:hash:<digest>:<length>]` segments. Has
+  /// no effect on `[content-hash]`. Default is `None` (no prefix; Lightning CSS output is
   /// unchanged from prior versions).
   pub hash_prefix: Option<Cow<'static, str>>,
   /// When `true`, the local class/ident name is appended to the hash input separated by
   /// a NUL byte: `<prefix><relative-path>\0<local>`. This matches the per-local hashing
   /// done by css-loader and postcss-modules — without it, every export from a given file
-  /// shares one hash. Required for css-loader/postcss-modules byte parity.
+  /// shares one hash. Required to reproduce legacy css-loader/postcss-modules scoped names.
   ///
   /// Default is `false` (preserves lightningcss's per-file hashing behavior).
   pub hash_local_name: bool,
@@ -150,10 +150,10 @@ impl Pattern {
   ///
   /// Supported placeholders are:
   /// - `[name]`, `[local]`, `[content-hash]`, `[hash]`
-  /// - `[<algo>:hash:<digest>:<length>]` (webpack-compatible). Any of `algo`, `digest`,
+  /// - `[<algo>:hash:<digest>:<length>]` (legacy webpack/css-loader-compatible). Any of `algo`, `digest`,
   ///   and `length` can be omitted, e.g. `[hash:base64:5]`, `[md4:hash]`, `[hash:8]`.
   ///   Recognized algorithms: `md4`, `xxhash64`. Recognized digests: `hex`, `base64`.
-  ///   When the `hash` keyword is bare (`[hash]`) the legacy lightningcss hash is used;
+  ///   When the `hash` keyword is bare (`[hash]`) the default Lightning CSS hash is used;
   ///   otherwise [hash_with_options](hash_with_options) applies.
   pub fn parse(mut input: &str) -> Result<Self, PatternParseError> {
     let mut segments = SmallVec::new();
@@ -226,7 +226,7 @@ impl Pattern {
       _ => return Err(unknown()),
     };
     if algo.is_none() && digest.is_none() && length.is_none() {
-      // Bare `[hash]` keeps the legacy code path.
+      // Bare `[hash]` keeps Lightning CSS's default hash path.
       Ok(Segment::Hash {
         algo: None,
         digest: None,
@@ -245,9 +245,9 @@ impl Pattern {
   /// Write the substituted pattern to a destination.
   ///
   /// `hash_input` is the raw string used as input to compute hashes for `[hash]` segments
-  /// (typically the project-root-relative source path). For legacy `[hash]` segments (no
+  /// (typically the project-root-relative source path). For default `[hash]` segments (no
   /// algo/digest/length specified) the existing siphash + custom-base64 algorithm is used,
-  /// preserving byte compatibility with previous lightningcss output. Segments with any
+  /// preserving byte compatibility with previous Lightning CSS output. Segments with any
   /// option specified use [hash_with_options](hash_with_options).
   pub fn write<W, E>(
     &self,
@@ -325,13 +325,13 @@ pub enum Segment {
   Local,
   /// A hash of the file name.
   ///
-  /// When all of `algo`, `digest`, and `length` are `None`, the legacy lightningcss
+  /// When all of `algo`, `digest`, and `length` are `None`, the default Lightning CSS
   /// hash (siphash + custom base64) is used and the result is prefixed with `_` if
   /// it starts with a digit and the segment is at the start of the pattern. When any
   /// is `Some`, [hash_with_options](hash_with_options) is used with `Xxhash64` as the
   /// default algorithm and `Hex` as the default digest.
   Hash {
-    /// The hash algorithm to use, or `None` for the legacy default.
+    /// The hash algorithm to use, or `None` for the default Lightning CSS hash.
     algo: Option<HashAlgorithm>,
     /// The digest encoding, or `None` to default to `Hex` when any option is set.
     digest: Option<DigestType>,
@@ -626,7 +626,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
       }
     };
 
-    // Reuse the legacy filename hash as a stable short id here, preserving
+    // Reuse the default filename hash as a stable short id here, preserving
     // backward-compatible output for dashed (custom property) cross-file references.
     let source_id = hash(&self.hash_inputs[source_index as usize], false);
     let hash = hash(&format!("{}_{}_{}", source_id, name, key), false);
@@ -730,9 +730,9 @@ pub(crate) fn hash(s: &str, at_start: bool) -> String {
 /// The algorithm used to hash a CSS module name input.
 ///
 /// Used in [Segment::Hash](Segment::Hash) and [Segment::ContentHash](Segment::ContentHash) to
-/// override the default lightningcss hash algorithm. When unspecified, the default algorithm
+/// override the default Lightning CSS hash algorithm. When unspecified, the default algorithm
 /// (an internal SipHash variant) is used, which preserves byte compatibility with previous
-/// lightningcss output.
+/// Lightning CSS output.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize, serde::Deserialize))]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(rename_all = "lowercase"))]
@@ -867,7 +867,7 @@ mod tests {
   #[test]
   fn base64_uses_standard_alphabet() {
     // Inputs picked to make the digest contain both `+` and `/`, confirming the standard
-    // base64 alphabet (post-processing happens later in the css-loader-compat layer).
+    // base64 alphabet (post-processing happens later in the legacy compatibility layer).
     let input = b"\x00\x00\x00\x00src/styles/Alpha.module.css\x00cls_48";
     let got = hash_with_options(input, HashAlgorithm::Md4, DigestType::Base64, Some(5));
     assert_eq!(got, "/ta+0");
@@ -889,7 +889,7 @@ mod tests {
   }
 
   #[test]
-  fn parse_bare_hash_keeps_legacy() {
+  fn parse_bare_hash_keeps_default_lightning_css_hash() {
     let p = Pattern::parse("[hash]").unwrap();
     assert!(matches!(
       first_hash(&p),
@@ -902,7 +902,7 @@ mod tests {
   }
 
   #[test]
-  fn parse_full_webpack_pattern() {
+  fn parse_full_legacy_webpack_pattern() {
     assert_eq!(
       parse_hash("[md4:hash:base64:5]"),
       (Some(HashAlgorithm::Md4), Some(DigestType::Base64), Some(5))

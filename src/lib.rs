@@ -25980,7 +25980,7 @@ mod tests {
   ");
   }
 
-  /// End-to-end byte-parity test against ground truth captured from a Vite/postcss-modules
+  /// End-to-end legacy compatibility test against ground truth captured from a Vite/postcss-modules
   /// build using:
   ///
   /// ```js
