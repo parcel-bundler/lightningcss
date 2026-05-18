@@ -708,6 +708,11 @@ pub enum HashAlgorithm {
 /// rules: replace any char outside `[a-zA-Z0-9\-_]` (plus the latin-1+ unicode range
 /// `U+00A0..=U+FFFF`) with `-`, then prefix `_` when the result starts with `-?[0-9]`
 /// or `--` so the output remains a valid CSS identifier.
+///
+/// This is intentionally separate from `cssparser::serialize_identifier` and
+/// `serialize_name`: those functions make a string valid CSS syntax by backslash-escaping
+/// it at print time. This rewrites the literal scoped name that appears in both CSS output
+/// and the JS exports map so it matches legacy css-loader/postcss-modules output.
 pub(crate) fn escape_scoped_name(s: &str) -> String {
   let mut out = String::with_capacity(s.len() + 1);
   for ch in s.chars() {
