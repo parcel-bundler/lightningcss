@@ -30847,6 +30847,58 @@ mod tests {
     "#,
       "@container (inline-size>45em) and anchored(fallback:flip-block){.foo{color:red}}",
     );
+    minify_test(
+      r#"
+      @container anchored(fallback: flip-block flip-inline) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:flip-block flip-inline){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: --my-fallback) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:--my-fallback){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: none) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:none){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: flip-start flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:flip-block flip-start){.foo{color:red}}",
+    );
+
+    // size and inline-size are mutually exclusive; invalid combinations fall through to unparsed
+    // (round-trip preserves verbatim instead of normalizing through bitflags).
+    minify_test(
+      ".foo { container-type: size inline-size }",
+      ".foo{container-type:size inline-size}",
+    );
+    // duplicate keywords are not allowed
+    minify_test(
+      ".foo { container-type: anchored anchored }",
+      ".foo{container-type:anchored anchored}",
+    );
 
     // Disallow 'none', 'not', 'and', 'or' as a `<container-name>`
     // https://github.com/w3c/csswg-drafts/issues/7203#issuecomment-1144257312

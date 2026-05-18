@@ -6488,22 +6488,9 @@ export type ZIndex =
       type: "integer";
       value: number;
     };
-/**
- * A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property. Establishes the element as a query container for the purpose of container queries.
- */
-export type ContainerType =
-  | "normal"
-  | "inline-size"
-  | "size"
-  | "scroll-state"
-  | "anchored"
-  | "inline-size scroll-state"
-  | "size scroll-state"
-  | "inline-size anchored"
-  | "size anchored"
-  | "scroll-state anchored"
-  | "inline-size scroll-state anchored"
-  | "size scroll-state anchored";
+export type ContainerType = NormalKeyword | ContainerTypeFlag[];
+export type NormalKeyword = "normal";
+export type ContainerTypeFlag = "inline-size" | "size" | "scroll-state" | "anchored";
 /**
  * A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
  */
@@ -7751,9 +7738,31 @@ export type AnchoredQuery =
       type: "operation";
     };
 /**
- * An anchored container feature identifier.
+ * An anchored container feature.
  */
-export type AnchoredFeatureName = "fallback";
+export type AnchoredFeature = {
+  name: "fallback";
+  value: AnchoredFallbackValue;
+};
+/**
+ * The value of the [`anchored(fallback: ...)`](https://drafts.csswg.org/css-anchor-position-2/#fallback-feature) container query feature.
+ *
+ * Note: the `<position-area>` form is not yet supported.
+ */
+export type AnchoredFallbackValue =
+  | {
+      type: "none";
+    }
+  | {
+      type: "ident";
+      value: String;
+    }
+  | {
+      type: "tactic";
+      value: TryTactic;
+    };
+export type TryTacticFlag = "flip-block" | "flip-inline" | "flip-start";
+export type TryTactic = TryTacticFlag[];
 /**
  * A property within a `@view-transition` rule.
  *
@@ -9918,22 +9927,6 @@ export interface ContainerRule<D = Declaration, M = MediaQuery> {
    * The rules within the `@container` rule.
    */
   rules: Rule<D, M>[];
-}
-/**
- * An anchored container feature.
- */
-export interface AnchoredFeature {
-  /**
-   * The feature name.
-   */
-  name: AnchoredFeatureName;
-  /**
-   * The feature value.
-   */
-  value: ValueWrapperFor_ArrayOf_TokenOrValue;
-}
-export interface ValueWrapperFor_ArrayOf_TokenOrValue {
-  value: TokenOrValue[];
 }
 /**
  * A [@scope](https://drafts.csswg.org/css-cascade-6/#scope-atrule) rule.

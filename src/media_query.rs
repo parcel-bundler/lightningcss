@@ -567,7 +567,7 @@ pub(crate) trait QueryCondition<'i>: Sized {
 
   fn parse_anchored_query<'t>(
     input: &mut Parser<'i, 't>,
-    _options: &ParserOptions<'_, 'i>,
+    _options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Err(input.new_error_for_next_token())
   }

@@ -1,5 +1,8 @@
 //! The `@container` rule.
 
+#![allow(non_upper_case_globals)]
+
+use bitflags::bitflags;
 use cssparser::*;
 
 use super::Location;
@@ -17,7 +20,7 @@ use crate::properties::{Property, PropertyId};
 use crate::serialization::ValueWrapper;
 use crate::targets::{Features, Targets};
 use crate::traits::{Parse, ParseWithOptions, ToCss};
-use crate::values::ident::CustomIdent;
+use crate::values::ident::{CustomIdent, DashedIdent};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 
@@ -198,11 +201,170 @@ impl FeatureToCss for ScrollStateFeatureId {
   }
 }
 
-crate::macros::enum_property! {
-  /// An anchored container feature identifier.
-  pub enum AnchoredFeatureName {
-    /// The [fallback](https://drafts.csswg.org/css-anchor-position-2/#fallback-feature) feature.
-    "fallback": Fallback,
+bitflags! {
+  /// A [`<try-tactic>`](https://drafts.csswg.org/css-anchor-position-1/#typedef-try-tactic) value,
+  /// used in the `position-try-fallbacks` property and the `anchored(fallback: ...)` container query feature.
+  #[cfg_attr(feature = "visitor", derive(Visit))]
+  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "Vec<TryTacticFlag>", into = "Vec<TryTacticFlag>"))]
+  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+  #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
+  pub struct TryTactic: u8 {
+    /// Flips the position across the block axis.
+    const FlipBlock  = 0b001;
+    /// Flips the position across the inline axis.
+    const FlipInline = 0b010;
+    /// Swaps the block and inline axes.
+    const FlipStart  = 0b100;
+  }
+}
+
+impl<'i> Parse<'i> for TryTactic {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut value = TryTactic::empty();
+    while let Ok(ident) = input.try_parse(|input| input.expect_ident_cloned()) {
+      let location = input.current_source_location();
+      let flag = match_ignore_ascii_case! { &ident,
+        "flip-block" if !value.contains(TryTactic::FlipBlock) => TryTactic::FlipBlock,
+        "flip-inline" if !value.contains(TryTactic::FlipInline) => TryTactic::FlipInline,
+        "flip-start" if !value.contains(TryTactic::FlipStart) => TryTactic::FlipStart,
+        _ => return Err(location.new_unexpected_token_error(Token::Ident(ident.clone()))),
+      };
+      value |= flag;
+    }
+
+    if value.is_empty() {
+      return Err(input.new_error_for_next_token());
+    }
+    Ok(value)
+  }
+}
+
+impl ToCss for TryTactic {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    let mut needs_space = false;
+    macro_rules! val {
+      ($flag:ident, $name:expr) => {
+        #[allow(unused_assignments)]
+        if self.contains(TryTactic::$flag) {
+          if needs_space {
+            dest.write_char(' ')?;
+          }
+          dest.write_str($name)?;
+          needs_space = true;
+        }
+      };
+    }
+    val!(FlipBlock, "flip-block");
+    val!(FlipInline, "flip-inline");
+    val!(FlipStart, "flip-start");
+    Ok(())
+  }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "kebab-case"))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum TryTacticFlag {
+  FlipBlock,
+  FlipInline,
+  FlipStart,
+}
+
+impl From<TryTactic> for Vec<TryTacticFlag> {
+  fn from(t: TryTactic) -> Self {
+    let mut v = Vec::new();
+    if t.contains(TryTactic::FlipBlock) {
+      v.push(TryTacticFlag::FlipBlock);
+    }
+    if t.contains(TryTactic::FlipInline) {
+      v.push(TryTacticFlag::FlipInline);
+    }
+    if t.contains(TryTactic::FlipStart) {
+      v.push(TryTacticFlag::FlipStart);
+    }
+    v
+  }
+}
+
+impl From<Vec<TryTacticFlag>> for TryTactic {
+  fn from(flags: Vec<TryTacticFlag>) -> Self {
+    let mut res = TryTactic::empty();
+    for f in flags {
+      res |= match f {
+        TryTacticFlag::FlipBlock => TryTactic::FlipBlock,
+        TryTacticFlag::FlipInline => TryTactic::FlipInline,
+        TryTacticFlag::FlipStart => TryTactic::FlipStart,
+      }
+    }
+    res
+  }
+}
+
+#[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
+impl<'a> schemars::JsonSchema for TryTactic {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    Vec::<TryTacticFlag>::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "TryTactic".into()
+  }
+}
+
+/// The value of the [`anchored(fallback: ...)`](https://drafts.csswg.org/css-anchor-position-2/#fallback-feature)
+/// container query feature.
+///
+/// Note: the `<position-area>` form is not yet supported.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum AnchoredFallbackValue<'i> {
+  /// The `none` keyword.
+  None,
+  /// A `<dashed-ident>` referencing a `@position-try` rule name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Ident(DashedIdent<'i>),
+  /// A `<try-tactic>` keyword combination.
+  Tactic(TryTactic),
+}
+
+impl<'i> Parse<'i> for AnchoredFallbackValue<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
+      return Ok(AnchoredFallbackValue::None);
+    }
+
+    if let Ok(ident) = input.try_parse(DashedIdent::parse) {
+      return Ok(AnchoredFallbackValue::Ident(ident));
+    }
+
+    Ok(AnchoredFallbackValue::Tactic(TryTactic::parse(input)?))
+  }
+}
+
+impl<'i> ToCss for AnchoredFallbackValue<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      AnchoredFallbackValue::None => dest.write_str("none"),
+      AnchoredFallbackValue::Ident(ident) => ident.to_css(dest),
+      AnchoredFallbackValue::Tactic(tactic) => tactic.to_css(dest),
+    }
   }
 }
 
@@ -213,34 +375,27 @@ crate::macros::enum_property! {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(rename_all = "camelCase")
+  serde(tag = "name", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-pub struct AnchoredFeature<'i> {
-  /// The feature name.
-  pub name: AnchoredFeatureName,
-  /// The feature value.
-  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<TokenList>"))]
-  pub value: TokenList<'i>,
+pub enum AnchoredFeature<'i> {
+  /// The [fallback](https://drafts.csswg.org/css-anchor-position-2/#fallback-feature) feature.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Fallback(AnchoredFallbackValue<'i>),
 }
 
-impl<'i> ParseWithOptions<'i> for AnchoredFeature<'i> {
-  fn parse_with_options<'t>(
-    input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
-  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let name = AnchoredFeatureName::parse(input)?;
-    input.expect_colon()?;
-
-    let value = TokenList::parse(input, options, 0)?;
-    if value.0.is_empty() {
-      return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
+impl<'i> Parse<'i> for AnchoredFeature<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let location = input.current_source_location();
+    let name = input.expect_ident_cloned()?;
+    match_ignore_ascii_case! { &name,
+      "fallback" => {
+        input.expect_colon()?;
+        input.skip_whitespace();
+        Ok(AnchoredFeature::Fallback(AnchoredFallbackValue::parse(input)?))
+      },
+      _ => Err(location.new_unexpected_token_error(Token::Ident(name.clone()))),
     }
-
-    Ok(Self {
-      name,
-      value,
-    })
   }
 }
 
@@ -249,9 +404,13 @@ impl<'i> ToCss for AnchoredFeature<'i> {
   where
     W: std::fmt::Write,
   {
-    self.name.to_css(dest)?;
-    dest.delim(':', false)?;
-    self.value.to_css(dest, false)
+    match self {
+      AnchoredFeature::Fallback(value) => {
+        dest.write_str("fallback")?;
+        dest.delim(':', false)?;
+        value.to_css(dest)
+      }
+    }
   }
 }
 
@@ -335,7 +494,7 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
 
   fn parse_anchored_query<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
       if let Ok(res) = input.try_parse(|input| {
@@ -365,9 +524,9 @@ impl<'i> QueryCondition<'i> for AnchoredQuery<'i> {
   #[inline]
   fn parse_feature<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    _options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    Ok(Self::Feature(AnchoredFeature::parse_with_options(input, options)?))
+    Ok(Self::Feature(AnchoredFeature::parse(input)?))
   }
 
   #[inline]

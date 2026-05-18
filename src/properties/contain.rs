@@ -2,6 +2,7 @@
 
 #![allow(non_upper_case_globals)]
 
+use bitflags::bitflags;
 use cssparser::*;
 use smallvec::SmallVec;
 
@@ -19,114 +20,59 @@ use crate::{
   traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss},
 };
 
-/// A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property.
-/// Establishes the element as a query container for the purpose of container queries.
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
-pub enum ContainerType {
-  /// The element is not a query container for any container size queries,
-  /// but remains a query container for container style queries.
-  #[cfg_attr(feature = "serde", serde(rename = "normal"))]
-  Normal,
-  /// Establishes a query container for container size queries on the container’s own inline axis.
-  #[cfg_attr(feature = "serde", serde(rename = "inline-size"))]
-  InlineSize,
-  /// Establishes a query container for container size queries on both the inline and block axis.
-  #[cfg_attr(feature = "serde", serde(rename = "size"))]
-  Size,
-  /// Establishes a query container for container scroll-state queries.
-  #[cfg_attr(feature = "serde", serde(rename = "scroll-state"))]
-  ScrollState,
-  /// Establishes a query container for anchor positioning container queries.
-  #[cfg_attr(feature = "serde", serde(rename = "anchored"))]
-  Anchored,
-  /// Establishes inline-size and scroll-state query containers.
-  #[cfg_attr(feature = "serde", serde(rename = "inline-size scroll-state"))]
-  InlineSizeScrollState,
-  /// Establishes size and scroll-state query containers.
-  #[cfg_attr(feature = "serde", serde(rename = "size scroll-state"))]
-  SizeScrollState,
-  /// Establishes inline-size and anchored query containers.
-  #[cfg_attr(feature = "serde", serde(rename = "inline-size anchored"))]
-  InlineSizeAnchored,
-  /// Establishes size and anchored query containers.
-  #[cfg_attr(feature = "serde", serde(rename = "size anchored"))]
-  SizeAnchored,
-  /// Establishes scroll-state and anchored query containers.
-  #[cfg_attr(feature = "serde", serde(rename = "scroll-state anchored"))]
-  ScrollStateAnchored,
-  /// Establishes inline-size, scroll-state, and anchored query containers.
-  #[cfg_attr(feature = "serde", serde(rename = "inline-size scroll-state anchored"))]
-  InlineSizeScrollStateAnchored,
-  /// Establishes size, scroll-state, and anchored query containers.
-  #[cfg_attr(feature = "serde", serde(rename = "size scroll-state anchored"))]
-  SizeScrollStateAnchored,
+bitflags! {
+  /// A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property.
+  /// Establishes the element as a query container for the purpose of container queries.
+  ///
+  /// An empty value represents `normal`. The `size` and `inline-size` flags are mutually exclusive.
+  #[cfg_attr(feature = "visitor", derive(Visit))]
+  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedContainerType", into = "SerializedContainerType"))]
+  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+  #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
+  pub struct ContainerType: u8 {
+    /// Establishes a query container for container size queries on the container's own inline axis.
+    const InlineSize  = 0b0001;
+    /// Establishes a query container for container size queries on both the inline and block axis.
+    const Size        = 0b0010;
+    /// Establishes a query container for container scroll-state queries.
+    const ScrollState = 0b0100;
+    /// Establishes a query container for anchor positioning container queries.
+    const Anchored    = 0b1000;
+  }
 }
 
-#[derive(Clone, Copy, PartialEq)]
-enum ContainerSizeType {
-  InlineSize,
-  Size,
+impl Default for ContainerType {
+  fn default() -> ContainerType {
+    ContainerType::empty()
+  }
 }
 
 impl<'i> Parse<'i> for ContainerType {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(ContainerType::Normal);
+      return Ok(ContainerType::empty());
     }
 
-    let mut size = None;
-    let mut scroll_state = false;
-    let mut anchored = false;
+    let mut value = ContainerType::empty();
+    let size = ContainerType::InlineSize | ContainerType::Size;
 
     while let Ok(ident) = input.try_parse(|input| input.expect_ident_cloned()) {
       let location = input.current_source_location();
-      match_ignore_ascii_case! { &ident,
-        "inline-size" => {
-          if size.is_some() {
-            return Err(location.new_unexpected_token_error(cssparser::Token::Ident(ident.clone())));
-          }
-          size = Some(ContainerSizeType::InlineSize);
-        },
-        "size" => {
-          if size.is_some() {
-            return Err(location.new_unexpected_token_error(cssparser::Token::Ident(ident.clone())));
-          }
-          size = Some(ContainerSizeType::Size);
-        },
-        "scroll-state" => {
-          if scroll_state {
-            return Err(location.new_unexpected_token_error(cssparser::Token::Ident(ident.clone())));
-          }
-          scroll_state = true;
-        },
-        "anchored" => {
-          if anchored {
-            return Err(location.new_unexpected_token_error(cssparser::Token::Ident(ident.clone())));
-          }
-          anchored = true;
-        },
+      let flag = match_ignore_ascii_case! { &ident,
+        "inline-size" if !value.intersects(size) => ContainerType::InlineSize,
+        "size" if !value.intersects(size) => ContainerType::Size,
+        "scroll-state" if !value.contains(ContainerType::ScrollState) => ContainerType::ScrollState,
+        "anchored" if !value.contains(ContainerType::Anchored) => ContainerType::Anchored,
         _ => return Err(location.new_unexpected_token_error(cssparser::Token::Ident(ident.clone()))),
-      }
+      };
+      value |= flag;
     }
 
-    Ok(match (size, scroll_state, anchored) {
-      (None, false, false) => return Err(input.new_error_for_next_token()),
-      (Some(ContainerSizeType::InlineSize), false, false) => ContainerType::InlineSize,
-      (Some(ContainerSizeType::Size), false, false) => ContainerType::Size,
-      (None, true, false) => ContainerType::ScrollState,
-      (None, false, true) => ContainerType::Anchored,
-      (Some(ContainerSizeType::InlineSize), true, false) => ContainerType::InlineSizeScrollState,
-      (Some(ContainerSizeType::Size), true, false) => ContainerType::SizeScrollState,
-      (Some(ContainerSizeType::InlineSize), false, true) => ContainerType::InlineSizeAnchored,
-      (Some(ContainerSizeType::Size), false, true) => ContainerType::SizeAnchored,
-      (None, true, true) => ContainerType::ScrollStateAnchored,
-      (Some(ContainerSizeType::InlineSize), true, true) => ContainerType::InlineSizeScrollStateAnchored,
-      (Some(ContainerSizeType::Size), true, true) => ContainerType::SizeScrollStateAnchored,
-    })
+    if value.is_empty() {
+      return Err(input.new_error_for_next_token());
+    }
+
+    Ok(value)
   }
 }
 
@@ -135,32 +81,115 @@ impl ToCss for ContainerType {
   where
     W: std::fmt::Write,
   {
-    dest.write_str(match self {
-      ContainerType::Normal => "normal",
-      ContainerType::InlineSize => "inline-size",
-      ContainerType::Size => "size",
-      ContainerType::ScrollState => "scroll-state",
-      ContainerType::Anchored => "anchored",
-      ContainerType::InlineSizeScrollState => "inline-size scroll-state",
-      ContainerType::SizeScrollState => "size scroll-state",
-      ContainerType::InlineSizeAnchored => "inline-size anchored",
-      ContainerType::SizeAnchored => "size anchored",
-      ContainerType::ScrollStateAnchored => "scroll-state anchored",
-      ContainerType::InlineSizeScrollStateAnchored => "inline-size scroll-state anchored",
-      ContainerType::SizeScrollStateAnchored => "size scroll-state anchored",
-    })
-  }
-}
+    if self.is_empty() {
+      return dest.write_str("normal");
+    }
 
-impl Default for ContainerType {
-  fn default() -> Self {
-    ContainerType::Normal
+    let mut needs_space = false;
+    macro_rules! val {
+      ($flag:ident, $name:expr) => {
+        #[allow(unused_assignments)]
+        if self.contains(ContainerType::$flag) {
+          if needs_space {
+            dest.write_char(' ')?;
+          }
+          dest.write_str($name)?;
+          needs_space = true;
+        }
+      };
+    }
+
+    val!(InlineSize, "inline-size");
+    val!(Size, "size");
+    val!(ScrollState, "scroll-state");
+    val!(Anchored, "anchored");
+    Ok(())
   }
 }
 
 impl IsCompatible for ContainerType {
   fn is_compatible(&self, _browsers: Browsers) -> bool {
     true
+  }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum SerializedContainerType {
+  Normal(NormalKeyword),
+  Flags(Vec<ContainerTypeFlag>),
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "kebab-case"))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum NormalKeyword {
+  Normal,
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "kebab-case"))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum ContainerTypeFlag {
+  InlineSize,
+  Size,
+  ScrollState,
+  Anchored,
+}
+
+impl From<ContainerType> for SerializedContainerType {
+  fn from(t: ContainerType) -> Self {
+    if t.is_empty() {
+      return Self::Normal(NormalKeyword::Normal);
+    }
+
+    let mut v = Vec::new();
+    macro_rules! flag {
+      ($t:ident) => {
+        if t.contains(ContainerType::$t) {
+          v.push(ContainerTypeFlag::$t);
+        }
+      };
+    }
+    flag!(InlineSize);
+    flag!(Size);
+    flag!(ScrollState);
+    flag!(Anchored);
+    Self::Flags(v)
+  }
+}
+
+impl From<SerializedContainerType> for ContainerType {
+  fn from(t: SerializedContainerType) -> Self {
+    match t {
+      SerializedContainerType::Normal(_) => ContainerType::empty(),
+      SerializedContainerType::Flags(flags) => {
+        let mut res = ContainerType::empty();
+        for f in flags {
+          res |= match f {
+            ContainerTypeFlag::InlineSize => ContainerType::InlineSize,
+            ContainerTypeFlag::Size => ContainerType::Size,
+            ContainerTypeFlag::ScrollState => ContainerType::ScrollState,
+            ContainerTypeFlag::Anchored => ContainerType::Anchored,
+          }
+        }
+        res
+      }
+    }
+  }
+}
+
+#[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
+impl<'a> schemars::JsonSchema for ContainerType {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    SerializedContainerType::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "ContainerType".into()
   }
 }
 
