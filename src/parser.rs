@@ -1,9 +1,8 @@
-use crate::declaration::{parse_declaration, DeclarationBlock, DeclarationList};
+use crate::declaration::{parse_declaration, recover_declaration, DeclarationBlock, DeclarationList};
 use crate::error::{Error, ParserError, PrinterError, SelectorError};
 use crate::media_query::*;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
-use crate::properties::Property;
 use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
 use crate::rules::font_feature_values::FontFeatureValuesRule;
 use crate::rules::font_palette_values::FontPaletteValuesRule;
@@ -558,7 +557,13 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'o
     }
 
     if parse_declarations && !raw.contains('{') {
-      self.declarations.push(Property::Raw(Raw::from(raw, loc)));
+      if let Some((property, important)) = recover_declaration(raw, self.options) {
+        if important {
+          self.important_declarations.push(property);
+        } else {
+          self.declarations.push(property);
+        }
+      }
     } else {
       self.rules.0.push(CssRule::Raw(Raw::from(raw, loc)));
     }

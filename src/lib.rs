@@ -29873,6 +29873,7 @@ mod tests {
       }
 
       .clearfix {
+        *zoom: 1;
         background: red;
       }
 
@@ -29949,7 +29950,7 @@ mod tests {
   }
 
   #[test]
-  fn test_error_recovery_raw_nodes() {
+  fn test_error_recovery_raw_rules_and_unparsed_declarations() {
     let source = ".a { *zoom: 1; color: red } h1(>h1) { color: red }";
     let stylesheet = StyleSheet::parse(
       source,
@@ -29961,7 +29962,11 @@ mod tests {
     .unwrap();
 
     match &stylesheet.rules.0[0] {
-      CssRule::Style(rule) => assert!(matches!(rule.declarations.declarations[0], Property::Raw(_))),
+      CssRule::Style(rule) => {
+        assert_eq!(rule.declarations.declarations.len(), 2);
+        assert!(matches!(rule.declarations.declarations[0], Property::Unparsed(_)));
+        assert_eq!(rule.declarations.declarations[0].property_id().name(), "*zoom");
+      }
       rule => panic!("expected style rule, got {rule:?}"),
     }
 
@@ -30003,7 +30008,7 @@ mod tests {
   }
 
   #[test]
-  fn test_error_recovery_invalid_declaration_raw() {
+  fn test_error_recovery_invalid_declaration_without_raw_node() {
     let source = indoc! { r#"
       a {
         text-decoration:; none;
@@ -30022,8 +30027,11 @@ mod tests {
     assert_eq!(stylesheet.rules.0.len(), 1);
     match &stylesheet.rules.0[0] {
       CssRule::Style(rule) => {
-        assert_eq!(rule.declarations.declarations.len(), 2);
-        assert!(matches!(rule.declarations.declarations[1], Property::Raw(_)));
+        assert_eq!(rule.declarations.declarations.len(), 1);
+        assert_eq!(
+          rule.declarations.declarations[0].property_id().name(),
+          "text-decoration"
+        );
       }
       rule => panic!("expected style rule, got {rule:?}"),
     }

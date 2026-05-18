@@ -5,11 +5,10 @@ use std::ops::Range;
 
 use crate::context::{DeclarationContext, PropertyHandlerContext};
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::location;
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
-use crate::properties::custom::{CustomProperty, CustomPropertyName};
+use crate::properties::custom::{CustomProperty, CustomPropertyName, TokenList, UnparsedProperty};
 use crate::properties::masking::MaskHandler;
 use crate::properties::text::{Direction, UnicodeBidi};
 use crate::properties::{
@@ -35,7 +34,6 @@ use crate::properties::{
   ui::ColorSchemeHandler,
 };
 use crate::properties::{Property, PropertyId};
-use crate::rules::raw::Raw;
 use crate::selector::SelectorList;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::values::ident::DashedIdent;
@@ -86,10 +84,13 @@ impl<'i> DeclarationBlock<'i> {
     while let Some(res) = parser.next() {
       if let Err((err, raw)) = res {
         if options.error_recovery {
-          parser.parser.declarations.push(Property::Raw(Raw::from(
-            raw,
-            location(options.source_index, err.location),
-          )));
+          if let Some((property, important)) = recover_declaration(raw, options) {
+            if important {
+              parser.parser.important_declarations.push(property);
+            } else {
+              parser.parser.declarations.push(property);
+            }
+          }
           options.warn(err);
           continue;
         }
@@ -250,10 +251,6 @@ impl<'i> DeclarationBlock<'i> {
     macro_rules! handle {
       ($decls: expr, $handler: expr, $important: literal) => {
         for decl in $decls.iter() {
-          if matches!(decl, Property::Raw(_)) {
-            continue;
-          }
-
           context.is_important = $important;
           let handled = $handler.handle_property(decl, context);
 
@@ -544,6 +541,32 @@ pub(crate) fn parse_declaration<'i, 't>(
     declarations.push(property);
   }
   Ok(())
+}
+
+pub(crate) fn recover_declaration<'i>(
+  raw: &'i str,
+  options: &ParserOptions<'_, 'i>,
+) -> Option<(Property<'i>, bool)> {
+  let (name, value) = raw.split_once(':')?;
+  let name = name.trim();
+  if name.is_empty() {
+    return None;
+  }
+
+  let mut input = ParserInput::new(value);
+  let mut parser = Parser::new(&mut input);
+  let value = parser
+    .parse_until_before(Delimiter::Semicolon, |input| TokenList::parse(input, options, 0))
+    .ok()?;
+  let _ = parser.try_parse(|input| input.expect_delim(';'));
+
+  Some((
+    Property::Unparsed(UnparsedProperty {
+      property_id: PropertyId::from(CowArcStr::from(name)),
+      value,
+    }),
+    false,
+  ))
 }
 
 pub(crate) type DeclarationList<'i> = Vec<Property<'i>>;

@@ -31,10 +31,6 @@ impl<'i> Raw<'i> {
       loc,
     }
   }
-
-  pub(crate) fn declaration_text(&self) -> &str {
-    self.value.trim_end().trim_end_matches(';').trim_end()
-  }
 }
 
 impl<'i> ToCss for Raw<'i> {

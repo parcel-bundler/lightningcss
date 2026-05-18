@@ -11,7 +11,6 @@ use crate::error::ParserError;
 use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
-use crate::properties::Property;
 use crate::rules::CssRuleList;
 use crate::selector::{
   downlevel_selectors, get_prefix, is_compatible, is_pure_css_modules_selector, is_unused, SelectorList,
@@ -154,10 +153,7 @@ impl<'i, T> StyleRule<'i, T> {
     let mut hasher = ahash::AHasher::default();
     self.selectors.hash(&mut hasher);
     for (property, _) in self.declarations.iter() {
-      match property {
-        Property::Raw(raw) => raw.hash(&mut hasher),
-        _ => property.property_id().hash(&mut hasher),
-      }
+      property.property_id().hash(&mut hasher);
     }
     hasher.finish()
   }
@@ -172,11 +168,7 @@ impl<'i, T> StyleRule<'i, T> {
         .declarations
         .iter()
         .zip(other_rule.declarations.iter())
-        .all(|((a, _), (b, _))| match (a, b) {
-          (Property::Raw(a), Property::Raw(b)) => a == b,
-          (Property::Raw(_), _) | (_, Property::Raw(_)) => false,
-          _ => a.property_id() == b.property_id(),
-        })
+        .all(|((a, _), (b, _))| a.property_id() == b.property_id())
   }
 
   pub(crate) fn update_prefix(&mut self, context: &mut MinifyContext<'_, 'i>) {
