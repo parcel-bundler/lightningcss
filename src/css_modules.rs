@@ -58,10 +58,12 @@ pub struct Config {
   /// no effect on `[content-hash]`. Default is `None` (no prefix; Lightning CSS output is
   /// unchanged from prior versions).
   pub hash_prefix: Option<Cow<'static, str>>,
-  /// When `true`, the local class/ident name is appended to the hash input separated by
-  /// a NUL byte: `<prefix><relative-path>\0<local>`. This matches the per-local hashing
-  /// done by css-loader and postcss-modules — without it, every export from a given file
-  /// shares one hash. Required to reproduce legacy css-loader/postcss-modules scoped names.
+  /// When `true`, the local class/ident name is appended to the `[hash]` input separated
+  /// by a NUL byte: `<prefix><relative-path>\0<local>`. This matches the per-local
+  /// hashing done by css-loader and postcss-modules — without it, every export from a
+  /// given file shares one `[hash]`. This is separate from `[content-hash]`, which is
+  /// derived from file contents rather than from each local name. Required to reproduce
+  /// legacy css-loader/postcss-modules scoped names.
   ///
   /// Default is `false` (preserves lightningcss's per-file hashing behavior).
   pub hash_local_name: bool,

@@ -339,7 +339,8 @@ export interface CSSModulesConfig {
    */
   hashPrefix?: string,
   /**
-   * Append the local class/ident name (separated by NUL) to each hash input.
+   * Append the local class/ident name (separated by NUL) to each `[hash]` input.
+   * This is separate from `[content-hash]`, which is derived from file contents.
    * Required to reproduce legacy css-loader/postcss-modules scoped names.
    * Default: false (lightningcss hashes once per file).
    */
