@@ -616,7 +616,6 @@ struct CssModulesConfig {
   pure: Option<bool>,
   hash_prefix: Option<String>,
   hash_local_name: Option<bool>,
-  escape_scoped_names: Option<bool>,
 }
 
 #[cfg(feature = "bundler")]
@@ -738,7 +737,6 @@ fn compile<'i>(
               pure: c.pure.unwrap_or_default(),
               hash_prefix: c.hash_prefix.clone().map(std::borrow::Cow::Owned),
               hash_local_name: c.hash_local_name.unwrap_or_default(),
-              escape_scoped_names: c.escape_scoped_names.unwrap_or_default(),
             }),
           }
         } else {
@@ -872,7 +870,6 @@ fn compile_bundle<'i, 'o, P: SourceProvider, F: FnOnce(&mut StyleSheet<'i, AtRul
             pure: c.pure.unwrap_or_default(),
             hash_prefix: c.hash_prefix.clone().map(std::borrow::Cow::Owned),
             hash_local_name: c.hash_local_name.unwrap_or_default(),
-            escape_scoped_names: c.escape_scoped_names.unwrap_or_default(),
           }),
         }
       } else {

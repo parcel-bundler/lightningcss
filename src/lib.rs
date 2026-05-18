@@ -26004,7 +26004,6 @@ mod tests {
         pattern,
         hash_prefix: Some(Cow::Borrowed("\x00\x00\x00\x00")),
         hash_local_name: true,
-        escape_scoped_names: true,
         ..CssModulesConfig::default()
       };
       let mut stylesheet = StyleSheet::parse(

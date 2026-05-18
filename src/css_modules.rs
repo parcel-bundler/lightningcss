@@ -65,19 +65,6 @@ pub struct Config {
   ///
   /// Default is `false` (preserves lightningcss's per-file hashing behavior).
   pub hash_local_name: bool,
-  /// When `true`, every rendered scoped name is post-processed using the same rules as
-  /// css-loader/postcss-modules' `genericNames`:
-  ///
-  /// - Characters outside `[a-zA-Z0-9\-_ -￿]` are replaced with `-`. Notably,
-  ///   the `+` and `/` chars produced by standard base64 digests become `-`.
-  /// - A leading `-?[0-9]` or `--` is prefixed with `_` so the output is a valid CSS
-  ///   identifier even when the rendered name starts with a digit.
-  ///
-  /// The `--` prefix on dashed (custom property) idents is excluded from this processing
-  /// — it's prepended after the rendered pattern is escaped.
-  ///
-  /// Default is `false`.
-  pub escape_scoped_names: bool,
 }
 
 impl Default for Config {
@@ -92,7 +79,6 @@ impl Default for Config {
       pure: false,
       hash_prefix: None,
       hash_local_name: false,
-      escape_scoped_names: false,
     }
   }
 }
@@ -154,7 +140,8 @@ impl Pattern {
   ///   and `length` can be omitted, e.g. `[hash:base64:5]`, `[md4:hash]`, `[hash:8]`.
   ///   Recognized algorithms: `md4`, `xxhash64`. Recognized digests: `hex`, `base64`.
   ///   When the `hash` keyword is bare (`[hash]`) the default Lightning CSS hash is used;
-  ///   otherwise [hash_with_options](hash_with_options) applies.
+  ///   otherwise [hash_with_options](hash_with_options) applies, and the rendered scoped name is
+  ///   post-processed to match legacy css-loader/postcss-modules identifier output.
   pub fn parse(mut input: &str) -> Result<Self, PatternParseError> {
     let mut segments = SmallVec::new();
     let mut start_idx: usize = 0;
@@ -240,6 +227,16 @@ impl Pattern {
   /// Whether the pattern contains any `[content-hash]` segments.
   pub fn has_content_hash(&self) -> bool {
     self.segments.iter().any(|s| matches!(s, Segment::ContentHash))
+  }
+
+  /// Whether this pattern uses the extended legacy webpack/css-loader-compatible hash
+  /// syntax. These patterns need css-loader's scoped-name post-processing because digest
+  /// encodings such as base64 may include bytes that are not valid in literal CSS idents.
+  pub fn uses_legacy_compat_hash(&self) -> bool {
+    self.segments.iter().any(|s| match s {
+      Segment::Hash { algo, digest, length } => algo.is_some() || digest.is_some() || length.is_some(),
+      _ => false,
+    })
   }
 
   /// Write the substituted pattern to a destination.
@@ -462,10 +459,11 @@ impl<'a, 'c> CssModule<'a, 'c> {
     }
   }
 
-  /// Apply the css-loader/postcss-modules post-processing pipeline to a rendered scoped
-  /// name when [Config::escape_scoped_names] is set; otherwise return `s` unchanged.
+  /// Apply the legacy css-loader/postcss-modules post-processing pipeline to a rendered
+  /// scoped name when the pattern uses extended hash syntax; otherwise return `s`
+  /// unchanged.
   pub(crate) fn maybe_escape(&self, s: String) -> String {
-    if self.config.escape_scoped_names {
+    if self.config.pattern.uses_legacy_compat_hash() {
       escape_scoped_name(&s)
     } else {
       s
@@ -528,6 +526,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
 
   pub fn reference(&mut self, name: &str, source_index: u32) {
     let hash_input = self.hash_input_for(source_index, name).into_owned();
+    let should_escape = self.config.pattern.uses_legacy_compat_hash();
     match self.exports_by_source_index[source_index as usize].entry(name.into()) {
       std::collections::hash_map::Entry::Occupied(mut entry) => {
         entry.get_mut().is_referenced = true;
@@ -548,13 +547,9 @@ impl<'a, 'c> CssModule<'a, 'c> {
             },
           )
           .unwrap();
-        let escaped = if self.config.escape_scoped_names {
-          escape_scoped_name(&body)
-        } else {
-          body
-        };
+        let name = if should_escape { escape_scoped_name(&body) } else { body };
         entry.insert(CssModuleExport {
-          name: escaped,
+          name,
           composes: vec![],
           is_referenced: true,
         });
@@ -1040,6 +1035,22 @@ mod tests {
   #[test]
   fn escape_keeps_unicode_above_a0() {
     assert_eq!(escape_scoped_name("Café"), "Café");
+  }
+
+  #[test]
+  fn extended_hash_patterns_escape_scoped_names_automatically() {
+    let mut refs = HashMap::new();
+    let sources = vec!["src/styles/Alpha.module.css".to_string()];
+    {
+      let mut config = Config::default();
+      config.pattern = Pattern::parse("[md4:hash:base64:5]").unwrap();
+      let m = CssModule::new(&config, &sources, None, &mut refs, &None);
+      assert_eq!(m.maybe_escape("/ta+0".to_string()), "-ta-0");
+    }
+
+    let config = Config::default();
+    let m = CssModule::new(&config, &sources, None, &mut refs, &None);
+    assert_eq!(m.maybe_escape("/ta+0".to_string()), "/ta+0");
   }
 
   #[test]

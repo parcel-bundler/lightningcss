@@ -313,7 +313,11 @@ export interface Warning {
 }
 
 export interface CSSModulesConfig {
-  /** The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`. */
+  /**
+   * The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`.
+   * Extended hash patterns such as `[md4:hash:base64:5]` automatically apply legacy
+   * css-loader/postcss-modules scoped-name post-processing.
+   */
   pattern?: string,
   /** Whether to rename dashed identifiers, e.g. custom properties. */
   dashedIdents?: boolean,
@@ -340,14 +344,6 @@ export interface CSSModulesConfig {
    * Default: false (lightningcss hashes once per file).
    */
   hashLocalName?: boolean,
-  /**
-   * Run css-loader/postcss-modules' `genericNames` post-process on every rendered
-   * scoped name: replace any char outside `[a-zA-Z0-9\-_ -￿]` with `-`,
-   * and prefix `_` when the result starts with `-?[0-9]` or `--`. Required for
-   * standard-base64 digests like `[md4:hash:base64:5]` to produce valid CSS
-   * identifiers. Default: false.
-   */
-  escapeScopedNames?: boolean
 }
 
 export type CSSModuleExports = {
