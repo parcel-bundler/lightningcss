@@ -305,10 +305,10 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
             } else {
               ""
             },
-          )
+        )
           .unwrap();
         let scoped = css_module.maybe_escape(body);
-        css_module.add_local(&ident, &ident, source_index);
+        css_module.add_local(ident, scoped.clone(), source_index);
 
         self.col += scoped.len() as u32;
         serialize_identifier(&scoped, &mut self.dest)?;
@@ -345,7 +345,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
         let scoped = css_module.maybe_escape(body);
 
         if is_declaration {
-          css_module.add_dashed(ident, source_index);
+          css_module.add_dashed(ident, format!("--{}", scoped), source_index);
         }
 
         self.col += scoped.len() as u32;

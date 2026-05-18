@@ -470,54 +470,20 @@ impl<'a, 'c> CssModule<'a, 'c> {
     }
   }
 
-  pub fn add_local(&mut self, exported: &str, local: &str, source_index: u32) {
-    let hash_input = self.hash_input_for(source_index, local).into_owned();
-    let body = self
-      .config
-      .pattern
-      .write_to_string(
-        String::new(),
-        &hash_input,
-        &self.sources[source_index as usize],
-        local,
-        if let Some(content_hashes) = &self.content_hashes {
-          &content_hashes[source_index as usize]
-        } else {
-          ""
-        },
-      )
-      .unwrap();
-    let name = self.maybe_escape(body);
+  pub fn add_local(&mut self, exported: &str, name: String, source_index: u32) {
     self.exports_by_source_index[source_index as usize]
       .entry(exported.into())
-      .or_insert(CssModuleExport {
+      .or_insert_with(|| CssModuleExport {
         name,
         composes: vec![],
         is_referenced: false,
       });
   }
 
-  pub fn add_dashed(&mut self, local: &str, source_index: u32) {
-    let hash_input = self.hash_input_for(source_index, &local[2..]).into_owned();
-    let body = self
-      .config
-      .pattern
-      .write_to_string(
-        String::new(),
-        &hash_input,
-        &self.sources[source_index as usize],
-        &local[2..],
-        if let Some(content_hashes) = &self.content_hashes {
-          &content_hashes[source_index as usize]
-        } else {
-          ""
-        },
-      )
-      .unwrap();
-    let name = format!("--{}", self.maybe_escape(body));
+  pub fn add_dashed(&mut self, local: &str, name: String, source_index: u32) {
     self.exports_by_source_index[source_index as usize]
       .entry(local.into())
-      .or_insert(CssModuleExport {
+      .or_insert_with(|| CssModuleExport {
         name,
         composes: vec![],
         is_referenced: false,
@@ -588,34 +554,34 @@ impl<'a, 'c> CssModule<'a, 'c> {
       }
       None => {
         // Local export. Mark as used.
-        let hash_input = self.hash_input_for(source_index, &name[2..]).into_owned();
-        let body = self
-          .config
-          .pattern
-          .write_to_string(
-            String::new(),
-            &hash_input,
-            &self.sources[source_index as usize],
-            &name[2..],
-            if let Some(content_hashes) = &self.content_hashes {
-              &content_hashes[source_index as usize]
-            } else {
-              ""
-            },
-          )
-          .unwrap();
-        let scoped = format!("--{}", self.maybe_escape(body));
-        match self.exports_by_source_index[source_index as usize].entry(name.into()) {
-          std::collections::hash_map::Entry::Occupied(mut entry) => {
-            entry.get_mut().is_referenced = true;
-          }
-          std::collections::hash_map::Entry::Vacant(entry) => {
-            entry.insert(CssModuleExport {
+        if let Some(entry) = self.exports_by_source_index[source_index as usize].get_mut(name) {
+          entry.is_referenced = true;
+        } else {
+          let hash_input = self.hash_input_for(source_index, &name[2..]).into_owned();
+          let body = self
+            .config
+            .pattern
+            .write_to_string(
+              String::new(),
+              &hash_input,
+              &self.sources[source_index as usize],
+              &name[2..],
+              if let Some(content_hashes) = &self.content_hashes {
+                &content_hashes[source_index as usize]
+              } else {
+                ""
+              },
+            )
+            .unwrap();
+          let scoped = format!("--{}", self.maybe_escape(body));
+          self.exports_by_source_index[source_index as usize].insert(
+            name.into(),
+            CssModuleExport {
               name: scoped,
               composes: vec![],
               is_referenced: true,
-            });
-          }
+            },
+          );
         }
         return None;
       }
