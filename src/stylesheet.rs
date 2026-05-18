@@ -191,12 +191,13 @@ where
       match rule {
         Ok(()) => {}
         Err((e, _)) => {
-          if rule_list_parser.parser.options.error_recovery {
-            rule_list_parser.parser.options.warn(e);
+          let options = &mut rule_list_parser.parser.options;
+          if options.error_recovery {
+            options.warn(e);
             continue;
           }
 
-          return Err(Error::from(e, rule_list_parser.parser.options.filename.clone()));
+          return Err(Error::from(e, options.filename.clone()));
         }
       }
     }

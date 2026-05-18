@@ -29946,8 +29946,8 @@ mod tests {
   }
 
   #[test]
-  fn test_error_recovery_unparsed_declarations_without_recovered_rules() {
-    let source = ".a { *zoom: 1; color: red } h1(>h1) { color: red }";
+  fn test_error_recovery_unparsed_declaration() {
+    let source = ".a { *zoom: 1; color: red }";
     let stylesheet = StyleSheet::parse(
       source,
       ParserOptions {
@@ -29967,39 +29967,6 @@ mod tests {
     }
 
     assert_eq!(stylesheet.rules.0.len(), 1);
-    assert!(StyleSheet::parse(source, ParserOptions::default()).is_err());
-  }
-
-  #[test]
-  fn test_error_recovery_invalid_selector_skipped() {
-    let source = indoc! { r#"
-      invalid@selector,
-      .green {
-        text-decoration: none;
-        color: hsla(160, 100%, 37%, 1);
-        transition: 0.4s;
-        padding: 3px;
-      }
-    "#};
-
-    let stylesheet = StyleSheet::parse(
-      source,
-      ParserOptions {
-        error_recovery: true,
-        ..ParserOptions::default()
-      },
-    )
-    .unwrap();
-
-    assert_eq!(stylesheet.rules.0.len(), 1);
-    match &stylesheet.rules.0[0] {
-      CssRule::Style(rule) => {
-        assert_eq!(rule.selectors.to_css_string(PrinterOptions::default()).unwrap(), ".green");
-        assert_eq!(rule.declarations.declarations.len(), 4);
-      }
-      rule => panic!("expected style rule, got {rule:?}"),
-    }
-
     assert!(StyleSheet::parse(source, ParserOptions::default()).is_err());
   }
 
