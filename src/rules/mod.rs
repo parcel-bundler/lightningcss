@@ -51,7 +51,6 @@ pub mod namespace;
 pub mod nesting;
 pub mod page;
 pub mod property;
-pub mod raw;
 pub mod scope;
 pub mod starting_style;
 pub mod style;
@@ -93,7 +92,6 @@ use media::MediaRule;
 use namespace::NamespaceRule;
 use nesting::{NestedDeclarationsRule, NestingRule};
 use page::PageRule;
-use raw::Raw;
 use scope::ScopeRule;
 use smallvec::{smallvec, SmallVec};
 use starting_style::StartingStyleRule;
@@ -188,8 +186,6 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   ViewTransition(ViewTransitionRule<'i>),
   /// A placeholder for a rule that was removed.
   Ignored,
-  /// A raw rule recovered from invalid CSS.
-  Raw(Raw<'i>),
   /// An unknown at-rule.
   Unknown(UnknownAtRule<'i>),
   /// A custom at-rule.
@@ -358,10 +354,6 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         Ok(CssRule::ViewTransition(rule))
       }
       "ignored" => Ok(CssRule::Ignored),
-      "raw" => {
-        let rule = Raw::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
-        Ok(CssRule::Raw(rule))
-      }
       "unknown" => {
         let rule =
           UnknownAtRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
@@ -405,7 +397,6 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
       CssRule::Container(container) => container.to_css(dest),
       CssRule::Scope(scope) => scope.to_css(dest),
       CssRule::ViewTransition(rule) => rule.to_css(dest),
-      CssRule::Raw(raw) => raw.to_css(dest),
       CssRule::Unknown(unknown) => unknown.to_css(dest),
       CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError {
         kind: PrinterErrorKind::FmtError,

@@ -27,7 +27,6 @@ use crate::rules::{
   namespace::NamespaceRule,
   nesting::NestingRule,
   page::{PageRule, PageSelector},
-  raw::Raw,
   style::StyleRule,
   supports::{SupportsCondition, SupportsRule},
   unknown::UnknownAtRule,
@@ -174,12 +173,6 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> TopLevelRuleParser<'a, 
       rules: &mut self.rules,
       is_in_style_rule: false,
       allow_declarations: false,
-    }
-  }
-
-  pub(crate) fn recover_raw(&mut self, raw: &'i str, loc: Location) {
-    if !raw.trim().is_empty() {
-      self.rules.0.push(CssRule::Raw(Raw::from(raw, loc)));
     }
   }
 }
@@ -484,8 +477,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'o
         Ok(()) => {}
         Err((e, raw)) => {
           if iter.parser.options.error_recovery {
-            let loc = location(iter.parser.options.source_index, e.location);
-            iter.parser.recover_raw(raw, loc, parse_declarations);
+            iter.parser.recover_declaration(raw, parse_declarations);
             iter.parser.options.warn(e);
             continue;
           }
@@ -551,7 +543,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'o
     location(self.options.source_index, start.source_location())
   }
 
-  fn recover_raw(&mut self, raw: &'i str, loc: Location, parse_declarations: bool) {
+  fn recover_declaration(&mut self, raw: &'i str, parse_declarations: bool) {
     if raw.trim().is_empty() {
       return;
     }
@@ -564,8 +556,6 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'o
           self.declarations.push(property);
         }
       }
-    } else {
-      self.rules.0.push(CssRule::Raw(Raw::from(raw, loc)));
     }
   }
 }

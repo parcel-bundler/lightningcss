@@ -29866,8 +29866,6 @@ mod tests {
       }
     "#,
       indoc! { r#"
-      h1(>h1) {
-
       .foo {
         color: red;
       }
@@ -29878,8 +29876,6 @@ mod tests {
       }
 
       @media (hover) {
-        h1(>h1) {
-
         .bar {
           color: red;
         }
@@ -29950,7 +29946,7 @@ mod tests {
   }
 
   #[test]
-  fn test_error_recovery_raw_rules_and_unparsed_declarations() {
+  fn test_error_recovery_unparsed_declarations_without_recovered_rules() {
     let source = ".a { *zoom: 1; color: red } h1(>h1) { color: red }";
     let stylesheet = StyleSheet::parse(
       source,
@@ -29970,12 +29966,12 @@ mod tests {
       rule => panic!("expected style rule, got {rule:?}"),
     }
 
-    assert!(matches!(stylesheet.rules.0[1], CssRule::Raw(_)));
+    assert_eq!(stylesheet.rules.0.len(), 1);
     assert!(StyleSheet::parse(source, ParserOptions::default()).is_err());
   }
 
   #[test]
-  fn test_error_recovery_invalid_selector_raw() {
+  fn test_error_recovery_invalid_selector_skipped() {
     let source = indoc! { r#"
       invalid@selector,
       .green {
@@ -30008,7 +30004,7 @@ mod tests {
   }
 
   #[test]
-  fn test_error_recovery_invalid_declaration_without_raw_node() {
+  fn test_error_recovery_invalid_declaration_without_extra_node() {
     let source = indoc! { r#"
       a {
         text-decoration:; none;
