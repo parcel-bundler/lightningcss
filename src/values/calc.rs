@@ -6,7 +6,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::targets::{should_compile, Browsers};
 use crate::traits::private::AddInternal;
-use crate::traits::{IsCompatible, Parse, Sign, ToCss, TryMap, TryOp, TrySign};
+use crate::traits::{IsCompatible, Parse, Sign, ToCss, TryMap, TryOp, TrySign, Zero};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -317,6 +317,7 @@ impl<
       + TryFrom<Calc<V>>
       + TryFrom<Angle>
       + TryInto<Angle>
+      + Zero
       + Clone
       + std::fmt::Debug,
   > Parse<'i> for Calc<V>
@@ -339,6 +340,7 @@ impl<
       + TryFrom<Calc<V>>
       + TryFrom<Angle>
       + TryInto<Angle>
+      + Zero
       + Clone
       + std::fmt::Debug,
   > Calc<V>
@@ -926,7 +928,9 @@ impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
   }
 }
 
-impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V>> + std::fmt::Debug> Calc<V> {
+impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V>> + Zero + std::fmt::Debug>
+  Calc<V>
+{
   fn add_sum_terms(a: Calc<V>, b: Calc<V>) -> Result<Calc<V>, <V as std::convert::TryFrom<Calc<V>>>::Error> {
     let mut terms = Vec::new();
     Self::collect_sum_terms(a, &mut terms);
@@ -935,6 +939,10 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V
     let mut reduced: Vec<Calc<V>> = Vec::new();
     for term in terms {
       Self::push_reduced_sum_term(&mut reduced, term)?;
+    }
+
+    if reduced.is_empty() {
+      return Ok(V::zero().into());
     }
 
     if reduced.len() == 1 {
@@ -976,7 +984,10 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V
       }
     }
 
-    reduced.push(term);
+    if !Self::is_zero_term(&term) {
+      reduced.push(term);
+    }
+
     Ok(())
   }
 
@@ -995,6 +1006,14 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V
       (a, b),
       (Calc::Value(_), Calc::Value(_)) | (Calc::Number(_), Calc::Number(_))
     )
+  }
+
+  fn is_zero_term(term: &Calc<V>) -> bool {
+    match term {
+      Calc::Value(v) => v.is_zero(),
+      Calc::Number(n) => n.is_zero(),
+      _ => false,
+    }
   }
 
   pub(crate) fn add(self, other: Calc<V>) -> Result<Calc<V>, <V as TryFrom<Calc<V>>>::Error> {

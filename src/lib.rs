@@ -8129,6 +8129,10 @@ mod tests {
       ".foo { width: calc(100vw / 2 - 6px + 0px) }",
       ".foo{width:calc(50vw - 6px)}",
     );
+    minify_test(
+      ".foo { width: calc((2px + max(1em, 2vw)) - (2px + min(1px, 1vw))) }",
+      ".foo{width:calc(max(1em,2vw) - min(1px,1vw))}",
+    );
     minify_test(".foo { width: calc(1px + 1) }", ".foo{width:calc(1px + 1)}");
     minify_test(
       ".foo { width: calc( (1em - calc( 10px + 1em)) / 2) }",
