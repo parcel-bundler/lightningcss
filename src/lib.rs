@@ -8401,6 +8401,26 @@ mod tests {
       ".foo{width:calc(2*min(1px,1vmin) - min(1px,1vmin))}",
     );
     minify_test(
+      ".foo { right: calc(32px + ((min(100vw, 1724px) - 464px) / 12) + ((100vw - min(100vw - 112px, 1612px)) / 2)); }",
+      ".foo{right:calc(min(100vw,1724px)/12 + 50vw - 6.66667px + min(100vw - 112px,1612px)/-2)}",
+    );
+    minify_test(
+      ".foo { width: calc((1em + 2px) + (3px + 4em)); }",
+      ".foo{width:calc(5px + 5em)}",
+    );
+    minify_test(
+      ".foo { width: calc((1em + 2px) + (3% + 4em)); }",
+      ".foo{width:calc(2px + 3% + 5em)}",
+    );
+    minify_test(
+      ".foo { width: calc((1 + 2px) + (3 + 4px)); }",
+      ".foo{width:calc(4 + 6px)}",
+    );
+    minify_test(
+      ".foo { width: calc((1em - 2px) + (3px - 4em)); }",
+      ".foo{width:calc(1px - 3em)}",
+    );
+    minify_test(
       ".foo { width: calc(100% - clamp(1.125rem, 1.25vw, 1.2375rem) - clamp(1.125rem, 1.25vw, 1.2375rem)); }",
       ".foo{width:calc(100% - clamp(1.125rem,1.25vw,1.2375rem) - clamp(1.125rem,1.25vw,1.2375rem))}",
     );
@@ -29727,6 +29747,17 @@ mod tests {
       }
     "#,
       ParserError::UnexpectedToken(crate::properties::custom::Token::Function("var".into())),
+    );
+
+    error_test(
+      r#"
+      @property --property-name {
+        syntax: '<percentage>';
+        inherits: false;
+        initial-value: calc((1% + 2) + (3% + 4));
+      }
+    "#,
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Function("calc".into())),
     );
 
     error_test(

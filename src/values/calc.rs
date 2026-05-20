@@ -927,6 +927,76 @@ impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
 }
 
 impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V>> + std::fmt::Debug> Calc<V> {
+  fn add_sum_terms(a: Calc<V>, b: Calc<V>) -> Result<Calc<V>, <V as std::convert::TryFrom<Calc<V>>>::Error> {
+    let mut terms = Vec::new();
+    Self::collect_sum_terms(a, &mut terms);
+    Self::collect_sum_terms(b, &mut terms);
+
+    let mut reduced: Vec<Calc<V>> = Vec::new();
+    for term in terms {
+      Self::push_reduced_sum_term(&mut reduced, term)?;
+    }
+
+    if reduced.len() == 1 {
+      return Ok(reduced.pop().unwrap());
+    }
+
+    let mut terms = reduced.into_iter();
+    let mut res = terms.next().unwrap();
+    for term in terms {
+      res = Calc::Sum(Box::new(res), Box::new(term));
+    }
+    Ok(V::try_from(res)?.into())
+  }
+
+  fn push_reduced_sum_term(
+    reduced: &mut Vec<Calc<V>>,
+    mut term: Calc<V>,
+  ) -> Result<(), <V as std::convert::TryFrom<Calc<V>>>::Error> {
+    let mut i = 0;
+    while i < reduced.len() {
+      if !Self::should_try_combine_terms(&reduced[i], &term) {
+        i += 1;
+        continue;
+      }
+
+      let existing = reduced.remove(i);
+      match existing.add(term)? {
+        Calc::Sum(a, b) => {
+          // Values of the same literal kind may still be incompatible units.
+          // Keep the unchanged side, and continue trying to reduce the other.
+          reduced.insert(i, *a);
+          term = *b;
+          i += 1;
+        }
+        combined => {
+          term = combined;
+          i = 0;
+        }
+      }
+    }
+
+    reduced.push(term);
+    Ok(())
+  }
+
+  fn collect_sum_terms(calc: Calc<V>, terms: &mut Vec<Calc<V>>) {
+    match calc {
+      Calc::Sum(a, b) => {
+        Self::collect_sum_terms(*a, terms);
+        Self::collect_sum_terms(*b, terms);
+      }
+      calc => terms.push(calc),
+    }
+  }
+
+  fn should_try_combine_terms(a: &Calc<V>, b: &Calc<V>) -> bool {
+    matches!(
+      (a, b),
+      (Calc::Value(_), Calc::Value(_)) | (Calc::Number(_), Calc::Number(_))
+    )
+  }
+
   pub(crate) fn add(self, other: Calc<V>) -> Result<Calc<V>, <V as TryFrom<Calc<V>>>::Error> {
     Ok(match (self, other) {
       (Calc::Value(a), Calc::Value(b)) => (a.add(*b)).into(),
@@ -957,7 +1027,7 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V
       (a, Calc::Function(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Function(b))),
       (Calc::Value(a), b) => (a.add(V::try_from(b)?)).into(),
       (a, Calc::Value(b)) => (V::try_from(a)?.add(*b)).into(),
-      (a @ Calc::Sum(..), b @ Calc::Sum(..)) => V::try_from(a)?.add(V::try_from(b)?).into(),
+      (a @ Calc::Sum(..), b @ Calc::Sum(..)) => Self::add_sum_terms(a, b)?,
     })
   }
 }
