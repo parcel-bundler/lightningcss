@@ -106,7 +106,10 @@ pub enum ResolveResult {
   /// An external URL.
   External(String),
   /// A file path.
-  #[serde(untagged)]
+  #[cfg_attr(
+    any(feature = "serde", feature = "nodejs"),
+    serde(untagged)
+  )]
   File(PathBuf),
 }
 
