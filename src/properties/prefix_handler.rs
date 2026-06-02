@@ -97,6 +97,15 @@ macro_rules! define_fallbacks {
               let mut val = val.clone();
               $(
                 $p = context.targets.prefixes($p, Feature::$name);
+                if let Some(index) = pastey::paste! { self.[<$name:snake>] } {
+                  if let Some(Property::$name(cur, prefixes)) = dest.get_mut(index) {
+                    if *cur == val {
+                      *prefixes |= $p;
+                      *prefixes = context.targets.prefixes(*prefixes, Feature::$name);
+                      return true;
+                    }
+                  }
+                }
               )?
               if pastey::paste! { self.[<$name:snake>] }.is_none() {
                 let fallbacks = val.get_fallbacks(context.targets);
