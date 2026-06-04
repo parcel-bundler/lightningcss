@@ -315,7 +315,11 @@ export interface Warning {
 }
 
 export interface CSSModulesConfig {
-  /** The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`. */
+  /**
+   * The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`.
+   * Extended hash patterns such as `[md4:hash:base64:5]` automatically apply legacy
+   * css-loader/postcss-modules scoped-name post-processing.
+   */
   pattern?: string,
   /** Whether to rename dashed identifiers, e.g. custom properties. */
   dashedIdents?: boolean,
@@ -328,7 +332,21 @@ export interface CSSModulesConfig {
   /** Whether to enable hashing for custom identifiers. */
   customIdents?: boolean,
   /** Whether to require at least one class or id selector in each rule. */
-  pure?: boolean
+  pure?: boolean,
+  /**
+   * Prepend this string to the bytes hashed for every `[hash]` segment. Mirrors
+   * Vite/postcss-modules' `hashPrefix` option and css-loader's `hashSalt` (when
+   * set to "\x00\x00\x00\x00", lightningcss reproduces css-loader's tier-0 salt
+   * input byte-for-byte). Default: empty.
+   */
+  hashPrefix?: string,
+  /**
+   * Append the local class/ident name (separated by NUL) to each `[hash]` input.
+   * This is separate from `[content-hash]`, which is derived from file contents.
+   * Required to reproduce legacy css-loader/postcss-modules scoped names.
+   * Default: false (lightningcss hashes once per file).
+   */
+  hashLocalName?: boolean,
 }
 
 export type CSSModuleExports = {

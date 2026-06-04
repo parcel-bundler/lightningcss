@@ -290,29 +290,28 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
   pub fn write_ident(&mut self, ident: &str, handle_css_module: bool) -> Result<(), PrinterError> {
     if handle_css_module {
       if let Some(css_module) = &mut self.css_module {
-        let dest = &mut self.dest;
-        let mut first = true;
-        css_module.config.pattern.write(
-          &css_module.hashes[self.loc.source_index as usize],
-          &css_module.sources[self.loc.source_index as usize],
-          ident,
-          if let Some(content_hashes) = &css_module.content_hashes {
-            &content_hashes[self.loc.source_index as usize]
-          } else {
-            ""
-          },
-          |s| {
-            self.col += s.len() as u32;
-            if first {
-              first = false;
-              serialize_identifier(s, dest)
+        let source_index = self.loc.source_index;
+        let hash_input = css_module.hash_input_for(source_index, ident).into_owned();
+        let body = css_module
+          .config
+          .pattern
+          .write_to_string(
+            String::new(),
+            &hash_input,
+            &css_module.sources[source_index as usize],
+            ident,
+            if let Some(content_hashes) = &css_module.content_hashes {
+              &content_hashes[source_index as usize]
             } else {
-              serialize_name(s, dest)
-            }
-          },
-        )?;
+              ""
+            },
+        )
+          .unwrap();
+        let scoped = css_module.maybe_escape(body);
+        css_module.add_local(ident, scoped.clone(), source_index);
 
-        css_module.add_local(&ident, &ident, self.loc.source_index);
+        self.col += scoped.len() as u32;
+        serialize_identifier(&scoped, &mut self.dest)?;
         return Ok(());
       }
     }
@@ -326,25 +325,31 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
 
     match &mut self.css_module {
       Some(css_module) if css_module.config.dashed_idents => {
-        let dest = &mut self.dest;
-        css_module.config.pattern.write(
-          &css_module.hashes[self.loc.source_index as usize],
-          &css_module.sources[self.loc.source_index as usize],
-          &ident[2..],
-          if let Some(content_hashes) = &css_module.content_hashes {
-            &content_hashes[self.loc.source_index as usize]
-          } else {
-            ""
-          },
-          |s| {
-            self.col += s.len() as u32;
-            serialize_name(s, dest)
-          },
-        )?;
+        let source_index = self.loc.source_index;
+        let hash_input = css_module.hash_input_for(source_index, &ident[2..]).into_owned();
+        let body = css_module
+          .config
+          .pattern
+          .write_to_string(
+            String::new(),
+            &hash_input,
+            &css_module.sources[source_index as usize],
+            &ident[2..],
+            if let Some(content_hashes) = &css_module.content_hashes {
+              &content_hashes[source_index as usize]
+            } else {
+              ""
+            },
+          )
+          .unwrap();
+        let scoped = css_module.maybe_escape(body);
 
         if is_declaration {
-          css_module.add_dashed(ident, self.loc.source_index);
+          css_module.add_dashed(ident, format!("--{}", scoped), source_index);
         }
+
+        self.col += scoped.len() as u32;
+        serialize_name(&scoped, &mut self.dest)?;
       }
       _ => {
         serialize_name(&ident[2..], self)?;
