@@ -21,6 +21,10 @@ pub fn stylesheet_fixtures() -> Vec<Fixture> {
       name: "large",
       css: generated_fixture(192, 384),
     },
+    Fixture {
+      name: "conditional-run",
+      css: conditional_run_fixture(256),
+    },
   ]
 }
 
@@ -180,6 +184,64 @@ fn generated_fixture(component_count: usize, utility_count: usize) -> String {
     .unwrap();
   }
   css.push_str("}\n");
+
+  css
+}
+
+fn conditional_run_fixture(rule_count: usize) -> String {
+  let mut css = String::with_capacity(rule_count * 720);
+
+  for i in 0..rule_count {
+    let hue = (i * 17) % 360;
+    writeln!(
+      css,
+      r#"
+@media (min-width: 768px) {{
+  .media-card-{i} {{
+    color: hsl({hue}deg 52% 28%);
+    display: grid;
+    gap: {gap}px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }}
+}}
+"#,
+      gap = 8 + (i % 12),
+    )
+    .unwrap();
+  }
+
+  for i in 0..rule_count {
+    let width = 420 + (i % 24);
+    writeln!(
+      css,
+      r#"
+
+@supports (container-type: inline-size) {{
+  .supports-card-{i} {{
+    container-type: inline-size;
+    inline-size: min(100%, {width}px);
+  }}
+}}
+"#,
+    )
+    .unwrap();
+  }
+
+  for i in 0..rule_count {
+    writeln!(
+      css,
+      r#"
+
+@container (min-width: 32rem) {{
+  .container-card-{i} {{
+    padding: {padding}px;
+  }}
+}}
+"#,
+      padding = 12 + (i % 10),
+    )
+    .unwrap();
+  }
 
   css
 }
