@@ -126,6 +126,25 @@ macro_rules! define_fallbacks {
                 pastey::paste! { self.[<$name:snake>] = Some(dest.len()) };
                 dest.push(Property::$name(val $(, $p)?));
               } else if let Some(index) = pastey::paste! { self.[<$name:snake>] } {
+                $(
+                  if let Some(Property::$name(_, prefixes)) = dest.get_mut(index) {
+                    if prefixes.intersects($p) {
+                      let mut remaining_prefixes = *prefixes;
+                      remaining_prefixes.remove($p);
+                      if remaining_prefixes.is_empty() {
+                        dest[index] = Property::$name(val, $p);
+                      } else {
+                        *prefixes = remaining_prefixes;
+                        pastey::paste! { self.[<$name:snake>] = Some(dest.len()) };
+                        dest.push(Property::$name(val, $p));
+                      }
+                    } else {
+                      pastey::paste! { self.[<$name:snake>] = Some(dest.len()) };
+                      dest.push(Property::$name(val, $p));
+                    }
+                    return true;
+                  }
+                )?
                 dest[index] = Property::$name(val $(, $p)?);
               }
             }
