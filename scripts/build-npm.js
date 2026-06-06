@@ -41,6 +41,9 @@ const triples = [
   },
   {
     name: 'aarch64-linux-android'
+  },
+  {
+    name: 'aarch64-unknown-linux-ohos'
   }
 ];
 const cpuToNodeArch = {
