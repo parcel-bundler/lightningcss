@@ -470,7 +470,7 @@ fn try_parse_color_token<'i, 't>(
   input: &mut Parser<'i, 't>,
 ) -> Option<CssColor> {
   match_ignore_ascii_case! { &*f,
-    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" => {
+    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" | "contrast-color" => {
       let s = input.state();
       input.reset(&state);
       if let Ok(color) = CssColor::parse(input) {
@@ -1103,6 +1103,9 @@ impl<'i> TokenList<'i> {
               features |= light.get_features();
               features |= dark.get_features();
             }
+            UnresolvedColor::ContrastColor { value } => {
+              features |= value.get_features();
+            }
             _ => {}
           }
         }
@@ -1490,6 +1493,13 @@ pub enum UnresolvedColor<'i> {
     /// The dark value.
     dark: TokenList<'i>,
   },
+  /// The contrast-color() function.
+  /// https://drafts.csswg.org/css-color-5/#contrast-color
+  #[cfg_attr(feature = "serde", serde(rename = "contrast-color"))]
+  ContrastColor {
+    /// contrast-color( <color> )
+    value: TokenList<'i>,
+  },
 }
 
 impl<'i> LightDarkColor for UnresolvedColor<'i> {
@@ -1544,6 +1554,19 @@ impl<'i> UnresolvedColor<'i> {
           input.expect_comma()?;
           let dark = TokenList::parse(input, options, 0)?;
           Ok(UnresolvedColor::LightDark { light, dark })
+        })
+      },
+      "contrast-color" => {
+        input.parse_nested_block(|input| {
+          let value = TokenList::parse(input, options, 0)?;
+          let value = match value.0.as_slice() {
+            [TokenOrValue::Color(CssColor::ContrastColor(inner))] => {
+              TokenList(vec![TokenOrValue::Color((**inner).clone())])
+            }
+            [TokenOrValue::UnresolvedColor(UnresolvedColor::ContrastColor { value })] => value.clone(),
+            _ => value,
+          };
+          Ok(UnresolvedColor::ContrastColor { value })
         })
       },
       _ => Err(input.new_custom_error(ParserError::InvalidValue))
@@ -1620,6 +1643,11 @@ impl<'i> UnresolvedColor<'i> {
         light.to_css(dest, is_custom_property)?;
         dest.delim(',', false)?;
         dark.to_css(dest, is_custom_property)?;
+        dest.write_char(')')
+      }
+      UnresolvedColor::ContrastColor { value } => {
+        dest.write_str("contrast-color(")?;
+        value.to_css(dest, is_custom_property)?;
         dest.write_char(')')
       }
     }
