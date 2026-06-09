@@ -719,6 +719,15 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
 
           style.update_prefix(context);
 
+          // Snapshot declarations before attempting a merge. merge_style_rules drains
+          // style.declarations into the previous rule, which would leave the incompatible
+          // selector clones (created below) with empty declarations.
+          let incompatible_declarations = if !incompatible.is_empty() {
+            Some(style.declarations.clone())
+          } else {
+            None
+          };
+
           // Attempt to merge the new rule with the last rule we added.
           let mut merged = false;
           if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
@@ -754,6 +763,10 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
               let list = SelectorList::new(smallvec![selector]);
               let mut clone = style.clone();
               clone.selectors = list;
+              // Restore the pre-merge declarations: the merge may have drained them.
+              if let Some(ref saved) = incompatible_declarations {
+                clone.declarations = saved.clone();
+              }
               clone.update_prefix(context);
 
               // Also add rules for logical properties and @supports overrides.
