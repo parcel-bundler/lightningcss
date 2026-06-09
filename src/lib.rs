@@ -19335,8 +19335,8 @@ mod tests {
     );
 
     // Supplementary testing
-    // TODO: 目前的 calc 不支持除数为 0，导致 alpha / 0 报错，而 alpha / 1 可以通过。
-    // 依赖：https://github.com/parcel-bundler/lightningcss/pull/1122
+    // TODO: calc does not support division by zero yet, so `alpha / 0` fails while `alpha / 1` works.
+    // Depends on: https://github.com/parcel-bundler/lightningcss/pull/1122
     // test(
     //   "alpha(from green / calc(alpha / 0))",
     //   "rgb(0, 128, 0)",
@@ -19390,6 +19390,7 @@ mod tests {
     // Supplementary testing
     // nested alpha() precision.
     test("alpha(from alpha(from red / 0.5) / calc(alpha + 0.25))", "#ff0000bf");
+    test("alpha(from alpha(from red / -0.5) / calc(alpha + 0.6))", "#f009");
     test("alpha(from alpha(from green / 0%) / 100%)", "green");
 
     // Unresolved relative colors keep their tokens.
@@ -19432,9 +19433,33 @@ mod tests {
       "color(from alpha(from color(display-p3 1 0 0) / 0.5) display-p3 r g b / alpha)",
       "color(display-p3 1 0 0 / 0.5)",
     );
+    test(
+      "color(from alpha(from red / 1.5) srgb r g b / calc(alpha - 0.2))",
+      "color(srgb 1 0 0 / 0.8)", // alpha = 1 - 0.2
+    );
 
-    // TODO：添加一个带有 fallback 的输出，需要设置浏览器为较旧的版本
-    // 最终输出：.foo{color:#ff0f0e;color:color(display-p3 1 0 0)}
+    // Test in image()
+    minify_test(
+      ".foo { mask: image(alpha(from red / 1))}",
+      ".foo{mask:image(red)}",
+    );
+
+    // Test in linear-gradient()
+    minify_test(
+      ".foo { mask: linear-gradient(90deg, alpha(from red / 0%), red) }",
+      ".foo{mask:linear-gradient(90deg,#f000,red)}",
+    );
+    // Compare relative color
+    // TODO: Support <color-interpolation-method>
+    minify_test(
+      ".foo { mask: linear-gradient(90deg in hsl longer hue, rgb(from red r g b / 0), red) }",
+      ".foo{mask:linear-gradient(90deg in hsl longer hue, #f000, red)}",
+    );
+    minify_test(
+      ".foo { mask: linear-gradient(90deg in hsl longer hue, alpha(from red / 0%), red) }",
+      ".foo{mask:linear-gradient(90deg in hsl longer hue, #f000, red)}",
+    );
+
     minify_test(
       ".foo { color: alpha(from color(display-p3 1 0 0) / 0.5) }",
       ".foo{color:color(display-p3 1 0 0/.5)}",
@@ -21215,6 +21240,36 @@ mod tests {
         ".foo{color:#fff}",
       );
     }
+  }
+
+  #[test]
+  fn test_relative_alpha_color_fallbacks() {
+    prefix_test(
+      ".foo { color: alpha(from color(srgb 1 0 0) / 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #ff000080;
+          color: color(srgb 1 0 0 / .5);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { color: alpha(from color(display-p3 1 0 0) / 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #ff0f0e80;
+          color: color(display-p3 1 0 0 / .5);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]

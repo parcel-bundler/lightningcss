@@ -794,7 +794,7 @@ impl RelativeComponentParser {
     }
   }
 
-  fn alpha(alpha: f32) -> Self {
+  fn alpha_only(alpha: f32) -> Self {
     Self {
       names: ("", "", ""),
       components: (0.0, 0.0, 0.0, alpha),
@@ -1272,15 +1272,15 @@ fn parse_relative_alpha_from<'i, 't>(
     return Ok(CssColor::LightDark(Box::new(light), Box::new(dark)));
   }
 
-  let alpha = from.alpha().map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
+  let from_alpha = from.alpha().map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
   let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
     let parser = ComponentParser {
       allow_none: true,
-      from: Some(RelativeComponentParser::alpha(alpha)),
+      from: Some(RelativeComponentParser::alpha_only(from_alpha)),
     };
     parse_number_or_percentage(input, &parser, 1.0)?.clamp(0.0, 1.0)
   } else {
-    alpha
+    from_alpha
   };
 
   Ok(from.with_alpha(alpha))
