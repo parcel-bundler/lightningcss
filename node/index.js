@@ -14,10 +14,29 @@ if (process.platform === 'linux') {
 }
 
 let native;
+let platformKey = parts.join('-');
+let packageName = `lightningcss-${platformKey}`;
+let localName = `../lightningcss.${platformKey}.node`;
 try {
-  native = require(`lightningcss-${parts.join('-')}`);
-} catch (err) {
-  native = require(`../lightningcss.${parts.join('-')}.node`);
+  native = require(packageName);
+} catch (packageError) {
+  try {
+    native = require(localName);
+  } catch (localError) {
+    let error = new Error(
+      `Unable to load the Lightning CSS native binding for ${platformKey}. ` +
+      `Tried ${packageName} and ${localName}. ` +
+      `This usually means the optional dependency for your platform was not installed. ` +
+      `Try reinstalling with optional dependencies enabled, or install ${packageName} directly.\n\n` +
+      `Original errors:\n` +
+      `- ${packageName}: ${packageError.message}\n` +
+      `- ${localName}: ${localError.message}`
+    );
+    error.code = localError.code || packageError.code;
+    error.errors = [packageError, localError];
+    error.cause = packageError;
+    throw error;
+  }
 }
 
 module.exports.transform = wrap(native.transform);
