@@ -121,6 +121,8 @@ impl ToCss for Angle {
       }
       Angle::Turn(val) => (*val, "turn"),
     };
+    // Canonicalize negative zero so serialization is stable (`0deg` instead of `-0deg`).
+    let value = if value == 0.0 { 0.0 } else { value };
 
     serialize_dimension(value, unit, dest)
   }

@@ -48,6 +48,9 @@ pub mod visitor;
 mod serialization;
 
 #[cfg(test)]
+mod test_helpers;
+
+#[cfg(test)]
 mod tests {
   use crate::css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, CssModuleReferences};
   use crate::dependencies::Dependency;
@@ -59,6 +62,7 @@ mod tests {
   use crate::rules::Location;
   use crate::stylesheet::*;
   use crate::targets::{Browsers, Features, Targets};
+  use crate::test_helpers::panic_with_test_error;
   use crate::traits::{Parse, ToCss};
   use crate::values::color::CssColor;
   use crate::vendor_prefix::VendorPrefix;
@@ -68,79 +72,141 @@ mod tests {
   use std::collections::HashMap;
   use std::sync::{Arc, RwLock};
 
+  #[track_caller]
   fn test(source: &str, expected: &str) {
     test_with_options(source, expected, ParserOptions::default())
   }
 
-  fn test_with_options<'i, 'o>(source: &'i str, expected: &'i str, options: ParserOptions<'o, 'i>) {
-    let mut stylesheet = StyleSheet::parse(&source, options).unwrap();
-    stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+  #[track_caller]
+  fn test_with_options<'i>(source: &'i str, expected: &'i str, options: ParserOptions<'i>) {
+    let mut stylesheet = match StyleSheet::parse(&source, options) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("test_with_options", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
+      panic_with_test_error("test_with_options", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions::default()) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("test_with_options", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
+  fn test_with_printer_options<'i>(source: &'i str, expected: &'i str, options: PrinterOptions<'i>) {
+    let mut stylesheet = match StyleSheet::parse(&source, ParserOptions::default()) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("test_with_printer_options", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
+      panic_with_test_error("test_with_printer_options", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(options) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("test_with_printer_options", "print", source, e),
+    };
+    assert_eq!(res.code, expected);
+  }
+
+  #[track_caller]
   fn minify_test(source: &str, expected: &str) {
     minify_test_with_options(source, expected, ParserOptions::default())
   }
 
   #[track_caller]
-  fn minify_test_with_options<'i, 'o>(source: &'i str, expected: &'i str, options: ParserOptions<'o, 'i>) {
-    let mut stylesheet = StyleSheet::parse(&source, options.clone()).unwrap();
-    stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet
-      .to_css(PrinterOptions {
-        minify: true,
-        ..PrinterOptions::default()
-      })
-      .unwrap();
+  fn minify_test_with_options<'i>(source: &'i str, expected: &'i str, options: ParserOptions<'i>) {
+    minify_test_with_options_and_browsers(source, expected, options, None)
+  }
+
+  #[track_caller]
+  fn minify_test_with_options_and_browsers<'i>(
+    source: &'i str,
+    expected: &'i str,
+    options: ParserOptions<'i>,
+    browsers: Option<Browsers>,
+  ) {
+    let targets = browsers.into();
+    let mut stylesheet = match StyleSheet::parse(&source, options) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("minify_test_with_options", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions {
+      targets,
+      ..MinifyOptions::default()
+    }) {
+      panic_with_test_error("minify_test_with_options", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions {
+      minify: true,
+      targets,
+      ..PrinterOptions::default()
+    }) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("minify_test_with_options", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
-  fn minify_error_test_with_options<'i, 'o>(
-    source: &'i str,
-    error: MinifyErrorKind,
-    options: ParserOptions<'o, 'i>,
-  ) {
-    let mut stylesheet = StyleSheet::parse(&source, options.clone()).unwrap();
+  #[track_caller]
+  fn minify_error_test_with_options<'i>(source: &'i str, error: MinifyErrorKind, options: ParserOptions<'i>) {
+    let mut stylesheet = match StyleSheet::parse(&source, options) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("minify_error_test_with_options", "parse", source, e),
+    };
     match stylesheet.minify(MinifyOptions::default()) {
       Err(e) => assert_eq!(e.kind, error),
-      _ => unreachable!(),
+      Ok(()) => panic!(
+        "minify_error_test_with_options: expected minify error {:?}, but minification succeeded.\nsource:\n{source}",
+        error
+      ),
     }
   }
 
+  #[track_caller]
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
-    stylesheet
-      .minify(MinifyOptions {
-        targets: targets.into(),
-        ..MinifyOptions::default()
-      })
-      .unwrap();
-    let res = stylesheet
-      .to_css(PrinterOptions {
-        targets: targets.into(),
-        ..PrinterOptions::default()
-      })
-      .unwrap();
+    let mut stylesheet = match StyleSheet::parse(&source, ParserOptions::default()) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("prefix_test", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions {
+      targets: targets.into(),
+      ..MinifyOptions::default()
+    }) {
+      panic_with_test_error("prefix_test", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions {
+      targets: targets.into(),
+      ..PrinterOptions::default()
+    }) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("prefix_test", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn attr_test(source: &str, expected: &str, minify: bool, targets: Option<Browsers>) {
-    let mut attr = StyleAttribute::parse(source, ParserOptions::default()).unwrap();
+    let mut attr = match StyleAttribute::parse(source, ParserOptions::default()) {
+      Ok(attr) => attr,
+      Err(e) => panic_with_test_error("attr_test", "parse", source, e),
+    };
     attr.minify(MinifyOptions {
       targets: targets.into(),
       ..MinifyOptions::default()
     });
-    let res = attr
-      .to_css(PrinterOptions {
-        targets: targets.into(),
-        minify,
-        ..PrinterOptions::default()
-      })
-      .unwrap();
+    let res = match attr.to_css(PrinterOptions {
+      targets: targets.into(),
+      minify,
+      ..PrinterOptions::default()
+    }) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("attr_test", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn nesting_test(source: &str, expected: &str) {
     nesting_test_with_targets(
       source,
@@ -153,79 +219,111 @@ mod tests {
     );
   }
 
+  #[track_caller]
   fn nesting_test_with_targets(source: &str, expected: &str, targets: Targets) {
-    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
-    stylesheet
-      .minify(MinifyOptions {
-        targets,
-        ..MinifyOptions::default()
-      })
-      .unwrap();
-    let res = stylesheet
-      .to_css(PrinterOptions {
-        targets,
-        ..PrinterOptions::default()
-      })
-      .unwrap();
+    let mut stylesheet = match StyleSheet::parse(&source, ParserOptions::default()) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("nesting_test_with_targets", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions {
+      targets,
+      ..MinifyOptions::default()
+    }) {
+      panic_with_test_error("nesting_test_with_targets", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions {
+      targets,
+      ..PrinterOptions::default()
+    }) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("nesting_test_with_targets", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn nesting_test_no_targets(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
-    stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    let mut stylesheet = match StyleSheet::parse(&source, ParserOptions::default()) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("nesting_test_no_targets", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
+      panic_with_test_error("nesting_test_no_targets", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions::default()) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("nesting_test_no_targets", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
+  #[track_caller]
   fn css_modules_test<'i>(
     source: &'i str,
     expected: &str,
     expected_exports: CssModuleExports,
     expected_references: CssModuleReferences,
-    config: crate::css_modules::Config<'i>,
+    config: crate::css_modules::Config,
     minify: bool,
   ) {
-    let mut stylesheet = StyleSheet::parse(
+    let mut stylesheet = match StyleSheet::parse(
       &source,
       ParserOptions {
         filename: "test.css".into(),
         css_modules: Some(config),
         ..ParserOptions::default()
       },
-    )
-    .unwrap();
-    stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet
-      .to_css(PrinterOptions {
-        minify,
-        ..Default::default()
-      })
-      .unwrap();
+    ) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("css_modules_test", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
+      panic_with_test_error("css_modules_test", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions {
+      minify,
+      ..Default::default()
+    }) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("css_modules_test", "print", source, e),
+    };
     assert_eq!(res.code, expected);
-    assert_eq!(res.exports.unwrap(), expected_exports);
-    assert_eq!(res.references.unwrap(), expected_references);
+    match res.exports {
+      Some(exports) => assert_eq!(exports, expected_exports),
+      None => panic!("css_modules_test: expected CSS module exports, but got None.\nsource:\n{source}"),
+    }
+    match res.references {
+      Some(references) => assert_eq!(references, expected_references),
+      None => panic!("css_modules_test: expected CSS module references, but got None.\nsource:\n{source}"),
+    }
   }
 
+  #[track_caller]
   fn custom_media_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse(
+    let mut stylesheet = match StyleSheet::parse(
       &source,
       ParserOptions {
         flags: ParserFlags::CUSTOM_MEDIA,
         ..ParserOptions::default()
       },
-    )
-    .unwrap();
-    stylesheet
-      .minify(MinifyOptions {
-        targets: Browsers {
-          chrome: Some(95 << 16),
-          ..Browsers::default()
-        }
-        .into(),
-        ..MinifyOptions::default()
-      })
-      .unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    ) {
+      Ok(stylesheet) => stylesheet,
+      Err(e) => panic_with_test_error("custom_media_test", "parse", source, e),
+    };
+    if let Err(e) = stylesheet.minify(MinifyOptions {
+      targets: Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      }
+      .into(),
+      ..MinifyOptions::default()
+    }) {
+      panic_with_test_error("custom_media_test", "minify", source, e);
+    }
+    let res = match stylesheet.to_css(PrinterOptions::default()) {
+      Ok(res) => res,
+      Err(e) => panic_with_test_error("custom_media_test", "print", source, e),
+    };
     assert_eq!(res.code, expected);
   }
 
@@ -237,19 +335,37 @@ mod tests {
     }
   }
 
-  fn error_recovery_test(source: &str) {
-    let warnings = Arc::new(RwLock::default());
-    let res = StyleSheet::parse(
-      &source,
-      ParserOptions {
-        error_recovery: true,
-        warnings: Some(warnings.clone()),
-        ..Default::default()
-      },
-    );
+  fn error_test_with_options<'i>(source: &'i str, error: ParserError<'i>, options: ParserOptions<'i>) {
+    let res = StyleSheet::parse(&source, options);
     match res {
-      Ok(..) => {}
-      Err(e) => unreachable!("parser error should be recovered, but got {e:?}"),
+      Ok(_) => unreachable!(),
+      Err(e) => assert_eq!(e.kind, error),
+    }
+  }
+
+  fn error_recovery_test(source: &str) -> Vec<Error<ParserError<'_>>> {
+    let warnings = Arc::new(RwLock::default());
+    {
+      let res = StyleSheet::parse(
+        &source,
+        ParserOptions {
+          error_recovery: true,
+          warnings: Some(warnings.clone()),
+          ..Default::default()
+        },
+      );
+      match res {
+        Ok(..) => {}
+        Err(e) => unreachable!("parser error should be recovered, but got {e:?}"),
+      }
+    }
+    let warnings = match Arc::into_inner(warnings) {
+      Some(warnings) => warnings,
+      None => panic!("error_recovery_test: expected a single Arc owner for warnings"),
+    };
+    match warnings.into_inner() {
+      Ok(warnings) => warnings,
+      Err(e) => panic!("error_recovery_test: warnings lock is poisoned: {e}"),
     }
   }
 
@@ -383,6 +499,122 @@ mod tests {
       indoc! {".foo{border-spacing:-20px}"
       },
     );
+  }
+
+  #[test]
+  pub fn test_math_fn() {
+    // max()
+    minify_test(
+      r#"
+      .foo {
+        color: rgb(max(255, 100), 0, 0);
+      }
+    "#,
+      indoc! {".foo{color:red}"
+      },
+    );
+    // min()
+    minify_test(
+      r#"
+      .foo {
+        color: rgb(min(255, 500), 0, 0);
+      }
+    "#,
+      indoc! {".foo{color:red}"
+      },
+    );
+    // abs()
+    minify_test(
+      r#"
+      .foo {
+        color: rgb(abs(-255), 0, 0);
+      }
+    "#,
+      indoc! {".foo{color:red}"
+      },
+    );
+    // clamp()
+    minify_test(
+      r#"
+      .foo {
+        flex: clamp(1, 5.20, 20);
+        color: rgb(clamp(0, 255, 300), 0, 0);
+      }
+    "#,
+      indoc! {".foo{color:red;flex:5.2}"
+      },
+    );
+    // round()
+    minify_test(
+      r#"
+      .round-color {
+        color: rgb(round(down, 255.6, 1), 0, 0);
+      }
+    "#,
+      indoc! {".round-color{color:red}"
+      },
+    );
+    // hypot()
+    minify_test(
+      r#"
+      .hypot-color {
+        color: rgb(hypot(255, 0), 0, 0);
+      }
+    "#,
+      indoc! {".hypot-color{color:red}"
+      },
+    );
+    // sign(), sign(50) = 1
+    minify_test(
+      r#"
+      .sign-color {
+        color: rgb(sign(50), 0, 0);
+      }
+    "#,
+      indoc! {".sign-color{color:#010000}"
+      },
+    );
+    // rem(), rem(21, 2) = 1
+    minify_test(
+      r#"
+      .rem-color {
+        color: rgb(rem(21, 2), 0, 0);
+      }
+    "#,
+      indoc! {".rem-color{color:#010000}"
+      },
+    );
+    // max() in width
+    minify_test(
+      r#"
+      .foo {
+        width: max(200px,   5px);
+      }
+    "#,
+      indoc! {".foo{width:200px}"
+      },
+    );
+    // max() in opacity
+    minify_test(
+      r#"
+      .foo {
+        opacity: max(1, 0.2);
+        filter: invert(min(1, 0.5));
+      }
+    "#,
+      indoc! {".foo{opacity:1;filter:invert(.5)}"
+      },
+    );
+    // TODO: support calc in Integer
+    // minify_test(
+    //   r#"
+    //   .foo {
+    //     z-index: max(100,    20);
+    //   }
+    // "#,
+    //   indoc! {".foo{z-index:100}"
+    //   },
+    // );
   }
 
   #[test]
@@ -4188,11 +4420,23 @@ mod tests {
     );
     minify_test(
       ".foo { background-position: left 10px center }",
-      ".foo{background-position:10px 50%}",
+      ".foo{background-position:10px}",
     );
     minify_test(
       ".foo { background-position: right 10px center }",
       ".foo{background-position:right 10px center}",
+    );
+    minify_test(
+      ".foo { background-position: center top 10px }",
+      ".foo{background-position:50% 10px}",
+    );
+    minify_test(
+      ".foo { background-position: center bottom 10px }",
+      ".foo{background-position:center bottom 10px}",
+    );
+    minify_test(
+      ".foo { background-position: center 10px }",
+      ".foo{background-position:50% 10px}",
     );
     minify_test(
       ".foo { background-position: right 10px top 20px }",
@@ -4213,6 +4457,26 @@ mod tests {
     minify_test(
       ".foo { background-position: bottom right }",
       ".foo{background-position:100% 100%}",
+    );
+    minify_test(
+      ".foo { background-position: center top }",
+      ".foo{background-position:top}",
+    );
+    minify_test(
+      ".foo { background-position: center bottom }",
+      ".foo{background-position:bottom}",
+    );
+    minify_test(
+      ".foo { background-position: left center }",
+      ".foo{background-position:0}",
+    );
+    minify_test(
+      ".foo { background-position: right center }",
+      ".foo{background-position:100%}",
+    );
+    minify_test(
+      ".foo { background-position: 20px center }",
+      ".foo{background-position:20px}",
     );
 
     minify_test(
@@ -6475,6 +6739,82 @@ mod tests {
       ".test:where(.foo, .bar) {color:red}",
       ".test:where(.foo,.bar){color:red}",
     );
+
+    // Test scroll navigation controls pseudo-classes
+    let scroll_navigation_controls_options = ParserOptions {
+      flags: ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+      ..ParserOptions::default()
+    };
+    minify_test_with_options(
+      "a:target-current { color: green }",
+      "a:target-current{color:green}",
+      scroll_navigation_controls_options.clone(),
+    );
+    minify_test_with_options(
+      "a:target-before { color: green }",
+      "a:target-before{color:green}",
+      scroll_navigation_controls_options.clone(),
+    );
+    minify_test_with_options(
+      "a:target-after { color: green }",
+      "a:target-after{color:green}",
+      scroll_navigation_controls_options.clone(),
+    );
+    minify_test_with_options(
+      ":is(a:target-before, a:target-after) { color: green }",
+      ":is(a:target-before,a:target-after){color:green}",
+      scroll_navigation_controls_options.clone(),
+    );
+    minify_test_with_options(
+      "a:where(:target-before, :target-after) { color: green }",
+      "a:where(:target-before,:target-after){color:green}",
+      scroll_navigation_controls_options.clone(),
+    );
+    // If the browser does not support it, it will output the `:is()` selector.
+    minify_test_with_options_and_browsers(
+      "a:target-before, a:target-after { color: green }",
+      ":is(a:target-before,a:target-after){color:green}",
+      scroll_navigation_controls_options.clone(),
+      Some(Browsers {
+        chrome: Some(130 << 16),
+        ..Browsers::default()
+      }),
+    );
+    minify_test_with_options_and_browsers(
+      "a:target-before, a:target-after { color: green }",
+      "a:target-before,a:target-after{color:green}",
+      scroll_navigation_controls_options.clone(),
+      Some(Browsers {
+        chrome: Some(150 << 16),
+        ..Browsers::default()
+      }),
+    );
+
+    error_test_with_options(
+      "a::before:target-current { color: green }",
+      ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
+      ParserOptions {
+        flags: ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+        ..ParserOptions::default()
+      },
+    );
+
+    let warnings = Some(Arc::new(RwLock::new(Vec::new())));
+    let _ = StyleSheet::parse(
+      "a:target-current { color: green }",
+      ParserOptions {
+        warnings: warnings.clone(),
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+    let warnings = Arc::try_unwrap(warnings.unwrap()).unwrap().into_inner().unwrap();
+    assert_eq!(warnings.len(), 1);
+    assert_eq!(
+      warnings[0].kind,
+      ParserError::SelectorError(SelectorError::UnsupportedPseudoClass("target-current".into()))
+    );
+
     minify_test(":host {color:red}", ":host{color:red}");
     minify_test(":host(.foo) {color:red}", ":host(.foo){color:red}");
     minify_test("::slotted(span) {color:red", "::slotted(span){color:red}");
@@ -6965,6 +7305,10 @@ mod tests {
         &format!(":root::{}(.foo.bar) {{position: fixed}}", name),
         &format!(":root::{}(.foo.bar){{position:fixed}}", name),
       );
+      minify_test(
+        &format!(":root::{}(  .foo.bar  ) {{position: fixed}}", name),
+        &format!(":root::{}(.foo.bar){{position:fixed}}", name),
+      );
       error_test(
         &format!(":root::{}(foo):first-child {{position: fixed}}", name),
         ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
@@ -6998,7 +7342,56 @@ mod tests {
         ParserError::SelectorError(SelectorError::InvalidState),
       );
     }
+    minify_test(
+      "wa-checkbox:state(disabled) {color:red}",
+      "wa-checkbox:state(disabled){color:red}",
+    );
+    minify_test(
+      "button:state(checked) {background:blue}",
+      "button:state(checked){background:#00f}",
+    );
+    minify_test(
+      "input:state(custom-state) {border:1px solid}",
+      "input:state(custom-state){border:1px solid}",
+    );
+    minify_test(
+      "button:active:not(:state(disabled))::part(control) {border:1px solid}",
+      "button:active:not(:state(disabled))::part(control){border:1px solid}",
+    );
+    // Test nested CSS with :state() selector
+    nesting_test(
+      r#"
+        custom-element {
+          color: blue;
+          &:state(loading) {
+            opacity: 0.5;
+            & .spinner {
+              display: block;
+            }
+          }
+          &:state(error) {
+            border: 2px solid red;
+          }
+        }
+      "#,
+      indoc! {r#"
+        custom-element {
+          color: #00f;
+        }
 
+        custom-element:state(loading) {
+          opacity: .5;
+        }
+
+        custom-element:state(loading) .spinner {
+          display: block;
+        }
+
+        custom-element:state(error) {
+          border: 2px solid red;
+        }
+      "#},
+    );
     minify_test(".foo ::deep .bar {width: 20px}", ".foo ::deep .bar{width:20px}");
     minify_test(".foo::deep .bar {width: 20px}", ".foo::deep .bar{width:20px}");
     minify_test(".foo ::deep.bar {width: 20px}", ".foo ::deep.bar{width:20px}");
@@ -8013,7 +8406,22 @@ mod tests {
     );
     minify_test(
       ".foo { width: calc(100% - 2 (2 * var(--card-margin))); }",
-      ".foo{width:calc(100% - 2 (2*var(--card-margin)))}",
+      ".foo{width:calc(100% - 2 (2 * var(--card-margin)))}",
+    );
+
+    test(
+      indoc! {r#"
+    .test {
+      width: calc(var(--test) + 2px);
+      width: calc(var(--test) - 2px);
+    }
+    "#},
+      indoc! {r#"
+    .test {
+      width: calc(var(--test) + 2px);
+      width: calc(var(--test) - 2px);
+    }
+    "#},
     );
   }
 
@@ -8055,13 +8463,13 @@ mod tests {
     minify_test(".foo { rotate: acos(cos(45deg))", ".foo{rotate:45deg}");
     minify_test(".foo { rotate: acos(-1)", ".foo{rotate:180deg}");
     minify_test(".foo { rotate: acos(0)", ".foo{rotate:90deg}");
-    minify_test(".foo { rotate: acos(1)", ".foo{rotate:none}");
+    minify_test(".foo { rotate: acos(1)", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: acos(45deg)", ".foo{rotate:acos(45deg)}"); // invalid
     minify_test(".foo { rotate: acos(-20)", ".foo{rotate:acos(-20)}"); // evaluates to NaN
 
     minify_test(".foo { rotate: atan(tan(45deg))", ".foo{rotate:45deg}");
     minify_test(".foo { rotate: atan(1)", ".foo{rotate:45deg}");
-    minify_test(".foo { rotate: atan(0)", ".foo{rotate:none}");
+    minify_test(".foo { rotate: atan(0)", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: atan(45deg)", ".foo{rotate:atan(45deg)}"); // invalid
 
     minify_test(".foo { rotate: atan2(1px, -1px)", ".foo{rotate:135deg}");
@@ -8074,7 +8482,10 @@ mod tests {
     minify_test(".foo { rotate: atan2(0, -1)", ".foo{rotate:180deg}");
     minify_test(".foo { rotate: atan2(-1, 1)", ".foo{rotate:-45deg}");
     // incompatible units
-    minify_test(".foo { rotate: atan2(1px, -1vw)", ".foo{rotate:atan2(1px,-1vw)}");
+    minify_test(".foo { rotate: atan2(1px, -1vw)", ".foo{rotate:atan2(1px, -1vw)}");
+
+    minify_test(".foo { transform: rotate(acos(1)) }", ".foo{transform:rotate(0)}");
+    minify_test(".foo { transform: rotate(atan(0)) }", ".foo{transform:rotate(0)}");
   }
 
   #[test]
@@ -8106,7 +8517,10 @@ mod tests {
     minify_test(".foo { width: abs(1%)", ".foo{width:abs(1%)}"); // spec says percentages must be against resolved value
 
     minify_test(".foo { width: calc(10px * sign(-1vw)", ".foo{width:-10px}");
-    minify_test(".foo { width: calc(10px * sign(1%)", ".foo{width:calc(10px*sign(1%))}");
+    minify_test(
+      ".foo { width: calc(10px * sign(1%)",
+      ".foo{width:calc(10px * sign(1%))}",
+    );
   }
 
   #[test]
@@ -8341,6 +8755,70 @@ mod tests {
         ..Browsers::default()
       },
     );
+  }
+
+  #[test]
+  fn test_selector_compatibility() {
+    fn selectors(source: &str) -> crate::selector::SelectorList<'_> {
+      let stylesheet = StyleSheet::parse(
+        source,
+        ParserOptions {
+          flags: ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+          ..ParserOptions::default()
+        },
+      )
+      .unwrap();
+      match &stylesheet.rules.0[0] {
+        CssRule::Style(rule) => rule.selectors.clone(),
+        _ => unreachable!(),
+      }
+    }
+
+    let target_current = selectors("a:target-current { color: green }");
+    assert!(!crate::selector::is_compatible(
+      &target_current.0,
+      Browsers {
+        chrome: Some(134 << 16),
+        ..Browsers::default()
+      }
+      .into()
+    ));
+    assert!(crate::selector::is_compatible(
+      &target_current.0,
+      Browsers {
+        chrome: Some(135 << 16),
+        ..Browsers::default()
+      }
+      .into()
+    ));
+
+    let target_before = selectors("a:target-before { color: green }");
+    assert!(!crate::selector::is_compatible(
+      &target_before.0,
+      Browsers {
+        chrome: Some(141 << 16),
+        ..Browsers::default()
+      }
+      .into()
+    ));
+    assert!(crate::selector::is_compatible(
+      &target_before.0,
+      Browsers {
+        chrome: Some(142 << 16),
+        ..Browsers::default()
+      }
+      .into()
+    ));
+
+    let target_after = selectors("a:target-after { color: green }");
+    assert!(crate::selector::is_compatible(
+      &target_after.0,
+      Browsers {
+        chrome: Some(142 << 16),
+        ..Browsers::default()
+      }
+      .into()
+    ));
   }
 
   #[test]
@@ -9064,6 +9542,31 @@ mod tests {
       },
     );
 
+    test_with_printer_options(
+      r#"
+        @media (width < 256px) or (hover: none) {
+          .foo {
+            color: #fff;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (not (min-width: 256px)) or (hover: none) {
+          .foo {
+            color: #fff;
+          }
+        }
+      "#},
+      PrinterOptions {
+        targets: Targets {
+          browsers: None,
+          include: Features::MediaRangeSyntax,
+          exclude: Features::empty(),
+        },
+        ..Default::default()
+      },
+    );
+
     error_test(
       "@media (min-width: hi) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
@@ -9108,6 +9611,16 @@ mod tests {
       "@media (prefers-color-scheme = dark) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
     );
+    error_test(
+      "@media unknown(foo) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Function("unknown".into())),
+    );
+
+    // empty brackets should return a clearer error message
+    error_test("@media () {}", ParserError::EmptyBracketInCondition);
+    error_test("@media screen and () {}", ParserError::EmptyBracketInCondition);
+
+    error_recovery_test("@media unknown(foo) {}");
   }
 
   #[test]
@@ -12366,6 +12879,35 @@ mod tests {
 
   #[test]
   fn test_transform() {
+    test(
+      ".foo { transform: perspective(500px)translate3d(10px, 0, 20px)rotateY(30deg) }",
+      indoc! {r#"
+      .foo {
+        transform: perspective(500px) translate3d(10px, 0, 20px) rotateY(30deg);
+      }
+      "#},
+    );
+    test(
+      ".foo { transform: translate3d(12px,50%,3em)scale(2,.5) }",
+      indoc! {r#"
+      .foo {
+        transform: translate3d(12px, 50%, 3em) scale(2, .5);
+      }
+      "#},
+    );
+    test(
+      ".foo { transform:matrix(1,2,-1,1,80,80) }",
+      indoc! {r#"
+      .foo {
+        transform: matrix(1, 2, -1, 1, 80, 80);
+      }
+      "#},
+    );
+
+    minify_test(
+      ".foo { transform: scale(  0.5 )translateX(10px ) }",
+      ".foo{transform:scale(.5)translate(10px)}",
+    );
     minify_test(
       ".foo { transform: translate(2px, 3px)",
       ".foo{transform:translate(2px,3px)}",
@@ -12418,6 +12960,93 @@ mod tests {
     minify_test(".foo { transform: scale3d(1, 2, 1)", ".foo{transform:scaleY(2)}");
     minify_test(".foo { transform: scale3d(1, 1, 2)", ".foo{transform:scaleZ(2)}");
     minify_test(".foo { transform: scale3d(2, 2, 1)", ".foo{transform:scale(2)}");
+
+    // transform: scale(), Convert <percentage> to <number>
+    test(
+      ".foo { transform: scale3d(50%, 1, 200%) }",
+      indoc! {r#"
+      .foo {
+        transform: scale3d(.5, 1, 2);
+      }
+      "#},
+    );
+    minify_test(".foo { transform: scale(1%) }", ".foo{transform:scale(.01)}");
+    minify_test(".foo { transform: scale(0%) }", ".foo{transform:scale(0)}");
+    minify_test(".foo { transform: scale(0.0%) }", ".foo{transform:scale(0)}");
+    minify_test(".foo { transform: scale(-0%) }", ".foo{transform:scale(0)}");
+    minify_test(".foo { transform: scale(-0) }", ".foo{transform:scale(0)}");
+    minify_test(".foo { transform: scale(-0.0) }", ".foo{transform:scale(0)}");
+    minify_test(".foo { transform: scale(100%) }", ".foo{transform:scale(1)}");
+    minify_test(".foo { transform: scale(-100%) }", ".foo{transform:scale(-1)}");
+    minify_test(".foo { transform: scale(68%) }", ".foo{transform:scale(.68)}");
+    minify_test(".foo { transform: scale(5.96%) }", ".foo{transform:scale(.0596)}");
+    // Match WPT coverage for repeated and multi-value percentages.
+    minify_test(".foo { transform: scale(100%, 100%) }", ".foo{transform:scale(1)}");
+    minify_test(".foo { transform: scale3d(100%, 100%, 1) }", ".foo{transform:scale(1)}");
+    minify_test(".foo { transform: scale(-100%, -100%) }", ".foo{transform:scale(-1)}");
+    minify_test(
+      ".foo { transform: scale3d(-100%, -100%, 1) }",
+      ".foo{transform:scale(-1)}",
+    );
+    minify_test(".foo { transform: scale(100%, 200%) }", ".foo{transform:scaleY(2)}");
+    minify_test(
+      ".foo { transform: scale3d(100%, 200%, 1) }",
+      ".foo{transform:scaleY(2)}",
+    );
+    minify_test(
+      ".foo { transform: scale3d(100%, 100%, 0%) }",
+      ".foo{transform:scaleZ(0)}",
+    );
+    minify_test(
+      ".foo { transform: scale3d(100%, 100%, 100%) }",
+      ".foo{transform:scale(1)}",
+    );
+    minify_test(
+      ".foo { transform: scale3d(-0%, -0%, -0%) }",
+      ".foo{transform:scale3d(0,0,0)}",
+    );
+    // Additional edge cases: mixed inputs and computed percentages.
+    minify_test(".foo { transform: scale(2, 100%) }", ".foo{transform:scaleX(2)}");
+    minify_test(".foo { transform: scale(2, -50%) }", ".foo{transform:scale(2,-.5)}");
+    minify_test(".foo { transform: scale(-90%, -1) }", ".foo{transform:scale(-.9,-1)}");
+    minify_test(
+      ".foo { transform: scale(calc(10% + 20%)) }",
+      ".foo{transform:scale(.3)}",
+    );
+    minify_test(
+      ".foo { transform: scale(calc(150% - 50%), 200%) }",
+      ".foo{transform:scaleY(2)}",
+    );
+    minify_test(
+      ".foo { transform: scale(200%, calc(50% - 80%)) }",
+      ".foo{transform:scale(2,-.3)}",
+    );
+    // TODO: For infinite decimals, please do not attempt to resolve calc
+    // Expected: calc(1 / 3)
+    // https://github.com/parcel-bundler/lightningcss/issues/12
+    minify_test(
+      ".foo { transform: scale(calc(100% / 3)) }",
+      ".foo{transform:scale(.333333)}",
+    );
+    // Transform::ScaleX/Y/Z
+    minify_test(".foo { transform: scaleX(10%) }", ".foo{transform:scaleX(.1)}");
+    minify_test(".foo { transform: scaleY(20%) }", ".foo{transform:scaleY(.2)}");
+    minify_test(".foo { transform: scaleZ(30%) }", ".foo{transform:scaleZ(.3)}");
+    minify_test(".foo { transform: scaleX(0%) }", ".foo{transform:scaleX(0)}");
+    minify_test(".foo { transform: scaleX(-0%) }", ".foo{transform:scaleX(0)}");
+    minify_test(
+      ".foo { transform: scaleX(calc(10% + 20%)) }",
+      ".foo{transform:scaleX(.3)}",
+    );
+    minify_test(
+      ".foo { transform: scaleX(calc(180% - 20%)) }",
+      ".foo{transform:scaleX(1.6)}",
+    );
+    minify_test(
+      ".foo { transform: scaleX(calc(50% - 80%)) }",
+      ".foo{transform:scaleX(-.3)}",
+    );
+
     minify_test(".foo { transform: rotate(20deg)", ".foo{transform:rotate(20deg)}");
     minify_test(".foo { transform: rotateX(20deg)", ".foo{transform:rotateX(20deg)}");
     minify_test(".foo { transform: rotateY(20deg)", ".foo{transform:rotateY(20deg)}");
@@ -12555,7 +13184,6 @@ mod tests {
       ".foo{transform:rotate(calc(10deg + var(--test)))}",
       ".foo{transform:rotate(calc(10deg + var(--test)))}",
     );
-    minify_test(".foo { transform: scale(calc(10% + 20%))", ".foo{transform:scale(.3)}");
     minify_test(".foo { transform: scale(calc(.1 + .2))", ".foo{transform:scale(.3)}");
 
     minify_test(
@@ -12568,16 +13196,31 @@ mod tests {
     minify_test(".foo { translate: 1px 2px 0px }", ".foo{translate:1px 2px}");
     minify_test(".foo { translate: 1px 0px 2px }", ".foo{translate:1px 0 2px}");
     minify_test(".foo { translate: none }", ".foo{translate:none}");
+    minify_test(".foo { rotate: none }", ".foo{rotate:none}");
+    minify_test(".foo { rotate: 0deg }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: -0deg }", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: z 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: 0 0 1 10deg }", ".foo{rotate:10deg}");
     minify_test(".foo { rotate: x 10deg }", ".foo{rotate:x 10deg}");
     minify_test(".foo { rotate: 1 0 0 10deg }", ".foo{rotate:x 10deg}");
-    minify_test(".foo { rotate: y 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: 2 0 0 10deg }", ".foo{rotate:x 10deg}");
+    minify_test(".foo { rotate: 0 2 0 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: 0 0 2 10deg }", ".foo{rotate:10deg}");
+    minify_test(".foo { rotate: 0 0 5.3 10deg }", ".foo{rotate:10deg}");
+    minify_test(".foo { rotate: 0 0 1 0deg }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: 10deg 0 0 -1 }", ".foo{rotate:-10deg}");
+    minify_test(".foo { rotate: 10deg 0 0 -233 }", ".foo{rotate:-10deg}");
+    minify_test(".foo { rotate: -1 0 0 0deg }", ".foo{rotate:x 0deg}");
+    minify_test(".foo { rotate: 0deg 0 0 1 }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: 0deg 0 0 -1 }", ".foo{rotate:0deg}");
     minify_test(".foo { rotate: 0 1 0 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: x 0rad }", ".foo{rotate:x 0deg}");
+    // TODO: In minify mode, convert units to the shortest form.
+    // minify_test(".foo { rotate: y 0turn }", ".foo{rotate:y 0deg}");
+    minify_test(".foo { rotate: z 0deg }", ".foo{rotate:0deg}");
+    minify_test(".foo { rotate: 10deg y }", ".foo{rotate:y 10deg}");
     minify_test(".foo { rotate: 1 1 1 10deg }", ".foo{rotate:1 1 1 10deg}");
-    minify_test(".foo { rotate: 0 0 1 0deg }", ".foo{rotate:none}");
-    minify_test(".foo { rotate: none }", ".foo{rotate:none}");
     minify_test(".foo { scale: 1 }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 1 }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 1 1 }", ".foo{scale:1}");
@@ -12585,6 +13228,81 @@ mod tests {
     minify_test(".foo { scale: 1 0 }", ".foo{scale:1 0}");
     minify_test(".foo { scale: 1 0 1 }", ".foo{scale:1 0}");
     minify_test(".foo { scale: 1 0 0 }", ".foo{scale:1 0 0}");
+
+    // scale, Convert <percentage> to <number>
+    test(
+      ".foo { scale: 50% 1 200% }",
+      indoc! {r#"
+      .foo {
+        scale: .5 1 2;
+      }
+      "#},
+    );
+    minify_test(".foo { scale: 1% }", ".foo{scale:.01}");
+    minify_test(".foo { scale: 0% }", ".foo{scale:0}");
+    minify_test(".foo { scale: 0.0% }", ".foo{scale:0}");
+    minify_test(".foo { scale: -0% }", ".foo{scale:0}");
+    minify_test(".foo { scale: -0 }", ".foo{scale:0}");
+    minify_test(".foo { scale: -0.0 }", ".foo{scale:0}");
+    minify_test(".foo { scale: 100% }", ".foo{scale:1}");
+    minify_test(".foo { scale: -100% }", ".foo{scale:-1}");
+    minify_test(".foo { scale: 68% }", ".foo{scale:.68}");
+    minify_test(".foo { scale: 5.96% }", ".foo{scale:.0596}");
+    // Match WPT coverage for repeated and multi-value percentages.
+    minify_test(".foo { scale: 100% 100% }", ".foo{scale:1}");
+    minify_test(".foo { scale: 100% 100% 1 }", ".foo{scale:1}");
+    minify_test(".foo { scale: -100% -100% }", ".foo{scale:-1}");
+    minify_test(".foo { scale: -100% -100% 1 }", ".foo{scale:-1}");
+    minify_test(".foo { scale: 100% 200% }", ".foo{scale:1 2}");
+    minify_test(".foo { scale: 100% 200% 1 }", ".foo{scale:1 2}");
+    minify_test(".foo { scale: 100% 100% 0% }", ".foo{scale:1 1 0}");
+    minify_test(".foo { scale: 100% 100% 100% }", ".foo{scale:1}");
+    minify_test(".foo { scale: -0% -0% -0% }", ".foo{scale:0 0 0}");
+    // Additional edge cases: mixed inputs and computed percentages.
+    minify_test(".foo { scale: 2 100% }", ".foo{scale:2 1}");
+    minify_test(".foo { scale: 2 -50% }", ".foo{scale:2 -.5}");
+    minify_test(".foo { scale: -90% -1 }", ".foo{scale:-.9 -1}");
+    minify_test(".foo { scale: calc(10% + 20%) }", ".foo{scale:.3}");
+    minify_test(".foo { scale: calc(150% - 50%) 200% }", ".foo{scale:1 2}");
+    minify_test(".foo { scale: 200% calc(50% - 80%) }", ".foo{scale:2 -.3}");
+    // TODO: For infinite decimals, please do not attempt to resolve calc
+    // Expected: calc(1 / 3)
+    // https://github.com/parcel-bundler/lightningcss/issues/12
+    minify_test(".foo { scale: calc(100% / 3) }", ".foo{scale:.333333}");
+
+    assert_eq!(
+      Property::Scale(crate::properties::transform::Scale::XYZ {
+        x: crate::values::percentage::NumberOrPercentage::Percentage(crate::values::percentage::Percentage(0.5)),
+        y: crate::values::percentage::NumberOrPercentage::Percentage(crate::values::percentage::Percentage(2.0)),
+        z: crate::values::percentage::NumberOrPercentage::Percentage(crate::values::percentage::Percentage(1.0)),
+      })
+      .to_css_string(
+        false,
+        PrinterOptions {
+          minify: true,
+          ..PrinterOptions::default()
+        },
+      )
+      .unwrap(),
+      "scale:.5 2"
+    );
+    assert_eq!(
+      Property::Transform(
+        crate::properties::transform::TransformList(vec![crate::properties::transform::Transform::ScaleX(
+          crate::values::percentage::NumberOrPercentage::Percentage(crate::values::percentage::Percentage(0.1)),
+        )]),
+        VendorPrefix::None,
+      )
+      .to_css_string(
+        false,
+        PrinterOptions {
+          minify: true,
+          ..PrinterOptions::default()
+        },
+      )
+      .unwrap(),
+      "transform:scaleX(.1)"
+    );
 
     // TODO: Re-enable with a better solution
     //       See: https://github.com/parcel-bundler/lightningcss/issues/288
@@ -12683,6 +13401,10 @@ mod tests {
     minify_test(
       ".foo { background: linear-gradient(135deg, yellow, blue); }",
       ".foo{background:linear-gradient(135deg,#ff0,#00f)}",
+    );
+    minify_test(
+      ".foo { background: linear-gradient(-1.42109e-14deg, rgba(10, 132, 255, 0.14) 0%, rgba(112, 183, 255, 0.14) 100%); }",
+      ".foo{background:linear-gradient(-1.42109e-14deg,#0a84ff24 0%,#70b7ff24 100%)}",
     );
     minify_test(
       ".foo { background: linear-gradient(yellow, blue 20%, #0f0); }",
@@ -13909,7 +14631,7 @@ mod tests {
     // ref: https://github.com/parcel-bundler/lightningcss/pull/255#issuecomment-1219049998
     minify_test(
       "@font-face {src: url(\"foo.ttf\") tech(palettes  color-colrv0  variations) format(opentype);}",
-      "@font-face{src:url(foo.ttf) tech(palettes color-colrv0 variations)format(opentype)}",
+      "@font-face{src:url(foo.ttf) tech(palettes color-colrv0 variations) format(opentype)}",
     );
     // TODO(CGQAQ): make this test pass when we have strict mode
     // ref: https://github.com/web-platform-tests/wpt/blob/9f8a6ccc41aa725e8f51f4f096f686313bb88d8d/css/css-fonts/parsing/font-face-src-tech.html#L45
@@ -13931,7 +14653,7 @@ mod tests {
     // );
     minify_test(
       "@font-face {src: local(\"\") url(\"test.woff\");}",
-      "@font-face{src:local(\"\")url(test.woff)}",
+      "@font-face{src:local(\"\") url(test.woff)}",
     );
     minify_test("@font-face {font-weight: 200 400}", "@font-face{font-weight:200 400}");
     minify_test("@font-face {font-weight: 400 400}", "@font-face{font-weight:400}");
@@ -14029,7 +14751,7 @@ mod tests {
       font-family: Handover Sans;
       base-palette: 3;
       override-colors: 1 rgb(43, 12, 9), 3 var(--highlight);
-    }"#, "@font-palette-values --Cooler{font-family:Handover Sans;base-palette:3;override-colors:1 #2b0c09,3 var(--highlight)}");
+    }"#, "@font-palette-values --Cooler{font-family:Handover Sans;base-palette:3;override-colors:1 #2b0c09, 3 var(--highlight)}");
     prefix_test(
       r#"@font-palette-values --Cooler {
       font-family: Handover Sans;
@@ -14095,6 +14817,39 @@ mod tests {
       },
     );
     minify_test(".foo { font-palette: --Custom; }", ".foo{font-palette:--Custom}");
+  }
+
+  #[test]
+  fn test_position_try() {
+    minify_test(
+      r#"@position-try --outside-right-to-bottom {
+        left: anchor(left);
+        margin: 0;
+        width: auto;
+      }"#,
+      "@position-try --outside-right-to-bottom{left:anchor(left);margin:0;width:auto}",
+    );
+    test(
+      r#"@position-try --foo {
+  top: anchor(bottom);
+  left: anchor(right);
+}"#,
+      indoc! {r#"
+        @position-try --foo {
+          top: anchor(bottom);
+          left: anchor(right);
+        }
+      "#},
+    );
+    // Nested inside @supports
+    minify_test(
+      r#"@supports (anchor-name: --foo) {
+        @position-try --bar {
+          top: anchor(bottom);
+        }
+      }"#,
+      "@supports (anchor-name:--foo){@position-try --bar{top:anchor(bottom)}}",
+    );
   }
 
   #[test]
@@ -14801,6 +15556,8 @@ mod tests {
       "@layer foo; @import url(foo.css); @layer bar; @import url(bar.css)",
       ParserError::UnexpectedImportRule,
     );
+    let warnings = error_recovery_test("@import './actual-styles.css';");
+    assert_eq!(warnings, vec![]);
   }
 
   #[test]
@@ -17551,6 +18308,7 @@ mod tests {
     minify_test(".foo { color: hwb(194 50% 0%) }", ".foo{color:#80e1ff}");
     minify_test(".foo { color: hwb(194 50 0) }", ".foo{color:#80e1ff}");
     minify_test(".foo { color: hwb(194 50% 50%) }", ".foo{color:gray}");
+    minify_test(".foo { color: light-dark(#FFF, #FFF) }", ".foo{color:#fff}");
     // minify_test(".foo { color: ActiveText }", ".foo{color:ActiveTet}");
     minify_test(
       ".foo { color: lab(29.2345% 39.3825 20.0664); }",
@@ -18473,17 +19231,26 @@ mod tests {
 
   #[test]
   fn test_relative_color() {
+    #[track_caller]
     fn test(input: &str, output: &str) {
-      let output = CssColor::parse_string(output)
-        .unwrap()
-        .to_css_string(PrinterOptions {
-          minify: true,
-          ..PrinterOptions::default()
-        })
-        .unwrap();
+      let parsed = match CssColor::parse_string(output) {
+        Ok(c) => c,
+        Err(e) => panic!(
+          "test_relative_color: parse expected output failed\nerror: {e:?}\ninput: {input}\noutput: {output}",
+        ),
+      };
+      let output_css = match parsed.to_css_string(PrinterOptions {
+        minify: true,
+        ..PrinterOptions::default()
+      }) {
+        Ok(s) => s,
+        Err(e) => panic!(
+          "test_relative_color: stringify expected output failed\nerror: {e}\nerror(debug): {e:?}\ninput: {input}\noutput: {output}",
+        ),
+      };
       minify_test(
         &format!(".foo {{ color: {} }}", input),
-        &format!(".foo{{color:{}}}", output),
+        &format!(".foo{{color:{}}}", output_css),
       );
     }
 
@@ -18524,6 +19291,178 @@ mod tests {
     minify_test(
       ".foo{color:lch(from currentColor l c sin(h))}",
       ".foo{color:lch(from currentColor l c sin(h))}",
+    );
+
+    // The following tests were converted from WPT:
+    // https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/alpha-color-parsing-valid.html
+
+    // Basic usage with literal alpha.
+    test("alpha(from red / 0.5)", "rgba(255, 0, 0, 0.5)");
+    test("alpha(from blue / 1)", "rgb(0, 0, 255)");
+    test("alpha(from green / 0)", "rgba(0, 128, 0, 0)");
+
+    // Percentage alpha.
+    test("alpha(from red / 50%)", "rgba(255, 0, 0, 0.5)");
+    test("alpha(from red / 0%)", "rgba(255, 0, 0, 0)");
+    test("alpha(from red / 100%)", "rgb(255, 0, 0)");
+
+    // None alpha.
+    test("alpha(from red / none)", "rgba(255, 0, 0, 0)");
+
+    // Omitted alpha (defaults to origin's alpha).
+    test("alpha(from red)", "rgb(255, 0, 0)");
+    // test() does not support keywords such as currentcolor; change it to minify_test()
+    minify_test(
+      ".foo{color:alpha(from currentcolor)}",
+      ".foo{color:alpha(from currentcolor)}",
+    );
+
+    // Alpha keyword referencing origin's alpha.
+    minify_test(
+      ".foo{color:alpha(from currentcolor / alpha)}",
+      ".foo{color:alpha(from currentcolor / alpha)}",
+    );
+    test("alpha(from rgba(255, 0, 0, 0.8) / alpha)", "rgba(255, 0, 0, 0.8)");
+
+    // Calc with alpha keyword.
+    test(
+      "alpha(from rgba(255, 0, 0, 0.8) / calc(alpha * 0.5))",
+      "rgba(255, 0, 0, 0.4)",
+    );
+    test(
+      "alpha(from rgba(255, 0, 0, 0.8) / calc(alpha + 0.1))",
+      "rgba(255, 0, 0, 0.9)",
+    );
+
+    // Supplementary testing
+    // TODO: calc does not support division by zero yet, so `alpha / 0` fails while `alpha / 1` works.
+    // Depends on: https://github.com/parcel-bundler/lightningcss/pull/1122
+    // test(
+    //   "alpha(from green / calc(alpha / 0))",
+    //   "rgb(0, 128, 0)",
+    // );
+    test("alpha(from green / calc(alpha / 1))", "rgb(0, 128, 0)");
+
+    // Test sibling-index() and sibling-count()
+    minify_test(
+      ".foo{color:alpha(from green / sibling-index())}",
+      ".foo{color:alpha(from green / sibling-index())}",
+    );
+    minify_test(
+      ".foo{color:alpha(from green / calc(sibling-index() * 0.2))}",
+      ".foo{color:alpha(from green / calc(sibling-index() * .2))}",
+    );
+    minify_test(
+      ".foo{color:alpha(from green / sibling-count())}",
+      ".foo{color:alpha(from green / sibling-count())}",
+    );
+
+    // Nested in other color functions.
+    minify_test(
+      ".foo{color:color-mix(in srgb, alpha(from red / 0.5), blue)}",
+      ".foo{color:#5500aabf}",
+    );
+    test("rgb(from alpha(from red / 0.5) r g b / alpha)", "rgba(255, 0, 0, 0.5)");
+
+    // Other color functions as origin.
+    test("alpha(from color-mix(in srgb, red, blue) / 0.5)", "#80008080");
+    test("alpha(from rgb(from red r g b) / 0.8)", "rgba(255, 0, 0, 0.8)");
+
+    // Non-sRGB color spaces preserved.
+    test(
+      "alpha(from color(display-p3 1 0 0) / 0.5)",
+      "color(display-p3 1 0 0 / 0.5)",
+    );
+    test("alpha(from lab(50 20 -30) / 0.5)", "lab(50% 20 -30 / 0.5)");
+    test("alpha(from oklch(0.5 0.2 120) / 0.5)", "oklch(50% 0.2 120 / 0.5)");
+
+    // System and named colors.
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/system-color#syntax
+    minify_test(
+      ".foo{color:alpha(from ActiveText / 0.5)}",
+      ".foo{color:alpha(from ActiveText / .5)}",
+    );
+
+    // Out-of-range alpha values.
+    test("alpha(from red / 2)", "rgb(255, 0, 0)");
+    test("alpha(from red / -1)", "rgba(255, 0, 0, 0)");
+
+    // Supplementary testing
+    // nested alpha() precision.
+    test("alpha(from alpha(from red / 0.5) / calc(alpha + 0.25))", "#ff0000bf");
+    test("alpha(from alpha(from red / -0.5) / calc(alpha + 0.6))", "#f009");
+    test("alpha(from alpha(from green / 0%) / 100%)", "green");
+
+    // Unresolved relative colors keep their tokens.
+    minify_test(
+      ".foo{color:rgb(from alpha(from currentColor / 0.5) r g b)}",
+      ".foo{color:rgb(from alpha(from currentColor / .5) r g b)}",
+    );
+    minify_test(
+      ".foo{color:alpha(from red / var(--alpha))}",
+      ".foo{color:alpha(from red / var(--alpha))}",
+    );
+
+    // RGBA origin alpha preserve/replace.
+    test("alpha(from rgba(255, 0, 0, 0.3))", "rgba(255, 0, 0, 0.3)");
+    test("alpha(from rgba(255, 0, 0, 0.3) / 0.8)", "rgba(255, 0, 0, 0.8)");
+
+    // color(srgb) preserves its color space.
+    test("alpha(from color(srgb 1 0 0) / 50%)", "color(srgb 1 0 0 / 0.5)");
+
+    // alpha() nested in more relative color functions.
+    test("hsl(from alpha(from red / 0.5) h s l / alpha)", "rgba(255, 0, 0, 0.5)");
+    test("hwb(from alpha(from red / 0.5) h w b / alpha)", "rgba(255, 0, 0, 0.5)");
+    test(
+      "lab(from alpha(from lab(50% 20 -30) / 0.5) l a b / alpha)",
+      "lab(50% 20 -30 / 0.5)",
+    );
+    test(
+      "lch(from alpha(from lch(50% 20 30) / 0.5) l c h / alpha)",
+      "lch(50% 20 30 / 0.5)",
+    );
+    test(
+      "oklab(from alpha(from oklab(50% 0.2 -0.3) / 0.5) l a b / alpha)",
+      "oklab(50% 0.2 -0.3 / 0.5)",
+    );
+    test(
+      "oklch(from alpha(from oklch(50% 0.2 120) / 0.5) l c h / alpha)",
+      "oklch(50% 0.2 120 / 0.5)",
+    );
+    test(
+      "color(from alpha(from color(display-p3 1 0 0) / 0.5) display-p3 r g b / alpha)",
+      "color(display-p3 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from alpha(from red / 1.5) srgb r g b / calc(alpha - 0.2))",
+      "color(srgb 1 0 0 / 0.8)", // alpha = 1 - 0.2
+    );
+
+    // Test in image()
+    minify_test(
+      ".foo { mask: image(alpha(from red / 1))}",
+      ".foo{mask:image(red)}",
+    );
+
+    // Test in linear-gradient()
+    minify_test(
+      ".foo { mask: linear-gradient(90deg, alpha(from red / 0%), red) }",
+      ".foo{mask:linear-gradient(90deg,#f000,red)}",
+    );
+    // Compare relative color
+    // TODO: Support <color-interpolation-method>
+    minify_test(
+      ".foo { mask: linear-gradient(90deg in hsl longer hue, rgb(from red r g b / 0), red) }",
+      ".foo{mask:linear-gradient(90deg in hsl longer hue, #f000, red)}",
+    );
+    minify_test(
+      ".foo { mask: linear-gradient(90deg in hsl longer hue, alpha(from red / 0%), red) }",
+      ".foo{mask:linear-gradient(90deg in hsl longer hue, #f000, red)}",
+    );
+
+    minify_test(
+      ".foo { color: alpha(from color(display-p3 1 0 0) / 0.5) }",
+      ".foo{color:color(display-p3 1 0 0/.5)}",
     );
 
     // The following tests were converted from WPT: https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/relative-color-valid.html
@@ -20304,6 +21243,36 @@ mod tests {
   }
 
   #[test]
+  fn test_relative_alpha_color_fallbacks() {
+    prefix_test(
+      ".foo { color: alpha(from color(srgb 1 0 0) / 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #ff000080;
+          color: color(srgb 1 0 0 / .5);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { color: alpha(from color(display-p3 1 0 0) / 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #ff0f0e80;
+          color: color(display-p3 1 0 0 / .5);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+  }
+
+  #[test]
   fn test_color_mix() {
     minify_test(
       ".foo { color: color-mix(in lab, purple 50%, plum 50%); }",
@@ -20401,19 +21370,19 @@ mod tests {
     );
     minify_test(
       ".foo { color: color-mix(in srgb, currentColor, blue); }",
-      ".foo{color:color-mix(in srgb,currentColor,blue)}",
+      ".foo{color:color-mix(in srgb, currentColor, blue)}",
     );
     minify_test(
       ".foo { color: color-mix(in srgb, blue, currentColor); }",
-      ".foo{color:color-mix(in srgb,blue,currentColor)}",
+      ".foo{color:color-mix(in srgb, blue, currentColor)}",
     );
     minify_test(
       ".foo { color: color-mix(in srgb, accentcolor, blue); }",
-      ".foo{color:color-mix(in srgb,accentcolor,blue)}",
+      ".foo{color:color-mix(in srgb, accentcolor, blue)}",
     );
     minify_test(
       ".foo { color: color-mix(in srgb, blue, accentcolor); }",
-      ".foo{color:color-mix(in srgb,blue,accentcolor)}",
+      ".foo{color:color-mix(in srgb, blue, accentcolor)}",
     );
 
     // regex for converting web platform tests:
@@ -21928,6 +22897,214 @@ mod tests {
       ".foo{grid-template-areas:\"head head\"\"nav main\"\". .\"}",
     );
 
+    // to grid-* shorthand
+    minify_test(
+      r#"
+      .test-miss-areas {
+        grid-template-columns: 1fr 90px;
+        grid-template-rows: auto 80px;
+        grid-template-areas: "one";
+      }
+    "#,
+      ".test-miss-areas{grid-template:\"one\"\".\"80px/1fr 90px}",
+    );
+    test(
+      r#"
+      .test-miss-areas-2 {
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: 30px 60px 100px;
+        grid-template-areas: "a a a" "b c c";
+      }
+    "#,
+      indoc! { r#"
+      .test-miss-areas-2 {
+        grid-template: "a a a" 30px
+                       "b c c" 60px
+                       ". . ." 100px
+                       / 1fr 1fr 1fr;
+      }
+    "#},
+    );
+
+    test(
+      r#"
+      .test-miss-areas-3 {
+        grid-template: 30px 60px 100px / 1fr 1fr 1fr;
+        grid-template-areas: "a a a" "b c c";
+      }
+    "#,
+      indoc! { r#"
+      .test-miss-areas-3 {
+        grid-template: "a a a" 30px
+                       "b c c" 60px
+                       ". . ." 100px
+                       / 1fr 1fr 1fr;
+      }
+    "#},
+    );
+
+    test(
+      r#"
+      .test-miss-areas-4 {
+        grid: 30px 60px 100px / 1fr 1fr 1fr;
+        grid-template-areas: "a a a" "b c c";
+      }
+    "#,
+      indoc! { r#"
+      .test-miss-areas-4 {
+        grid: "a a a" 30px
+              "b c c" 60px
+              ". . ." 100px
+              / 1fr 1fr 1fr;
+      }
+    "#},
+    );
+
+    // test no unreachable error
+    minify_test(
+      r#"
+    .grid-shorthand-areas {
+      grid: auto / 1fr 3fr;
+      grid-template-areas: ". content .";
+    }
+  "#,
+      ".grid-shorthand-areas{grid:\".content.\"/1fr 3fr}",
+    );
+    minify_test(
+      r#"
+    .grid-shorthand-areas-rows {
+      grid: auto / 1fr 3fr;
+      grid-template-rows: 20px;
+      grid-template-areas: ". content .";
+    }
+  "#,
+      ".grid-shorthand-areas-rows{grid:\".content.\"20px/1fr 3fr}",
+    );
+
+    // test grid-auto-flow: row in grid shorthand
+    test(
+      r#"
+      .test-auto-flow-row-1 {
+        grid: auto-flow   /  1fr 2fr 1fr;
+        grid-template-areas: "  .   one  .  ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-row-1 {
+        grid: auto-flow / 1fr 2fr 1fr;
+        grid-template-areas: ". one .";
+      }
+    "#},
+    );
+    test(
+      r#"
+      .test-auto-flow-row-2 {
+        grid: auto-flow   auto   /  100px   100px;
+        grid-template-areas: " one  two ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-row-2 {
+        grid: auto-flow / 100px 100px;
+        grid-template-areas: "one two";
+      }
+    "#},
+    );
+    test(
+      r#"
+      .test-auto-flow-dense {
+        grid: dense auto-flow  /  1fr 2fr;
+        grid-template-areas: "  .   content  .  ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-dense {
+        grid: auto-flow dense / 1fr 2fr;
+        grid-template-areas: ". content .";
+      }
+    "#},
+    );
+    minify_test(
+      r#"
+      .grid-auto-flow-row-auto-rows {
+        grid: auto-flow 40px / 1fr 90px;
+        grid-template-areas: "a";
+      }
+    "#,
+      ".grid-auto-flow-row-auto-rows{grid:auto-flow 40px/1fr 90px;grid-template-areas:\"a\"}",
+    );
+    minify_test(
+      r#"
+      .grid-auto-flow-row-auto-rows-multiple {
+        grid: auto-flow 40px max-content / 1fr;
+        grid-template-areas: ". a";
+      }
+    "#,
+      ".grid-auto-flow-row-auto-rows-multiple{grid:auto-flow 40px max-content/1fr;grid-template-areas:\".a\"}",
+    );
+
+    // test grid-auto-flow: column in grid shorthand
+    test(
+      r#"
+      .test-auto-flow-column-1 {
+        grid: 300px / auto-flow;
+        grid-template-areas: "  .   one  .  ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-column-1 {
+        grid: 300px / auto-flow;
+        grid-template-areas: ". one .";
+      }
+    "#},
+    );
+    test(
+      r#"
+      .test-auto-flow-column-2 {
+        grid: 200px 1fr / auto-flow auto;
+        grid-template-areas: "  .   one  .  ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-column-2 {
+        grid: 200px 1fr / auto-flow;
+        grid-template-areas: ". one .";
+      }
+    "#},
+    );
+    test(
+      r#"
+      .test-auto-flow-column-dense {
+        grid: 1fr 2fr / dense auto-flow;
+        grid-template-areas: "  .   content  .  ";
+      }
+    "#,
+      indoc! { r#"
+      .test-auto-flow-column-dense {
+        grid: 1fr 2fr / auto-flow dense;
+        grid-template-areas: ". content .";
+      }
+    "#},
+    );
+    minify_test(
+      r#"
+      .grid-auto-flow-column-auto-rows {
+        grid: 1fr 3fr / auto-flow 40px;
+        grid-template-areas: "a";
+      }
+    "#,
+      ".grid-auto-flow-column-auto-rows{grid:1fr 3fr/auto-flow 40px;grid-template-areas:\"a\"}",
+    );
+    minify_test(
+      r#"
+      .grid-auto-flow-column-auto-rows-multiple {
+        grid: 1fr / auto-flow 40px max-content ;
+        grid-template-areas: ". a";
+      }
+    "#,
+      ".grid-auto-flow-column-auto-rows-multiple{grid:1fr/auto-flow 40px max-content;grid-template-areas:\".a\"}",
+    );
+
     test(
       r#"
       .foo {
@@ -22607,15 +23784,15 @@ mod tests {
     minify_test(".foo { --test: var(--foo, 20px); }", ".foo{--test:var(--foo,20px)}");
     minify_test(
       ".foo { transition: var(--foo, 20px),\nvar(--bar, 40px); }",
-      ".foo{transition:var(--foo,20px),var(--bar,40px)}",
+      ".foo{transition:var(--foo,20px), var(--bar,40px)}",
     );
     minify_test(
       ".foo { background: var(--color) var(--image); }",
-      ".foo{background:var(--color)var(--image)}",
+      ".foo{background:var(--color) var(--image)}",
     );
     minify_test(
       ".foo { height: calc(var(--spectrum-global-dimension-size-300) / 2);",
-      ".foo{height:calc(var(--spectrum-global-dimension-size-300)/2)}",
+      ".foo{height:calc(var(--spectrum-global-dimension-size-300) / 2)}",
     );
     minify_test(
       ".foo { color: var(--color, rgb(255, 255, 0)); }",
@@ -22627,11 +23804,72 @@ mod tests {
     );
     minify_test(
       ".foo { color: var(--color, rgb(var(--red), var(--green), 0)); }",
-      ".foo{color:var(--color,rgb(var(--red),var(--green),0))}",
+      ".foo{color:var(--color,rgb(var(--red), var(--green), 0))}",
     );
     minify_test(".foo { --test: .5s; }", ".foo{--test:.5s}");
     minify_test(".foo { --theme-sizes-1\\/12: 2 }", ".foo{--theme-sizes-1\\/12:2}");
     minify_test(".foo { --test: 0px; }", ".foo{--test:0px}");
+    test(
+      ".foo { transform: var(--bar, ) }",
+      indoc! {r#"
+      .foo {
+        transform: var(--bar, );
+      }
+      "#},
+    );
+    test(
+      ".foo { transform: env(--bar, ) }",
+      indoc! {r#"
+      .foo {
+        transform: env(--bar, );
+      }
+      "#},
+    );
+
+    // Test attr() function with type() syntax - minified
+    minify_test(
+      ".foo { background-color: attr(data-color type(<color>)); }",
+      ".foo{background-color:attr(data-color type(<color>))}",
+    );
+    minify_test(
+      ".foo { width: attr(data-width type(<length>), 100px); }",
+      ".foo{width:attr(data-width type(<length>), 100px)}",
+    );
+
+    minify_test(".foo { width: attr( data-foo    % ); }", ".foo{width:attr(data-foo %)}");
+
+    // <attr-args> = attr( <declaration-value>, <declaration-value>? )
+    // Like var(), a bare comma can be used with nothing following it, indicating that the second <declaration-value> was passed, just as an empty sequence.
+    // Spec: https://drafts.csswg.org/css-values-5/#funcdef-attr
+    minify_test(
+      ".foo { width: attr( data-foo    %, ); }",
+      ".foo{width:attr(data-foo %,)}",
+    );
+
+    minify_test(
+      ".foo { width: attr( data-foo    px ); }",
+      ".foo{width:attr(data-foo px)}",
+    );
+
+    minify_test(
+      ".foo { width: attr(data-foo    number ); }",
+      ".foo{width:attr(data-foo number)}",
+    );
+
+    minify_test(
+      ".foo { width: attr(data-foo    raw-string); }",
+      ".foo{width:attr(data-foo raw-string)}",
+    );
+
+    // Test attr() function with type() syntax - non-minified (issue with extra spaces)
+    test(
+      ".foo { background-color: attr(data-color type(<color>)); }",
+      ".foo {\n  background-color: attr(data-color type(<color>));\n}\n",
+    );
+    test(
+      ".foo { width: attr(data-width type(<length>), 100px); }",
+      ".foo {\n  width: attr(data-width type(<length>), 100px);\n}\n",
+    );
 
     prefix_test(
       r#"
@@ -23422,7 +24660,7 @@ mod tests {
     );
     attr_test(
       "text-decoration: var(--foo) lab(40% 56.6 39);",
-      "text-decoration:var(--foo)#b32323",
+      "text-decoration:var(--foo) #b32323",
       true,
       Some(Browsers {
         chrome: Some(90 << 16),
@@ -23433,6 +24671,58 @@ mod tests {
 
   #[test]
   fn test_nesting() {
+    nesting_test(
+      r#"
+        .foo {
+          @apply --mixin;
+          @apply --mixin-no-args();
+          @apply --mixin-args(1, 2);
+          @apply --mixin-with-empty-body {};
+          @apply --mixin-with-body {
+            color: red;
+          }
+          .bar {
+            @apply --nested;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          @apply --mixin;
+          @apply --mixin-no-args();
+          @apply --mixin-args(1, 2);
+          @apply --mixin-with-empty-body {
+            
+          }
+          @apply --mixin-with-body {
+            color: red;
+          }
+        }
+
+        .foo .bar {
+          @apply --nested;
+        }
+      "#},
+    );
+
+    minify_test(
+      r#"
+        .foo {
+          @apply --mixin;
+          @apply --mixin-no-args();
+          @apply --mixin-args(1,2);
+          @apply --mixin-with-empty-body {};
+          @apply --mixin-with-body {
+            color: red;
+          };
+          .bar {
+            @apply --nested;
+          }
+        }
+      "#,
+      ".foo{@apply --mixin;@apply --mixin-no-args();@apply --mixin-args(1,2);@apply --mixin-with-empty-body{}@apply --mixin-with-body{color: red;}& .bar{@apply --nested;}}",
+    );
+
     nesting_test(
       r#"
         .foo {
@@ -24648,7 +25938,9 @@ mod tests {
       indoc! {r#"
         div {
           color: #00f;
-          --button: focus { color: red; };
+          --button: focus {
+                    color: red;
+                  };
         }
       "#},
     );
@@ -24846,6 +26138,21 @@ mod tests {
         include: Features::Nesting,
         exclude: Features::empty(),
       },
+    );
+
+    minify_test(
+      r#"
+    .foo {
+      color: red;
+      .bar {
+        color: green;
+      }
+      color: blue;
+      .baz {
+        color: pink;
+      }
+    }"#,
+      ".foo{color:red;& .bar{color:green}color:#00f;& .baz{color:pink}}",
     );
   }
 
@@ -26306,6 +27613,8 @@ mod tests {
 
   #[test]
   fn test_svg() {
+    use crate::properties::svg;
+
     minify_test(".foo { fill: yellow; }", ".foo{fill:#ff0}");
     minify_test(".foo { fill: url(#foo); }", ".foo{fill:url(#foo)}");
     minify_test(".foo { fill: url(#foo) none; }", ".foo{fill:url(#foo) none}");
@@ -27134,6 +28443,21 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    let property =
+      Property::parse_string("text-rendering".into(), "geometricPrecision", ParserOptions::default()).unwrap();
+    assert_eq!(
+      property,
+      Property::TextRendering(svg::TextRendering::GeometricPrecision)
+    );
+    let property =
+      Property::parse_string("shape-rendering".into(), "geometricPrecision", ParserOptions::default()).unwrap();
+    assert_eq!(
+      property,
+      Property::ShapeRendering(svg::ShapeRendering::GeometricPrecision)
+    );
+    let property = Property::parse_string("color-interpolation".into(), "sRGB", ParserOptions::default()).unwrap();
+    assert_eq!(property, Property::ColorInterpolation(svg::ColorInterpolation::SRGB));
   }
 
   #[test]
@@ -27302,6 +28626,37 @@ mod tests {
         chrome: Some(4 << 16),
         ..Browsers::default()
       },
+    );
+  }
+
+  #[test]
+  fn test_mix_blend_mode() {
+    minify_test(".foo { mix-blend-mode: normal }", ".foo{mix-blend-mode:normal}");
+    minify_test(".foo { mix-blend-mode: multiply }", ".foo{mix-blend-mode:multiply}");
+    minify_test(".foo { mix-blend-mode: screen }", ".foo{mix-blend-mode:screen}");
+    minify_test(".foo { mix-blend-mode: overlay }", ".foo{mix-blend-mode:overlay}");
+    minify_test(".foo { mix-blend-mode: darken }", ".foo{mix-blend-mode:darken}");
+    minify_test(".foo { mix-blend-mode: lighten }", ".foo{mix-blend-mode:lighten}");
+    minify_test(
+      ".foo { mix-blend-mode: color-dodge }",
+      ".foo{mix-blend-mode:color-dodge}",
+    );
+    minify_test(".foo { mix-blend-mode: color-burn }", ".foo{mix-blend-mode:color-burn}");
+    minify_test(".foo { mix-blend-mode: hard-light }", ".foo{mix-blend-mode:hard-light}");
+    minify_test(".foo { mix-blend-mode: soft-light }", ".foo{mix-blend-mode:soft-light}");
+    minify_test(".foo { mix-blend-mode: difference }", ".foo{mix-blend-mode:difference}");
+    minify_test(".foo { mix-blend-mode: exclusion }", ".foo{mix-blend-mode:exclusion}");
+    minify_test(".foo { mix-blend-mode: hue }", ".foo{mix-blend-mode:hue}");
+    minify_test(".foo { mix-blend-mode: saturation }", ".foo{mix-blend-mode:saturation}");
+    minify_test(".foo { mix-blend-mode: color }", ".foo{mix-blend-mode:color}");
+    minify_test(".foo { mix-blend-mode: luminosity }", ".foo{mix-blend-mode:luminosity}");
+    minify_test(
+      ".foo { mix-blend-mode: plus-darker }",
+      ".foo{mix-blend-mode:plus-darker}",
+    );
+    minify_test(
+      ".foo { mix-blend-mode: plus-lighter }",
+      ".foo{mix-blend-mode:plus-lighter}",
     );
   }
 
@@ -28547,6 +29902,17 @@ mod tests {
       "@property --property-name{syntax:\"<length>\";inherits:true;initial-value:25px}",
     );
 
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<string>';
+        inherits: true;
+        initial-value: "hi";
+      }
+    "#,
+      "@property --property-name{syntax:\"<string>\";inherits:true;initial-value:\"hi\"}",
+    );
+
     error_test(
       r#"
       @property --property-name {
@@ -28741,6 +30107,44 @@ mod tests {
       }
     "#,
       "@property --property-name{syntax:\"<color>\";inherits:true;initial-value:#00f}.foo{color:var(--property-name)}",
+    );
+
+    test(
+      r#"
+      @media (width < 800px) {
+        @property --property-name {
+          syntax: '*';
+          inherits: false;
+        }
+      }
+    "#,
+      indoc! {r#"
+        @media (width < 800px) {
+          @property --property-name {
+            syntax: "*";
+            inherits: false
+          }
+        }
+    "#},
+    );
+
+    test(
+      r#"
+      @layer foo {
+        @property --property-name {
+          syntax: '*';
+          inherits: false;
+        }
+      }
+    "#,
+      indoc! {r#"
+        @layer foo {
+          @property --property-name {
+            syntax: "*";
+            inherits: false
+          }
+        }
+    "#},
     );
   }
 
@@ -29005,6 +30409,18 @@ mod tests {
 
   #[test]
   fn test_container_queries() {
+    // name only (no condition) - new syntax
+    minify_test(
+      r#"
+      @container foo {
+        .inner {
+          background: green;
+        }
+      }
+    "#,
+      "@container foo{.inner{background:green}}",
+    );
+
     // with name
     minify_test(
       r#"
@@ -29335,6 +30751,56 @@ mod tests {
     "#,
       "@container style(width){.foo{color:red}}",
     );
+    minify_test(
+      r#"
+      @container scroll-state(scrollable: top) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container scroll-state(scrollable:top){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container scroll-state((stuck: top) and (stuck: left)) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container scroll-state((stuck:top) and (stuck:left)){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container scroll-state(not ((scrollable: bottom) and (scrollable: right))) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container scroll-state(not ((scrollable:bottom) and (scrollable:right))){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container (scroll-state(scrollable: inline-end)) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container scroll-state(scrollable:inline-end){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container not scroll-state(scrollable: top) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container not scroll-state(scrollable:top){.foo{color:red}}",
+    );
 
     // Disallow 'none', 'not', 'and', 'or' as a `<container-name>`
     // https://github.com/w3c/csswg-drafts/issues/7203#issuecomment-1144257312
@@ -29379,6 +30845,29 @@ mod tests {
       "@container style(style(--foo: bar)) {}",
       ParserError::UnexpectedToken(crate::properties::custom::Token::Function("style".into())),
     );
+    error_test(
+      "@container scroll-state(scroll-state(scrollable: top)) {}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@container unknown(foo) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Function("unknown".into())),
+    );
+
+    // empty container (no name and no condition) should error
+    error_test("@container {}", ParserError::EndOfInput);
+
+    // empty brackets should return a clearer error message
+    error_test("@container () {}", ParserError::EmptyBracketInCondition);
+
+    // invalid condition after a name should error
+    error_test("@container foo () {}", ParserError::EmptyBracketInCondition);
+    error_test(
+      "@container foo bar {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("bar".into())),
+    );
+
+    error_recovery_test("@container unknown(foo) {}");
   }
 
   #[test]
@@ -29400,11 +30889,12 @@ mod tests {
         color: red;
       }
     }"#,
-      indoc! {r#"
-      @foo test {
-        div { color: red; }
-      }
-      "#},
+      indoc! { r#"@foo test {
+      div {
+            color: red;
+          }
+    }
+    "#},
     );
     minify_test(
       r#"@foo test {
@@ -29691,14 +31181,23 @@ mod tests {
     minify_test(".foo { color-scheme: dark light; }", ".foo{color-scheme:light dark}");
     minify_test(".foo { color-scheme: only light; }", ".foo{color-scheme:light only}");
     minify_test(".foo { color-scheme: only dark; }", ".foo{color-scheme:dark only}");
+    minify_test(".foo { color-scheme: inherit; }", ".foo{color-scheme:inherit}");
+    minify_test(":root { color-scheme: unset; }", ":root{color-scheme:unset}");
+    minify_test(".foo { color-scheme: unknow; }", ".foo{color-scheme:unknow}");
+    minify_test(".foo { color-scheme: only; }", ".foo{color-scheme:only}");
+    minify_test(".foo { color-scheme: dark foo; }", ".foo{color-scheme:dark foo}");
+    minify_test(".foo { color-scheme: normal dark; }", ".foo{color-scheme:normal dark}");
     minify_test(
       ".foo { color-scheme: dark light only; }",
       ".foo{color-scheme:light dark only}",
     );
-    minify_test(".foo { color-scheme: foo bar light; }", ".foo{color-scheme:light}");
+    minify_test(
+      ".foo { color-scheme: foo bar light; }",
+      ".foo{color-scheme:foo bar light}",
+    );
     minify_test(
       ".foo { color-scheme: only foo dark bar; }",
-      ".foo{color-scheme:dark only}",
+      ".foo{color-scheme:only foo dark bar}",
     );
     prefix_test(
       ".foo { color-scheme: dark; }",
@@ -29863,6 +31362,18 @@ mod tests {
       },
     );
     prefix_test(
+      ".foo { color: alpha(from light-dark(yellow, red) / 10%); }",
+      indoc! { r#"
+      .foo {
+        color: var(--lightningcss-light, #ffff001a) var(--lightningcss-dark, #ff00001a);
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
       ".foo { color: rgb(from light-dark(yellow, red) r g b / var(--alpha)); }",
       indoc! { r#"
       .foo {
@@ -29920,6 +31431,35 @@ mod tests {
         }),
         include: Features::empty(),
         exclude: Features::LightDark,
+      },
+    );
+  }
+
+  #[test]
+  fn test_print_color_adjust() {
+    prefix_test(
+      ".foo { print-color-adjust: exact; }",
+      indoc! { r#"
+      .foo {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      "#},
+      Browsers {
+        chrome: Some(135 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { print-color-adjust: exact; }",
+      indoc! { r#"
+      .foo {
+        print-color-adjust: exact;
+      }
+      "#},
+      Browsers {
+        chrome: Some(137 << 16),
+        ..Browsers::default()
       },
     );
   }

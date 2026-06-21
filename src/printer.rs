@@ -63,7 +63,7 @@ pub struct PseudoClasses<'a> {
 ///
 /// `Printer` also includes helper functions that assist with writing output
 /// that respects options such as `minify`, and `css_modules`.
-pub struct Printer<'a, 'b, 'c, W> {
+pub struct Printer<'a, 'c, W> {
   pub(crate) sources: Option<&'c Vec<String>>,
   dest: &'a mut W,
   #[cfg(feature = "sourcemap")]
@@ -82,14 +82,14 @@ pub struct Printer<'a, 'b, 'c, W> {
   /// the vendor prefix of whatever is being printed.
   pub(crate) vendor_prefix: VendorPrefix,
   pub(crate) in_calc: bool,
-  pub(crate) css_module: Option<CssModule<'a, 'b, 'c>>,
+  pub(crate) css_module: Option<CssModule<'a, 'c>>,
   pub(crate) dependencies: Option<Vec<Dependency>>,
   pub(crate) remove_imports: bool,
   pub(crate) pseudo_classes: Option<PseudoClasses<'a>>,
-  context: Option<&'a StyleContext<'a, 'b>>,
+  context: Option<&'a StyleContext<'a, 'c>>,
 }
 
-impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
+impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
   /// Create a new Printer wrapping the given destination.
   pub fn new(dest: &'a mut W, options: PrinterOptions<'a>) -> Self {
     Printer {
@@ -366,7 +366,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     }
   }
 
-  pub(crate) fn with_context<T, U, F: FnOnce(&mut Printer<'a, 'b, 'c, W>) -> Result<T, U>>(
+  pub(crate) fn with_context<T, U, F: FnOnce(&mut Printer<'a, 'c, W>) -> Result<T, U>>(
     &mut self,
     selectors: &SelectorList,
     f: F,
@@ -385,7 +385,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     res
   }
 
-  pub(crate) fn with_cleared_context<T, U, F: FnOnce(&mut Printer<'a, 'b, 'c, W>) -> Result<T, U>>(
+  pub(crate) fn with_cleared_context<T, U, F: FnOnce(&mut Printer<'a, 'c, W>) -> Result<T, U>>(
     &mut self,
     f: F,
   ) -> Result<T, U> {
@@ -395,7 +395,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     res
   }
 
-  pub(crate) fn with_parent_context<T, U, F: FnOnce(&mut Printer<'a, 'b, 'c, W>) -> Result<T, U>>(
+  pub(crate) fn with_parent_context<T, U, F: FnOnce(&mut Printer<'a, 'c, W>) -> Result<T, U>>(
     &mut self,
     f: F,
   ) -> Result<T, U> {
@@ -408,12 +408,12 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     res
   }
 
-  pub(crate) fn context(&self) -> Option<&'a StyleContext<'a, 'b>> {
+  pub(crate) fn context(&self) -> Option<&'a StyleContext<'a, 'c>> {
     self.context.clone()
   }
 }
 
-impl<'a, 'b, 'c, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, 'b, 'c, W> {
+impl<'a, 'b, 'c, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, 'c, W> {
   fn write_str(&mut self, s: &str) -> std::fmt::Result {
     self.col += s.len() as u32;
     self.dest.write_str(s)

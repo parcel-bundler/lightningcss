@@ -12,8 +12,8 @@ use lightningcss::stylesheet::{MinifyOptions, ParserFlags, ParserOptions, Printe
 use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 
-pub struct StyleSheetWrapper<'i, 'o> {
-  stylesheet: StyleSheet<'i, 'o>,
+pub struct StyleSheetWrapper<'i> {
+  stylesheet: StyleSheet<'i>,
   source: &'i str,
   warnings: Vec<CssError<'i>>,
 }
@@ -77,6 +77,7 @@ pub struct ParseOptions {
   filename: *const c_char,
   nesting: bool,
   custom_media: bool,
+  scroll_navigation_controls: bool,
   css_modules: bool,
   css_modules_pattern: *const c_char,
   css_modules_dashed_idents: bool,
@@ -259,6 +260,10 @@ pub extern "C" fn lightningcss_stylesheet_parse(
   let warnings = Arc::new(RwLock::new(Vec::new()));
   let mut flags = ParserFlags::empty();
   flags.set(ParserFlags::CUSTOM_MEDIA, options.custom_media);
+  flags.set(
+    ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+    options.scroll_navigation_controls,
+  );
   let opts = ParserOptions {
     filename: if options.filename.is_null() {
       String::new()
@@ -583,9 +588,7 @@ pub extern "C" fn lightningcss_error_free(error: *mut CssError) {
 }
 
 #[no_mangle]
-pub extern "C" fn lightningcss_stylesheet_get_warning_count<'i>(
-  stylesheet: *mut StyleSheetWrapper<'i, '_>,
-) -> usize {
+pub extern "C" fn lightningcss_stylesheet_get_warning_count<'i>(stylesheet: *mut StyleSheetWrapper<'i>) -> usize {
   match unsafe { stylesheet.as_mut() } {
     Some(s) => s.warnings.len(),
     None => 0,
@@ -594,7 +597,7 @@ pub extern "C" fn lightningcss_stylesheet_get_warning_count<'i>(
 
 #[no_mangle]
 pub extern "C" fn lightningcss_stylesheet_get_warning<'i>(
-  stylesheet: *mut StyleSheetWrapper<'i, '_>,
+  stylesheet: *mut StyleSheetWrapper<'i>,
   index: usize,
 ) -> *const c_char {
   let stylesheet = match unsafe { stylesheet.as_mut() } {

@@ -47,6 +47,13 @@ yarn wasm:build
 yarn wasm:build-release
 ```
 
+Note: If you plan to build the WASM target, ensure that you have the required toolchain and binaries installed.
+
+```sh
+rustup target add wasm32-unknown-unknown
+cargo install wasm-opt
+```
+
 ## Website
 
 The website is built using [Parcel](https://parceljs.org). You can start the development server by running:

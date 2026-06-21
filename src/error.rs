@@ -16,6 +16,7 @@ use std::fmt;
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 #[cfg_attr(any(feature = "serde"), derive(serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct Error<T> {
   /// The type of error that occurred.
   pub kind: T,
@@ -40,6 +41,7 @@ impl<T: fmt::Display + fmt::Debug> std::error::Error for Error<T> {}
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 #[cfg_attr(any(feature = "serde"), derive(serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct ErrorLocation {
   /// The filename in which the error occurred.
   pub filename: String,
@@ -84,6 +86,8 @@ pub enum ParserError<'i> {
   InvalidDeclaration,
   /// A media query was invalid.
   InvalidMediaQuery,
+  /// The brackets in a condition cannot be empty.
+  EmptyBracketInCondition,
   /// Invalid CSS nesting.
   InvalidNesting,
   /// The @nest rule is deprecated.
@@ -118,6 +122,7 @@ impl<'i> fmt::Display for ParserError<'i> {
       EndOfInput => write!(f, "Unexpected end of input"),
       InvalidDeclaration => write!(f, "Invalid declaration"),
       InvalidMediaQuery => write!(f, "Invalid media query"),
+      EmptyBracketInCondition => write!(f, "The brackets cannot be empty"),
       InvalidNesting => write!(f, "Invalid nesting"),
       DeprecatedNestRule => write!(f, "The @nest rule is deprecated"),
       DeprecatedCssModulesValueRule => write!(f, "The @value rule is deprecated"),

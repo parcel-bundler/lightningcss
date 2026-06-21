@@ -80,7 +80,7 @@ let {code, map} = transform({
 console.log(new TextDecoder().decode(code));
 ```
 
-Note that the `bundle` and visitor APIs are not currently available in the WASM build.
+The `bundle` and `bundleAsync` APIs are also available in the WASM build. In browsers and Deno, bundling requires a custom `resolver` to load imported files. In Node, this is handled automatically.
 
 ## With webpack
 

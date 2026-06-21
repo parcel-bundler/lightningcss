@@ -880,12 +880,12 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
   /// Returns an iterator over the entire sequence of simple selectors and
   /// combinators, in matching order (from right to left).
   #[inline]
-  pub fn iter_raw_match_order(&self) -> slice::Iter<Component<'i, Impl>> {
+  pub fn iter_raw_match_order(&self) -> slice::Iter<'_, Component<'i, Impl>> {
     self.1.iter()
   }
 
   #[inline]
-  pub fn iter_mut_raw_match_order(&mut self) -> slice::IterMut<Component<'i, Impl>> {
+  pub fn iter_mut_raw_match_order(&mut self) -> slice::IterMut<'_, Component<'i, Impl>> {
     self.1.iter_mut()
   }
 
@@ -903,7 +903,7 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
   /// combinators, in parse order (from left to right), starting from
   /// `offset`.
   #[inline]
-  pub fn iter_raw_parse_order_from(&self, offset: usize) -> Rev<slice::Iter<Component<'i, Impl>>> {
+  pub fn iter_raw_parse_order_from(&self, offset: usize) -> Rev<slice::Iter<'_, Component<'i, Impl>>> {
     self.1[..self.len() - offset].iter().rev()
   }
 
@@ -3932,6 +3932,12 @@ pub mod tests {
 
     assert!(parse("foo::details-content").is_ok());
     assert!(parse("foo::target-text").is_ok());
+    assert!(parse("foo::search-text").is_ok());
+    assert!(parse(":current::search-text").is_ok());
+
+    assert!(parse("::highlight").is_err());
+    assert!(parse("::highlight()").is_err());
+    assert!(parse("::highlight(custom-highlight-name)").is_ok());
 
     assert!(parse("select::picker").is_err());
     assert!(parse("::picker()").is_err());

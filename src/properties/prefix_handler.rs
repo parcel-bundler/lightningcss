@@ -73,6 +73,7 @@ define_prefixes! {
   ClipPath,
   BoxDecorationBreak,
   TextSizeAdjust,
+  PrintColorAdjust,
 }
 
 macro_rules! define_fallbacks {

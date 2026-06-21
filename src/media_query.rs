@@ -3,9 +3,9 @@ use crate::error::{ErrorWithLocation, MinifyError, MinifyErrorKind, ParserError,
 use crate::macros::enum_property;
 use crate::parser::starts_with_ignore_ascii_case;
 use crate::printer::Printer;
-use crate::properties::custom::EnvironmentVariable;
+use crate::properties::custom::{EnvironmentVariable, TokenList};
 #[cfg(feature = "visitor")]
-use crate::rules::container::ContainerSizeFeatureId;
+use crate::rules::container::{ContainerSizeFeatureId, ScrollStateFeatureId};
 use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
 use crate::stylesheet::ParserOptions;
@@ -53,9 +53,13 @@ impl<'i> MediaList<'i> {
   /// Parse a media query list from CSS.
   pub fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut media_queries = vec![];
+    if input.is_exhausted() {
+      return Ok(MediaList { media_queries });
+    }
+
     loop {
       match input.parse_until_before(Delimiter::Comma, |i| MediaQuery::parse_with_options(i, options)) {
         Ok(mq) => {
@@ -275,7 +279,7 @@ pub struct MediaQuery<'i> {
 impl<'i> ParseWithOptions<'i> for MediaQuery<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (qualifier, explicit_media_type) = input
       .try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
@@ -534,19 +538,29 @@ pub enum MediaCondition<'i> {
     /// The conditions for the operator.
     conditions: Vec<MediaCondition<'i>>,
   },
+  /// Unknown tokens.
+  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<TokenList>"))]
+  Unknown(TokenList<'i>),
 }
 
 /// A trait for conditions such as media queries and container queries.
 pub(crate) trait QueryCondition<'i>: Sized {
   fn parse_feature<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
   fn create_negation(condition: Box<Self>) -> Self;
   fn create_operation(operator: Operator, conditions: Vec<Self>) -> Self;
   fn parse_style_query<'t>(
     input: &mut Parser<'i, 't>,
-    _options: &ParserOptions<'_, 'i>,
+    _options: &ParserOptions<'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Err(input.new_error_for_next_token())
+  }
+
+  fn parse_scroll_state_query<'t>(
+    input: &mut Parser<'i, 't>,
+    _options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Err(input.new_error_for_next_token())
   }
@@ -558,7 +572,7 @@ impl<'i> QueryCondition<'i> for MediaCondition<'i> {
   #[inline]
   fn parse_feature<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let feature = MediaFeature::parse_with_options(input, options)?;
     Ok(Self::Feature(feature))
@@ -579,6 +593,7 @@ impl<'i> QueryCondition<'i> for MediaCondition<'i> {
       MediaCondition::Not(_) => true,
       MediaCondition::Operation { operator, .. } => Some(*operator) != parent_operator,
       MediaCondition::Feature(f) => f.needs_parens(parent_operator, targets),
+      MediaCondition::Unknown(_) => false,
     }
   }
 }
@@ -591,6 +606,8 @@ bitflags! {
     const ALLOW_OR = 1 << 0;
     /// Whether to allow style container queries.
     const ALLOW_STYLE = 1 << 1;
+    /// Whether to allow scroll state container queries.
+    const ALLOW_SCROLL_STATE = 1 << 2;
   }
 }
 
@@ -599,9 +616,18 @@ impl<'i> MediaCondition<'i> {
   fn parse_with_flags<'t>(
     input: &mut Parser<'i, 't>,
     flags: QueryConditionFlags,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    parse_query_condition(input, flags, options)
+    input
+      .try_parse(|input| parse_query_condition(input, flags, options))
+      .or_else(|e| {
+        if options.error_recovery {
+          options.warn(e);
+          Ok(MediaCondition::Unknown(TokenList::parse(input, options, 0)?))
+        } else {
+          Err(e)
+        }
+      })
   }
 
   fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
@@ -660,7 +686,7 @@ impl<'i> MediaCondition<'i> {
 impl<'i> ParseWithOptions<'i> for MediaCondition<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Self::parse_with_flags(input, QueryConditionFlags::ALLOW_OR, options)
   }
@@ -670,31 +696,47 @@ impl<'i> ParseWithOptions<'i> for MediaCondition<'i> {
 pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
   input: &mut Parser<'i, 't>,
   flags: QueryConditionFlags,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
 ) -> Result<P, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
-  let (is_negation, is_style) = match *input.next()? {
-    Token::ParenthesisBlock => (false, false),
-    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("not") => (true, false),
+  enum QueryFunction {
+    None,
+    Style,
+    ScrollState,
+  }
+
+  let (is_negation, function) = match *input.next()? {
+    Token::ParenthesisBlock => (false, QueryFunction::None),
+    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("not") => (true, QueryFunction::None),
     Token::Function(ref f)
       if flags.contains(QueryConditionFlags::ALLOW_STYLE) && f.eq_ignore_ascii_case("style") =>
     {
-      (false, true)
+      (false, QueryFunction::Style)
+    }
+    Token::Function(ref f)
+      if flags.contains(QueryConditionFlags::ALLOW_SCROLL_STATE) && f.eq_ignore_ascii_case("scroll-state") =>
+    {
+      (false, QueryFunction::ScrollState)
     }
     ref t => return Err(location.new_unexpected_token_error(t.clone())),
   };
 
-  let first_condition = match (is_negation, is_style) {
-    (true, false) => {
+  let first_condition = match (is_negation, function) {
+    (true, QueryFunction::None) => {
       let inner_condition = parse_parens_or_function(input, flags, options)?;
       return Ok(P::create_negation(Box::new(inner_condition)));
     }
-    (true, true) => {
+    (true, QueryFunction::Style) => {
       let inner_condition = P::parse_style_query(input, options)?;
       return Ok(P::create_negation(Box::new(inner_condition)));
     }
-    (false, false) => parse_paren_block(input, flags, options)?,
-    (false, true) => P::parse_style_query(input, options)?,
+    (true, QueryFunction::ScrollState) => {
+      let inner_condition = P::parse_scroll_state_query(input, options)?;
+      return Ok(P::create_negation(Box::new(inner_condition)));
+    }
+    (false, QueryFunction::None) => parse_paren_block(input, flags, options)?,
+    (false, QueryFunction::Style) => P::parse_style_query(input, options)?,
+    (false, QueryFunction::ScrollState) => P::parse_scroll_state_query(input, options)?,
   };
 
   let operator = match input.try_parse(Operator::parse) {
@@ -728,7 +770,7 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
 fn parse_parens_or_function<'t, 'i, P: QueryCondition<'i>>(
   input: &mut Parser<'i, 't>,
   flags: QueryConditionFlags,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
 ) -> Result<P, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   match *input.next()? {
@@ -738,6 +780,11 @@ fn parse_parens_or_function<'t, 'i, P: QueryCondition<'i>>(
     {
       P::parse_style_query(input, options)
     }
+    Token::Function(ref f)
+      if flags.contains(QueryConditionFlags::ALLOW_SCROLL_STATE) && f.eq_ignore_ascii_case("scroll-state") =>
+    {
+      P::parse_scroll_state_query(input, options)
+    }
     ref t => return Err(location.new_unexpected_token_error(t.clone())),
   }
 }
@@ -745,9 +792,14 @@ fn parse_parens_or_function<'t, 'i, P: QueryCondition<'i>>(
 fn parse_paren_block<'t, 'i, P: QueryCondition<'i>>(
   input: &mut Parser<'i, 't>,
   flags: QueryConditionFlags,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
 ) -> Result<P, ParseError<'i, ParserError<'i>>> {
   input.parse_nested_block(|input| {
+    // Detect empty brackets and provide a clearer error message.
+    if input.is_exhausted() {
+      return Err(input.new_custom_error(ParserError::EmptyBracketInCondition));
+    }
+
     if let Ok(inner) =
       input.try_parse(|i| parse_query_condition(i, flags | QueryConditionFlags::ALLOW_OR, options))
     {
@@ -826,6 +878,7 @@ impl<'i> ToCss for MediaCondition<'i> {
         ref conditions,
         operator,
       } => operation_to_css(operator, conditions, dest),
+      MediaCondition::Unknown(ref tokens) => tokens.to_css(dest, false),
     }
   }
 }
@@ -905,7 +958,8 @@ impl MediaFeatureComparison {
   feature = "visitor",
   derive(Visit),
   visit(visit_media_feature, MEDIA_QUERIES, <'i, MediaFeatureId>),
-  visit(<'i, ContainerSizeFeatureId>)
+  visit(<'i, ContainerSizeFeatureId>),
+  visit(<'i, ScrollStateFeatureId>)
 )]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
@@ -962,7 +1016,7 @@ where
 {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(|input| Self::parse_name_first(input, options)) {
       Ok(res) => Ok(res),
@@ -983,7 +1037,7 @@ where
 {
   fn parse_name_first<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (name, legacy_op) = MediaFeatureName::parse(input)?;
 
@@ -1086,17 +1140,16 @@ where
   }
 
   pub(crate) fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool {
-    if !should_compile!(targets, MediaIntervalSyntax) {
-      return false;
-    }
-
     match self {
-      QueryFeature::Interval { .. } => parent_operator != Some(Operator::And),
+      QueryFeature::Interval { .. } => {
+        should_compile!(targets, MediaIntervalSyntax) && parent_operator != Some(Operator::And)
+      }
       QueryFeature::Range { operator, .. } => {
-        matches!(
-          operator,
-          MediaFeatureComparison::GreaterThan | MediaFeatureComparison::LessThan
-        )
+        should_compile!(targets, MediaRangeSyntax)
+          && matches!(
+            operator,
+            MediaFeatureComparison::GreaterThan | MediaFeatureComparison::LessThan
+          )
       }
       _ => false,
     }
@@ -1844,7 +1897,7 @@ mod tests {
     targets::{Browsers, Targets},
   };
 
-  fn parse(s: &str) -> MediaQuery {
+  fn parse(s: &str) -> MediaQuery<'_> {
     let mut input = ParserInput::new(&s);
     let mut parser = Parser::new(&mut input);
     MediaQuery::parse_with_options(&mut parser, &ParserOptions::default()).unwrap()

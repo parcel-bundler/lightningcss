@@ -189,7 +189,6 @@ let cssFeatures = [
   'css-autofill',
   'css-namespaces',
   'shadowdomv1',
-  'css-rrggbbaa',
   'css-nesting',
   'css-not-sel-list',
   'css-has',
@@ -200,7 +199,6 @@ let cssFeatures = [
 
 let cssFeatureMappings = {
   'css-dir-pseudo': 'DirSelector',
-  'css-rrggbbaa': 'HexAlphaColors',
   'css-not-sel-list': 'NotSelectorList',
   'css-has': 'HasSelector',
   'css-matches-pseudo': 'IsSelector',
@@ -288,10 +286,12 @@ let mdnFeatures = {
   logicalInset: mdn.css.properties['inset-inline-start'].__compat.support,
   logicalSize: mdn.css.properties['inline-size'].__compat.support,
   logicalTextAlign: mdn.css.properties['text-align'].start.__compat.support,
+  hexAlphaColors: mdn.css.types.color.rgb_hexadecimal_notation.alpha_hexadecimal_notation.__compat.support,
   labColors: mdn.css.types.color.lab.__compat.support,
   oklabColors: mdn.css.types.color.oklab.__compat.support,
   colorFunction: mdn.css.types.color.color.__compat.support,
   spaceSeparatedColorNotation: mdn.css.types.color.rgb.space_separated_parameters.__compat.support,
+  highlight: mdn.css.selectors.highlight.__compat.support,
   textDecorationThicknessPercent: mdn.css.properties['text-decoration-thickness'].percentage.__compat.support,
   textDecorationThicknessShorthand: mdn.css.properties['text-decoration'].includes_thickness.__compat.support,
   cue: mdn.css.selectors.cue.__compat.support,
@@ -338,11 +338,26 @@ let mdnFeatures = {
   viewTransition: mdn.css.selectors['view-transition'].__compat.support,
   detailsContent: mdn.css.selectors['details-content'].__compat.support,
   targetText: mdn.css.selectors['target-text'].__compat.support,
+  searchText: mdn.css.selectors['search-text'].__compat.support,
   picker: mdn.css.selectors.picker.__compat.support,
   pickerIcon: mdn.css.selectors['picker-icon'].__compat.support,
   checkmark: mdn.css.selectors.checkmark.__compat.support,
   grammarError: mdn.css.selectors['grammar-error'].__compat.support,
   spellingError: mdn.css.selectors['spelling-error'].__compat.support,
+  statePseudoClass: Object.fromEntries(
+    Object.entries(mdn.css.selectors.state.__compat.support)
+      .map(([browser, value]) => {
+        // Chrome/Edge 90-124 supported old :--foo syntax which was removed.
+        // Only include full :state(foo) support from 125+.
+        if (Array.isArray(value)) {
+          value = value.filter(v => !v.partial_implementation)
+        } else if (value.partial_implementation) {
+          value = undefined;
+        }
+
+        return [browser, value];
+      })
+  ),
 };
 
 for (let key in mdn.css.types.length) {
@@ -390,7 +405,7 @@ for (let key in mdn.css.properties['list-style-type']) {
 }
 
 for (let key in mdn.css.properties['width']) {
-  if (key === '__compat' || key === 'animatable') {
+  if (key === '__compat' || key === 'is_animatable') {
     continue;
   }
 
@@ -448,6 +463,18 @@ addValue(compat, {
   safari: parseVersion('10.1'),
   ios_saf: parseVersion('10.3')
 }, 'LangSelectorList');
+
+addValue(compat, {
+  chrome: parseVersion('135'),
+  edge: parseVersion('135'),
+  android: parseVersion('135')
+}, 'TargetCurrent');
+
+addValue(compat, {
+  chrome: parseVersion('142'),
+  edge: parseVersion('142'),
+  android: parseVersion('142')
+}, 'TargetBeforeAfter');
 
 let prefixMapping = {
   webkit: 'WebKit',
@@ -651,7 +678,10 @@ impl Feature {
       if self.is_compatible(browsers) {
         return true
       }
-      browsers.${browser} = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.${browser} = None;
+      }
     }\n`).join('    ')}
     false
   }

@@ -59,7 +59,7 @@ pub use crate::printer::PseudoClasses;
 /// let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
 /// assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n");
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -70,7 +70,8 @@ pub use crate::printer::PseudoClasses;
   derive(schemars::JsonSchema),
   schemars(rename = "StyleSheet", bound = "T: schemars::JsonSchema")
 )]
-pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct StyleSheet<'i, T = DefaultAtRule> {
   /// A list of top-level rules within the style sheet.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub rules: CssRuleList<'i, T>,
@@ -78,7 +79,7 @@ pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
   /// Sources are referenced by index in the `loc` property of each rule.
   pub sources: Vec<String>,
   /// The source map URL extracted from the original style sheet.
-  pub(crate) source_map_urls: Vec<Option<String>>,
+  pub source_map_urls: Vec<Option<String>>,
   /// The license comments that appeared at the start of the file.
   pub license_comments: Vec<CowArcStr<'i>>,
   /// A list of content hashes for all source files included within the style sheet.
@@ -87,7 +88,7 @@ pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
   pub(crate) content_hashes: Option<Vec<String>>,
   #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
-  options: ParserOptions<'o, 'i>,
+  options: ParserOptions<'i>,
 }
 
 /// Options for the `minify` function of a [StyleSheet](StyleSheet)
@@ -118,23 +119,19 @@ pub struct ToCssResult {
   pub dependencies: Option<Vec<Dependency>>,
 }
 
-impl<'i, 'o> StyleSheet<'i, 'o, DefaultAtRule> {
+impl<'i, 'o> StyleSheet<'i, DefaultAtRule> {
   /// Parse a style sheet from a string.
-  pub fn parse(code: &'i str, options: ParserOptions<'o, 'i>) -> Result<Self, Error<ParserError<'i>>> {
+  pub fn parse(code: &'i str, options: ParserOptions<'i>) -> Result<Self, Error<ParserError<'i>>> {
     Self::parse_with(code, options, &mut DefaultAtRuleParser)
   }
 }
 
-impl<'i, 'o, T> StyleSheet<'i, 'o, T>
+impl<'i, T> StyleSheet<'i, T>
 where
   T: ToCss + Clone,
 {
   /// Creates a new style sheet with the given source filenames and rules.
-  pub fn new(
-    sources: Vec<String>,
-    rules: CssRuleList<'i, T>,
-    options: ParserOptions<'o, 'i>,
-  ) -> StyleSheet<'i, 'o, T> {
+  pub fn new(sources: Vec<String>, rules: CssRuleList<'i, T>, options: ParserOptions<'i>) -> StyleSheet<'i, T> {
     StyleSheet {
       sources,
       source_map_urls: Vec::new(),
@@ -148,7 +145,7 @@ where
   /// Parse a style sheet from a string.
   pub fn parse_with<P: AtRuleParser<'i, AtRule = T>>(
     code: &'i str,
-    mut options: ParserOptions<'o, 'i>,
+    mut options: ParserOptions<'i>,
     at_rule_parser: &mut P,
   ) -> Result<Self, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
@@ -328,7 +325,7 @@ where
 
 #[cfg(feature = "visitor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
-impl<'i, 'o, T, V> Visit<'i, T, V> for StyleSheet<'i, 'o, T>
+impl<'i, T, V> Visit<'i, T, V> for StyleSheet<'i, T>
 where
   T: Visit<'i, T, V>,
   V: ?Sized + Visitor<'i, T>,
@@ -380,10 +377,7 @@ pub struct StyleAttribute<'i> {
 
 impl<'i> StyleAttribute<'i> {
   /// Parses a style attribute from a string.
-  pub fn parse(
-    code: &'i str,
-    options: ParserOptions<'_, 'i>,
-  ) -> Result<StyleAttribute<'i>, Error<ParserError<'i>>> {
+  pub fn parse(code: &'i str, options: ParserOptions<'i>) -> Result<StyleAttribute<'i>, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     Ok(StyleAttribute {

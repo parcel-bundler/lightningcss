@@ -25,15 +25,15 @@ export default async function init() {
 }
 
 export function transform(options) {
-  return wasm.transform(options);
+  return wrap(wasm.transform, options);
 }
 
 export function transformStyleAttribute(options) {
-  return wasm.transformStyleAttribute(options);
+  return wrap(wasm.transformStyleAttribute, options);
 }
 
 export function bundle(options) {
-  return wasm.bundle({
+  return wrap(wasm.bundle, {
     ...options,
     resolver: {
       read: (filePath) => fs.readFileSync(filePath, 'utf8')
@@ -49,7 +49,35 @@ export async function bundleAsync(options) {
     };
   }
 
-  return bundleAsyncInternal(options);
+  return wrap(bundleAsyncInternal, options);
+}
+
+function wrap(call, options) {
+  if (typeof options.visitor === 'function') {
+    let deps = [];
+    options.visitor = options.visitor({
+      addDependency(dep) {
+        deps.push(dep);
+      }
+    });
+
+    let result = call(options);
+    if (result instanceof Promise) {
+      result = result.then(res => {
+        if (deps.length) {
+          res.dependencies ??= [];
+          res.dependencies.push(...deps);
+        }
+        return res;
+      });
+    } else if (deps.length) {
+      result.dependencies ??= [];
+      result.dependencies.push(...deps);
+    }
+    return result;
+  } else {
+    return call(options);
+  }
 }
 
 export { browserslistToTargets } from './browserslistToTargets.js'

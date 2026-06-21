@@ -50,7 +50,7 @@ impl<'i> CustomProperty<'i> {
   pub fn parse<'t>(
     name: CustomPropertyName<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
       TokenList::parse(input, options, 0)
@@ -150,7 +150,7 @@ impl<'i> UnparsedProperty<'i> {
   pub fn parse<'t>(
     property_id: PropertyId<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
       TokenList::parse(input, options, 0)
@@ -281,7 +281,7 @@ impl<'a> std::hash::Hash for TokenOrValue<'a> {
 impl<'i> ParseWithOptions<'i> for TokenList<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     TokenList::parse(input, options, 0)
   }
@@ -290,7 +290,7 @@ impl<'i> ParseWithOptions<'i> for TokenList<'i> {
 impl<'i> TokenList<'i> {
   pub(crate) fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut tokens = vec![];
@@ -315,7 +315,7 @@ impl<'i> TokenList<'i> {
   pub(crate) fn parse_raw<'t>(
     input: &mut Parser<'i, 't>,
     tokens: &mut Vec<TokenOrValue<'i>>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     depth: usize,
   ) -> Result<(), ParseError<'i, ParserError<'i>>> {
     if depth > 500 {
@@ -363,66 +363,44 @@ impl<'i> TokenList<'i> {
   fn parse_into<'t>(
     input: &mut Parser<'i, 't>,
     tokens: &mut Vec<TokenOrValue<'i>>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     depth: usize,
   ) -> Result<(), ParseError<'i, ParserError<'i>>> {
     if depth > 500 {
       return Err(input.new_custom_error(ParserError::MaximumNestingDepth));
     }
 
-    let mut last_is_delim = false;
-    let mut last_is_whitespace = false;
     loop {
       let state = input.state();
       match input.next_including_whitespace_and_comments() {
-        Ok(&cssparser::Token::WhiteSpace(..)) | Ok(&cssparser::Token::Comment(..)) => {
-          // Skip whitespace if the last token was a delimiter.
-          // Otherwise, replace all whitespace and comments with a single space character.
-          if !last_is_delim {
-            tokens.push(Token::WhiteSpace(" ".into()).into());
-            last_is_whitespace = true;
-          }
-        }
         Ok(&cssparser::Token::Function(ref f)) => {
           // Attempt to parse embedded color values into hex tokens.
           let f = f.into();
           if let Some(color) = try_parse_color_token(&f, &state, input) {
             tokens.push(TokenOrValue::Color(color));
-            last_is_delim = false;
-            last_is_whitespace = false;
           } else if let Ok(color) = input.try_parse(|input| UnresolvedColor::parse(&f, input, options)) {
             tokens.push(TokenOrValue::UnresolvedColor(color));
-            last_is_delim = true;
-            last_is_whitespace = false;
           } else if f == "url" {
             input.reset(&state);
             tokens.push(TokenOrValue::Url(Url::parse(input)?));
-            last_is_delim = false;
-            last_is_whitespace = false;
           } else if f == "var" {
             let var = input.parse_nested_block(|input| {
               let var = Variable::parse(input, options, depth + 1)?;
               Ok(TokenOrValue::Var(var))
             })?;
             tokens.push(var);
-            last_is_delim = true;
-            last_is_whitespace = false;
           } else if f == "env" {
             let env = input.parse_nested_block(|input| {
               let env = EnvironmentVariable::parse_nested(input, options, depth + 1)?;
               Ok(TokenOrValue::Env(env))
             })?;
             tokens.push(env);
-            last_is_delim = true;
-            last_is_whitespace = false;
           } else {
             let arguments = input.parse_nested_block(|input| TokenList::parse(input, options, depth + 1))?;
             tokens.push(TokenOrValue::Function(Function {
               name: Ident(f),
               arguments,
             }));
-            last_is_delim = true; // Whitespace is not required after any of these chars.
-            last_is_whitespace = false;
           }
         }
         Ok(&cssparser::Token::Hash(ref h)) | Ok(&cssparser::Token::IDHash(ref h)) => {
@@ -431,19 +409,13 @@ impl<'i> TokenList<'i> {
           } else {
             tokens.push(Token::Hash(h.into()).into());
           }
-          last_is_delim = false;
-          last_is_whitespace = false;
         }
         Ok(&cssparser::Token::UnquotedUrl(_)) => {
           input.reset(&state);
           tokens.push(TokenOrValue::Url(Url::parse(input)?));
-          last_is_delim = false;
-          last_is_whitespace = false;
         }
         Ok(&cssparser::Token::Ident(ref name)) if name.starts_with("--") => {
           tokens.push(TokenOrValue::DashedIdent(name.into()));
-          last_is_delim = false;
-          last_is_whitespace = false;
         }
         Ok(token @ &cssparser::Token::ParenthesisBlock)
         | Ok(token @ &cssparser::Token::SquareBracketBlock)
@@ -459,8 +431,6 @@ impl<'i> TokenList<'i> {
           input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options, depth + 1))?;
 
           tokens.push(closing_delimiter.into());
-          last_is_delim = true; // Whitespace is not required after any of these chars.
-          last_is_whitespace = false;
         }
         Ok(token @ cssparser::Token::Dimension { .. }) => {
           let value = if let Ok(length) = LengthValue::try_from(token) {
@@ -475,8 +445,6 @@ impl<'i> TokenList<'i> {
             TokenOrValue::Token(token.into())
           };
           tokens.push(value);
-          last_is_delim = false;
-          last_is_whitespace = false;
         }
         Ok(token) if token.is_parse_error() => {
           return Err(ParseError {
@@ -485,18 +453,7 @@ impl<'i> TokenList<'i> {
           })
         }
         Ok(token) => {
-          last_is_delim = matches!(token, cssparser::Token::Delim(_) | cssparser::Token::Comma);
-
-          // If this is a delimiter, and the last token was whitespace,
-          // replace the whitespace with the delimiter since both are not required.
-          if last_is_delim && last_is_whitespace {
-            let last = tokens.last_mut().unwrap();
-            *last = Token::from(token).into();
-          } else {
-            tokens.push(Token::from(token).into());
-          }
-
-          last_is_whitespace = false;
+          tokens.push(Token::from(token).into());
         }
         Err(_) => break,
       }
@@ -513,7 +470,7 @@ fn try_parse_color_token<'i, 't>(
   input: &mut Parser<'i, 't>,
 ) -> Option<CssColor> {
   match_ignore_ascii_case! { &*f,
-    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" => {
+    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" | "alpha" => {
       let s = input.state();
       input.reset(&state);
       if let Ok(color) = CssColor::parse(input) {
@@ -532,20 +489,13 @@ impl<'i> TokenList<'i> {
   where
     W: std::fmt::Write,
   {
-    if !dest.minify && self.0.len() == 1 && matches!(self.0.first(), Some(token) if token.is_whitespace()) {
-      return Ok(());
-    }
-
-    let mut has_whitespace = false;
-    for (i, token_or_value) in self.0.iter().enumerate() {
-      has_whitespace = match token_or_value {
+    for token_or_value in self.0.iter() {
+      match token_or_value {
         TokenOrValue::Color(color) => {
           color.to_css(dest)?;
-          false
         }
         TokenOrValue::UnresolvedColor(color) => {
           color.to_css(dest, is_custom_property)?;
-          false
         }
         TokenOrValue::Url(url) => {
           if dest.dependencies.is_some() && is_custom_property && !url.is_absolute() {
@@ -557,77 +507,45 @@ impl<'i> TokenList<'i> {
             ));
           }
           url.to_css(dest)?;
-          false
         }
         TokenOrValue::Var(var) => {
           var.to_css(dest, is_custom_property)?;
-          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Env(env) => {
           env.to_css(dest, is_custom_property)?;
-          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Function(f) => {
           f.to_css(dest, is_custom_property)?;
-          self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Length(v) => {
           // Do not serialize unitless zero lengths in custom properties as it may break calc().
           let (value, unit) = v.to_unit_value();
           serialize_dimension(value, unit, dest)?;
-          false
         }
         TokenOrValue::Angle(v) => {
           v.to_css(dest)?;
-          false
         }
         TokenOrValue::Time(v) => {
           v.to_css(dest)?;
-          false
         }
         TokenOrValue::Resolution(v) => {
           v.to_css(dest)?;
-          false
         }
         TokenOrValue::DashedIdent(v) => {
           v.to_css(dest)?;
-          false
         }
         TokenOrValue::AnimationName(v) => {
           v.to_css(dest)?;
-          false
         }
         TokenOrValue::Token(token) => match token {
-          Token::Delim(d) => {
-            if *d == '+' || *d == '-' {
-              dest.write_char(' ')?;
-              dest.write_char(*d)?;
-              dest.write_char(' ')?;
-            } else {
-              let ws_before = !has_whitespace && (*d == '/' || *d == '*');
-              dest.delim(*d, ws_before)?;
-            }
-            true
-          }
-          Token::Comma => {
-            dest.delim(',', false)?;
-            true
-          }
-          Token::CloseParenthesis | Token::CloseSquareBracket | Token::CloseCurlyBracket => {
-            token.to_css(dest)?;
-            self.write_whitespace_if_needed(i, dest)?
-          }
           Token::Dimension { value, unit, .. } => {
             serialize_dimension(*value, unit, dest)?;
-            false
           }
           Token::Number { value, .. } => {
             value.to_css(dest)?;
-            false
           }
           _ => {
             token.to_css(dest)?;
-            matches!(token, Token::WhiteSpace(..))
           }
         },
       };
@@ -657,24 +575,8 @@ impl<'i> TokenList<'i> {
     Ok(())
   }
 
-  #[inline]
-  fn write_whitespace_if_needed<W>(&self, i: usize, dest: &mut Printer<W>) -> Result<bool, PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    if !dest.minify
-      && i != self.0.len() - 1
-      && !matches!(
-        self.0[i + 1],
-        TokenOrValue::Token(Token::Comma) | TokenOrValue::Token(Token::CloseParenthesis)
-      )
-    {
-      // Whitespace is removed during parsing, so add it back if we aren't minifying.
-      dest.write_char(' ')?;
-      Ok(true)
-    } else {
-      Ok(false)
-    }
+  pub(crate) fn starts_with_whitespace(&self) -> bool {
+    matches!(self.0.get(0), Some(TokenOrValue::Token(Token::WhiteSpace(_))))
   }
 }
 
@@ -986,8 +888,18 @@ impl<'a> ToCss for Token<'a> {
         int_value: *int_value,
       }
       .to_css(dest)?,
-      Token::WhiteSpace(w) => cssparser::Token::WhiteSpace(w).to_css(dest)?,
-      Token::Comment(c) => cssparser::Token::Comment(c).to_css(dest)?,
+      Token::WhiteSpace(w) => {
+        if dest.minify {
+          dest.write_char(' ')?;
+        } else {
+          dest.write_str(&w)?;
+        }
+      }
+      Token::Comment(c) => {
+        if !dest.minify {
+          cssparser::Token::Comment(c).to_css(dest)?;
+        }
+      }
       Token::Colon => cssparser::Token::Colon.to_css(dest)?,
       Token::Semicolon => cssparser::Token::Semicolon.to_css(dest)?,
       Token::Comma => cssparser::Token::Comma.to_css(dest)?,
@@ -1081,7 +993,7 @@ impl<'a> std::hash::Hash for Token<'a> {
 /// Converts a floating point value into its mantissa, exponent,
 /// and sign components so that it can be hashed.
 fn integer_decode(v: f32) -> (u32, i16, i8) {
-  let bits: u32 = unsafe { std::mem::transmute(v) };
+  let bits: u32 = f32::to_bits(v);
   let sign: i8 = if bits >> 31 == 0 { 1 } else { -1 };
   let mut exponent: i16 = ((bits >> 23) & 0xff) as i16;
   let mantissa = if exponent == 0 {
@@ -1282,7 +1194,7 @@ pub struct Variable<'i> {
 impl<'i> Variable<'i> {
   fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = DashedIdentReference::parse_with_options(input, options)?;
@@ -1303,7 +1215,10 @@ impl<'i> Variable<'i> {
     dest.write_str("var(")?;
     self.name.to_css(dest)?;
     if let Some(fallback) = &self.fallback {
-      dest.delim(',', false)?;
+      dest.write_char(',')?;
+      if !fallback.starts_with_whitespace() {
+        dest.whitespace()?;
+      }
       fallback.to_css(dest, is_custom_property)?;
     }
     dest.write_char(')')
@@ -1433,7 +1348,7 @@ impl<'i> ToCss for EnvironmentVariableName<'i> {
 impl<'i> EnvironmentVariable<'i> {
   pub(crate) fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.expect_function_matching("env")?;
@@ -1442,7 +1357,7 @@ impl<'i> EnvironmentVariable<'i> {
 
   pub(crate) fn parse_nested<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = EnvironmentVariableName::parse(input)?;
@@ -1477,7 +1392,10 @@ impl<'i> EnvironmentVariable<'i> {
     }
 
     if let Some(fallback) = &self.fallback {
-      dest.delim(',', false)?;
+      dest.write_char(',')?;
+      if !fallback.starts_with_whitespace() {
+        dest.whitespace()?;
+      }
       fallback.to_css(dest, is_custom_property)?;
     }
     dest.write_char(')')
@@ -1588,7 +1506,7 @@ impl<'i> UnresolvedColor<'i> {
   fn parse<'t>(
     f: &CowArcStr<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut parser = ComponentParser::new(false);
     match_ignore_ascii_case! { &*f,

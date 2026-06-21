@@ -697,7 +697,7 @@ macro_rules! define_properties {
 
     impl<'i> Property<'i> {
       /// Parses a CSS property by name.
-      pub fn parse<'t>(property_id: PropertyId<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions<'_, 'i>) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
+      pub fn parse<'t>(property_id: PropertyId<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions<'i>) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
         let state = input.state();
 
         match property_id {
@@ -740,7 +740,7 @@ macro_rules! define_properties {
       }
 
       /// Parses a CSS property from a string.
-      pub fn parse_string(property_id: PropertyId<'i>, input: &'i str, options: ParserOptions<'_, 'i>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+      pub fn parse_string(property_id: PropertyId<'i>, input: &'i str, options: ParserOptions<'i>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let mut input = ParserInput::new(input);
         let mut parser = Parser::new(&mut input);
         Self::parse(property_id, &mut parser, &options)
@@ -852,7 +852,10 @@ macro_rules! define_properties {
           },
           Custom(custom) => {
             custom.name.to_css(dest)?;
-            dest.delim(':', false)?;
+            dest.write_char(':')?;
+            if !custom.value.starts_with_whitespace() {
+              dest.whitespace()?;
+            }
             self.value_to_css(dest)?;
             write_important!();
             return Ok(())
@@ -989,7 +992,7 @@ macro_rules! define_properties {
         D: serde::Deserializer<'de>,
       {
         enum ContentOrRaw<'de> {
-          Content(serde::__private::de::Content<'de>),
+          Content(serde_content::Value<'de>),
           Raw(CowArcStr<'de>)
         }
 
@@ -1062,26 +1065,26 @@ macro_rules! define_properties {
           ContentOrRaw::Content(content) => content
         };
 
-        let deserializer = serde::__private::de::ContentDeserializer::new(content);
+        let deserializer = serde_content::Deserializer::new(content).coerce_numbers();
         match partial.property_id {
           $(
             $(#[$meta])*
             PropertyId::$property$((vp_name!($vp, prefix)))? => {
-              let value = <$type>::deserialize(deserializer)?;
+              let value = <$type>::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
               Ok(Property::$property(value $(, vp_name!($vp, prefix))?))
             },
           )+
           PropertyId::Custom(name) => {
             if name.as_ref() == "unparsed" {
-              let value = UnparsedProperty::deserialize(deserializer)?;
+              let value = UnparsedProperty::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
               Ok(Property::Unparsed(value))
             } else {
-              let value = CustomProperty::deserialize(deserializer)?;
+              let value = CustomProperty::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
               Ok(Property::Custom(value))
             }
           }
           PropertyId::All => {
-            let value = CSSWideKeyword::deserialize(deserializer)?;
+            let value = CSSWideKeyword::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
             Ok(Property::All(value))
           }
         }
@@ -1597,6 +1600,9 @@ define_properties! {
   "filter": Filter(FilterList<'i>, VendorPrefix) / WebKit,
   "backdrop-filter": BackdropFilter(FilterList<'i>, VendorPrefix) / WebKit,
 
+  // https://www.w3.org/TR/compositing-1/
+  "mix-blend-mode": MixBlendMode(BlendMode),
+
   // https://drafts.csswg.org/css2/
   "z-index": ZIndex(position::ZIndex),
 
@@ -1613,6 +1619,7 @@ define_properties! {
 
   // https://drafts.csswg.org/css-color-adjust/
   "color-scheme": ColorScheme(ColorScheme),
+  "print-color-adjust": PrintColorAdjust(PrintColorAdjust, VendorPrefix) / WebKit,
 }
 
 impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {

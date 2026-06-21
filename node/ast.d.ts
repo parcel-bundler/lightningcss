@@ -134,6 +134,10 @@ export type MediaCondition =
        */
       operator: Operator;
       type: "operation";
+    }
+  | {
+      type: "unknown";
+      value: TokenOrValue[];
     };
 /**
  * A generic media feature or container feature.
@@ -2364,6 +2368,10 @@ export type PropertyId =
       property: "color-scheme";
     }
   | {
+      property: "print-color-adjust";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
       property: "all";
     }
   | {
@@ -3852,6 +3860,11 @@ export type Declaration =
       value: ColorScheme;
     }
   | {
+      property: "print-color-adjust";
+      value: PrintColorAdjust;
+      vendorPrefix: VendorPrefix;
+    }
+  | {
       property: "all";
       value: CSSWideKeyword;
     }
@@ -5218,7 +5231,7 @@ export type RepeatCount =
     };
 export type AutoFlowDirection = "row" | "column";
 /**
- * A value for the [grid-template-areas](https://drafts.csswg.org/css-grid-2/#grid-template-areas-property) property.
+ * A value for the [grid-template-areas](https://drafts.csswg.org/css-grid-2/#grid-template-areas-property) property. none | <string>+
  */
 export type GridTemplateAreas =
   | {
@@ -6420,7 +6433,7 @@ export type ZIndex =
 /**
  * A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property. Establishes the element as a query container for the purpose of container queries.
  */
-export type ContainerType = "normal" | "inline-size" | "size";
+export type ContainerType = "normal" | "inline-size" | "size" | "scroll-state";
 /**
  * A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
  */
@@ -6447,6 +6460,10 @@ export type NoneOrCustomIdentList =
  */
 export type ViewTransitionGroup =
   "normal" | "contain" | "nearest" | String;
+/**
+ * A value for the [print-color-adjust](https://drafts.csswg.org/css-color-adjust/#propdef-print-color-adjust) property.
+ */
+export type PrintColorAdjust = "economy" | "exact";
 /**
  * A [CSS-wide keyword](https://drafts.csswg.org/css-cascade-5/#defaulting-keywords).
  */
@@ -6711,6 +6728,15 @@ export type PseudoClass =
       kind: "target";
     }
   | {
+      kind: "target-current";
+    }
+  | {
+      kind: "target-before";
+    }
+  | {
+      kind: "target-after";
+    }
+  | {
       kind: "target-within";
     }
   | {
@@ -6783,6 +6809,13 @@ export type PseudoClass =
        * A view transition type.
        */
       type: String[];
+    }
+  | {
+      kind: "state";
+      /**
+       * The custom state identifier.
+       */
+      state: String;
     }
   | {
       kind: "local";
@@ -6943,6 +6976,25 @@ export type PseudoElement =
        * A part name selector.
        */
       part: ViewTransitionPartSelector;
+    }
+  | {
+      /**
+       * A form control identifier.
+       */
+      identifier: String;
+      kind: "picker-function";
+    }
+  | {
+      kind: "picker-icon";
+    }
+  | {
+      kind: "checkmark";
+    }
+  | {
+      kind: "grammar-error";
+    }
+  | {
+      kind: "spelling-error";
     }
   | {
       kind: "custom";
@@ -7231,6 +7283,10 @@ export type ParsedComponent =
       value: DimensionPercentageFor_LengthValue;
     }
   | {
+      type: "string";
+      value: String;
+    }
+  | {
       type: "color";
       value: CssColor;
     }
@@ -7332,6 +7388,9 @@ export type SyntaxComponentKind =
       type: "length-percentage";
     }
   | {
+      type: "string";
+    }
+  | {
       type: "color";
     }
   | {
@@ -7390,6 +7449,14 @@ export type ContainerCondition<D = Declaration> = | {
 | {
     type: "style";
     value: StyleQuery<D>;
+  }
+| {
+    type: "scroll-state";
+    value: ScrollStateQuery;
+  }
+| {
+    type: "unknown";
+    value: TokenOrValue[];
   };
 /**
  * A generic media feature or container feature.
@@ -7485,6 +7552,97 @@ export type StyleQuery<D = Declaration> = | {
     operator: Operator;
     type: "operation";
   };
+/**
+ * Represents a scroll state query within a container condition.
+ */
+export type ScrollStateQuery =
+  | {
+      type: "feature";
+      value: QueryFeatureFor_ScrollStateFeatureId;
+    }
+  | {
+      type: "not";
+      value: ScrollStateQuery;
+    }
+  | {
+      /**
+       * The conditions for the operator.
+       */
+      conditions: ScrollStateQuery[];
+      /**
+       * The operator for the conditions.
+       */
+      operator: Operator;
+      type: "operation";
+    };
+/**
+ * A generic media feature or container feature.
+ */
+export type QueryFeatureFor_ScrollStateFeatureId =
+  | {
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ScrollStateFeatureId;
+      type: "plain";
+      /**
+       * The feature value.
+       */
+      value: MediaFeatureValue;
+    }
+  | {
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ScrollStateFeatureId;
+      type: "boolean";
+    }
+  | {
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ScrollStateFeatureId;
+      /**
+       * A comparator.
+       */
+      operator: MediaFeatureComparison;
+      type: "range";
+      /**
+       * The feature value.
+       */
+      value: MediaFeatureValue;
+    }
+  | {
+      /**
+       * The end value.
+       */
+      end: MediaFeatureValue;
+      /**
+       * A comparator for the end value.
+       */
+      endOperator: MediaFeatureComparison;
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ScrollStateFeatureId;
+      /**
+       * A start value.
+       */
+      start: MediaFeatureValue;
+      /**
+       * A comparator for the start value.
+       */
+      startOperator: MediaFeatureComparison;
+      type: "interval";
+    };
+/**
+ * A media feature name.
+ */
+export type MediaFeatureNameFor_ScrollStateFeatureId = ScrollStateFeatureId | String | String;
+/**
+ * A container query scroll state feature identifier.
+ */
+export type ScrollStateFeatureId = "stuck" | "snapped" | "scrollable" | "scrolled";
 /**
  * A property within a `@view-transition` rule.
  *
@@ -8358,6 +8516,8 @@ export interface GridAutoFlow {
 /**
  * A value for the [grid-template](https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand) shorthand property.
  *
+ * none | [ <'grid-template-rows'> / <'grid-template-columns'> ] | [ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]?
+ *
  * If `areas` is not `None`, then `rows` must also not be `None`.
  */
 export interface GridTemplate {
@@ -8376,6 +8536,8 @@ export interface GridTemplate {
 }
 /**
  * A value for the [grid](https://drafts.csswg.org/css-grid-2/#grid-shorthand) shorthand property.
+ *
+ * <'grid-template'> | <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>? | [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>
  *
  * Explicit and implicit values may not be combined.
  */
@@ -8406,7 +8568,7 @@ export interface Grid {
   rows: TrackSizing;
 }
 /**
- * A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-row) shorthand property.
+ * A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-row) shorthand property. <grid-line> [ / <grid-line> ]?
  */
 export interface GridRow {
   /**
@@ -8419,7 +8581,7 @@ export interface GridRow {
   start: GridLine;
 }
 /**
- * A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property.
+ * A value for the [grid-column](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property. <grid-line> [ / <grid-line> ]?
  */
 export interface GridColumn {
   /**
@@ -8432,7 +8594,7 @@ export interface GridColumn {
   start: GridLine;
 }
 /**
- * A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) shorthand property.
+ * A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) shorthand property. <grid-line> [ / <grid-line> ]{0,3}
  */
 export interface GridArea {
   /**
@@ -9653,7 +9815,7 @@ export interface ContainerRule<D = Declaration, M = MediaQuery> {
   /**
    * The container condition.
    */
-  condition: ContainerCondition<D>;
+  condition?: ContainerCondition<D> | null;
   /**
    * The location of the rule in the source file.
    */

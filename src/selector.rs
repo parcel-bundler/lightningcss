@@ -85,12 +85,12 @@ impl<'i> SelectorImpl<'i> for Selectors {
   }
 }
 
-pub(crate) struct SelectorParser<'a, 'o, 'i> {
+pub(crate) struct SelectorParser<'a, 'i> {
   pub is_nesting_allowed: bool,
-  pub options: &'a ParserOptions<'o, 'i>,
+  pub options: &'a ParserOptions<'i>,
 }
 
-impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o, 'i> {
+impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
   type Impl = Selectors;
   type Error = ParserError<'i>;
 
@@ -100,6 +100,10 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     name: CowRcStr<'i>,
   ) -> Result<PseudoClass<'i>, ParseError<'i, Self::Error>> {
     use PseudoClass::*;
+    let scroll_navigation_controls = self
+      .options
+      .flags
+      .contains(ParserFlags::SCROLL_NAVIGATION_CONTROLS);
     let pseudo_class = match_ignore_ascii_case! { &name,
       // https://drafts.csswg.org/selectors-4/#useraction-pseudos
       "hover" => Hover,
@@ -148,6 +152,12 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "local-link" => LocalLink,
       "target" => Target,
       "target-within" => TargetWithin,
+
+      // https://drafts.csswg.org/css-overflow-5/#active-before-after-scroll-markers
+      "target-current" if scroll_navigation_controls => TargetCurrent,
+      "target-before" if scroll_navigation_controls => TargetBefore,
+      "target-after" if scroll_navigation_controls => TargetAfter,
+
       "visited" => Visited,
 
       // https://drafts.csswg.org/selectors-4/#input-pseudos
@@ -230,6 +240,10 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         let kind = Parse::parse(parser)?;
         ActiveViewTransitionType { kind }
       },
+      "state" => {
+        let state = CustomIdent::parse(parser)?;
+        State { state }
+      },
       "local" if self.options.css_modules.is_some() => Local { selector: Box::new(Selector::parse(self, parser)?) },
       "global" if self.options.css_modules.is_some() => Global { selector: Box::new(Selector::parse(self, parser)?) },
       _ => {
@@ -269,6 +283,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "first-letter" => FirstLetter,
       "details-content" => DetailsContent,
       "target-text" => TargetText,
+      "search-text" => SearchText,
       "cue" => Cue,
       "cue-region" => CueRegion,
       "selection" => Selection(VendorPrefix::None),
@@ -320,6 +335,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     let pseudo_element = match_ignore_ascii_case! { &name,
       "cue" => CueFunction { selector: Box::new(Selector::parse(self, arguments)?) },
       "cue-region" => CueRegionFunction { selector: Box::new(Selector::parse(self, arguments)?) },
+      "highlight" => HighlightFunction { name: CustomIdent::parse(arguments)? },
       "picker" => PickerFunction { identifier: Ident::parse(arguments)? },
       "view-transition-group" => ViewTransitionGroup { part: ViewTransitionPartSelector::parse(arguments)? },
       "view-transition-image-pair" => ViewTransitionImagePair { part: ViewTransitionPartSelector::parse(arguments)? },
@@ -477,7 +493,15 @@ pub enum PseudoClass<'i> {
   LocalLink,
   /// The [:target](https://drafts.csswg.org/selectors-4/#the-target-pseudo) pseudo class.
   Target,
+
+  /// The [:target-current](https://drafts.csswg.org/css-overflow-5/#selectordef-target-current) pseudo class.
+  TargetCurrent,
+  /// The [:target-before](https://drafts.csswg.org/css-overflow-5/#selectordef-target-before) pseudo class.
+  TargetBefore,
+  /// The [:target-after](https://drafts.csswg.org/css-overflow-5/#selectordef-target-after) pseudo class.
+  TargetAfter,
   /// The [:target-within](https://drafts.csswg.org/selectors-4/#the-target-within-pseudo) pseudo class.
+
   TargetWithin,
   /// The [:visited](https://drafts.csswg.org/selectors-4/#visited-pseudo) pseudo class.
   Visited,
@@ -532,6 +556,12 @@ pub enum PseudoClass<'i> {
     /// A view transition type.
     #[cfg_attr(feature = "serde", serde(rename = "type"))]
     kind: SmallVec<[CustomIdent<'i>; 1]>,
+  },
+
+  /// The [:state()](https://developer.mozilla.org/en-US/docs/Web/CSS/:state) pseudo class for custom element states.
+  State {
+    /// The custom state identifier.
+    state: CustomIdent<'i>,
   },
 
   // CSS modules
@@ -676,6 +706,11 @@ where
       dir.to_css(dest)?;
       return dest.write_str(")");
     }
+    State { state } => {
+      dest.write_str(":state(")?;
+      state.to_css(dest)?;
+      return dest.write_str(")");
+    }
     _ => {}
   }
 
@@ -766,6 +801,12 @@ where
     LocalLink => dest.write_str(":local-link"),
     Target => dest.write_str(":target"),
     TargetWithin => dest.write_str(":target-within"),
+
+    // https://drafts.csswg.org/css-overflow-5/#active-before-after-scroll-markers
+    TargetCurrent => dest.write_str(":target-current"),
+    TargetBefore => dest.write_str(":target-before"),
+    TargetAfter => dest.write_str(":target-after"),
+
     Visited => dest.write_str(":visited"),
 
     // https://drafts.csswg.org/selectors-4/#input-pseudos
@@ -823,7 +864,7 @@ where
       })
     }
 
-    Lang { languages: _ } | Dir { direction: _ } => unreachable!(),
+    Lang { languages: _ } | Dir { direction: _ } | State { .. } => unreachable!(),
     Custom { name } => {
       dest.write_char(':')?;
       return dest.write_str(&name);
@@ -900,12 +941,19 @@ pub enum PseudoElement<'i> {
   DetailsContent,
   /// The [::target-text](https://drafts.csswg.org/css-pseudo-4/#selectordef-target-text)
   TargetText,
+  /// The [::search-text](https://drafts.csswg.org/css-pseudo-4/#selectordef-search-text) pseudo element.
+  SearchText,
   /// The [::selection](https://drafts.csswg.org/css-pseudo-4/#selectordef-selection) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Selection(VendorPrefix),
   /// The [::placeholder](https://drafts.csswg.org/css-pseudo-4/#placeholder-pseudo) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Placeholder(VendorPrefix),
+  /// The [::highlight()](https://drafts.csswg.org/css-highlight-api/#custom-highlight-pseudo) functional pseudo element.
+  HighlightFunction {
+    /// A custom highlight name.
+    name: CustomIdent<'i>,
+  },
   ///  The [::marker](https://drafts.csswg.org/css-pseudo-4/#marker-pseudo) pseudo element.
   Marker,
   /// The [::backdrop](https://fullscreen.spec.whatwg.org/#::backdrop-pseudo-element) pseudo element.
@@ -1090,8 +1138,12 @@ impl<'i> Parse<'i> for ViewTransitionPartSelector<'i> {
           _ => return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState))),
         }
       } else {
-        return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState)));
+        break;
       }
+    }
+
+    if !input.is_exhausted() || (name.is_none() && classes.is_empty()) {
+      return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState)));
     }
 
     Ok(ViewTransitionPartSelector { name, classes })
@@ -1167,6 +1219,12 @@ where
     FirstLetter => dest.write_str(":first-letter"),
     DetailsContent => dest.write_str("::details-content"),
     TargetText => dest.write_str("::target-text"),
+    SearchText => dest.write_str("::search-text"),
+    HighlightFunction { name } => {
+      dest.write_str("::highlight(")?;
+      name.to_css(dest)?;
+      dest.write_char(')')
+    }
     Marker => dest.write_str("::marker"),
     Selection(prefix) => write_prefixed!(prefix, "selection"),
     Cue => dest.write_str("::cue"),
@@ -1902,6 +1960,9 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
             PseudoClass::Optional => Feature::OptionalPseudo,
             PseudoClass::PlaceholderShown(prefix) if *prefix == VendorPrefix::None => Feature::PlaceholderShown,
 
+            PseudoClass::TargetCurrent => Feature::TargetCurrent,
+            PseudoClass::TargetBefore | PseudoClass::TargetAfter => Feature::TargetBeforeAfter,
+
             PseudoClass::ReadOnly(prefix) | PseudoClass::ReadWrite(prefix) if *prefix == VendorPrefix::None => {
               Feature::ReadOnlyWrite
             }
@@ -1911,6 +1972,8 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
             PseudoClass::InRange | PseudoClass::OutOfRange => Feature::InOutOfRange,
 
             PseudoClass::Autofill(prefix) if *prefix == VendorPrefix::None => Feature::Autofill,
+
+            PseudoClass::State { .. } => Feature::StatePseudoClass,
 
             // Experimental, no browser support.
             PseudoClass::Current
@@ -1942,8 +2005,10 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           PseudoElement::FirstLetter => Feature::FirstLetter,
           PseudoElement::DetailsContent => Feature::DetailsContent,
           PseudoElement::TargetText => Feature::TargetText,
+          PseudoElement::SearchText => Feature::SearchText,
           PseudoElement::Selection(prefix) if *prefix == VendorPrefix::None => Feature::Selection,
           PseudoElement::Placeholder(prefix) if *prefix == VendorPrefix::None => Feature::Placeholder,
+          PseudoElement::HighlightFunction { name: _ } => Feature::Highlight,
           PseudoElement::Marker => Feature::MarkerPseudo,
           PseudoElement::Backdrop(prefix) if *prefix == VendorPrefix::None => Feature::Dialog,
           PseudoElement::Cue => Feature::Cue,
@@ -2253,7 +2318,7 @@ impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>> Visit<'i, T, V> for Sel
 impl<'i> ParseWithOptions<'i> for Selector<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Selector::parse(
       &SelectorParser {
@@ -2268,7 +2333,7 @@ impl<'i> ParseWithOptions<'i> for Selector<'i> {
 impl<'i> ParseWithOptions<'i> for SelectorList<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     SelectorList::parse(
       &SelectorParser {

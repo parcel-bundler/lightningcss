@@ -533,6 +533,7 @@ impl ToCss for TrackSizeList {
 }
 
 /// A value for the [grid-template-areas](https://drafts.csswg.org/css-grid-2/#grid-template-areas-property) property.
+/// none | <string>+
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
@@ -703,6 +704,8 @@ impl GridTemplateAreas {
 }
 
 /// A value for the [grid-template](https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand) shorthand property.
+///
+/// none | [ <'grid-template-rows'> / <'grid-template-columns'> ] | [ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]?
 ///
 /// If `areas` is not `None`, then `rows` must also not be `None`.
 #[derive(Debug, Clone, PartialEq)]
@@ -935,6 +938,8 @@ impl_shorthand! {
 bitflags! {
   /// A value for the [grid-auto-flow](https://drafts.csswg.org/css-grid-2/#grid-auto-flow-property) property.
   ///
+  /// [ row | column ] || dense
+  ///
   /// The `Row` or `Column` flags may be combined with the `Dense` flag, but the `Row` and `Column` flags may
   /// not be combined.
   #[cfg_attr(feature = "visitor", derive(Visit))]
@@ -1101,6 +1106,8 @@ impl ToCss for GridAutoFlow {
 
 /// A value for the [grid](https://drafts.csswg.org/css-grid-2/#grid-shorthand) shorthand property.
 ///
+/// <'grid-template'> | <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>? | [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>
+///
 /// Explicit and implicit values may not be combined.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
@@ -1199,6 +1206,41 @@ impl ToCss for Grid<'_> {
       && self.auto_columns == TrackSizeList::default()
       && self.auto_flow == GridAutoFlow::default();
 
+    // Handle the case where areas is set but rows is None (auto-flow syntax).
+    // In this case, output "auto-flow / columns" format.
+    if self.areas != GridTemplateAreas::None && self.rows == TrackSizing::None {
+      dest.write_str("auto-flow")?;
+      if self.auto_flow.contains(GridAutoFlow::Dense) {
+        dest.write_str(" dense")?;
+      }
+      if self.auto_rows != TrackSizeList::default() {
+        dest.write_char(' ')?;
+        self.auto_rows.to_css(dest)?;
+      }
+      dest.delim('/', true)?;
+      self.columns.to_css(dest)?;
+      return Ok(());
+    }
+
+    // Handle the case where areas is set but columns is None (auto-flow column syntax).
+    // In this case, output "rows / auto-flow" format.
+    if self.areas != GridTemplateAreas::None
+      && self.columns == TrackSizing::None
+      && self.auto_flow.direction() == GridAutoFlow::Column
+    {
+      self.rows.to_css(dest)?;
+      dest.delim('/', true)?;
+      dest.write_str("auto-flow")?;
+      if self.auto_flow.contains(GridAutoFlow::Dense) {
+        dest.write_str(" dense")?;
+      }
+      if self.auto_columns != TrackSizeList::default() {
+        dest.write_char(' ')?;
+        self.auto_columns.to_css(dest)?;
+      }
+      return Ok(());
+    }
+
     if self.areas != GridTemplateAreas::None
       || (self.rows != TrackSizing::None && self.columns != TrackSizing::None)
       || (self.areas == GridTemplateAreas::None && is_auto_initial)
@@ -1256,16 +1298,28 @@ impl<'i> Grid<'i> {
     auto_columns: &TrackSizeList,
     auto_flow: &GridAutoFlow,
   ) -> bool {
+    let default_track_size_list = TrackSizeList::default();
+
+    // When areas is set but rows is None (auto-flow syntax like "grid: auto-flow / 1fr"),
+    // we can output the auto-flow shorthand along with "grid-template-areas" separately.
+    // ⚠️ The case of `grid: 1fr / auto-flow` does not require such handling.
+    if *areas != GridTemplateAreas::None && *rows == TrackSizing::None {
+      return auto_flow.direction() == GridAutoFlow::Row;
+    }
+
     // The `grid` shorthand can either be fully explicit (e.g. same as `grid-template`),
     // or explicit along a single axis. If there are auto rows, then there cannot be explicit rows, for example.
     let is_template = GridTemplate::is_valid(rows, columns, areas);
-    let default_track_size_list = TrackSizeList::default();
     let is_explicit = *auto_rows == default_track_size_list
       && *auto_columns == default_track_size_list
       && *auto_flow == GridAutoFlow::default();
+    // grid-auto-flow: row shorthand syntax:
+    // [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>
     let is_auto_rows = auto_flow.direction() == GridAutoFlow::Row
       && *rows == TrackSizing::None
       && *auto_columns == default_track_size_list;
+    // grid-auto-flow: column shorthand syntax:
+    // <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>?
     let is_auto_columns = auto_flow.direction() == GridAutoFlow::Column
       && *columns == TrackSizing::None
       && *auto_rows == default_track_size_list;
@@ -1274,6 +1328,7 @@ impl<'i> Grid<'i> {
   }
 }
 
+// TODO: shorthand `grid: auto-flow 1fr / 100px` https://drafts.csswg.org/css-grid/#example-dec34e0f
 impl_shorthand! {
   Grid(Grid<'i>) {
     rows: [GridTemplateRows],
@@ -1461,6 +1516,7 @@ macro_rules! impl_grid_placement {
 
 define_shorthand! {
   /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-row) shorthand property.
+  /// <grid-line> [ / <grid-line> ]?
   pub struct GridRow<'i> {
     /// The starting line.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -1471,7 +1527,8 @@ define_shorthand! {
 }
 
 define_shorthand! {
-  /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property.
+  /// A value for the [grid-column](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property.
+  /// <grid-line> [ / <grid-line> ]?
   pub struct GridColumn<'i> {
     /// The starting line.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -1486,6 +1543,7 @@ impl_grid_placement!(GridColumn);
 
 define_shorthand! {
   /// A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) shorthand property.
+  /// <grid-line> [ / <grid-line> ]{0,3}
   pub struct GridArea<'i> {
     /// The grid row start placement.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -1684,10 +1742,24 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
           auto_columns_val,
           auto_flow_val,
         ) {
+          let needs_separate_areas = *areas_val != GridTemplateAreas::None
+            && ((*rows_val == TrackSizing::None && auto_flow_val.direction() == GridAutoFlow::Row)
+              || (*columns_val == TrackSizing::None && auto_flow_val.direction() == GridAutoFlow::Column));
+
+          // Pad areas with "." for missing rows. But don't pad if we're using auto-flow syntax,
+          // because grid-template-areas should remain as-is in that case.
+          // Use tuple to avoid double cloning when needs_separate_areas is true.
+          let (areas_for_grid, areas_for_output) = if needs_separate_areas {
+            // Take the original areas directly to avoid cloning when needs_separate_areas is true
+            (areas_val.clone(), Some(areas_val.clone()))
+          } else {
+            (GridHandler::pad_grid_template_areas(rows_val, areas_val.clone()), None)
+          };
+
           dest.push(Property::Grid(Grid {
             rows: rows_val.clone(),
             columns: columns_val.clone(),
-            areas: areas_val.clone(),
+            areas: areas_for_grid,
             auto_rows: auto_rows_val.clone(),
             auto_columns: auto_columns_val.clone(),
             auto_flow: auto_flow_val.clone(),
@@ -1697,16 +1769,25 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
           auto_rows = None;
           auto_columns = None;
           auto_flow = None;
+
+          // When areas is set but rows/columns is None (auto-flow syntax), also output
+          // grid-template-areas separately since grid shorthand can't represent this combination.
+          if let Some(areas) = areas_for_output {
+            dest.push(Property::GridTemplateAreas(areas));
+          }
         }
       }
 
       // The `grid-template` shorthand supports only explicit track values (i.e. no `repeat()`)
       // combined with grid-template-areas. If there are no areas, then any track values are allowed.
       if has_template && GridTemplate::is_valid(rows_val, columns_val, areas_val) {
+        // Pad areas with "." for missing rows
+        let padded_areas = GridHandler::pad_grid_template_areas(rows_val, areas_val.clone());
+
         dest.push(Property::GridTemplate(GridTemplate {
           rows: rows_val.clone(),
           columns: columns_val.clone(),
-          areas: areas_val.clone(),
+          areas: padded_areas,
         }));
 
         has_template = false;
@@ -1760,6 +1841,39 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
     single_property!(GridRowEnd, row_end);
     single_property!(GridColumnStart, column_start);
     single_property!(GridColumnEnd, column_end);
+  }
+}
+
+/// Pads grid template areas with "." (None) for missing rows.
+/// All the remaining unnamed areas in a grid can be referred using null cell
+/// tokens. A null cell token is a sequence of one or more . (U+002E FULL STOP)
+/// characters, e.g., ., ..., or ..... etc. A null cell token can be used to
+/// create empty spaces in the grid.
+/// Spec: https://drafts.csswg.org/css-grid/#ref-for-string-value①
+impl GridHandler<'_> {
+  fn pad_grid_template_areas(rows: &TrackSizing, areas: GridTemplateAreas) -> GridTemplateAreas {
+    match (rows, areas) {
+      (TrackSizing::TrackList(rows_list), GridTemplateAreas::Areas { columns, areas }) => {
+        let rows_count = rows_list.items.len();
+        let areas_rows_count = areas.len() / columns as usize;
+        if areas_rows_count < rows_count {
+          let mut padded_areas = areas;
+          // Fill each missing row with "." (represented as None)
+          for _ in areas_rows_count..rows_count {
+            for _ in 0..columns {
+              padded_areas.push(None);
+            }
+          }
+          GridTemplateAreas::Areas {
+            columns,
+            areas: padded_areas,
+          }
+        } else {
+          GridTemplateAreas::Areas { columns, areas }
+        }
+      }
+      (_, areas) => areas,
+    }
   }
 }
 
