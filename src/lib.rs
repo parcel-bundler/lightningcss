@@ -28552,6 +28552,199 @@ mod tests {
       },
     );
 
+    // When both standard backdrop-filter and -webkit-backdrop-filter exist
+    // and the browser supports the standard form natively (Chrome 76+),
+    // the -webkit- prefix should be dropped after merging.
+    prefix_test(
+      r#"
+      .foo {
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        backdrop-filter: blur(5px);
+      }
+      "#},
+      Browsers {
+        chrome: Some(146 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-backdrop-filter: blur(5px);
+        backdrop-filter: blur(5px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        backdrop-filter: blur(5px);
+      }
+      "#},
+      Browsers {
+        chrome: Some(146 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // For Safari that needs -webkit-backdrop-filter, both should be preserved.
+    prefix_test(
+      r#"
+      .foo {
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        -webkit-backdrop-filter: blur(5px);
+        backdrop-filter: blur(5px);
+      }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-backdrop-filter: blur(5px);
+        backdrop-filter: blur(5px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        -webkit-backdrop-filter: blur(5px);
+        backdrop-filter: blur(5px);
+      }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Safari 17 still needs -webkit-backdrop-filter (unprefixed support starts at 18).
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-backdrop-filter: blur(5px);
+        backdrop-filter: blur(5px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        -webkit-backdrop-filter: blur(5px);
+        backdrop-filter: blur(5px);
+      }
+      "#},
+      Browsers {
+        safari: Some(17 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Safari 18+ supports unprefixed backdrop-filter natively — prefix is dropped.
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-backdrop-filter: blur(5px);
+        backdrop-filter: blur(5px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        backdrop-filter: blur(5px);
+      }
+      "#},
+      Browsers {
+        safari: Some(18 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Same prefix merging for filter property.
+    prefix_test(
+      r#"
+      .foo {
+        filter: blur(5px);
+        -webkit-filter: blur(5px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        filter: blur(5px);
+      }
+      "#},
+      Browsers {
+        chrome: Some(146 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-filter: blur(5px);
+        filter: blur(5px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        filter: blur(5px);
+      }
+      "#},
+      Browsers {
+        chrome: Some(146 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // For Safari that needs -webkit-filter, both should be preserved.
+    prefix_test(
+      r#"
+      .foo {
+        filter: blur(5px);
+        -webkit-filter: blur(5px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        -webkit-filter: blur(5px);
+        filter: blur(5px);
+      }
+      "#},
+      Browsers {
+        safari: Some(9 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-filter: blur(5px);
+        filter: blur(5px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        -webkit-filter: blur(5px);
+        filter: blur(5px);
+      }
+      "#},
+      Browsers {
+        safari: Some(9 << 16),
+        ..Browsers::default()
+      },
+    );
+
     prefix_test(
       ".foo { filter: var(--foo) }",
       indoc! { r#"
