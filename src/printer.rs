@@ -5,7 +5,7 @@ use crate::dependencies::{Dependency, DependencyOptions};
 use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
 use crate::rules::{Location, StyleContext};
 use crate::selector::SelectorList;
-use crate::targets::{Targets, TargetsWithSupportsScope};
+use crate::targets::{Features, Targets, TargetsWithSupportsScope};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::{serialize_identifier, serialize_name};
 #[cfg(feature = "sourcemap")]
@@ -405,6 +405,19 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
     }
     let res = f(self);
     self.context = parent;
+    res
+  }
+
+  pub(crate) fn with_feature_disabled<T, U, F: FnOnce(&mut Printer<'a, 'c, W>) -> Result<T, U>>(
+    &mut self,
+    feature: Features,
+    f: F,
+  ) -> Result<T, U> {
+    let targets = self.targets.current;
+    self.targets.current.include.remove(feature);
+    self.targets.current.exclude.insert(feature);
+    let res = f(self);
+    self.targets.current = targets;
     res
   }
 

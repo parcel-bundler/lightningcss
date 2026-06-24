@@ -30108,6 +30108,46 @@ mod tests {
     "#,
       "@property --property-name{syntax:\"<color>\";inherits:true;initial-value:#00f}.foo{color:var(--property-name)}",
     );
+    prefix_test(
+      r#"
+      @property --theme {
+        syntax: "<color>";
+        inherits: true;
+        initial-value: light-dark(white, black);
+      }
+      "#,
+      indoc! { r#"
+      @property --theme {
+        syntax: "<color>";
+        inherits: true;
+        initial-value: light-dark(#fff, #000);
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    nesting_test_with_targets(
+      r#"
+      @property --theme {
+        syntax: "<color>";
+        inherits: true;
+        initial-value: light-dark(white, black);
+      }
+      "#,
+      indoc! { r#"
+      @property --theme {
+        syntax: "<color>";
+        inherits: true;
+        initial-value: light-dark(#fff, #000);
+      }
+      "#},
+      Targets {
+        include: Features::LightDark,
+        ..Targets::default()
+      },
+    );
 
     test(
       r#"
@@ -31347,6 +31387,63 @@ mod tests {
       Browsers {
         chrome: Some(90 << 16),
         ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      :root {
+        --background: light-dark(white, black);
+        --text: light-dark(black, white);
+      }
+
+      p {
+        color: var(--text);
+        background: var(--background);
+        color-scheme: dark;
+      }
+      "#,
+      indoc! { r#"
+      :root {
+        --background: light-dark(#fff, #000);
+        --text: light-dark(#000, #fff);
+      }
+
+      p {
+        color: var(--text);
+        background: var(--background);
+        --lightningcss-light: ;
+        --lightningcss-dark: initial;
+        color-scheme: dark;
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { --theme: light-dark(var(--light), var(--dark)); }",
+      indoc! { r#"
+      .foo {
+        --theme: light-dark(var(--light), var(--dark));
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    nesting_test_with_targets(
+      ".foo { --theme: light-dark(white, black); color: light-dark(white, black); }",
+      indoc! { r#"
+      .foo {
+        --theme: light-dark(#fff, #000);
+        color: var(--lightningcss-light, #fff) var(--lightningcss-dark, #000);
+      }
+      "#},
+      Targets {
+        include: Features::LightDark,
+        ..Targets::default()
       },
     );
     prefix_test(

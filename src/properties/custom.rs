@@ -485,6 +485,15 @@ fn try_parse_color_token<'i, 't>(
 }
 
 impl<'i> TokenList<'i> {
+  pub(crate) fn to_css_custom_property<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    // The var()-based light-dark() fallback is resolved when a custom property is
+    // computed, so it cannot respond to a color-scheme set on a descendant.
+    dest.with_feature_disabled(Features::LightDark, |dest| self.to_css(dest, true))
+  }
+
   pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
