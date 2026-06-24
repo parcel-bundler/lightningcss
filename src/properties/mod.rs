@@ -787,11 +787,7 @@ macro_rules! define_properties {
             unparsed.value.to_css(dest, false)
           }
           Custom(custom) => {
-            if matches!(custom.name, CustomPropertyName::Custom(..)) {
-              custom.value.to_css_custom_property(dest)
-            } else {
-              custom.value.to_css(dest, false)
-            }
+            custom.value.to_css(dest, matches!(custom.name, CustomPropertyName::Custom(..)))
           }
         }
       }
