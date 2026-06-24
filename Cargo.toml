@@ -104,6 +104,7 @@ assert_fs = "1.0"
 predicates = "2.1"
 serde_json = "1"
 pretty_assertions = "1.4.0"
+criterion = { package = "codspeed-criterion-compat", version = "4.5.0" }
 
 [[test]]
 name = "cli_integration_tests"
@@ -117,6 +118,10 @@ required-features = ["visitor"]
 [[example]]
 name = "serialize"
 required-features = ["serde"]
+
+[[bench]]
+name = "transform"
+harness = false
 
 [profile.release]
 lto = true
