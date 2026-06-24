@@ -31404,8 +31404,15 @@ mod tests {
       "#,
       indoc! { r#"
       :root {
-        --background: light-dark(#fff, #000);
-        --text: light-dark(#000, #fff);
+        --background: var(--lightningcss-light, #fff) var(--lightningcss-dark, #000);
+        --text: var(--lightningcss-light, #000) var(--lightningcss-dark, #fff);
+      }
+
+      @supports (color: light-dark(#000, #fff)) {
+        :root {
+          --background: light-dark(#fff, #000);
+          --text: light-dark(#000, #fff);
+        }
       }
 
       p {
@@ -31425,7 +31432,43 @@ mod tests {
       ".foo { --theme: light-dark(var(--light), var(--dark)); }",
       indoc! { r#"
       .foo {
-        --theme: light-dark(var(--light), var(--dark));
+        --theme: var(--lightningcss-light, var(--light)) var(--lightningcss-dark, var(--dark));
+      }
+
+      @supports (color: light-dark(#000, #fff)) {
+        .foo {
+          --theme: light-dark(var(--light), var(--dark));
+        }
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { --theme: light-dark(white, black); --theme: red; }",
+      indoc! { r#"
+      .foo {
+        --theme: red;
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { --theme: red; --theme: light-dark(white, black); }",
+      indoc! { r#"
+      .foo {
+        --theme: var(--lightningcss-light, #fff) var(--lightningcss-dark, #000);
+      }
+
+      @supports (color: light-dark(#000, #fff)) {
+        .foo {
+          --theme: light-dark(#fff, #000);
+        }
       }
       "#},
       Browsers {
@@ -31437,12 +31480,80 @@ mod tests {
       ".foo { --theme: light-dark(white, black); color: light-dark(white, black); }",
       indoc! { r#"
       .foo {
-        --theme: light-dark(#fff, #000);
+        --theme: var(--lightningcss-light, #fff) var(--lightningcss-dark, #000);
         color: var(--lightningcss-light, #fff) var(--lightningcss-dark, #000);
+      }
+
+      @supports (color: light-dark(#000, #fff)) {
+        .foo {
+          --theme: light-dark(#fff, #000);
+        }
       }
       "#},
       Targets {
         include: Features::LightDark,
+        ..Targets::default()
+      },
+    );
+    nesting_test_with_targets(
+      ".foo { --theme: light-dark(lab(0% 0 0), lab(100% 0 0)); }",
+      indoc! { r#"
+      .foo {
+        --theme: var(--lightningcss-light, #000) var(--lightningcss-dark, #fff);
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          --theme: var(--lightningcss-light, lab(0% 0 0)) var(--lightningcss-dark, lab(100% 0 0));
+        }
+      }
+
+      @supports (color: light-dark(#000, #fff)) {
+        .foo {
+          --theme: light-dark(#000, #fff);
+        }
+      }
+
+      @supports (color: light-dark(#000, #fff)) and (color: lab(0% 0 0)) {
+        .foo {
+          --theme: light-dark(lab(0% 0 0), lab(100% 0 0));
+        }
+      }
+      "#},
+      Targets {
+        browsers: Some(Browsers {
+          chrome: Some(90 << 16),
+          ..Browsers::default()
+        }),
+        include: Features::LightDark | Features::LabColors,
+        ..Targets::default()
+      },
+    );
+    nesting_test_with_targets(
+      ".foo { --theme: light-dark(lab(0% 0 0), lab(100% 0 0)); --theme: red; }",
+      indoc! { r#"
+      .foo {
+        --theme: red;
+      }
+      "#},
+      Targets {
+        browsers: Some(Browsers {
+          chrome: Some(90 << 16),
+          ..Browsers::default()
+        }),
+        include: Features::LightDark | Features::LabColors,
+        ..Targets::default()
+      },
+    );
+    nesting_test_with_targets(
+      ".foo { --theme: light-dark(white, black); }",
+      indoc! { r#"
+      .foo {
+        --theme: light-dark(#fff, #000);
+      }
+      "#},
+      Targets {
+        exclude: Features::LightDark,
         ..Targets::default()
       },
     );
@@ -31708,6 +31819,67 @@ mod tests {
       Browsers {
         chrome: Some(4 << 16),
         ..Browsers::default()
+      },
+    );
+
+    nesting_test_with_targets(
+      r#"
+      @supports (--theme: light-dark(red, blue)) {
+        .foo {
+          color: light-dark(white, black);
+        }
+      }
+      "#,
+      indoc! {r#"
+      @supports (--theme: light-dark(red, blue)) {
+        .foo {
+          color: var(--lightningcss-light, #fff) var(--lightningcss-dark, #000);
+        }
+      }
+      "#},
+      Targets {
+        include: Features::LightDark,
+        ..Targets::default()
+      },
+    );
+    nesting_test_with_targets(
+      r#"
+      @supports (color: var(--theme, light-dark(red, blue))) {
+        .foo {
+          color: light-dark(white, black);
+        }
+      }
+      "#,
+      indoc! {r#"
+      @supports (color: var(--theme, light-dark(red, blue))) {
+        .foo {
+          color: var(--lightningcss-light, #fff) var(--lightningcss-dark, #000);
+        }
+      }
+      "#},
+      Targets {
+        include: Features::LightDark,
+        ..Targets::default()
+      },
+    );
+    nesting_test_with_targets(
+      r#"
+      @supports (color: attr(data-theme type(<color>), light-dark(red, blue))) {
+        .foo {
+          color: light-dark(white, black);
+        }
+      }
+      "#,
+      indoc! {r#"
+      @supports (color: attr(data-theme type(<color>), light-dark(red, blue))) {
+        .foo {
+          color: var(--lightningcss-light, #fff) var(--lightningcss-dark, #000);
+        }
+      }
+      "#},
+      Targets {
+        include: Features::LightDark,
+        ..Targets::default()
       },
     );
 
