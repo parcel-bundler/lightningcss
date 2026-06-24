@@ -7,6 +7,7 @@ use crate::{
   error::{ParserError, PrinterError},
   printer::Printer,
   properties::custom::TokenList,
+  targets::Features,
   traits::{Parse, ToCss},
   values::{
     ident::DashedIdent,
@@ -142,7 +143,7 @@ impl<'i> ToCss for PropertyRule<'i> {
 
       dest.write_str("initial-value:")?;
       dest.whitespace()?;
-      initial_value.to_css(dest)?;
+      dest.with_feature_disabled(Features::LightDark, |dest| initial_value.to_css(dest))?;
 
       if !dest.minify {
         dest.write_char(';')?;
