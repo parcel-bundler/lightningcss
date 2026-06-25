@@ -338,10 +338,10 @@ impl<'i> Parse<'i> for CSSString<'i> {
 }
 
 impl<'i> ToCss for CSSString<'i> {
-  fn to_css<W>(&self, dest: &mut crate::printer::Printer<W>) -> Result<(), crate::error::PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+  ) -> Result<(), crate::error::PrinterError> {
     serialize_string(&self.0, dest)?;
     Ok(())
   }

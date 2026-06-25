@@ -8,7 +8,6 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::{is_flex_2009, Feature};
-use crate::printer::Printer;
 use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::values::number::NonNegative;
@@ -59,13 +58,16 @@ impl<'i> Parse<'i> for BaselinePosition {
 }
 
 impl ToCss for BaselinePosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      BaselinePosition::First => dest.write_str("baseline"),
-      BaselinePosition::Last => dest.write_str("last baseline"),
+      BaselinePosition::First => {
+        dest.write_str("baseline")?;
+        Ok(())
+      }
+      BaselinePosition::Last => {
+        dest.write_str("last baseline")?;
+        Ok(())
+      }
     }
   }
 }
@@ -206,12 +208,12 @@ impl<'i> Parse<'i> for JustifyContent {
 }
 
 impl ToCss for JustifyContent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      JustifyContent::Normal => dest.write_str("normal"),
+      JustifyContent::Normal => {
+        dest.write_str("normal")?;
+        Ok(())
+      }
       JustifyContent::ContentDistribution(value) => value.to_css(dest),
       JustifyContent::ContentPosition { overflow, value } => {
         if let Some(overflow) = overflow {
@@ -227,7 +229,9 @@ impl ToCss for JustifyContent {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("left")
+        dest.write_str("left")?;
+
+        Ok(())
       }
       JustifyContent::Right { overflow } => {
         if let Some(overflow) = overflow {
@@ -235,7 +239,9 @@ impl ToCss for JustifyContent {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("right")
+        dest.write_str("right")?;
+
+        Ok(())
       }
     }
   }
@@ -280,10 +286,7 @@ impl<'i> Parse<'i> for PlaceContent {
 }
 
 impl ToCss for PlaceContent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.align.to_css(dest)?;
     let is_equal = match self.justify {
       JustifyContent::Normal if self.align == AlignContent::Normal => true,
@@ -429,14 +432,20 @@ impl<'i> Parse<'i> for JustifySelf {
 }
 
 impl ToCss for JustifySelf {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      JustifySelf::Auto => dest.write_str("auto"),
-      JustifySelf::Normal => dest.write_str("normal"),
-      JustifySelf::Stretch => dest.write_str("stretch"),
+      JustifySelf::Auto => {
+        dest.write_str("auto")?;
+        Ok(())
+      }
+      JustifySelf::Normal => {
+        dest.write_str("normal")?;
+        Ok(())
+      }
+      JustifySelf::Stretch => {
+        dest.write_str("stretch")?;
+        Ok(())
+      }
       JustifySelf::BaselinePosition(val) => val.to_css(dest),
       JustifySelf::SelfPosition { overflow, value } => {
         if let Some(overflow) = overflow {
@@ -452,7 +461,9 @@ impl ToCss for JustifySelf {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("left")
+        dest.write_str("left")?;
+
+        Ok(())
       }
       JustifySelf::Right { overflow } => {
         if let Some(overflow) = overflow {
@@ -460,7 +471,9 @@ impl ToCss for JustifySelf {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("right")
+        dest.write_str("right")?;
+
+        Ok(())
       }
     }
   }
@@ -501,10 +514,7 @@ impl<'i> Parse<'i> for PlaceSelf {
 }
 
 impl ToCss for PlaceSelf {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.align.to_css(dest)?;
     let is_equal = match &self.justify {
       JustifySelf::Auto => true,
@@ -610,15 +620,21 @@ impl<'i> Parse<'i> for LegacyJustify {
 }
 
 impl ToCss for LegacyJustify {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.write_str("legacy ")?;
     match self {
-      LegacyJustify::Left => dest.write_str("left"),
-      LegacyJustify::Right => dest.write_str("right"),
-      LegacyJustify::Center => dest.write_str("center"),
+      LegacyJustify::Left => {
+        dest.write_str("left")?;
+        Ok(())
+      }
+      LegacyJustify::Right => {
+        dest.write_str("right")?;
+        Ok(())
+      }
+      LegacyJustify::Center => {
+        dest.write_str("center")?;
+        Ok(())
+      }
     }
   }
 }
@@ -699,13 +715,16 @@ impl<'i> Parse<'i> for JustifyItems {
 }
 
 impl ToCss for JustifyItems {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      JustifyItems::Normal => dest.write_str("normal"),
-      JustifyItems::Stretch => dest.write_str("stretch"),
+      JustifyItems::Normal => {
+        dest.write_str("normal")?;
+        Ok(())
+      }
+      JustifyItems::Stretch => {
+        dest.write_str("stretch")?;
+        Ok(())
+      }
       JustifyItems::BaselinePosition(val) => val.to_css(dest),
       JustifyItems::Legacy(val) => val.to_css(dest),
       JustifyItems::SelfPosition { overflow, value } => {
@@ -722,7 +741,9 @@ impl ToCss for JustifyItems {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("left")
+        dest.write_str("left")?;
+
+        Ok(())
       }
       JustifyItems::Right { overflow } => {
         if let Some(overflow) = overflow {
@@ -730,7 +751,9 @@ impl ToCss for JustifyItems {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("right")
+        dest.write_str("right")?;
+
+        Ok(())
       }
     }
   }
@@ -770,10 +793,7 @@ impl<'i> Parse<'i> for PlaceItems {
 }
 
 impl ToCss for PlaceItems {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.align.to_css(dest)?;
     let is_equal = match &self.justify {
       JustifyItems::Normal => self.align == AlignItems::Normal,
@@ -833,10 +853,7 @@ impl<'i> Parse<'i> for Gap {
 }
 
 impl ToCss for Gap {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.row.to_css(dest)?;
     if self.column != self.row {
       dest.write_str(" ")?;

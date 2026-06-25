@@ -338,7 +338,6 @@ pub extern "C" fn lightningcss_stylesheet_to_css(
     } else {
       Some(unsafe { std::str::from_utf8_unchecked(CStr::from_ptr(options.project_root).to_bytes()) })
     },
-    source_map: source_map.as_mut(),
     targets: if options.targets != Targets::default() {
       Some(options.targets.into()).into()
     } else {
@@ -356,7 +355,11 @@ pub extern "C" fn lightningcss_stylesheet_to_css(
     },
   };
 
-  let res = unwrap!(wrapper.stylesheet.to_css(opts), error, ToCssResult::default());
+  let res = unwrap!(
+    wrapper.stylesheet.to_css(opts, source_map.as_mut()),
+    error,
+    ToCssResult::default()
+  );
 
   let map = if let Some(mut source_map) = source_map {
     if !options.input_source_map.is_null() {

@@ -7,7 +7,6 @@ use crate::compat;
 use crate::dependencies::{Dependency, UrlDependency};
 use crate::error::{ParserError, PrinterError};
 use crate::prefixes::{is_webkit_gradient, Feature};
-use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 use crate::values::string::CowArcStr;
@@ -368,10 +367,7 @@ impl<'i> Parse<'i> for ImageSet<'i> {
 }
 
 impl<'i> ToCss for ImageSet<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.vendor_prefix.to_css(dest)?;
     dest.write_str("image-set(")?;
     let mut first = true;
@@ -383,7 +379,8 @@ impl<'i> ToCss for ImageSet<'i> {
       }
       option.to_css(dest, self.vendor_prefix != VendorPrefix::None)?;
     }
-    dest.write_char(')')
+    dest.write_char(')')?;
+    Ok(())
   }
 }
 
@@ -445,22 +442,23 @@ impl<'i> Parse<'i> for ImageSetOption<'i> {
 }
 
 impl<'i> ImageSetOption<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+    is_prefixed: bool,
+  ) -> Result<(), PrinterError> {
     match &self.image {
       // Prefixed syntax didn't allow strings, only url()
       Image::Url(url) if !is_prefixed => {
         // Add dependency if needed. Normally this is handled by the Url type.
-        let dep = if dest.dependencies.is_some() {
+        let dep = if dest.state().dependencies.is_some() {
           Some(UrlDependency::new(url, dest.filename()))
         } else {
           None
         };
         if let Some(dep) = dep {
           serialize_string(&dep.placeholder, dest)?;
-          if let Some(dependencies) = &mut dest.dependencies {
+          if let Some(dependencies) = dest.state_mut().dependencies.as_mut() {
             dependencies.push(Dependency::Url(dep))
           }
         } else {
@@ -478,9 +476,11 @@ impl<'i> ImageSetOption<'i> {
     // Safari only supports the x resolution unit in image-set().
     // In other places, x was added as an alias later.
     // Temporarily ignore the targets while printing here.
-    let targets = std::mem::take(&mut dest.targets.current);
-    self.resolution.to_css(dest)?;
-    dest.targets.current = targets;
+    let targets = dest.state().targets.current;
+    dest.state_mut().targets.current = Targets::default();
+    let res = self.resolution.to_css(dest);
+    dest.state_mut().targets.current = targets;
+    res?;
 
     if let Some(file_type) = &self.file_type {
       dest.write_str(" type(")?;

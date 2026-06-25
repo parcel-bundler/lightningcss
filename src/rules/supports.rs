@@ -6,7 +6,6 @@ use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::parser::DefaultAtRule;
-use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::properties::PropertyId;
 use crate::targets::{Features, FeaturesIterator, Targets};
@@ -60,11 +59,7 @@ impl<'i, T: Clone> SupportsRule<'i, T> {
 }
 
 impl<'a, 'i, T: ToCss> ToCss for SupportsRule<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_str("@supports ")?;
     self.condition.to_css(dest)?;
@@ -73,15 +68,16 @@ impl<'a, 'i, T: ToCss> ToCss for SupportsRule<'i, T> {
     dest.indent();
     dest.newline()?;
 
-    let inserted = dest.targets.enter_supports(self.condition.get_supported_features());
+    let inserted = dest.state_mut().targets.enter_supports(self.condition.get_supported_features());
     self.rules.to_css(dest)?;
     if inserted {
-      dest.targets.exit_supports();
+      dest.state_mut().targets.exit_supports();
     }
 
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}')?;
+    Ok(())
   }
 }
 
@@ -337,10 +333,11 @@ impl<'i> SupportsCondition<'i> {
     }
   }
 
-  fn to_css_with_parens_if_needed<W>(&self, dest: &mut Printer<W>, needs_parens: bool) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css_with_parens_if_needed<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+    needs_parens: bool,
+  ) -> Result<(), PrinterError> {
     if needs_parens {
       dest.write_char('(')?;
     }
@@ -353,10 +350,7 @@ impl<'i> SupportsCondition<'i> {
 }
 
 impl<'i> ToCss for SupportsCondition<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       SupportsCondition::Not(condition) => {
         dest.write_str("not ")?;
@@ -413,14 +407,20 @@ impl<'i> ToCss for SupportsCondition<'i> {
           dest.write_char(')')?;
         }
 
-        dest.write_char(')')
+        dest.write_char(')')?;
+
+        Ok(())
       }
       SupportsCondition::Selector(sel) => {
         dest.write_str("selector(")?;
         dest.write_str(sel)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
-      SupportsCondition::Unknown(unknown) => dest.write_str(&unknown),
+      SupportsCondition::Unknown(unknown) => {
+        dest.write_str(&unknown)?;
+        Ok(())
+      }
     }
   }
 }
