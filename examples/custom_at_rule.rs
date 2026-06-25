@@ -2,22 +2,22 @@ use std::{collections::HashMap, convert::Infallible};
 
 use cssparser::*;
 use lightningcss::{
-  declaration::DeclarationBlock,
-  error::PrinterError,
-  printer::Printer,
-  properties::custom::{Token, TokenOrValue},
-  rules::{style::StyleRule, CssRule, CssRuleList, Location},
-  selector::{Component, Selector},
-  stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
-  targets::Browsers,
-  traits::{AtRuleParser, ToCss},
-  values::{
+    declaration::DeclarationBlock,
+    error::PrinterError,
+    printer::PrinterTrait,
+    properties::custom::{Token, TokenOrValue},
+    rules::{style::StyleRule, CssRule, CssRuleList, Location},
+    selector::{Component, Selector},
+    stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
+    targets::Browsers,
+    traits::{AtRuleParser, ToCss},
+    values::{
     color::{CssColor, RGBA},
     length::LengthValue,
   },
-  vendor_prefix::VendorPrefix,
-  visit_types,
-  visitor::{Visit, VisitTypes, Visitor},
+    vendor_prefix::VendorPrefix,
+    visit_types,
+    visitor::{Visit, VisitTypes, Visitor},
 };
 
 fn main() {
@@ -42,14 +42,17 @@ fn main() {
   stylesheet.visit(&mut ApplyVisitor { rules: &style_rules }).unwrap();
 
   let result = stylesheet
-    .to_css(PrinterOptions {
-      targets: Browsers {
-        chrome: Some(100 << 16),
-        ..Browsers::default()
-      }
-      .into(),
-      ..PrinterOptions::default()
-    })
+    .to_css(
+      PrinterOptions {
+        targets: Browsers {
+          chrome: Some(100 << 16),
+          ..Browsers::default()
+        }
+        .into(),
+        ..PrinterOptions::default()
+      },
+      None::<&mut ()>,
+    )
     .unwrap();
   println!("{}", result.code);
 }
@@ -291,7 +294,7 @@ impl<'i, V: Visitor<'i, AtRule>> Visit<'i, AtRule, V> for AtRule {
 }
 
 impl ToCss for AtRule {
-  fn to_css<W: std::fmt::Write>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> {
+  fn to_css<PrinterT: PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       AtRule::Tailwind(rule) => {
         let _ = rule.loc; // TODO: source maps

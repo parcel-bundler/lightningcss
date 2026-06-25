@@ -70,7 +70,6 @@ use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::{parse_rule_list, parse_style_block, DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
 use crate::selector::{is_compatible, is_equivalent, Component, Selector, SelectorList};
 use crate::stylesheet::ParserOptions;
@@ -109,6 +108,18 @@ use viewport::ViewportRule;
 pub(crate) struct StyleContext<'a, 'i> {
   pub selectors: &'a SelectorList<'i>,
   pub parent: Option<&'a StyleContext<'a, 'i>>,
+}
+
+pub(crate) type StyleContextPtr = *const StyleContext<'static, 'static>;
+
+pub(crate) fn style_context_ptr(context: &StyleContext<'_, '_>) -> StyleContextPtr {
+  context as *const _ as StyleContextPtr
+}
+
+pub(crate) fn detach_style_context(
+  context: Option<StyleContextPtr>,
+) -> Option<&'static StyleContext<'static, 'static>> {
+  context.map(|ptr| unsafe { &*ptr })
 }
 
 /// A source location.
@@ -378,10 +389,7 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
 }
 
 impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       CssRule::Media(media) => media.to_css(dest),
       CssRule::Import(import) => import.to_css(dest),
@@ -1033,10 +1041,7 @@ fn merge_style_rules<'i, T>(
 }
 
 impl<'a, 'i, T: ToCss> ToCss for CssRuleList<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let mut first = true;
     let mut last_without_block = false;
 
@@ -1047,14 +1052,14 @@ impl<'a, 'i, T: ToCss> ToCss for CssRuleList<'i, T> {
 
       // Skip @import rules if collecting dependencies.
       if let CssRule::Import(rule) = &rule {
-        if dest.remove_imports {
-          let dep = if dest.dependencies.is_some() {
+        if dest.state().remove_imports {
+          let dep = if dest.state().dependencies.is_some() {
             Some(Dependency::Import(ImportDependency::new(&rule, dest.filename())))
           } else {
             None
           };
 
-          if let Some(dependencies) = &mut dest.dependencies {
+          if let Some(dependencies) = dest.state_mut().dependencies.as_mut() {
             dependencies.push(dep.unwrap());
             continue;
           }
@@ -1064,7 +1069,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRuleList<'i, T> {
       if first {
         first = false;
       } else {
-        if !dest.minify
+        if !dest.options().minify
           && !(last_without_block
             && matches!(
               rule,
@@ -1078,8 +1083,8 @@ impl<'a, 'i, T: ToCss> ToCss for CssRuleList<'i, T> {
       rule.to_css(dest)?;
 
       // If this is an invisible nested declarations rule, and not the last rule in the block, add a semicolon.
-      if dest.minify
-        && !should_compile!(dest.targets.current, Nesting)
+      if dest.options().minify
+        && !should_compile!(dest.state().targets.current, Nesting)
         && matches!(rule, CssRule::NestedDeclarations(_))
         && i != self.0.len() - 1
       {

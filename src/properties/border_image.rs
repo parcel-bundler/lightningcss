@@ -4,7 +4,6 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::{Browsers, Targets};
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
@@ -82,10 +81,7 @@ impl<'i> Parse<'i> for BorderImageRepeat {
 }
 
 impl ToCss for BorderImageRepeat {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.horizontal.to_css(dest)?;
     if self.horizontal != self.vertical {
       dest.write_str(" ")?;
@@ -169,10 +165,7 @@ impl<'i> Parse<'i> for BorderImageSlice {
 }
 
 impl ToCss for BorderImageSlice {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.offsets.to_css(dest)?;
     if self.fill {
       dest.write_str(" fill")?;
@@ -291,17 +284,14 @@ impl<'i> BorderImage<'i> {
     }
   }
 
-  pub(crate) fn to_css_internal<W>(
+  pub(crate) fn to_css_internal<PrinterT: crate::printer::PrinterTrait>(
     source: &Image<'i>,
     slice: &BorderImageSlice,
     width: &Rect<BorderImageSideWidth>,
     outset: &Rect<LengthOrNumber>,
     repeat: &BorderImageRepeat,
-    dest: &mut Printer<W>,
-  ) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+    dest: &mut PrinterT,
+  ) -> Result<(), PrinterError> {
     if *source != Image::default() {
       source.to_css(dest)?;
     }
@@ -334,10 +324,7 @@ impl<'i> BorderImage<'i> {
 }
 
 impl<'i> ToCss for BorderImage<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     BorderImage::to_css_internal(&self.source, &self.slice, &self.width, &self.outset, &self.repeat, dest)
   }
 }

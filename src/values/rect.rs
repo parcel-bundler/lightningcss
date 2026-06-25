@@ -1,7 +1,6 @@
 //! Generic values for four sided properties.
 
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::traits::{IsCompatible, Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -95,10 +94,7 @@ impl<T> ToCss for Rect<T>
 where
   T: PartialEq + ToCss,
 {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.0.to_css(dest)?;
     let same_vertical = self.0 == self.2;
     let same_horizontal = self.1 == self.3;

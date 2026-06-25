@@ -5,7 +5,6 @@ use super::length::serialize_dimension;
 use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::traits::{
   impl_op,
   private::{AddInternal, TryAdd},
@@ -102,10 +101,7 @@ impl<'i> TryFrom<&Token<'i>> for Angle {
 }
 
 impl ToCss for Angle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let (value, unit) = match self {
       Angle::Deg(val) => (*val, "deg"),
       Angle::Grad(val) => (*val, "grad"),
@@ -130,10 +126,10 @@ impl ToCss for Angle {
 
 impl Angle {
   /// Prints the angle, allowing unitless zero values.
-  pub fn to_css_with_unitless_zero<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  pub fn to_css_with_unitless_zero<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+  ) -> Result<(), PrinterError> {
     if self.is_zero() {
       (0.0).to_css(dest)
     } else {

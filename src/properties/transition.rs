@@ -7,7 +7,6 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::define_list_shorthand;
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::properties::masking::get_webkit_mask_property;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::ident::CustomIdent;
@@ -83,10 +82,7 @@ impl<'i> Parse<'i> for Transition<'i> {
 }
 
 impl<'i> ToCss for Transition<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.property.to_css(dest)?;
     if !self.duration.is_zero() || !self.delay.is_zero() {
       dest.write_char(' ')?;

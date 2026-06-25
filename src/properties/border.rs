@@ -8,7 +8,6 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::logical::PropertyCategory;
 use crate::macros::*;
-use crate::printer::Printer;
 use crate::properties::custom::UnparsedProperty;
 use crate::properties::{Property, PropertyId};
 use crate::targets::Browsers;
@@ -178,10 +177,7 @@ impl<'i, S: Parse<'i> + Default, const P: u8> Parse<'i> for GenericBorder<S, P> 
 }
 
 impl<S: ToCss + Default + PartialEq, const P: u8> ToCss for GenericBorder<S, P> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if *self == Self::default() {
       self.style.to_css(dest)?;
       return Ok(());

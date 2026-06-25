@@ -4,7 +4,6 @@ use super::length::serialize_dimension;
 use super::number::CSSNumber;
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -65,15 +64,12 @@ impl<'i> TryFrom<&Token<'i>> for Resolution {
 }
 
 impl ToCss for Resolution {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let (value, unit) = match self {
       Resolution::Dpi(dpi) => (*dpi, "dpi"),
       Resolution::Dpcm(dpcm) => (*dpcm, "dpcm"),
       Resolution::Dppx(dppx) => {
-        if dest.targets.current.is_compatible(Feature::XResolutionUnit) {
+        if dest.state().targets.current.is_compatible(Feature::XResolutionUnit) {
           (*dppx, "x")
         } else {
           (*dppx, "dppx")

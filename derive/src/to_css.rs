@@ -25,10 +25,7 @@ pub fn derive_to_css(input: TokenStream) -> TokenStream {
 
   let output = quote! {
     impl #impl_generics ToCss for #ident #ty_generics #where_clause {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-      where
-        W: std::fmt::Write,
-      {
+      fn to_css<PrinterT: crate::printer::CssPrinter>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
         #imp
       }
     }
@@ -121,7 +118,10 @@ fn derive_enum(data: &DataEnum, opts: &CssOptions) -> TokenStream2 {
         Fields::Unit => {
           let s = Literal::string(&variant.ident.to_string().to_case(opts.case));
           quote! {
-            Self::#name => dest.write_str(#s)
+            Self::#name => {
+              dest.write_str(#s)?;
+              Ok(())
+            }
           }
         }
         Fields::Named(_) => {

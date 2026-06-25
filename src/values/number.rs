@@ -3,7 +3,6 @@
 use super::angle::impl_try_from_angle;
 use super::calc::Calc;
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::traits::private::AddInternal;
 use crate::traits::{Map, Op, Parse, Sign, ToCss, Zero};
 use cssparser::*;
@@ -30,19 +29,18 @@ impl<'i> Parse<'i> for CSSNumber {
 }
 
 impl ToCss for CSSNumber {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let number = *self;
     if number != 0.0 && number.abs() < 1.0 {
       let mut s = String::new();
       cssparser::ToCss::to_css(self, &mut s)?;
       if number < 0.0 {
         dest.write_char('-')?;
-        dest.write_str(s.trim_start_matches("-").trim_start_matches("0"))
+        dest.write_str(s.trim_start_matches("-").trim_start_matches("0"))?;
+        Ok(())
       } else {
-        dest.write_str(s.trim_start_matches('0'))
+        dest.write_str(s.trim_start_matches('0'))?;
+        Ok(())
       }
     } else {
       cssparser::ToCss::to_css(self, dest)?;
@@ -122,10 +120,7 @@ impl<'i> Parse<'i> for CSSInteger {
 }
 
 impl ToCss for CSSInteger {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     cssparser::ToCss::to_css(self, dest)?;
     Ok(())
   }

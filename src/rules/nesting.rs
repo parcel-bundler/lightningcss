@@ -9,7 +9,6 @@ use crate::context::DeclarationContext;
 use crate::declaration::DeclarationBlock;
 use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
-use crate::printer::Printer;
 use crate::targets::should_compile;
 use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
@@ -41,13 +40,9 @@ impl<'i, T: Clone> NestingRule<'i, T> {
 }
 
 impl<'a, 'i, T: ToCss> ToCss for NestingRule<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
-    if dest.context().is_none() {
+    if dest.state().context.is_none() {
       dest.write_str("@nest ")?;
     }
     self.style.to_css(dest)
@@ -85,18 +80,20 @@ impl<'i> NestedDeclarationsRule<'i> {
 }
 
 impl<'i> ToCss for NestedDeclarationsRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
 
-    if should_compile!(dest.targets.current, Nesting) {
-      if let Some(context) = dest.context() {
+    if should_compile!(dest.state().targets.current, Nesting) {
+      let context = crate::rules::detach_style_context(dest.state().context);
+      if let Some(context) = context {
         let has_printable_declarations = self.declarations.has_printable_declarations();
         if has_printable_declarations {
-          dest.with_parent_context(|dest| context.selectors.to_css(dest))?;
+          let parent = dest.state().context;
+          dest.state_mut().context = None;
+          dest.state_mut().context = context.parent.map(crate::rules::style_context_ptr);
+          let res = context.selectors.to_css(dest);
+          dest.state_mut().context = parent;
+          res?;
           dest.whitespace()?;
           dest.write_char('{')?;
           dest.indent();

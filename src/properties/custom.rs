@@ -3,6 +3,7 @@
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::macros::enum_property;
 use crate::prefixes::Feature;
+#[cfg(feature = "substitute_variables")]
 use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
@@ -100,10 +101,7 @@ impl<'i> AsRef<str> for CustomPropertyName<'i> {
 }
 
 impl<'i> ToCss for CustomPropertyName<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       CustomPropertyName::Custom(c) => c.to_css(dest),
       CustomPropertyName::Unknown(u) => u.to_css(dest),
@@ -485,10 +483,11 @@ fn try_parse_color_token<'i, 't>(
 }
 
 impl<'i> TokenList<'i> {
-  pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  pub(crate) fn to_css<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+    is_custom_property: bool,
+  ) -> Result<(), PrinterError> {
     for token_or_value in self.0.iter() {
       match token_or_value {
         TokenOrValue::Color(color) => {
@@ -498,7 +497,7 @@ impl<'i> TokenList<'i> {
           color.to_css(dest, is_custom_property)?;
         }
         TokenOrValue::Url(url) => {
-          if dest.dependencies.is_some() && is_custom_property && !url.is_absolute() {
+          if dest.state().dependencies.is_some() && is_custom_property && !url.is_absolute() {
             return Err(dest.error(
               PrinterErrorKind::AmbiguousUrlInCustomProperty {
                 url: url.url.as_ref().to_owned(),
@@ -554,10 +553,10 @@ impl<'i> TokenList<'i> {
     Ok(())
   }
 
-  pub(crate) fn to_css_raw<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  pub(crate) fn to_css_raw<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+  ) -> Result<(), PrinterError> {
     for token_or_value in &self.0 {
       match token_or_value {
         TokenOrValue::Token(token) => {
@@ -840,10 +839,7 @@ impl<'a> From<&cssparser::Token<'a>> for Token<'a> {
 
 impl<'a> ToCss for Token<'a> {
   #[inline]
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use cssparser::ToCss;
     match self {
       Token::Ident(x) => cssparser::Token::Ident(x.as_ref().into()).to_css(dest)?,
@@ -889,14 +885,14 @@ impl<'a> ToCss for Token<'a> {
       }
       .to_css(dest)?,
       Token::WhiteSpace(w) => {
-        if dest.minify {
+        if dest.options().minify {
           dest.write_char(' ')?;
         } else {
           dest.write_str(&w)?;
         }
       }
       Token::Comment(c) => {
-        if !dest.minify {
+        if !dest.options().minify {
           cssparser::Token::Comment(c).to_css(dest)?;
         }
       }
@@ -1208,10 +1204,11 @@ impl<'i> Variable<'i> {
     Ok(Variable { name, fallback })
   }
 
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+    is_custom_property: bool,
+  ) -> Result<(), PrinterError> {
     dest.write_str("var(")?;
     self.name.to_css(dest)?;
     if let Some(fallback) = &self.fallback {
@@ -1221,7 +1218,8 @@ impl<'i> Variable<'i> {
       }
       fallback.to_css(dest, is_custom_property)?;
     }
-    dest.write_char(')')
+    dest.write_char(')')?;
+    Ok(())
   }
 
   fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
@@ -1333,10 +1331,7 @@ impl<'i> Parse<'i> for EnvironmentVariableName<'i> {
 }
 
 impl<'i> ToCss for EnvironmentVariableName<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       EnvironmentVariableName::UA(ua) => ua.to_css(dest),
       EnvironmentVariableName::Custom(custom) => custom.to_css(dest),
@@ -1379,10 +1374,11 @@ impl<'i> EnvironmentVariable<'i> {
     })
   }
 
-  pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  pub(crate) fn to_css<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+    is_custom_property: bool,
+  ) -> Result<(), PrinterError> {
     dest.write_str("env(")?;
     self.name.to_css(dest)?;
 
@@ -1398,7 +1394,8 @@ impl<'i> EnvironmentVariable<'i> {
       }
       fallback.to_css(dest, is_custom_property)?;
     }
-    dest.write_char(')')
+    dest.write_char(')')?;
+    Ok(())
   }
 
   fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
@@ -1426,14 +1423,16 @@ pub struct Function<'i> {
 }
 
 impl<'i> Function<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+    is_custom_property: bool,
+  ) -> Result<(), PrinterError> {
     self.name.to_css(dest)?;
     dest.write_char('(')?;
     self.arguments.to_css(dest, is_custom_property)?;
-    dest.write_char(')')
+    dest.write_char(')')?;
+    Ok(())
   }
 
   fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
@@ -1550,13 +1549,14 @@ impl<'i> UnresolvedColor<'i> {
     }
   }
 
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+    is_custom_property: bool,
+  ) -> Result<(), PrinterError> {
     match self {
       UnresolvedColor::RGB { r, g, b, alpha } => {
-        if should_compile!(dest.targets.current, SpaceSeparatedColorNotation) {
+        if should_compile!(dest.state().targets.current, SpaceSeparatedColorNotation) {
           dest.write_str("rgba(")?;
           r.to_css(dest)?;
           dest.delim(',', false)?;
@@ -1577,10 +1577,11 @@ impl<'i> UnresolvedColor<'i> {
         b.to_css(dest)?;
         dest.delim('/', true)?;
         alpha.to_css(dest, is_custom_property)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       UnresolvedColor::HSL { h, s, l, alpha } => {
-        if should_compile!(dest.targets.current, SpaceSeparatedColorNotation) {
+        if should_compile!(dest.state().targets.current, SpaceSeparatedColorNotation) {
           dest.write_str("hsla(")?;
           h.to_css(dest)?;
           dest.delim(',', false)?;
@@ -1601,10 +1602,11 @@ impl<'i> UnresolvedColor<'i> {
         Percentage(*l / 100.0).to_css(dest)?;
         dest.delim('/', true)?;
         alpha.to_css(dest, is_custom_property)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       UnresolvedColor::LightDark { light, dark } => {
-        if should_compile!(dest.targets.current, LightDark) {
+        if should_compile!(dest.state().targets.current, LightDark) {
           dest.write_str("var(--lightningcss-light")?;
           dest.delim(',', false)?;
           light.to_css(dest, is_custom_property)?;
@@ -1613,14 +1615,15 @@ impl<'i> UnresolvedColor<'i> {
           dest.write_str("var(--lightningcss-dark")?;
           dest.delim(',', false)?;
           dark.to_css(dest, is_custom_property)?;
-          return dest.write_char(')');
+          return Ok(dest.write_char(')')?);
         }
 
         dest.write_str("light-dark(")?;
         light.to_css(dest, is_custom_property)?;
         dest.delim(',', false)?;
         dark.to_css(dest, is_custom_property)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
     }
   }
