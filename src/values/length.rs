@@ -460,7 +460,8 @@ impl ToCss for LengthValue {
     // The unit can be omitted if the value is zero, except inside calc()
     // expressions, where unitless numbers won't be parsed as dimensions.
     if !dest.state().in_calc && value == 0.0 {
-      return Ok(dest.write_char('0')?);
+      dest.write_char('0')?;
+      return Ok(());
     }
 
     serialize_dimension(value, unit, dest)

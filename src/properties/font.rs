@@ -83,16 +83,11 @@ impl ToCss for AbsoluteFontWeight {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use AbsoluteFontWeight::*;
     match self {
-      Weight(val) => val.to_css(dest),
-      Normal => {
-        dest.write_str(if dest.options().minify { "400" } else { "normal" })?;
-        Ok(())
-      }
-      Bold => {
-        dest.write_str(if dest.options().minify { "700" } else { "bold" })?;
-        Ok(())
-      }
-    }
+      Weight(val) => val.to_css(dest)?,
+      Normal => dest.write_str(if dest.options().minify { "400" } else { "normal" })?,
+      Bold => dest.write_str(if dest.options().minify { "700" } else { "bold" })?,
+    };
+    Ok(())
   }
 }
 
@@ -432,7 +427,8 @@ impl<'i> ToCss for FamilyName<'i> {
         serialize_identifier(slice, &mut id)?;
       }
       if id.len() < val.len() + 2 {
-        return Ok(dest.write_str(&id)?);
+        dest.write_str(&id)?;
+        return Ok(());
       }
     }
     serialize_string(&val, dest)?;
@@ -502,23 +498,17 @@ impl<'i> Parse<'i> for FontStyle {
 impl ToCss for FontStyle {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      FontStyle::Normal => {
-        dest.write_str("normal")?;
-        Ok(())
-      }
-      FontStyle::Italic => {
-        dest.write_str("italic")?;
-        Ok(())
-      }
+      FontStyle::Normal => dest.write_str("normal")?,
+      FontStyle::Italic => dest.write_str("italic")?,
       FontStyle::Oblique(angle) => {
         dest.write_str("oblique")?;
         if *angle != FontStyle::default_oblique_angle() {
           dest.write_char(' ')?;
           angle.to_css(dest)?;
         }
-        Ok(())
       }
-    }
+    };
+    Ok(())
   }
 }
 

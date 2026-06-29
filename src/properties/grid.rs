@@ -399,7 +399,10 @@ fn serialize_line_names<PrinterT: crate::printer::PrinterTrait>(
   Ok(())
 }
 
-fn write_ident<PrinterT: crate::printer::PrinterTrait>(name: &str, dest: &mut PrinterT) -> Result<(), PrinterError> {
+fn write_ident<PrinterT: crate::printer::PrinterTrait>(
+  name: &str,
+  dest: &mut PrinterT,
+) -> Result<(), PrinterError> {
   let css_module_grid_enabled = dest
     .state()
     .css_module
@@ -515,7 +518,8 @@ impl<'i> Parse<'i> for TrackSizeList {
 impl ToCss for TrackSizeList {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.0.len() == 0 {
-      return Ok(dest.write_str("auto")?);
+      dest.write_str("auto")?;
+      return Ok(());
     }
 
     let mut first = true;

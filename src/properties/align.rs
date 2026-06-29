@@ -59,15 +59,10 @@ impl<'i> Parse<'i> for BaselinePosition {
 impl ToCss for BaselinePosition {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      BaselinePosition::First => {
-        dest.write_str("baseline")?;
-        Ok(())
-      }
-      BaselinePosition::Last => {
-        dest.write_str("last baseline")?;
-        Ok(())
-      }
-    }
+      BaselinePosition::First => dest.write_str("baseline")?,
+      BaselinePosition::Last => dest.write_str("last baseline")?,
+    };
+    Ok(())
   }
 }
 
@@ -209,18 +204,15 @@ impl<'i> Parse<'i> for JustifyContent {
 impl ToCss for JustifyContent {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      JustifyContent::Normal => {
-        dest.write_str("normal")?;
-        Ok(())
-      }
-      JustifyContent::ContentDistribution(value) => value.to_css(dest),
+      JustifyContent::Normal => dest.write_str("normal")?,
+      JustifyContent::ContentDistribution(value) => value.to_css(dest)?,
       JustifyContent::ContentPosition { overflow, value } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
         }
 
-        value.to_css(dest)
+        value.to_css(dest)?;
       }
       JustifyContent::Left { overflow } => {
         if let Some(overflow) = overflow {
@@ -229,8 +221,6 @@ impl ToCss for JustifyContent {
         }
 
         dest.write_str("left")?;
-
-        Ok(())
       }
       JustifyContent::Right { overflow } => {
         if let Some(overflow) = overflow {
@@ -239,10 +229,9 @@ impl ToCss for JustifyContent {
         }
 
         dest.write_str("right")?;
-
-        Ok(())
       }
-    }
+    };
+    Ok(())
   }
 }
 
@@ -433,26 +422,17 @@ impl<'i> Parse<'i> for JustifySelf {
 impl ToCss for JustifySelf {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      JustifySelf::Auto => {
-        dest.write_str("auto")?;
-        Ok(())
-      }
-      JustifySelf::Normal => {
-        dest.write_str("normal")?;
-        Ok(())
-      }
-      JustifySelf::Stretch => {
-        dest.write_str("stretch")?;
-        Ok(())
-      }
-      JustifySelf::BaselinePosition(val) => val.to_css(dest),
+      JustifySelf::Auto => dest.write_str("auto")?,
+      JustifySelf::Normal => dest.write_str("normal")?,
+      JustifySelf::Stretch => dest.write_str("stretch")?,
+      JustifySelf::BaselinePosition(val) => val.to_css(dest)?,
       JustifySelf::SelfPosition { overflow, value } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
         }
 
-        value.to_css(dest)
+        value.to_css(dest)?;
       }
       JustifySelf::Left { overflow } => {
         if let Some(overflow) = overflow {
@@ -461,8 +441,6 @@ impl ToCss for JustifySelf {
         }
 
         dest.write_str("left")?;
-
-        Ok(())
       }
       JustifySelf::Right { overflow } => {
         if let Some(overflow) = overflow {
@@ -471,10 +449,9 @@ impl ToCss for JustifySelf {
         }
 
         dest.write_str("right")?;
-
-        Ok(())
       }
-    }
+    };
+    Ok(())
   }
 }
 
@@ -622,19 +599,11 @@ impl ToCss for LegacyJustify {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.write_str("legacy ")?;
     match self {
-      LegacyJustify::Left => {
-        dest.write_str("left")?;
-        Ok(())
-      }
-      LegacyJustify::Right => {
-        dest.write_str("right")?;
-        Ok(())
-      }
-      LegacyJustify::Center => {
-        dest.write_str("center")?;
-        Ok(())
-      }
-    }
+      LegacyJustify::Left => dest.write_str("left")?,
+      LegacyJustify::Right => dest.write_str("right")?,
+      LegacyJustify::Center => dest.write_str("center")?,
+    };
+    Ok(())
   }
 }
 
@@ -716,23 +685,17 @@ impl<'i> Parse<'i> for JustifyItems {
 impl ToCss for JustifyItems {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      JustifyItems::Normal => {
-        dest.write_str("normal")?;
-        Ok(())
-      }
-      JustifyItems::Stretch => {
-        dest.write_str("stretch")?;
-        Ok(())
-      }
-      JustifyItems::BaselinePosition(val) => val.to_css(dest),
-      JustifyItems::Legacy(val) => val.to_css(dest),
+      JustifyItems::Normal => dest.write_str("normal")?,
+      JustifyItems::Stretch => dest.write_str("stretch")?,
+      JustifyItems::BaselinePosition(val) => val.to_css(dest)?,
+      JustifyItems::Legacy(val) => val.to_css(dest)?,
       JustifyItems::SelfPosition { overflow, value } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
         }
 
-        value.to_css(dest)
+        value.to_css(dest)?;
       }
       JustifyItems::Left { overflow } => {
         if let Some(overflow) = overflow {
@@ -741,8 +704,6 @@ impl ToCss for JustifyItems {
         }
 
         dest.write_str("left")?;
-
-        Ok(())
       }
       JustifyItems::Right { overflow } => {
         if let Some(overflow) = overflow {
@@ -751,10 +712,9 @@ impl ToCss for JustifyItems {
         }
 
         dest.write_str("right")?;
-
-        Ok(())
       }
-    }
+    };
+    Ok(())
   }
 }
 

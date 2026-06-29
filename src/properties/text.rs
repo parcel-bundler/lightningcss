@@ -523,15 +523,18 @@ impl<'i> Parse<'i> for TextDecorationLine {
 impl ToCss for TextDecorationLine {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.is_empty() {
-      return Ok(dest.write_str("none")?);
+      dest.write_str("none")?;
+      return Ok(());
     }
 
     if self.contains(TextDecorationLine::SpellingError) {
-      return Ok(dest.write_str("spelling-error")?);
+      dest.write_str("spelling-error")?;
+      return Ok(());
     }
 
     if self.contains(TextDecorationLine::GrammarError) {
-      return Ok(dest.write_str("grammar-error")?);
+      dest.write_str("grammar-error")?;
+      return Ok(());
     }
 
     let mut needs_space = false;

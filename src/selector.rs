@@ -692,17 +692,20 @@ fn serialize_pseudo_class<'a, 'i, PrinterT: crate::printer::PrinterTrait>(
         }
         serialize_identifier(lang, dest)?;
       }
-      return Ok(dest.write_str(")")?);
+      dest.write_str(")")?;
+      return Ok(());
     }
     Dir { direction: dir } => {
       dest.write_str(":dir(")?;
       dir.to_css(dest)?;
-      return Ok(dest.write_str(")")?);
+      dest.write_str(")")?;
+      return Ok(());
     }
     State { state } => {
       dest.write_str(":state(")?;
       state.to_css(dest)?;
-      return Ok(dest.write_str(")")?);
+      dest.write_str(")")?;
+      return Ok(());
     }
     _ => {}
   }
@@ -979,7 +982,8 @@ fn serialize_pseudo_class<'a, 'i, PrinterT: crate::printer::PrinterTrait>(
     Lang { languages: _ } | Dir { direction: _ } | State { .. } => unreachable!(),
     Custom { name } => {
       dest.write_char(':')?;
-      return Ok(dest.write_str(&name)?);
+      dest.write_str(&name)?;
+      return Ok(());
     }
     CustomFunction { name, arguments: args } => {
       dest.write_char(':')?;
@@ -1469,7 +1473,8 @@ fn serialize_pseudo_element<'a, 'i, PrinterT: crate::printer::PrinterTrait>(
     }
     Custom { name: val } => {
       dest.write_str("::")?;
-      return Ok(dest.write_str(val)?);
+      dest.write_str(val)?;
+      return Ok(());
     }
     CustomFunction { name, arguments: args } => {
       dest.write_str("::")?;

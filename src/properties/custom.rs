@@ -1615,7 +1615,8 @@ impl<'i> UnresolvedColor<'i> {
           dest.write_str("var(--lightningcss-dark")?;
           dest.delim(',', false)?;
           dark.to_css(dest, is_custom_property)?;
-          return Ok(dest.write_char(')')?);
+          dest.write_char(')')?;
+          return Ok(());
         }
 
         dest.write_str("light-dark(")?;

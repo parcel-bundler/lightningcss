@@ -468,7 +468,8 @@ impl<'i> Parse<'i> for ColorScheme {
 impl ToCss for ColorScheme {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.is_empty() {
-      return Ok(dest.write_str("normal")?);
+      dest.write_str("normal")?;
+      return Ok(());
     }
 
     if self.contains(ColorScheme::Light) {
@@ -485,7 +486,8 @@ impl ToCss for ColorScheme {
     if self.contains(ColorScheme::Only) {
       // Avoid parsing `color-scheme: only` as `color-scheme:  only`
       if !self.intersects(ColorScheme::Light | ColorScheme::Dark) {
-        return Ok(dest.write_str("only")?);
+        dest.write_str("only")?;
+        return Ok(());
       }
       dest.write_str(" only")?;
     }
