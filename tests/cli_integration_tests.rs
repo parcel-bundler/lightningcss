@@ -434,16 +434,57 @@ fn sourcemap() -> Result<(), Box<dyn std::error::Error>> {
   cmd.arg("--sourcemap");
   cmd.assert().success();
 
-  outfile.assert(predicate::str::contains(&format!(
-    "/*# sourceMappingURL={}.map */",
-    outfile.path().to_str().unwrap()
-  )));
+  // The sourceMappingURL must be the map file's name only, not the full output
+  // path, so that it resolves relative to the CSS file. See issue #794.
+  outfile.assert(predicate::str::contains("/*# sourceMappingURL=out.css.map */"));
   let mapfile = outdir.child("out.css.map");
   mapfile.assert(predicate::str::contains(r#""version":3"#));
   mapfile.assert(predicate::str::contains(r#""sources":["test.css"]"#));
   mapfile.assert(predicate::str::contains(
     r#""mappings":"AACM;;;;AAIA;;;;AAIA;;;;;;;;;;AAKA;;;;AAIA;;;;AAIA""#,
   ));
+
+  Ok(())
+}
+
+#[test]
+/// When the output file is in a subdirectory, the sourceMappingURL must still
+/// reference the map file by name only (it lives next to the output file), not
+/// by the full output path. Regression test for issue #794.
+fn sourcemap_url_relative_to_output_subdir() -> Result<(), Box<dyn std::error::Error>> {
+  let dir = assert_fs::TempDir::new()?;
+  let infile = dir.child("stylesheet.css");
+  infile.write_str(
+    r#"
+      body {
+        background-color: red;
+      }
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.current_dir(dir.path());
+  cmd.arg("stylesheet.css");
+  cmd.arg("-o").arg("dist/my-package.css");
+  cmd.arg("--sourcemap");
+  cmd.assert().success();
+
+  let out_contents = fs::read_to_string(dir.child("dist/my-package.css").path())?;
+  assert!(
+    out_contents.contains("/*# sourceMappingURL=my-package.css.map */"),
+    "sourceMappingURL should be the map file name only, got: {out_contents}"
+  );
+  assert!(
+    !out_contents.contains("sourceMappingURL=dist/"),
+    "sourceMappingURL should not include the output directory, got: {out_contents}"
+  );
+
+  // The map file itself is still written alongside the output file.
+  let map_contents = fs::read_to_string(dir.child("dist/my-package.css.map").path())?;
+  assert!(
+    map_contents.contains(r#""version":3"#),
+    "map file should be valid, got: {map_contents}"
+  );
 
   Ok(())
 }
