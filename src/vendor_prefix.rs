@@ -80,24 +80,13 @@ impl cssparser::ToCss for VendorPrefix {
     W: std::fmt::Write,
   {
     match *self {
-      VendorPrefix::WebKit => {
-        dest.write_str("-webkit-")?;
-        Ok(())
-      }
-      VendorPrefix::Moz => {
-        dest.write_str("-moz-")?;
-        Ok(())
-      }
-      VendorPrefix::Ms => {
-        dest.write_str("-ms-")?;
-        Ok(())
-      }
-      VendorPrefix::O => {
-        dest.write_str("-o-")?;
-        Ok(())
-      }
-      _ => Ok(()),
-    }
+      VendorPrefix::WebKit => dest.write_str("-webkit-")?,
+      VendorPrefix::Moz => dest.write_str("-moz-")?,
+      VendorPrefix::Ms => dest.write_str("-ms-")?,
+      VendorPrefix::O => dest.write_str("-o-")?,
+      _ => {}
+    };
+    Ok(())
   }
 }
 

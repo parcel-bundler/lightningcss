@@ -72,7 +72,8 @@ impl<'i> ToCss for Url<'i> {
         if buf2.len() + 5 < buf.len() {
           dest.write_str("url(")?;
           dest.write_str(&buf2)?;
-          return Ok(dest.write_char(')')?);
+          dest.write_char(')')?;
+          return Ok(());
         }
       }
 
