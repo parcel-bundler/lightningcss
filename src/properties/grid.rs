@@ -639,7 +639,7 @@ impl ToCss for GridTemplateAreas {
         let mut next = iter.next();
         let mut first = true;
         while next.is_some() {
-          if !first && !dest.options().minify {
+          if !first && !dest.minify() {
             dest.newline()?;
           }
 
@@ -647,14 +647,14 @@ impl ToCss for GridTemplateAreas {
 
           if first {
             first = false;
-            if !dest.options().minify {
+            if !dest.minify() {
               // Indent by the width of "grid-template-areas: ", so the rows line up.
               dest.indent_by(21);
             }
           }
         }
 
-        if !dest.options().minify {
+        if !dest.minify() {
           dest.dedent_by(21);
         }
 
@@ -682,13 +682,13 @@ impl GridTemplateAreas {
     for i in 0..columns {
       if let Some(token) = next {
         if let Some(string) = token {
-          if i > 0 && (!last_was_null || !dest.options().minify) {
+          if i > 0 && (!last_was_null || !dest.minify()) {
             dest.write_char(' ')?;
           }
           write_ident(string, dest)?;
           last_was_null = false;
         } else {
-          if i > 0 && (last_was_null || !dest.options().minify) {
+          if i > 0 && (last_was_null || !dest.minify()) {
             dest.write_char(' ')?;
           }
           dest.write_char('.')?;
@@ -843,7 +843,7 @@ impl GridTemplate<'_> {
         while next.is_some() {
           macro_rules! newline {
             () => {
-              if !dest.options().minify {
+              if !dest.minify() {
                 if !indented {
                   // Indent by the width of "grid-template: ", so the rows line up.
                   dest.indent_by(indent);
@@ -856,7 +856,7 @@ impl GridTemplate<'_> {
 
           if let Some(line_names) = line_names_iter.next() {
             if !line_names.is_empty() {
-              if !dest.options().minify && line_names.len() == 2 {
+              if !dest.minify() && line_names.len() == 2 {
                 dest.whitespace()?;
                 serialize_line_names(&line_names[0..1], dest)?;
                 newline!();
@@ -1086,7 +1086,7 @@ impl ToCss for GridAutoFlow {
     } else if *self == GridAutoFlow::Column {
       "column"
     } else if *self == GridAutoFlow::Row | GridAutoFlow::Dense {
-      if dest.options().minify {
+      if dest.minify() {
         "dense"
       } else {
         "row dense"

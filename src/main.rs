@@ -219,8 +219,8 @@ pub fn main() -> Result<(), std::io::Error> {
             project_root: Some(&project_root.to_string_lossy()),
             targets,
             ..PrinterOptions::default()
-          },
-          source_map.as_mut(),
+          }
+          .with_source_map(source_map.as_mut()),
         )
         .unwrap()
     };

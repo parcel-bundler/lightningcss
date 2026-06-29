@@ -368,7 +368,7 @@ impl<'i> ToCss for FontPaletteValuesRule<'i> {
     for (i, prop) in self.properties.iter().enumerate() {
       dest.newline()?;
       prop.to_css(dest)?;
-      if i != len - 1 || !dest.options().minify {
+      if i != len - 1 || !dest.minify() {
         dest.write_char(';')?;
       }
     }

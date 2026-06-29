@@ -87,7 +87,7 @@ mod tests {
     if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
       panic_with_test_error("test_with_options", "minify", source, e);
     }
-    let res = match stylesheet.to_css(PrinterOptions::default(), None::<&mut ()>) {
+    let res = match stylesheet.to_css(PrinterOptions::default()) {
       Ok(res) => res,
       Err(e) => panic_with_test_error("test_with_options", "print", source, e),
     };
@@ -103,7 +103,7 @@ mod tests {
     if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
       panic_with_test_error("test_with_printer_options", "minify", source, e);
     }
-    let res = match stylesheet.to_css(options, None::<&mut ()>) {
+    let res = match stylesheet.to_css(options) {
       Ok(res) => res,
       Err(e) => panic_with_test_error("test_with_printer_options", "print", source, e),
     };
@@ -138,14 +138,11 @@ mod tests {
     }) {
       panic_with_test_error("minify_test_with_options", "minify", source, e);
     }
-    let res = match stylesheet.to_css(
-      PrinterOptions {
-        minify: true,
-        targets,
-        ..PrinterOptions::default()
-      },
-      None::<&mut ()>,
-    ) {
+    let res = match stylesheet.to_css(PrinterOptions {
+      minify: true,
+      targets,
+      ..PrinterOptions::default()
+    }) {
       Ok(res) => res,
       Err(e) => panic_with_test_error("minify_test_with_options", "print", source, e),
     };
@@ -179,13 +176,10 @@ mod tests {
     }) {
       panic_with_test_error("prefix_test", "minify", source, e);
     }
-    let res = match stylesheet.to_css(
-      PrinterOptions {
-        targets: targets.into(),
-        ..PrinterOptions::default()
-      },
-      None::<&mut ()>,
-    ) {
+    let res = match stylesheet.to_css(PrinterOptions {
+      targets: targets.into(),
+      ..PrinterOptions::default()
+    }) {
       Ok(res) => res,
       Err(e) => panic_with_test_error("prefix_test", "print", source, e),
     };
@@ -238,13 +232,10 @@ mod tests {
     }) {
       panic_with_test_error("nesting_test_with_targets", "minify", source, e);
     }
-    let res = match stylesheet.to_css(
-      PrinterOptions {
-        targets,
-        ..PrinterOptions::default()
-      },
-      None::<&mut ()>,
-    ) {
+    let res = match stylesheet.to_css(PrinterOptions {
+      targets,
+      ..PrinterOptions::default()
+    }) {
       Ok(res) => res,
       Err(e) => panic_with_test_error("nesting_test_with_targets", "print", source, e),
     };
@@ -260,7 +251,7 @@ mod tests {
     if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
       panic_with_test_error("nesting_test_no_targets", "minify", source, e);
     }
-    let res = match stylesheet.to_css(PrinterOptions::default(), None::<&mut ()>) {
+    let res = match stylesheet.to_css(PrinterOptions::default()) {
       Ok(res) => res,
       Err(e) => panic_with_test_error("nesting_test_no_targets", "print", source, e),
     };
@@ -290,13 +281,10 @@ mod tests {
     if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
       panic_with_test_error("css_modules_test", "minify", source, e);
     }
-    let res = match stylesheet.to_css(
-      PrinterOptions {
-        minify,
-        ..Default::default()
-      },
-      None::<&mut ()>,
-    ) {
+    let res = match stylesheet.to_css(PrinterOptions {
+      minify,
+      ..Default::default()
+    }) {
       Ok(res) => res,
       Err(e) => panic_with_test_error("css_modules_test", "print", source, e),
     };
@@ -333,7 +321,7 @@ mod tests {
     }) {
       panic_with_test_error("custom_media_test", "minify", source, e);
     }
-    let res = match stylesheet.to_css(PrinterOptions::default(), None::<&mut ()>) {
+    let res = match stylesheet.to_css(PrinterOptions::default()) {
       Ok(res) => res,
       Err(e) => panic_with_test_error("custom_media_test", "print", source, e),
     };
@@ -26113,13 +26101,10 @@ mod tests {
     .unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet
-      .to_css(
-        PrinterOptions {
-          minify: true,
-          ..PrinterOptions::default()
-        },
-        None::<&mut ()>,
-      )
+      .to_css(PrinterOptions {
+        minify: true,
+        ..PrinterOptions::default()
+      })
       .unwrap();
     assert_eq!(res.code, ".foo{color:#00f;& .bar{color:red}}");
 
@@ -26823,7 +26808,7 @@ mod tests {
       },
     )
     .unwrap();
-    if let Err(err) = stylesheet.to_css(PrinterOptions::default(), None::<&mut ()>) {
+    if let Err(err) = stylesheet.to_css(PrinterOptions::default()) {
       assert_eq!(err.kind, PrinterErrorKind::InvalidCssModulesPatternInGrid);
     } else {
       unreachable!()
@@ -27271,13 +27256,10 @@ mod tests {
       )
       .unwrap();
       let res = stylesheet
-        .to_css(
-          PrinterOptions {
-            project_root: Some(project_root),
-            ..PrinterOptions::default()
-          },
-          None::<&mut ()>,
-        )
+        .to_css(PrinterOptions {
+          project_root: Some(project_root),
+          ..PrinterOptions::default()
+        })
         .unwrap();
       assert_eq!(
         res.code,
@@ -27316,17 +27298,14 @@ mod tests {
     .unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet
-      .to_css(
-        PrinterOptions {
-          targets: Browsers {
-            chrome: Some(95 << 16),
-            ..Browsers::default()
-          }
-          .into(),
-          ..Default::default()
-        },
-        None::<&mut ()>,
-      )
+      .to_css(PrinterOptions {
+        targets: Browsers {
+          chrome: Some(95 << 16),
+          ..Browsers::default()
+        }
+        .into(),
+        ..Default::default()
+      })
       .unwrap();
     assert_eq!(
       res.code,
@@ -27383,18 +27362,15 @@ mod tests {
 
     let stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     let res = stylesheet
-      .to_css(
-        PrinterOptions {
-          pseudo_classes: Some(PseudoClasses {
-            hover: Some("is-hovered"),
-            active: Some("is-active"),
-            focus_visible: Some("focus-visible"),
-            ..PseudoClasses::default()
-          }),
-          ..PrinterOptions::default()
-        },
-        None::<&mut ()>,
-      )
+      .to_css(PrinterOptions {
+        pseudo_classes: Some(PseudoClasses {
+          hover: Some("is-hovered"),
+          active: Some("is-active"),
+          focus_visible: Some("focus-visible"),
+          ..PseudoClasses::default()
+        }),
+        ..PrinterOptions::default()
+      })
       .unwrap();
     assert_eq!(res.code, expected);
 
@@ -27420,16 +27396,13 @@ mod tests {
     )
     .unwrap();
     let res = stylesheet
-      .to_css(
-        PrinterOptions {
-          pseudo_classes: Some(PseudoClasses {
-            hover: Some("is-hovered"),
-            ..PseudoClasses::default()
-          }),
-          ..PrinterOptions::default()
-        },
-        None::<&mut ()>,
-      )
+      .to_css(PrinterOptions {
+        pseudo_classes: Some(PseudoClasses {
+          hover: Some("is-hovered"),
+          ..PseudoClasses::default()
+        }),
+        ..PrinterOptions::default()
+      })
       .unwrap();
     assert_eq!(res.code, expected);
   }
@@ -27510,7 +27483,7 @@ mod tests {
         ..MinifyOptions::default()
       })
       .unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default(), None::<&mut ()>).unwrap();
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
 
     let source = r#"
@@ -27536,7 +27509,7 @@ mod tests {
         ..MinifyOptions::default()
       })
       .unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default(), None::<&mut ()>).unwrap();
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
 
     let source = r#"
@@ -27583,17 +27556,14 @@ mod tests {
       })
       .unwrap();
     let res = stylesheet
-      .to_css(
-        PrinterOptions {
-          targets: Browsers {
-            chrome: Some(95 << 16),
-            ..Browsers::default()
-          }
-          .into(),
-          ..PrinterOptions::default()
-        },
-        None::<&mut ()>,
-      )
+      .to_css(PrinterOptions {
+        targets: Browsers {
+          chrome: Some(95 << 16),
+          ..Browsers::default()
+        }
+        .into(),
+        ..PrinterOptions::default()
+      })
       .unwrap();
     assert_eq!(res.code, expected);
 
@@ -27635,7 +27605,7 @@ mod tests {
         ..MinifyOptions::default()
       })
       .unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default(), None::<&mut ()>).unwrap();
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
@@ -29440,14 +29410,11 @@ mod tests {
       .unwrap();
       stylesheet.minify(MinifyOptions::default()).unwrap();
       let res = stylesheet
-        .to_css(
-          PrinterOptions {
-            analyze_dependencies: Some(Default::default()),
-            minify: true,
-            ..PrinterOptions::default()
-          },
-          None::<&mut ()>,
-        )
+        .to_css(PrinterOptions {
+          analyze_dependencies: Some(Default::default()),
+          minify: true,
+          ..PrinterOptions::default()
+        })
         .unwrap();
       assert_eq!(res.code, expected);
       let dependencies = res.dependencies.unwrap();
@@ -29468,13 +29435,10 @@ mod tests {
 
     fn dep_error_test(source: &str, error: PrinterErrorKind) {
       let stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
-      let res = stylesheet.to_css(
-        PrinterOptions {
-          analyze_dependencies: Some(Default::default()),
-          ..PrinterOptions::default()
-        },
-        None::<&mut ()>,
-      );
+      let res = stylesheet.to_css(PrinterOptions {
+        analyze_dependencies: Some(Default::default()),
+        ..PrinterOptions::default()
+      });
       match res {
         Err(e) => assert_eq!(e.kind, error),
         _ => unreachable!(),
@@ -30299,8 +30263,8 @@ mod tests {
         PrinterOptions {
           minify: true,
           ..PrinterOptions::default()
-        },
-        Some(&mut source_map),
+        }
+        .with_source_map(Some(&mut source_map)),
       )
       .unwrap();
 
@@ -30346,8 +30310,8 @@ mod tests {
         PrinterOptions {
           minify: true,
           ..PrinterOptions::default()
-        },
-        Some(&mut sm),
+        }
+        .with_source_map(Some(&mut sm)),
       )
       .unwrap();
     let map = sm.to_json(None).unwrap();
@@ -30394,8 +30358,8 @@ mod tests {
         PrinterOptions {
           minify: true,
           ..PrinterOptions::default()
-        },
-        Some(&mut sm),
+        }
+        .with_source_map(Some(&mut sm)),
       )
       .unwrap();
     let map = sm.to_json(None).unwrap();

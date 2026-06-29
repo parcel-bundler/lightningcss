@@ -55,7 +55,7 @@
 //! stylesheet.visit(&mut MyVisitor).unwrap();
 //!
 //! let res = stylesheet
-//!   .to_css(PrinterOptions { minify: true, ..Default::default() }, None::<&mut ()>)
+//!   .to_css(PrinterOptions { minify: true, ..Default::default() })
 //!   .unwrap();
 //! assert_eq!(res.code, ".foo{background:url(https://mywebsite.com/bg.png);width:2rem}");
 //! ```

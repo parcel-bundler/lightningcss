@@ -205,9 +205,12 @@ impl SourceMap for ParcelSourceMap {
 }
 
 /// Options that control how CSS is serialized to a string.
-pub struct PrinterOptions<'a> {
+pub struct PrinterOptions<'a, S: SourceMap = ()> {
   /// Whether to minify the CSS, i.e. remove white space.
   pub minify: bool,
+  /// An optional reference to a source map to write mappings into.
+  #[cfg_attr(docsrs, doc(cfg(feature = "custom_sourcemap")))]
+  pub source_map: Option<&'a mut S>,
   /// An optional project root path, used to generate relative paths for sources used in CSS module hashes.
   pub project_root: Option<&'a str>,
   /// Targets to output the CSS for.
@@ -229,11 +232,65 @@ impl<'a> Default for PrinterOptions<'a> {
   fn default() -> Self {
     PrinterOptions {
       minify: false,
+      source_map: None,
       project_root: None,
       targets: Targets::default(),
       analyze_dependencies: None,
       pseudo_classes: None,
     }
+  }
+}
+
+impl<'a, S: SourceMap> PrinterOptions<'a, S> {
+  /// Returns these options with a source map writer attached.
+  pub fn with_source_map<T: SourceMap>(self, source_map: Option<&'a mut T>) -> PrinterOptions<'a, T> {
+    PrinterOptions {
+      minify: self.minify,
+      source_map,
+      project_root: self.project_root,
+      targets: self.targets,
+      analyze_dependencies: self.analyze_dependencies,
+      pseudo_classes: self.pseudo_classes,
+    }
+  }
+}
+
+/// Serialization options exposed to CSS printers.
+///
+/// Source map storage is intentionally excluded so printing code can depend on
+/// configuration without depending on a concrete source map implementation.
+pub trait PrinterOptionsTrait {
+  /// Whether to minify the CSS, i.e. remove white space.
+  fn minify(&self) -> bool;
+  /// An optional project root path, used to generate relative paths for sources used in CSS module hashes.
+  fn project_root(&self) -> Option<&str>;
+  /// Targets to output the CSS for.
+  fn targets(&self) -> Targets;
+  /// Whether to analyze dependencies (i.e. `@import` and `url()`).
+  fn analyze_dependencies(&self) -> Option<&DependencyOptions>;
+  /// A mapping of pseudo classes to replace with class names.
+  fn pseudo_classes(&self) -> Option<&PseudoClasses<'_>>;
+}
+
+impl<S: SourceMap> PrinterOptionsTrait for PrinterOptions<'_, S> {
+  fn minify(&self) -> bool {
+    self.minify
+  }
+
+  fn project_root(&self) -> Option<&str> {
+    self.project_root
+  }
+
+  fn targets(&self) -> Targets {
+    self.targets
+  }
+
+  fn analyze_dependencies(&self) -> Option<&DependencyOptions> {
+    self.analyze_dependencies.as_ref()
+  }
+
+  fn pseudo_classes(&self) -> Option<&PseudoClasses<'_>> {
+    self.pseudo_classes.as_ref()
   }
 }
 
@@ -281,7 +338,7 @@ pub struct PseudoClasses<'a> {
 pub struct Printer<'a, 'c, W, S: SourceMap = ()> {
   pub(crate) sources: Option<&'c Vec<String>>,
   dest: &'a mut W,
-  pub(crate) options: PrinterOptions<'a>,
+  pub(crate) options: PrinterOptions<'a, S>,
   pub(crate) state: PrinterState<'a, 'c>,
   #[cfg(feature = "custom_sourcemap")]
   pub(crate) source_map: Option<&'a mut S>,
@@ -299,18 +356,30 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W, ()> {
 }
 
 impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
-  fn new_impl(dest: &'a mut W, options: PrinterOptions<'a>) -> Self {
-    let dependencies = if options.analyze_dependencies.is_some() {
+  /// Create a new Printer wrapping the given destination and options.
+  pub fn new_with_options(dest: &'a mut W, options: PrinterOptions<'a, S>) -> Self {
+    Self::new_impl(dest, options)
+  }
+
+  fn new_impl(
+    dest: &'a mut W,
+    #[cfg_attr(not(feature = "custom_sourcemap"), allow(unused_mut))] mut options: PrinterOptions<'a, S>,
+  ) -> Self {
+    let dependencies = if options.analyze_dependencies().is_some() {
       Some(Vec::new())
     } else {
       None
     };
-    let remove_imports = matches!(&options.analyze_dependencies, Some(d) if d.remove_imports);
+    let remove_imports = matches!(options.analyze_dependencies(), Some(d) if d.remove_imports);
+    #[cfg(feature = "custom_sourcemap")]
+    let mut source_map = None;
+    #[cfg(feature = "custom_sourcemap")]
+    std::mem::swap(&mut source_map, &mut options.source_map);
     Printer {
       sources: None,
       dest,
       #[cfg(feature = "custom_sourcemap")]
-      source_map: None,
+      source_map,
       state: PrinterState {
         loc: Location {
           source_index: 0,
@@ -320,7 +389,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
         generated_line: 0,
         generated_col: 0,
         indent: 0,
-        targets: TargetsWithSupportsScope::new(options.targets),
+        targets: TargetsWithSupportsScope::new(options.targets()),
         vendor_prefix: VendorPrefix::empty(),
         in_calc: false,
         css_module: None,
@@ -333,19 +402,6 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
       source_maps: Vec::new(),
       #[cfg(not(feature = "custom_sourcemap"))]
       source_map: PhantomData,
-    }
-  }
-
-  #[cfg(feature = "custom_sourcemap")]
-  /// Attaches a source map writer to this printer.
-  pub fn with_source_map<T: SourceMap>(self, source_map: Option<&'a mut T>) -> Printer<'a, 'c, W, T> {
-    Printer {
-      sources: self.sources,
-      dest: self.dest,
-      options: self.options,
-      state: self.state,
-      source_map,
-      source_maps: Vec::new(),
     }
   }
 
@@ -408,7 +464,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
   /// Use `write_char` instead if you wish to force a space character to be written,
   /// regardless of the `minify` option.
   pub fn whitespace(&mut self) -> Result<(), PrinterError> {
-    if self.options.minify {
+    if self.options.minify() {
       return Ok(());
     }
 
@@ -428,7 +484,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
   /// Writes a newline character followed by indentation.
   /// If the `minify` option is enabled, then nothing is printed.
   pub fn newline(&mut self) -> Result<(), PrinterError> {
-    if self.options.minify {
+    if self.options.minify() {
       return Ok(());
     }
 
@@ -606,9 +662,17 @@ mod private {
 /// A printer abstraction used by CSS serialization implementations.
 #[allow(missing_docs)]
 pub trait PrinterTrait: std::fmt::Write + private::Sealed {
-  fn options(&self) -> &PrinterOptions<'_>;
+  type Options: PrinterOptionsTrait;
+
+  fn options(&self) -> &Self::Options;
   fn state(&self) -> &PrinterState<'_, '_>;
   fn state_mut(&mut self) -> &mut PrinterState<'_, '_>;
+  fn minify(&self) -> bool {
+    self.options().minify()
+  }
+  fn pseudo_classes(&self) -> Option<&PseudoClasses<'_>> {
+    self.options().pseudo_classes()
+  }
   fn filename(&self) -> &str;
   fn error(&self, kind: PrinterErrorKind, loc: crate::dependencies::Location) -> Error<PrinterErrorKind> {
     Error {
@@ -639,8 +703,10 @@ pub trait PrinterTrait: std::fmt::Write + private::Sealed {
 impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> private::Sealed for Printer<'a, 'c, W, S> {}
 
 impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> PrinterTrait for Printer<'a, 'c, W, S> {
-  fn options(&self) -> &PrinterOptions<'_> {
-    unsafe { std::mem::transmute::<&PrinterOptions<'a>, &PrinterOptions<'_>>(&self.options) }
+  type Options = PrinterOptions<'a, S>;
+
+  fn options(&self) -> &Self::Options {
+    &self.options
   }
 
   fn state(&self) -> &PrinterState<'_, '_> {

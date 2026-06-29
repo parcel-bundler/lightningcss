@@ -9,9 +9,7 @@ use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::{DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
-#[cfg(feature = "custom_sourcemap")]
-use crate::printer::SourceMap;
-use crate::printer::{PrinterTrait, Printer};
+use crate::printer::{Printer, PrinterTrait, SourceMap};
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::{should_compile, Targets, TargetsWithSupportsScope};
 use crate::traits::{AtRuleParser, ToCss};
@@ -55,7 +53,7 @@ pub use crate::printer::PseudoClasses;
 /// stylesheet.minify(MinifyOptions::default()).unwrap();
 ///
 /// // Serialize it to a string.
-/// let res = stylesheet.to_css(PrinterOptions::default(), None::<&mut ()>).unwrap();
+/// let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
 /// assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n");
 /// ```
 #[derive(Debug, Clone)]
@@ -264,34 +262,21 @@ where
   }
 
   /// Serialize the style sheet to a CSS string.
-  #[cfg(feature = "custom_sourcemap")]
   pub fn to_css<'a, S: SourceMap>(
     &self,
-    options: PrinterOptions<'a>,
-    source_map: Option<&'a mut S>,
+    options: PrinterOptions<'a, S>,
   ) -> Result<ToCssResult, Error<PrinterErrorKind>> {
-    self.to_css_impl(options, source_map)
-  }
-
-  /// Serialize the style sheet to a CSS string.
-  #[cfg(not(feature = "custom_sourcemap"))]
-  pub fn to_css<'a>(&self, options: PrinterOptions<'a>) -> Result<ToCssResult, Error<PrinterErrorKind>> {
     self.to_css_impl(options)
   }
 
-  fn to_css_impl<'a, #[cfg(feature = "custom_sourcemap")] S: SourceMap>(
+  fn to_css_impl<'a, S: SourceMap>(
     &self,
-    options: PrinterOptions<'a>,
-    #[cfg(feature = "custom_sourcemap")] source_map: Option<&'a mut S>,
+    options: PrinterOptions<'a, S>,
   ) -> Result<ToCssResult, Error<PrinterErrorKind>> {
     // Make sure we always have capacity > 0: https://github.com/napi-rs/napi-rs/issues/1124.
     let mut dest = String::with_capacity(1);
     let project_root = options.project_root.clone();
-    let printer = Printer::new(&mut dest, options);
-    #[cfg(feature = "custom_sourcemap")]
-    let mut printer = printer.with_source_map(source_map);
-    #[cfg(not(feature = "custom_sourcemap"))]
-    let mut printer = printer;
+    let mut printer = Printer::new_with_options(&mut dest, options);
     printer.sources = Some(&self.sources);
 
     #[cfg(feature = "custom_sourcemap")]

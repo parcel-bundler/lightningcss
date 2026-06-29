@@ -654,7 +654,7 @@ impl ToCss for CssColor {
           if should_compile!(dest.state().targets.current, HexAlphaColors) {
             // If the browser doesn't support `#rrggbbaa` color syntax, it is converted to `transparent` when compressed(minify = true).
             // https://www.w3.org/TR/css-color-4/#transparent-black
-            if dest.options().minify && color.red == 0 && color.green == 0 && color.blue == 0 && color.alpha == 0 {
+            if dest.minify() && color.red == 0 && color.green == 0 && color.blue == 0 && color.alpha == 0 {
               dest.write_str("transparent")?;
               return Ok(());
             } else {

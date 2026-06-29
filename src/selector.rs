@@ -728,9 +728,7 @@ fn serialize_pseudo_class<'a, 'i, PrinterT: crate::printer::PrinterTrait>(
   macro_rules! pseudo {
     ($key: ident, $s: literal) => {{
       let class = dest
-        .options()
-        .pseudo_classes
-        .as_ref()
+        .pseudo_classes()
         .and_then(|pseudo_classes| pseudo_classes.$key)
         .map(|class| unsafe { std::mem::transmute::<&str, &'static str>(class) });
 
@@ -1789,7 +1787,7 @@ fn serialize_component<'a, 'i, PrinterT: crate::printer::PrinterTrait>(
       cssparser::ToCss::to_css(local_name, dest)?;
       cssparser::ToCss::to_css(operator, dest)?;
 
-      if dest.options().minify {
+      if dest.minify() {
         // Serialize as both an identifier and a string and choose the shorter one.
         let mut id = String::new();
         serialize_identifier(&value, &mut id)?;

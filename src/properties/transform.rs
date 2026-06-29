@@ -54,7 +54,7 @@ impl ToCss for TransformList {
 
     // TODO: Re-enable with a better solution
     //       See: https://github.com/parcel-bundler/lightningcss/issues/288
-    // if dest.options().minify {
+    // if dest.minify() {
     //   // Combine transforms into a single matrix.
     //   if let Some(matrix) = self.to_matrix() {
     //     // Generate based on the original transforms.
@@ -1019,7 +1019,7 @@ impl ToCss for Transform {
     use Transform::*;
     match self {
       Translate(x, y) => {
-        if dest.options().minify && x.is_zero() && !y.is_zero() {
+        if dest.minify() && x.is_zero() && !y.is_zero() {
           dest.write_str("translateY(")?;
           y.to_css(dest)?
         } else {
@@ -1034,11 +1034,7 @@ impl ToCss for Transform {
         Ok(())
       }
       TranslateX(x) => {
-        dest.write_str(if dest.options().minify {
-          "translate("
-        } else {
-          "translateX("
-        })?;
+        dest.write_str(if dest.minify() { "translate(" } else { "translateX(" })?;
         x.to_css(dest)?;
         dest.write_char(')')?;
         Ok(())
@@ -1056,16 +1052,16 @@ impl ToCss for Transform {
         Ok(())
       }
       Translate3d(x, y, z) => {
-        if dest.options().minify && !x.is_zero() && y.is_zero() && z.is_zero() {
+        if dest.minify() && !x.is_zero() && y.is_zero() && z.is_zero() {
           dest.write_str("translate(")?;
           x.to_css(dest)?;
-        } else if dest.options().minify && x.is_zero() && !y.is_zero() && z.is_zero() {
+        } else if dest.minify() && x.is_zero() && !y.is_zero() && z.is_zero() {
           dest.write_str("translateY(")?;
           y.to_css(dest)?;
-        } else if dest.options().minify && x.is_zero() && y.is_zero() && !z.is_zero() {
+        } else if dest.minify() && x.is_zero() && y.is_zero() && !z.is_zero() {
           dest.write_str("translateZ(")?;
           z.to_css(dest)?;
-        } else if dest.options().minify && z.is_zero() {
+        } else if dest.minify() && z.is_zero() {
           dest.write_str("translate(")?;
           x.to_css(dest)?;
           dest.delim(',', false)?;
@@ -1084,10 +1080,10 @@ impl ToCss for Transform {
       Scale(x, y) => {
         let x: f32 = x.into();
         let y: f32 = y.into();
-        if dest.options().minify && x == 1.0 && y != 1.0 {
+        if dest.minify() && x == 1.0 && y != 1.0 {
           dest.write_str("scaleY(")?;
           y.to_css(dest)?;
-        } else if dest.options().minify && x != 1.0 && y == 1.0 {
+        } else if dest.minify() && x != 1.0 && y == 1.0 {
           dest.write_str("scaleX(")?;
           x.to_css(dest)?;
         } else {
@@ -1126,23 +1122,23 @@ impl ToCss for Transform {
         let x: f32 = x.into();
         let y: f32 = y.into();
         let z: f32 = z.into();
-        if dest.options().minify && z == 1.0 && x == y {
+        if dest.minify() && z == 1.0 && x == y {
           // scale3d(x, x, 1) => scale(x)
           dest.write_str("scale(")?;
           x.to_css(dest)?;
-        } else if dest.options().minify && x != 1.0 && y == 1.0 && z == 1.0 {
+        } else if dest.minify() && x != 1.0 && y == 1.0 && z == 1.0 {
           // scale3d(x, 1, 1) => scaleX(x)
           dest.write_str("scaleX(")?;
           x.to_css(dest)?;
-        } else if dest.options().minify && x == 1.0 && y != 1.0 && z == 1.0 {
+        } else if dest.minify() && x == 1.0 && y != 1.0 && z == 1.0 {
           // scale3d(1, y, 1) => scaleY(y)
           dest.write_str("scaleY(")?;
           y.to_css(dest)?;
-        } else if dest.options().minify && x == 1.0 && y == 1.0 && z != 1.0 {
+        } else if dest.minify() && x == 1.0 && y == 1.0 && z != 1.0 {
           // scale3d(1, 1, z) => scaleZ(z)
           dest.write_str("scaleZ(")?;
           z.to_css(dest)?;
-        } else if dest.options().minify && z == 1.0 {
+        } else if dest.minify() && z == 1.0 {
           // scale3d(x, y, 1) => scale(x, y)
           dest.write_str("scale(")?;
           x.to_css(dest)?;
@@ -1178,21 +1174,21 @@ impl ToCss for Transform {
         Ok(())
       }
       RotateZ(angle) => {
-        dest.write_str(if dest.options().minify { "rotate(" } else { "rotateZ(" })?;
+        dest.write_str(if dest.minify() { "rotate(" } else { "rotateZ(" })?;
         angle.to_css_with_unitless_zero(dest)?;
         dest.write_char(')')?;
         Ok(())
       }
       Rotate3d(x, y, z, angle) => {
-        if dest.options().minify && *x == 1.0 && *y == 0.0 && *z == 0.0 {
+        if dest.minify() && *x == 1.0 && *y == 0.0 && *z == 0.0 {
           // rotate3d(1, 0, 0, a) => rotateX(a)
           dest.write_str("rotateX(")?;
           angle.to_css_with_unitless_zero(dest)?;
-        } else if dest.options().minify && *x == 0.0 && *y == 1.0 && *z == 0.0 {
+        } else if dest.minify() && *x == 0.0 && *y == 1.0 && *z == 0.0 {
           // rotate3d(0, 1, 0, a) => rotateY(a)
           dest.write_str("rotateY(")?;
           angle.to_css_with_unitless_zero(dest)?;
-        } else if dest.options().minify && *x == 0.0 && *y == 0.0 && *z == 1.0 {
+        } else if dest.minify() && *x == 0.0 && *y == 0.0 && *z == 1.0 {
           // rotate3d(0, 0, 1, a) => rotate(a)
           dest.write_str("rotate(")?;
           angle.to_css_with_unitless_zero(dest)?;
@@ -1210,7 +1206,7 @@ impl ToCss for Transform {
         Ok(())
       }
       Skew(x, y) => {
-        if dest.options().minify && x.is_zero() && !y.is_zero() {
+        if dest.minify() && x.is_zero() && !y.is_zero() {
           dest.write_str("skewY(")?;
           y.to_css_with_unitless_zero(dest)?
         } else {
@@ -1225,7 +1221,7 @@ impl ToCss for Transform {
         Ok(())
       }
       SkewX(angle) => {
-        dest.write_str(if dest.options().minify { "skew(" } else { "skewX(" })?;
+        dest.write_str(if dest.minify() { "skew(" } else { "skewX(" })?;
         angle.to_css_with_unitless_zero(dest)?;
         dest.write_char(')')?;
         Ok(())
