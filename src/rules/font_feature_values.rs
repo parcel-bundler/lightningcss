@@ -257,7 +257,7 @@ impl<'i> ToCss for FontFeatureSubrule<'i> {
         index.to_css(dest)?;
       }
 
-      if i != len - 1 || !dest.options().minify {
+      if i != len - 1 || !dest.minify() {
         dest.write_char(';')?;
       }
     }

@@ -885,14 +885,14 @@ impl<'a> ToCss for Token<'a> {
       }
       .to_css(dest)?,
       Token::WhiteSpace(w) => {
-        if dest.options().minify {
+        if dest.minify() {
           dest.write_char(' ')?;
         } else {
           dest.write_str(&w)?;
         }
       }
       Token::Comment(c) => {
-        if !dest.options().minify {
+        if !dest.minify() {
           cssparser::Token::Comment(c).to_css(dest)?;
         }
       }
