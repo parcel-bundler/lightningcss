@@ -328,6 +328,82 @@ impl CssColor {
     CssColor::RGBA(RGBA::transparent())
   }
 
+  fn alpha(&self) -> Result<f32, ()> {
+    Ok(match self {
+      CssColor::RGBA(rgba) => rgba.alpha_f32(),
+      CssColor::LAB(lab) => match &**lab {
+        LABColor::LAB(lab) => lab.alpha,
+        LABColor::LCH(lch) => lch.alpha,
+        LABColor::OKLAB(lab) => lab.alpha,
+        LABColor::OKLCH(lch) => lch.alpha,
+      },
+      CssColor::Predefined(predefined) => match &**predefined {
+        PredefinedColor::SRGB(rgb) => rgb.alpha,
+        PredefinedColor::SRGBLinear(rgb) => rgb.alpha,
+        PredefinedColor::DisplayP3(rgb) => rgb.alpha,
+        PredefinedColor::A98(rgb) => rgb.alpha,
+        PredefinedColor::ProPhoto(rgb) => rgb.alpha,
+        PredefinedColor::Rec2020(rgb) => rgb.alpha,
+        PredefinedColor::XYZd50(xyz) => xyz.alpha,
+        PredefinedColor::XYZd65(xyz) => xyz.alpha,
+      },
+      CssColor::Float(float) => match &**float {
+        FloatColor::RGB(rgb) => rgb.alpha,
+        FloatColor::HSL(hsl) => hsl.alpha,
+        FloatColor::HWB(hwb) => hwb.alpha,
+      },
+      CssColor::LightDark(..) | CssColor::CurrentColor | CssColor::System(..) => return Err(()),
+    })
+  }
+
+  fn with_alpha(self, alpha: f32) -> CssColor {
+    match self {
+      CssColor::RGBA(rgba) => {
+        // Store as Float to preserve the exact f32 alpha value through subsequent
+        // relative color computations. Going through u8 here would quantize 0.5 to
+        // 128/255 ≈ 0.50196 and accumulate error in nested alpha()/color-mix() calls.
+        let mut rgb = RGB::from(rgba);
+        rgb.alpha = alpha;
+        CssColor::Float(Box::new(FloatColor::RGB(rgb)))
+      }
+      CssColor::LAB(mut lab) => {
+        match &mut *lab {
+          LABColor::LAB(lab) => lab.alpha = alpha,
+          LABColor::LCH(lch) => lch.alpha = alpha,
+          LABColor::OKLAB(lab) => lab.alpha = alpha,
+          LABColor::OKLCH(lch) => lch.alpha = alpha,
+        }
+        CssColor::LAB(lab)
+      }
+      CssColor::Predefined(mut predefined) => {
+        match &mut *predefined {
+          PredefinedColor::SRGB(rgb) => rgb.alpha = alpha,
+          PredefinedColor::SRGBLinear(rgb) => rgb.alpha = alpha,
+          PredefinedColor::DisplayP3(rgb) => rgb.alpha = alpha,
+          PredefinedColor::A98(rgb) => rgb.alpha = alpha,
+          PredefinedColor::ProPhoto(rgb) => rgb.alpha = alpha,
+          PredefinedColor::Rec2020(rgb) => rgb.alpha = alpha,
+          PredefinedColor::XYZd50(xyz) => xyz.alpha = alpha,
+          PredefinedColor::XYZd65(xyz) => xyz.alpha = alpha,
+        }
+        CssColor::Predefined(predefined)
+      }
+      CssColor::Float(mut float) => {
+        match &mut *float {
+          FloatColor::RGB(rgb) => rgb.alpha = alpha,
+          FloatColor::HSL(hsl) => hsl.alpha = alpha,
+          FloatColor::HWB(hwb) => hwb.alpha = alpha,
+        }
+        CssColor::Float(float)
+      }
+      CssColor::LightDark(light, dark) => CssColor::LightDark(
+        Box::new((*light).with_alpha(alpha)),
+        Box::new((*dark).with_alpha(alpha)),
+      ),
+      color => color,
+    }
+  }
+
   /// Converts the color to RGBA.
   pub fn to_rgb(&self) -> Result<CssColor, ()> {
     match self {
@@ -718,6 +794,14 @@ impl RelativeComponentParser {
     }
   }
 
+  fn alpha_only(alpha: f32) -> Self {
+    Self {
+      names: ("", "", ""),
+      components: (0.0, 0.0, 0.0, alpha),
+      types: (ChannelType::empty(), ChannelType::empty(), ChannelType::empty()),
+    }
+  }
+
   fn get_ident(&self, ident: &str, allowed_types: ChannelType) -> Option<(f32, ChannelType)> {
     if ident.eq_ignore_ascii_case(self.names.0) && allowed_types.intersects(self.types.0) {
       return Some((self.components.0, self.types.0));
@@ -1074,6 +1158,9 @@ fn parse_color_function<'i, 't>(
     "rgb" | "rgba" => {
        parse_rgb(input, &mut parser)
     },
+    "alpha" => {
+      parse_relative_alpha(input)
+    },
     "color-mix" => {
       input.parse_nested_block(parse_color_mix)
     },
@@ -1156,6 +1243,47 @@ fn parse_lch<'i, 't, T: TryFrom<CssColor> + ColorSpace, F: Fn(f32, f32, f32, f32
       Ok(CssColor::LAB(Box::new(lab)))
     })
   })
+}
+
+/// Parses the alpha() function.
+/// alpha() = alpha([from <color>] [ / [<alpha-value> | none] ]? )
+#[inline]
+fn parse_relative_alpha<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
+  // https://drafts.csswg.org/css-color-5/#relative-alpha
+  input.parse_nested_block(|input| {
+    input.expect_ident_matching("from")?;
+    let from = CssColor::parse(input)?;
+    let res = parse_relative_alpha_from(from, input)?;
+    input.expect_exhausted()?;
+    Ok(res)
+  })
+}
+
+#[inline]
+fn parse_relative_alpha_from<'i, 't>(
+  from: CssColor,
+  input: &mut Parser<'i, 't>,
+) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
+  if let CssColor::LightDark(light, dark) = from {
+    let state = input.state();
+    let light = parse_relative_alpha_from(*light, input)?;
+    input.reset(&state);
+    let dark = parse_relative_alpha_from(*dark, input)?;
+    return Ok(CssColor::LightDark(Box::new(light), Box::new(dark)));
+  }
+
+  let from_alpha = from.alpha().map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
+  let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+    let parser = ComponentParser {
+      allow_none: true,
+      from: Some(RelativeComponentParser::alpha_only(from_alpha)),
+    };
+    parse_number_or_percentage(input, &parser, 1.0)?.clamp(0.0, 1.0)
+  } else {
+    from_alpha
+  };
+
+  Ok(from.with_alpha(alpha))
 }
 
 #[inline]
