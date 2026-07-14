@@ -26,6 +26,10 @@ const triples = [
     libc: 'glibc',
   },
   {
+    name: 's390x-unknown-linux-gnu',
+    libc: 'glibc',
+  },
+  {
     name: 'armv7-unknown-linux-gnueabihf',
   },
   {
