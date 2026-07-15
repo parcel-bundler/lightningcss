@@ -28058,6 +28058,124 @@ mod tests {
       },
     );
 
+    // Authored `-webkit-mask` + `mask` pairs with identical values merge their prefixes
+    // rather than producing a duplicate `-webkit-mask`.
+    prefix_test(
+      r#"
+        .foo {
+          -webkit-mask: var(--a);
+          mask: var(--a);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask: var(--a);
+          mask: var(--a);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+        .foo {
+          mask: var(--a);
+          -webkit-mask: var(--a);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask: var(--a);
+          mask: var(--a);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    minify_test(
+      ".foo { mask: var(--a); -webkit-mask: var(--a) }",
+      ".foo{-webkit-mask:var(--a);mask:var(--a)}",
+    );
+
+    // Fallbacks generated for authored pairs are also merged in the @supports rule.
+    prefix_test(
+      r#"
+        .foo {
+          -webkit-mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
+          mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
+          mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            -webkit-mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
+            mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Merging only applies to adjacent declarations: an intervening declaration could be
+    // overridden by the later shorthand, so the duplicate must be preserved.
+    prefix_test(
+      r#"
+        .foo {
+          -webkit-mask: var(--a);
+          mask-image: var(--b);
+          mask: var(--a);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask: var(--a);
+          -webkit-mask-image: var(--b);
+          mask-image: var(--b);
+          -webkit-mask: var(--a);
+          mask: var(--a);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Different values do not merge.
+    prefix_test(
+      r#"
+        .foo {
+          -webkit-mask: var(--a);
+          mask: var(--b);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask: var(--a);
+          -webkit-mask: var(--b);
+          mask: var(--b);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
     prefix_test(
       ".foo { mask: url(masks.svg#star) luminance }",
       indoc! { r#"
