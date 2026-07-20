@@ -118,6 +118,8 @@ pub enum Feature {
   MaskImage,
   MaskOrigin,
   MaskPosition,
+  MaskPositionX,
+  MaskPositionY,
   MaskRepeat,
   MaskSize,
   MaxContent,
@@ -1299,7 +1301,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 393472 {
+          if version >= 393472 && version <= 1705216 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1442,6 +1444,8 @@ impl Feature {
       | Feature::MaskBorderSource
       | Feature::Mask
       | Feature::MaskPosition
+      | Feature::MaskPositionX
+      | Feature::MaskPositionY
       | Feature::MaskSize
       | Feature::MaskBorder
       | Feature::MaskBorderOutset
