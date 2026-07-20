@@ -255,7 +255,7 @@ impl Targets {
 
 #[derive(Debug)]
 pub(crate) struct TargetsWithSupportsScope {
-  stack: Vec<Features>,
+  stack: Vec<(Features, Features)>,
   pub(crate) current: Targets,
 }
 
@@ -269,21 +269,27 @@ impl TargetsWithSupportsScope {
 
   /// Returns true if inserted
   pub fn enter_supports(&mut self, features: Features) -> bool {
-    if features.is_empty() || self.current.exclude.contains(features) {
-      // Already excluding all features
+    if features.is_empty() {
       return false;
     }
 
     let newly_excluded = features - self.current.exclude;
-    self.stack.push(newly_excluded);
+    let included = features & self.current.include;
+    if newly_excluded.is_empty() && included.is_empty() {
+      return false;
+    }
+
+    self.stack.push((newly_excluded, included));
+    self.current.include.remove(included);
     self.current.exclude.insert(newly_excluded);
     true
   }
 
   /// Should be only called if inserted
   pub fn exit_supports(&mut self) {
-    if let Some(last) = self.stack.pop() {
-      self.current.exclude.remove(last);
+    if let Some((excluded, included)) = self.stack.pop() {
+      self.current.exclude.remove(excluded);
+      self.current.include.insert(included);
     }
   }
 }
@@ -312,6 +318,23 @@ fn supports_scope_correctly() {
   targets.exit_supports();
   assert!(!targets.current.exclude.contains(Features::OklabColors));
   assert!(!targets.current.exclude.contains(Features::LabColors));
+}
+
+#[test]
+fn supports_scope_overrides_included_features() {
+  let mut targets = TargetsWithSupportsScope::new(Targets {
+    include: Features::LightDark,
+    ..Targets::default()
+  });
+
+  assert!(targets.current.include.contains(Features::LightDark));
+  assert!(targets.enter_supports(Features::LightDark));
+  assert!(!targets.current.include.contains(Features::LightDark));
+  assert!(targets.current.exclude.contains(Features::LightDark));
+
+  targets.exit_supports();
+  assert!(targets.current.include.contains(Features::LightDark));
+  assert!(!targets.current.exclude.contains(Features::LightDark));
 }
 
 macro_rules! should_compile {
