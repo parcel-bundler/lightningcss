@@ -2241,4 +2241,58 @@ mod tests {
     "#}
     );
   }
+
+  /// Regression: when looking up dedup candidates for a rule in a CSS-module
+  /// bundle, the lookup must skip cross-file candidates and continue scanning
+  /// the bucket — otherwise a same-file duplicate that follows the cross-file
+  /// candidate is missed and emitted twice.
+  ///
+  /// Setup: each file has a `body` rule with the same property (`color`) but
+  /// different values, so `merge_style_rules` can't combine them across
+  /// files (different declarations defeat the `decl_eq` selector-merge
+  /// branch, and the CSS-modules cross-file gate defeats the `sel_eq`
+  /// declarations-merge branch). All three rules end up in the same dedup
+  /// hash bucket. A `.x` rule between the two `a.css` `body` rules breaks
+  /// adjacency so `merge_style_rules` doesn't dedup them via the cascade
+  /// path either, forcing the dedup-on-insert path to handle them — and
+  /// to skip the cross-file `b.css` candidate to find the same-file one.
+  #[test]
+  fn test_css_module_dedup_skips_cross_file_candidate() {
+    let (code, _) = bundle_css_module(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css";
+          body { color: red }
+          .x { padding: 0 }
+          body { color: red }
+        "#,
+          "/b.css": r#"
+          body { color: blue }
+        "#
+        },
+      },
+      "/a.css",
+      None,
+    );
+    // Expected: b.css's body survives (cross-file, can't be deduped against
+    // a.css). Within a.css, the duplicate `body { color: red }` collapses
+    // to a single rule.
+    assert_eq!(
+      code,
+      indoc! { r#"
+      body {
+        color: #00f;
+      }
+
+      ._6lixEq_x {
+        padding: 0;
+      }
+
+      body {
+        color: red;
+      }
+    "#}
+    );
+  }
 }
