@@ -19231,17 +19231,26 @@ mod tests {
 
   #[test]
   fn test_relative_color() {
+    #[track_caller]
     fn test(input: &str, output: &str) {
-      let output = CssColor::parse_string(output)
-        .unwrap()
-        .to_css_string(PrinterOptions {
-          minify: true,
-          ..PrinterOptions::default()
-        })
-        .unwrap();
+      let parsed = match CssColor::parse_string(output) {
+        Ok(c) => c,
+        Err(e) => panic!(
+          "test_relative_color: parse expected output failed\nerror: {e:?}\ninput: {input}\noutput: {output}",
+        ),
+      };
+      let output_css = match parsed.to_css_string(PrinterOptions {
+        minify: true,
+        ..PrinterOptions::default()
+      }) {
+        Ok(s) => s,
+        Err(e) => panic!(
+          "test_relative_color: stringify expected output failed\nerror: {e}\nerror(debug): {e:?}\ninput: {input}\noutput: {output}",
+        ),
+      };
       minify_test(
         &format!(".foo {{ color: {} }}", input),
-        &format!(".foo{{color:{}}}", output),
+        &format!(".foo{{color:{}}}", output_css),
       );
     }
 
@@ -19282,6 +19291,178 @@ mod tests {
     minify_test(
       ".foo{color:lch(from currentColor l c sin(h))}",
       ".foo{color:lch(from currentColor l c sin(h))}",
+    );
+
+    // The following tests were converted from WPT:
+    // https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/alpha-color-parsing-valid.html
+
+    // Basic usage with literal alpha.
+    test("alpha(from red / 0.5)", "rgba(255, 0, 0, 0.5)");
+    test("alpha(from blue / 1)", "rgb(0, 0, 255)");
+    test("alpha(from green / 0)", "rgba(0, 128, 0, 0)");
+
+    // Percentage alpha.
+    test("alpha(from red / 50%)", "rgba(255, 0, 0, 0.5)");
+    test("alpha(from red / 0%)", "rgba(255, 0, 0, 0)");
+    test("alpha(from red / 100%)", "rgb(255, 0, 0)");
+
+    // None alpha.
+    test("alpha(from red / none)", "rgba(255, 0, 0, 0)");
+
+    // Omitted alpha (defaults to origin's alpha).
+    test("alpha(from red)", "rgb(255, 0, 0)");
+    // test() does not support keywords such as currentcolor; change it to minify_test()
+    minify_test(
+      ".foo{color:alpha(from currentcolor)}",
+      ".foo{color:alpha(from currentcolor)}",
+    );
+
+    // Alpha keyword referencing origin's alpha.
+    minify_test(
+      ".foo{color:alpha(from currentcolor / alpha)}",
+      ".foo{color:alpha(from currentcolor / alpha)}",
+    );
+    test("alpha(from rgba(255, 0, 0, 0.8) / alpha)", "rgba(255, 0, 0, 0.8)");
+
+    // Calc with alpha keyword.
+    test(
+      "alpha(from rgba(255, 0, 0, 0.8) / calc(alpha * 0.5))",
+      "rgba(255, 0, 0, 0.4)",
+    );
+    test(
+      "alpha(from rgba(255, 0, 0, 0.8) / calc(alpha + 0.1))",
+      "rgba(255, 0, 0, 0.9)",
+    );
+
+    // Supplementary testing
+    // TODO: calc does not support division by zero yet, so `alpha / 0` fails while `alpha / 1` works.
+    // Depends on: https://github.com/parcel-bundler/lightningcss/pull/1122
+    // test(
+    //   "alpha(from green / calc(alpha / 0))",
+    //   "rgb(0, 128, 0)",
+    // );
+    test("alpha(from green / calc(alpha / 1))", "rgb(0, 128, 0)");
+
+    // Test sibling-index() and sibling-count()
+    minify_test(
+      ".foo{color:alpha(from green / sibling-index())}",
+      ".foo{color:alpha(from green / sibling-index())}",
+    );
+    minify_test(
+      ".foo{color:alpha(from green / calc(sibling-index() * 0.2))}",
+      ".foo{color:alpha(from green / calc(sibling-index() * .2))}",
+    );
+    minify_test(
+      ".foo{color:alpha(from green / sibling-count())}",
+      ".foo{color:alpha(from green / sibling-count())}",
+    );
+
+    // Nested in other color functions.
+    minify_test(
+      ".foo{color:color-mix(in srgb, alpha(from red / 0.5), blue)}",
+      ".foo{color:#5500aabf}",
+    );
+    test("rgb(from alpha(from red / 0.5) r g b / alpha)", "rgba(255, 0, 0, 0.5)");
+
+    // Other color functions as origin.
+    test("alpha(from color-mix(in srgb, red, blue) / 0.5)", "#80008080");
+    test("alpha(from rgb(from red r g b) / 0.8)", "rgba(255, 0, 0, 0.8)");
+
+    // Non-sRGB color spaces preserved.
+    test(
+      "alpha(from color(display-p3 1 0 0) / 0.5)",
+      "color(display-p3 1 0 0 / 0.5)",
+    );
+    test("alpha(from lab(50 20 -30) / 0.5)", "lab(50% 20 -30 / 0.5)");
+    test("alpha(from oklch(0.5 0.2 120) / 0.5)", "oklch(50% 0.2 120 / 0.5)");
+
+    // System and named colors.
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/system-color#syntax
+    minify_test(
+      ".foo{color:alpha(from ActiveText / 0.5)}",
+      ".foo{color:alpha(from ActiveText / .5)}",
+    );
+
+    // Out-of-range alpha values.
+    test("alpha(from red / 2)", "rgb(255, 0, 0)");
+    test("alpha(from red / -1)", "rgba(255, 0, 0, 0)");
+
+    // Supplementary testing
+    // nested alpha() precision.
+    test("alpha(from alpha(from red / 0.5) / calc(alpha + 0.25))", "#ff0000bf");
+    test("alpha(from alpha(from red / -0.5) / calc(alpha + 0.6))", "#f009");
+    test("alpha(from alpha(from green / 0%) / 100%)", "green");
+
+    // Unresolved relative colors keep their tokens.
+    minify_test(
+      ".foo{color:rgb(from alpha(from currentColor / 0.5) r g b)}",
+      ".foo{color:rgb(from alpha(from currentColor / .5) r g b)}",
+    );
+    minify_test(
+      ".foo{color:alpha(from red / var(--alpha))}",
+      ".foo{color:alpha(from red / var(--alpha))}",
+    );
+
+    // RGBA origin alpha preserve/replace.
+    test("alpha(from rgba(255, 0, 0, 0.3))", "rgba(255, 0, 0, 0.3)");
+    test("alpha(from rgba(255, 0, 0, 0.3) / 0.8)", "rgba(255, 0, 0, 0.8)");
+
+    // color(srgb) preserves its color space.
+    test("alpha(from color(srgb 1 0 0) / 50%)", "color(srgb 1 0 0 / 0.5)");
+
+    // alpha() nested in more relative color functions.
+    test("hsl(from alpha(from red / 0.5) h s l / alpha)", "rgba(255, 0, 0, 0.5)");
+    test("hwb(from alpha(from red / 0.5) h w b / alpha)", "rgba(255, 0, 0, 0.5)");
+    test(
+      "lab(from alpha(from lab(50% 20 -30) / 0.5) l a b / alpha)",
+      "lab(50% 20 -30 / 0.5)",
+    );
+    test(
+      "lch(from alpha(from lch(50% 20 30) / 0.5) l c h / alpha)",
+      "lch(50% 20 30 / 0.5)",
+    );
+    test(
+      "oklab(from alpha(from oklab(50% 0.2 -0.3) / 0.5) l a b / alpha)",
+      "oklab(50% 0.2 -0.3 / 0.5)",
+    );
+    test(
+      "oklch(from alpha(from oklch(50% 0.2 120) / 0.5) l c h / alpha)",
+      "oklch(50% 0.2 120 / 0.5)",
+    );
+    test(
+      "color(from alpha(from color(display-p3 1 0 0) / 0.5) display-p3 r g b / alpha)",
+      "color(display-p3 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from alpha(from red / 1.5) srgb r g b / calc(alpha - 0.2))",
+      "color(srgb 1 0 0 / 0.8)", // alpha = 1 - 0.2
+    );
+
+    // Test in image()
+    minify_test(
+      ".foo { mask: image(alpha(from red / 1))}",
+      ".foo{mask:image(red)}",
+    );
+
+    // Test in linear-gradient()
+    minify_test(
+      ".foo { mask: linear-gradient(90deg, alpha(from red / 0%), red) }",
+      ".foo{mask:linear-gradient(90deg,#f000,red)}",
+    );
+    // Compare relative color
+    // TODO: Support <color-interpolation-method>
+    minify_test(
+      ".foo { mask: linear-gradient(90deg in hsl longer hue, rgb(from red r g b / 0), red) }",
+      ".foo{mask:linear-gradient(90deg in hsl longer hue, #f000, red)}",
+    );
+    minify_test(
+      ".foo { mask: linear-gradient(90deg in hsl longer hue, alpha(from red / 0%), red) }",
+      ".foo{mask:linear-gradient(90deg in hsl longer hue, #f000, red)}",
+    );
+
+    minify_test(
+      ".foo { color: alpha(from color(display-p3 1 0 0) / 0.5) }",
+      ".foo{color:color(display-p3 1 0 0/.5)}",
     );
 
     // The following tests were converted from WPT: https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/relative-color-valid.html
@@ -21059,6 +21240,36 @@ mod tests {
         ".foo{color:#fff}",
       );
     }
+  }
+
+  #[test]
+  fn test_relative_alpha_color_fallbacks() {
+    prefix_test(
+      ".foo { color: alpha(from color(srgb 1 0 0) / 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #ff000080;
+          color: color(srgb 1 0 0 / .5);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { color: alpha(from color(display-p3 1 0 0) / 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #ff0f0e80;
+          color: color(display-p3 1 0 0 / .5);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -31140,6 +31351,18 @@ mod tests {
     );
     prefix_test(
       ".foo { color: rgb(from light-dark(yellow, red) r g b / 10%); }",
+      indoc! { r#"
+      .foo {
+        color: var(--lightningcss-light, #ffff001a) var(--lightningcss-dark, #ff00001a);
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { color: alpha(from light-dark(yellow, red) / 10%); }",
       indoc! { r#"
       .foo {
         color: var(--lightningcss-light, #ffff001a) var(--lightningcss-dark, #ff00001a);
