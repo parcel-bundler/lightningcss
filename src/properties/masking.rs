@@ -703,7 +703,11 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         self
           .flushed_properties
           .insert(MaskProperty::try_from(&val.property_id).unwrap());
-        dest.push(Property::Unparsed(unparsed));
+
+        // Merge adjacent authored prefix variants, e.g. `-webkit-mask` + `mask` pairs.
+        if !unparsed.merge_prefixes_into_last(dest) {
+          dest.push(Property::Unparsed(unparsed));
+        }
       }
       Property::MaskBorderSource(val) => property!(border_source, val, &VendorPrefix::None),
       Property::WebKitMaskBoxImageSource(val, _) => property!(border_source, val, &VendorPrefix::WebKit),
