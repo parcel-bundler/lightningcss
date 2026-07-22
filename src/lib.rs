@@ -69,7 +69,7 @@ mod tests {
   use cssparser::SourceLocation;
   use indoc::indoc;
   use pretty_assertions::assert_eq;
-  use std::collections::HashMap;
+  use std::collections::{HashMap, HashSet};
   use std::sync::{Arc, RwLock};
 
   #[track_caller]
@@ -8057,6 +8057,70 @@ mod tests {
     "#,
       ".foo{font-family:SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace!important}",
     );
+  }
+
+  #[test]
+  fn test_known_pseudo_classes() {
+    // Without known_pseudo_classes, multiple selectors containing unknown pseudo-classes
+    // get wrapped in :is() during minification when targeting browsers.
+    let targets = Targets {
+      browsers: Some(Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      }),
+      ..Targets::default()
+    };
+
+    // Baseline: unknown pseudo-classes cause :is() wrapping with multiple selectors.
+    let source = ":global(.foo) .bar, :global(.baz) .bar { color: red }";
+    let mut stylesheet = StyleSheet::parse(source, ParserOptions::default()).unwrap();
+    stylesheet.minify(MinifyOptions {
+      targets,
+      ..MinifyOptions::default()
+    }).unwrap();
+    let res = stylesheet.to_css(PrinterOptions {
+      minify: true,
+      targets,
+      ..PrinterOptions::default()
+    }).unwrap();
+    assert_eq!(res.code, ":is(:global(.foo) .bar,:global(.baz) .bar){color:red}");
+
+    // With known_pseudo_classes: :is() wrapping is prevented.
+    let known = HashSet::from(["global".to_string()]);
+    let mut stylesheet = StyleSheet::parse(source, ParserOptions {
+      known_pseudo_classes: known.clone(),
+      ..ParserOptions::default()
+    }).unwrap();
+    stylesheet.minify(MinifyOptions {
+      targets,
+      known_pseudo_classes: known,
+      ..MinifyOptions::default()
+    }).unwrap();
+    let res = stylesheet.to_css(PrinterOptions {
+      minify: true,
+      targets,
+      ..PrinterOptions::default()
+    }).unwrap();
+    assert_eq!(res.code, ":global(.foo) .bar,:global(.baz) .bar{color:red}");
+
+    // Non-functional pseudo-class variant.
+    let source_nonfunc = ":global .foo, :global .bar { color: red }";
+    let known = HashSet::from(["global".to_string()]);
+    let mut stylesheet = StyleSheet::parse(source_nonfunc, ParserOptions {
+      known_pseudo_classes: known.clone(),
+      ..ParserOptions::default()
+    }).unwrap();
+    stylesheet.minify(MinifyOptions {
+      targets,
+      known_pseudo_classes: known,
+      ..MinifyOptions::default()
+    }).unwrap();
+    let res = stylesheet.to_css(PrinterOptions {
+      minify: true,
+      targets,
+      ..PrinterOptions::default()
+    }).unwrap();
+    assert_eq!(res.code, ":global .foo,:global .bar{color:red}");
   }
 
   #[test]
