@@ -357,6 +357,9 @@ impl FromStandard<CSSInteger> for BoxOrdinalGroup {
   }
 }
 
+/// A value for the legacy (prefixed) [box-flex-group](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#box-flex-group) property.
+pub type BoxFlexGroup = CSSInteger;
+
 // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
 
 enum_property! {
