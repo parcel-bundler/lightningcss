@@ -117,6 +117,12 @@ macro_rules! define_fallbacks {
                 pastey::paste! { self.[<$name:snake>] = Some(dest.len()) };
                 dest.push(Property::$name(val $(, $p)?));
               } else if let Some(index) = pastey::paste! { self.[<$name:snake>] } {
+                $(
+                  if let Property::$name(_, cur_p) = &dest[index] {
+                    $p |= *cur_p;
+                  }
+                  $p = context.targets.prefixes($p, Feature::$name);
+                )?
                 dest[index] = Property::$name(val $(, $p)?);
               }
             }
