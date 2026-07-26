@@ -1998,11 +1998,11 @@ macro_rules! via {
 #[inline]
 fn rectangular_to_polar(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L375
-  let mut h = b.atan2(a) * 180.0 / PI;
+  let mut h = libm::atan2f(b, a) * 180.0 / PI;
   if h < 0.0 {
     h += 360.0;
   }
-  let c = (a.powi(2) + b.powi(2)).sqrt();
+  let c = (a * a + b * b).sqrt();
   h = h % 360.0;
   (l, c, h)
 }
@@ -2010,8 +2010,9 @@ fn rectangular_to_polar(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
 #[inline]
 fn polar_to_rectangular(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L385
-  let a = c * (h * PI / 180.0).cos();
-  let b = c * (h * PI / 180.0).sin();
+  let angle = h * PI / 180.0;
+  let a = c * libm::cosf(angle);
+  let b = c * libm::sinf(angle);
   (l, a, b)
 }
 
@@ -2086,16 +2087,23 @@ impl From<LAB> for XYZd50 {
     let f2 = f1 - b / 200.0;
 
     // compute xyz
-    let x = if f0.powi(3) > E {
-      f0.powi(3)
+    let x_cubed = f0 * f0 * f0;
+    let x = if x_cubed > E {
+      x_cubed
     } else {
       (116.0 * f0 - 16.0) / K
     };
 
-    let y = if l > K * E { ((l + 16.0) / 116.0).powi(3) } else { l / K };
+    let y = if l > K * E {
+      let y = (l + 16.0) / 116.0;
+      y * y * y
+    } else {
+      l / K
+    };
 
-    let z = if f2.powi(3) > E {
-      f2.powi(3)
+    let z_cubed = f2 * f2 * f2;
+    let z = if z_cubed > E {
+      z_cubed
     } else {
       (116.0 * f2 - 16.0) / K
     };
@@ -2224,7 +2232,7 @@ fn gam_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
     let abs = c.abs();
     if abs > 0.0031308 {
       let sign = if c < 0.0 { -1.0 } else { 1.0 };
-      return sign * (1.055 * abs.powf(1.0 / 2.4) - 0.055);
+      return sign * (1.055 * libm::powf(abs, 1.0 / 2.4) - 0.055);
     }
 
     return 12.92 * c;
@@ -2265,7 +2273,7 @@ impl From<OKLAB> for XYZd65 {
 
     let lab = lab.resolve_missing();
     let (a, b, c) = multiply_matrix(OKLAB_TO_LMS, lab.l, lab.a, lab.b);
-    let (x, y, z) = multiply_matrix(LMS_TO_XYZ, a.powi(3), b.powi(3), c.powi(3));
+    let (x, y, z) = multiply_matrix(LMS_TO_XYZ, a * a * a, b * b * b, c * c * c);
     XYZd65 {
       x,
       y,
@@ -2304,7 +2312,7 @@ impl From<XYZd65> for OKLAB {
 
     let xyz = xyz.resolve_missing();
     let (a, b, c) = multiply_matrix(XYZ_TO_LMS, xyz.x, xyz.y, xyz.z);
-    let (l, a, b) = multiply_matrix(LMS_TO_OKLAB, a.cbrt(), b.cbrt(), c.cbrt());
+    let (l, a, b) = multiply_matrix(LMS_TO_OKLAB, libm::cbrtf(a), libm::cbrtf(b), libm::cbrtf(c));
     OKLAB {
       l,
       a,
@@ -2329,11 +2337,11 @@ impl From<XYZd50> for LAB {
     let z = xyz.z / D50[2];
 
     // now compute f
-    let f0 = if x > E { x.cbrt() } else { (K * x + 16.0) / 116.0 };
+    let f0 = if x > E { libm::cbrtf(x) } else { (K * x + 16.0) / 116.0 };
 
-    let f1 = if y > E { y.cbrt() } else { (K * y + 16.0) / 116.0 };
+    let f1 = if y > E { libm::cbrtf(y) } else { (K * y + 16.0) / 116.0 };
 
-    let f2 = if z > E { z.cbrt() } else { (K * z + 16.0) / 116.0 };
+    let f2 = if z > E { libm::cbrtf(z) } else { (K * z + 16.0) / 116.0 };
 
     let l = (116.0 * f1) - 16.0;
     let a = 500.0 * (f0 - f1);
@@ -3317,7 +3325,7 @@ fn delta_eok<T: Into<OKLAB>>(a: T, b: OKLCH) -> f32 {
   let delta_a = a.a - b.a;
   let delta_b = a.b - b.b;
 
-  (delta_l.powi(2) + delta_a.powi(2) + delta_b.powi(2)).sqrt()
+  (delta_l * delta_l + delta_a * delta_a + delta_b * delta_b).sqrt()
 }
 
 fn map_gamut<T>(color: T) -> T
