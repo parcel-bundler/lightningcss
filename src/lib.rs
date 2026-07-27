@@ -27119,6 +27119,16 @@ mod tests {
       Default::default(),
       true,
     );
+    css_modules_test(
+      ".foo { view-transition-name: match-element }",
+      ".EgL3uq_foo{view-transition-name:match-element}",
+      map! {
+        "foo" => "EgL3uq_foo"
+      },
+      HashMap::new(),
+      Default::default(),
+      true,
+    );
 
     css_modules_test(
       ".foo { view-transition-class: bar baz qux }",

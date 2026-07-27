@@ -123,6 +123,8 @@ pub enum ViewTransitionName<'i> {
   None,
   /// The `auto` keyword.
   Auto,
+  /// The `match-element` keyword. The element's view-transition-name is derived from its identity.
+  MatchElement,
   /// A custom name.
   #[cfg_attr(feature = "serde", serde(borrow, untagged))]
   Custom(CustomIdent<'i>),
