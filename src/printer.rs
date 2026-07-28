@@ -296,12 +296,11 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
           &css_module.hashes[self.loc.source_index as usize],
           &css_module.sources[self.loc.source_index as usize],
           ident,
-          if let Some(content_hashes) = &css_module.content_hashes {
-            &content_hashes[self.loc.source_index as usize]
-          } else {
-            ""
-          },
-          |s| {
+          css_module
+            .content_hashes
+            .as_ref()
+            .map(|content_hashes| content_hashes[self.loc.source_index as usize].as_str()),
+          &mut FnWriter(|s| {
             self.col += s.len() as u32;
             if first {
               first = false;
@@ -309,7 +308,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
             } else {
               serialize_name(s, dest)
             }
-          },
+          }),
         )?;
 
         css_module.add_local(&ident, &ident, self.loc.source_index);
@@ -331,15 +330,14 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
           &css_module.hashes[self.loc.source_index as usize],
           &css_module.sources[self.loc.source_index as usize],
           &ident[2..],
-          if let Some(content_hashes) = &css_module.content_hashes {
-            &content_hashes[self.loc.source_index as usize]
-          } else {
-            ""
-          },
-          |s| {
+          css_module
+            .content_hashes
+            .as_ref()
+            .map(|content_hashes| content_hashes[self.loc.source_index as usize].as_str()),
+          &mut FnWriter(|s| {
             self.col += s.len() as u32;
             serialize_name(s, dest)
-          },
+          }),
         )?;
 
         if is_declaration {
@@ -417,5 +415,13 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, 'c,
   fn write_str(&mut self, s: &str) -> std::fmt::Result {
     self.col += s.len() as u32;
     self.dest.write_str(s)
+  }
+}
+
+struct FnWriter<F: FnMut(&str) -> std::fmt::Result>(F);
+
+impl<F: FnMut(&str) -> std::fmt::Result> std::fmt::Write for FnWriter<F> {
+  fn write_str(&mut self, s: &str) -> std::fmt::Result {
+    self.0(s)
   }
 }

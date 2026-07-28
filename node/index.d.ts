@@ -316,7 +316,7 @@ export interface Warning {
 
 export interface CSSModulesConfig {
   /** The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`. */
-  pattern?: string,
+  pattern?: CSSModulePattern | string,
   /** Whether to rename dashed identifiers, e.g. custom properties. */
   dashedIdents?: boolean,
   /** Whether to enable hashing for `@keyframes`. */
@@ -329,6 +329,13 @@ export interface CSSModulesConfig {
   customIdents?: boolean,
   /** Whether to require at least one class or id selector in each rule. */
   pure?: boolean
+}
+
+export interface CSSModulePattern {
+  /** The function to use to resolve patterns */
+  resolve: (hash: string, path: string, local: string, content_hash?: string) => MaybePromise<string>,
+  /** Whether to pass in the content_hash param into `resolve`. */
+  content_hash: boolean
 }
 
 export type CSSModuleExports = {
