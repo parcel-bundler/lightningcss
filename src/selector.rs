@@ -1712,6 +1712,11 @@ where
       }
       Ok(())
     }
+    Component::HostContext(selector) => {
+      dest.write_str(":host-context(")?;
+      selector.to_css(dest)?;
+      dest.write_char(')')
+    }
     Component::Slotted(ref selector) => {
       dest.write_str("::slotted(")?;
       selector.to_css(dest)?;
@@ -1931,7 +1936,9 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           continue;
         }
 
-        Component::Scope | Component::Host(_) | Component::Slotted(_) => Feature::Shadowdomv1,
+        Component::Scope | Component::Host(_) | Component::HostContext(_) | Component::Slotted(_) => {
+          Feature::Shadowdomv1
+        }
 
         Component::Part(_) => Feature::PartPseudo,
 
@@ -2275,6 +2282,7 @@ pub(crate) fn is_pure_css_modules_selector(selector: &Selector) -> bool {
     Component::NthOf(nth) => nth.selectors().iter().any(is_pure_css_modules_selector),
     Component::Slotted(s) => is_pure_css_modules_selector(&s),
     Component::Host(s) => s.as_ref().map(is_pure_css_modules_selector).unwrap_or(false),
+    Component::HostContext(s) => is_pure_css_modules_selector(s),
     Component::NonTSPseudoClass(pc) => match pc {
       PseudoClass::Local { selector } => is_pure_css_modules_selector(&*selector),
       _ => false,
