@@ -314,6 +314,11 @@ where
           *specificity += Specificity::from(selector.specificity());
         }
       }
+      Component::HostContext(ref selector) => {
+        specificity.class_like_selectors += 1;
+        // See: https://github.com/w3c/csswg-drafts/issues/1915
+        *specificity += Specificity::from(selector.specificity());
+      }
       Component::ID(..) => {
         specificity.id_selectors += 1;
       }

@@ -149,6 +149,16 @@ enum TSPseudoClass<'s, Impl: SelectorImpl<'s>, VendorPrefix> {
     )]
     selectors: Option<Selector<'s, Impl>>,
   },
+  HostContext {
+    #[serde(
+      borrow,
+      bound(
+        serialize = "Impl::NonTSPseudoClass: serde::Serialize, Impl::PseudoElement: serde::Serialize, Impl::VendorPrefix: serde::Serialize",
+        deserialize = "Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>"
+      )
+    )]
+    selectors: Selector<'s, Impl>,
+  },
   Where {
     #[serde(
       borrow,
@@ -371,6 +381,9 @@ where
       Component::NthOf(nth) => serialize_nth(nth.nth_data(), Some(nth.clone_selectors())),
       Component::Host(s) => {
         SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Host { selectors: s.clone() }))
+      }
+      Component::HostContext(s) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::HostContext { selectors: s.clone() }))
       }
       Component::Where(s) => {
         SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Where { selectors: s.clone() }))

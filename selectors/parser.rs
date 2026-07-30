@@ -1027,7 +1027,7 @@ impl<'a, 'i, Impl: 'a + SelectorImpl<'i>> SelectorIter<'a, 'i, Impl> {
   #[inline]
   pub(crate) fn is_featureless_host_selector(&mut self) -> bool {
     self.selector_length() > 0
-      && self.all(|component| matches!(*component, Component::Host(..)))
+      && self.all(|component| matches!(*component, Component::Host(..) | Component::HostContext(..)))
       && self.next_sequence().is_none()
   }
 
@@ -1451,6 +1451,16 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   ///
   /// See https://github.com/w3c/csswg-drafts/issues/2158
   Host(Option<Selector<'i, Impl>>),
+  /// The `:host-context` pseudo-class:
+  ///
+  /// https://drafts.csswg.org/css-scoping/#host-selector
+  ///
+  /// NOTE(emilio): This should support a list of selectors, but as of this
+  /// writing no other browser does, and that allows them to put
+  /// :host-context() in the rule hash, so we do that too.
+  ///
+  /// See https://github.com/w3c/csswg-drafts/issues/2158
+  HostContext(Selector<'i, Impl>),
   /// The `:where` pseudo-class.
   ///
   /// https://drafts.csswg.org/selectors/#zero-matches
@@ -1540,6 +1550,7 @@ where
       Component::Slotted(c) => Component::Slotted(c.into_owned()),
       Component::Part(c) => Component::Part(c.into_owned()),
       Component::Host(c) => Component::Host(c.into_owned()),
+      Component::HostContext(c) => Component::HostContext(c.into_owned()),
       Component::Where(c) => Component::Where(c.into_owned()),
       Component::Is(c) => Component::Is(c.into_owned()),
       Component::Any(a, b) => Component::Any(a.into_owned(), b.into_owned()),
@@ -1620,7 +1631,7 @@ impl<'i, Impl: SelectorImpl<'i>> Component<'i, Impl> {
           return false;
         }
       }
-      Host(Some(ref selector)) => {
+      Host(Some(ref selector)) | HostContext(ref selector) => {
         if !selector.visit(visitor) {
           return false;
         }
@@ -2011,6 +2022,11 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
           dest.write_char(')')?;
         }
         Ok(())
+      }
+      HostContext(ref selector) => {
+        dest.write_str(":host-context(")?;
+        selector.to_css(dest)?;
+        dest.write_char(')')
       }
       Nth(ref nth_data) => {
         nth_data.write_start(dest, nth_data.is_function())?;
@@ -2752,7 +2768,10 @@ where
         //     (Similar quotes for :where() / :not())
         //
         let ignore_default_ns = state.intersects(SelectorParsingState::SKIP_DEFAULT_NAMESPACE)
-          || matches!(result, SimpleSelectorParseResult::SimpleSelector(Component::Host(..)));
+          || matches!(
+            result,
+            SimpleSelectorParseResult::SimpleSelector(Component::Host(..) | Component::HostContext(..))
+          );
         if !ignore_default_ns {
           builder.push_simple_selector(Component::DefaultNamespace(url));
         }
@@ -2878,6 +2897,12 @@ where
           }
           return Ok(Component::Host(Some(parse_inner_compound_selector(parser, input, state)?)));
       },
+        "host-context" => {
+          if !state.allows_tree_structural_pseudo_classes() {
+            return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+          }
+          return Ok(Component::HostContext(parse_inner_compound_selector(parser, input, state)?));
+        },
       "not" => {
           return parse_negation(parser, input, state)
       },
@@ -3341,6 +3366,10 @@ pub mod tests {
     }
 
     fn parse_part(&self) -> bool {
+      true
+    }
+
+    fn parse_host(&self) -> bool {
       true
     }
 
@@ -3918,6 +3947,13 @@ pub mod tests {
     assert!(parse("::part(foo bar)").is_ok());
     assert!(parse("::part(foo):hover").is_ok());
     assert!(parse("::part(foo) + bar").is_err());
+
+    assert!(parse(":host").is_ok());
+    assert!(parse(":host(.foo)").is_ok());
+    assert!(parse(":host-context()").is_err());
+    assert!(parse(":host-context(.foo)").is_ok());
+    assert!(parse(":host-context(.foo, .bar)").is_err());
+    assert!(parse(":host-context(div > .foo)").is_err());
 
     assert!(parse("div ::slotted(div)").is_ok());
     assert!(parse("div + slot::slotted(div)").is_ok());

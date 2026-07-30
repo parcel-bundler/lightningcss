@@ -770,6 +770,23 @@ where
             .nest(|context| matches_complex_selector(selector.iter(), element, context, flags_setter))
         })
     }
+    Component::HostContext(ref selector) => {
+      context.shared.shadow_host().map_or(false, |host| host == element.opaque()) && {
+        let mut current = Some(element.clone());
+        let mut matched = false;
+        while let Some(candidate) = current {
+          if context
+            .shared
+            .nest(|context| matches_complex_selector(selector.iter(), &candidate, context, flags_setter))
+          {
+            matched = true;
+            break;
+          }
+          current = candidate.parent_element();
+        }
+        matched
+      }
+    }
     Component::Scope => match context.shared.scope_element {
       Some(ref scope_element) => element.opaque() == *scope_element,
       None => element.is_root(),
