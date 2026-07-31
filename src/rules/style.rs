@@ -75,7 +75,9 @@ impl<'i, T: Clone> StyleRule<'i, T> {
     if context.pure_css_modules {
       if !self.selectors.0.iter().all(is_pure_css_modules_selector) {
         return Err(MinifyError {
-          kind: crate::error::MinifyErrorKind::ImpureCSSModuleSelector,
+          kind: crate::error::MinifyErrorKind::ImpureCSSModuleSelector {
+            selector: self.selectors.to_string(),
+          },
           loc: self.loc,
         });
       }
