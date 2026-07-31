@@ -506,9 +506,9 @@ impl ToCss for PlaceSelf {
   {
     self.align.to_css(dest)?;
     let is_equal = match &self.justify {
-      JustifySelf::Auto => true,
+      JustifySelf::Auto => self.align == AlignSelf::Auto,
       JustifySelf::Normal => self.align == AlignSelf::Normal,
-      JustifySelf::Stretch => self.align == AlignSelf::Normal,
+      JustifySelf::Stretch => self.align == AlignSelf::Stretch,
       JustifySelf::BaselinePosition(p) if matches!(&self.align, AlignSelf::BaselinePosition(p2) if p == p2) => {
         true
       }
@@ -776,7 +776,7 @@ impl ToCss for PlaceItems {
     self.align.to_css(dest)?;
     let is_equal = match &self.justify {
       JustifyItems::Normal => self.align == AlignItems::Normal,
-      JustifyItems::Stretch => self.align == AlignItems::Normal,
+      JustifyItems::Stretch => self.align == AlignItems::Stretch,
       JustifyItems::BaselinePosition(p) if matches!(&self.align, AlignItems::BaselinePosition(p2) if p == p2) => {
         true
       }
