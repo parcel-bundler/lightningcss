@@ -884,6 +884,7 @@ mod tests {
   use super::*;
   use crate::{
     css_modules::{self, CssModuleExports, CssModuleReference},
+    error::PrinterErrorKind,
     parser::ParserFlags,
     stylesheet::{MinifyOptions, PrinterOptions},
     targets::{Browsers, Targets},
@@ -1992,38 +1993,89 @@ mod tests {
       }
     );
 
-    let (code, exports) = bundle_css_module(
-      TestProvider {
-        map: fs! {
-          "/a.css": r#"
-          .a { composes: x from './b.css'; background: red; }
-        "#,
-          "/b.css": r#"
-          .a { background: red }
-        "#
-        },
+    // `composes: x from './b.css'` where `.x` is not defined in `./b.css` must error,
+    // not silently drop the reference. (Previously this emitted code as if the
+    // composes declaration had no effect — a silent correctness failure.)
+    let fs = TestProvider {
+      map: fs! {
+        "/a.css": r#"
+        .a { composes: x from './b.css'; background: red; }
+      "#,
+        "/b.css": r#"
+        .a { background: red }
+      "#
       },
-      "/a.css",
+    };
+    let mut bundler = Bundler::new(
+      &fs,
       None,
+      ParserOptions {
+        css_modules: Some(css_modules::Config {
+          dashed_idents: true,
+          pattern: css_modules::Pattern::parse("[hash]_[local]").unwrap(),
+          ..Default::default()
+        }),
+        ..ParserOptions::default()
+      },
     );
-    assert_eq!(
-      code,
-      indoc! { r#"
-      ._8Cs9ZG_a {
-        background: red;
-      }
+    let mut stylesheet = bundler.bundle(Path::new("/a.css")).unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    match stylesheet.to_css(PrinterOptions::default()) {
+      Err(err) => match err.kind {
+        PrinterErrorKind::MissingComposesName { name, specifier } => {
+          assert_eq!(name, "x");
+          assert!(
+            specifier.as_deref().map_or(false, |s| s.ends_with("b.css")),
+            "expected specifier to reference b.css, got {:?}",
+            specifier
+          );
+        }
+        kind => panic!("expected MissingComposesName, got {:?}", kind),
+      },
+      Ok(_) => panic!("expected MissingComposesName error"),
+    }
 
-      ._6lixEq_a {
-        background: red;
-      }
-    "#}
+    // Same check, reachable without a pre-existing `.a` in `/b.css` to guard
+    // against regressions where the validator only fires when other rules
+    // happen to be printed.
+    let fs = TestProvider {
+      map: fs! {
+        "/a.css": r#"
+        .a { composes: x from './b.css'; color: red; }
+      "#,
+        "/b.css": r#"
+        .y { background: green }
+      "#
+      },
+    };
+    let mut bundler = Bundler::new(
+      &fs,
+      None,
+      ParserOptions {
+        css_modules: Some(css_modules::Config {
+          dashed_idents: true,
+          pattern: css_modules::Pattern::parse("[hash]_[local]").unwrap(),
+          ..Default::default()
+        }),
+        ..ParserOptions::default()
+      },
     );
-    assert_eq!(
-      flatten_exports(exports),
-      map! {
-        "a" => "_6lixEq_a"
-      }
-    );
+    let mut stylesheet = bundler.bundle(Path::new("/a.css")).unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    match stylesheet.to_css(PrinterOptions::default()) {
+      Err(err) => match err.kind {
+        PrinterErrorKind::MissingComposesName { name, specifier } => {
+          assert_eq!(name, "x");
+          assert!(
+            specifier.as_deref().map_or(false, |s| s.ends_with("b.css")),
+            "expected specifier to reference b.css, got {:?}",
+            specifier
+          );
+        }
+        kind => panic!("expected MissingComposesName, got {:?}", kind),
+      },
+      Ok(_) => panic!("expected MissingComposesName error"),
+    }
 
     let (code, exports) = bundle_css_module(
       TestProvider {
