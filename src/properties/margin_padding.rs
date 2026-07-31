@@ -271,9 +271,47 @@ macro_rules! side_handler {
               PropertyId::$block_end => logical_property!(block_end, property.clone()),
               PropertyId::$inline_start => logical_property!(inline_start, property.clone()),
               PropertyId::$inline_end => logical_property!(inline_end, property.clone()),
+              PropertyId::$block_shorthand => {
+                // A bare var() reference might expand to multiple tokens (e.g. `margin-block:
+                // var(--x)` where `--x` is `10px 20px`), so we can only split when the value
+                // is definitively a single value.
+                let shorthand_supported = true $(&& !context.should_compile_logical(Feature::$shorthand_feature))?;
+                let is_single_value = !matches!(val.value.0.as_slice(), [crate::properties::custom::TokenOrValue::Var(_)] | []);
+                if shorthand_supported || !is_single_value {
+                  self.flush(dest, context);
+                  dest.push(property.clone());
+                } else {
+                  logical_property!(block_start, Property::Unparsed(val.with_property_id(PropertyId::$block_start)));
+                  logical_property!(block_end, Property::Unparsed(val.with_property_id(PropertyId::$block_end)));
+                }
+              }
+              PropertyId::$inline_shorthand => {
+                let shorthand_supported = true $(&& !context.should_compile_logical(Feature::$shorthand_feature))?;
+                let is_single_value = !matches!(val.value.0.as_slice(), [crate::properties::custom::TokenOrValue::Var(_)] | []);
+                if shorthand_supported || !is_single_value {
+                  self.flush(dest, context);
+                  dest.push(property.clone());
+                } else {
+                  logical_property!(inline_start, Property::Unparsed(val.with_property_id(PropertyId::$inline_start)));
+                  logical_property!(inline_end, Property::Unparsed(val.with_property_id(PropertyId::$inline_end)));
+                }
+              }
               _ => {
                 self.flush(dest, context);
-                dest.push(property.clone());
+                // For logical main shorthands (e.g. `inset: calc(var(--x))`), expand to
+                // physical properties when the target doesn't support them. Only expand when
+                // the value is definitively a single value (not a bare var() that might expand
+                // to multiple tokens).
+                let logical_supported = true $(&& !context.should_compile_logical(Feature::$feature))?;
+                let is_single_value = !matches!(val.value.0.as_slice(), [crate::properties::custom::TokenOrValue::Var(_)] | []);
+                if PropertyCategory::$shorthand_category == PropertyCategory::Logical && !logical_supported && is_single_value {
+                  dest.push(Property::Unparsed(val.with_property_id(PropertyId::$top)));
+                  dest.push(Property::Unparsed(val.with_property_id(PropertyId::$bottom)));
+                  dest.push(Property::Unparsed(val.with_property_id(PropertyId::$left)));
+                  dest.push(Property::Unparsed(val.with_property_id(PropertyId::$right)));
+                } else {
+                  dest.push(property.clone());
+                }
               }
             }
           }
@@ -376,7 +414,8 @@ macro_rules! side_handler {
         if logical_supported {
           logical_side!(inline_start, inline_end, $inline_shorthand, $inline_start, $inline_end);
         } else if inline_start.is_some() || inline_end.is_some() {
-          if matches!((&inline_start, &inline_end), (Some(Property::$inline_start(start)), Some(Property::$inline_end(end))) if start == end) {
+          if matches!((&inline_start, &inline_end), (Some(Property::$inline_start(start)), Some(Property::$inline_end(end))) if start == end)
+             || matches!((&inline_start, &inline_end), (Some(Property::Unparsed(s)), Some(Property::Unparsed(e))) if s.value == e.value) {
             prop!(inline_start, $inline_start, $left);
             prop!(inline_end, $inline_end, $right);
           } else {
