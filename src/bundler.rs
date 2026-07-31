@@ -443,6 +443,10 @@ where
       },
     })?;
 
+    // Strip the BOM here as well as in the parser, so that the source content
+    // registered for source maps matches the code the parser sees.
+    let code = crate::stylesheet::strip_bom(code);
+
     let mut opts = self.options.clone();
     let filename = file.to_str().unwrap();
     opts.filename = filename.to_owned();
@@ -1064,6 +1068,32 @@ mod tests {
       res.insert(name.clone(), classes);
     }
     res
+  }
+
+  #[test]
+  fn test_bom() {
+    // A leading BOM is stripped from every file, not just the entry.
+    let res = bundle(
+      TestProvider {
+        map: fs! {
+          "/a.css": "\u{feff}@import \"b.css\";\n.a { color: red }",
+          "/b.css": "\u{feff}.b { color: green }"
+        },
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
+      .b {
+        color: green;
+      }
+
+      .a {
+        color: red;
+      }
+    "#}
+    );
   }
 
   #[test]

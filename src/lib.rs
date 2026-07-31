@@ -24628,6 +24628,21 @@ mod tests {
   }
 
   #[test]
+  fn test_bom() {
+    // A leading BOM is removed while decoding the input byte stream, so it is
+    // not part of the first token: https://drafts.csswg.org/css-syntax/#input-byte-stream
+    minify_test("\u{feff}html { color: red }", "html{color:red}");
+    minify_test(
+      "\u{feff}/*! license */ html { color: red }",
+      "/*! license */\nhtml{color:red}",
+    );
+    minify_test("\u{feff}@charset \"UTF-8\"; html { color: red }", "html{color:red}");
+    minify_test("\u{feff}@import \"foo.css\";", "@import \"foo.css\";");
+    // Only a leading BOM is stripped, elsewhere it is an ordinary character.
+    minify_test("html { content: \"\u{feff}\" }", "html{content:\"\u{feff}\"}");
+  }
+
+  #[test]
   fn test_style_attr() {
     attr_test("color: yellow; flex: 1 1 auto", "color: #ff0; flex: auto", false, None);
     attr_test("color: yellow; flex: 1 1 auto", "color:#ff0;flex:auto", true, None);
