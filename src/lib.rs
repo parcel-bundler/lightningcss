@@ -7597,6 +7597,20 @@ mod tests {
         Token::SquareBracketBlock,
       )),
     );
+
+    // ::-ms-input-placeholder must round-trip with the -ms- prefix, not -moz-.
+    minify_test(
+      "::-ms-input-placeholder {color: red}",
+      "::-ms-input-placeholder{color:red}",
+    );
+    minify_test(
+      "::-webkit-input-placeholder {color: red}",
+      "::-webkit-input-placeholder{color:red}",
+    );
+    minify_test(
+      "::-moz-placeholder {color: red}",
+      "::-moz-placeholder{color:red}",
+    );
   }
 
   #[test]
