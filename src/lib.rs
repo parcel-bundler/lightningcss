@@ -6665,6 +6665,47 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    minify_test(
+      ".foo { font: 10px serif; font-variant-numeric: oldstyle-nums; }",
+      ".foo{font:10px serif;font-variant-numeric:oldstyle-nums}",
+    );
+    minify_test(
+      ".foo { font-variant-numeric: oldstyle-nums; font: 10px serif; }",
+      ".foo{font-variant-numeric:oldstyle-nums;font:10px serif}",
+    );
+    minify_test(
+      ".foo { font: 10px serif; font-variant-numeric: oldstyle-nums; font-variant-alternates: stylistic(my-style); }",
+      ".foo{font:10px serif;font-variant-numeric:oldstyle-nums;font-variant-alternates:stylistic(my-style)}",
+    );
+    minify_test(
+      ".foo { font: 10px serif; font-variant: small-caps; }",
+      ".foo{font:10px serif;font-variant:small-caps}",
+    );
+    minify_test(
+      ".foo { font-kerning: none; font: 10px serif; }",
+      ".foo{font-kerning:none;font:10px serif}",
+    );
+    minify_test(
+      ".foo { font: 10px serif; font-kerning: none; }",
+      ".foo{font:10px serif;font-kerning:none}",
+    );
+    minify_test(
+      ".foo { font-optical-sizing: none; font: 10px serif; }",
+      ".foo{font-optical-sizing:none;font:10px serif}",
+    );
+    minify_test(
+      ".foo { font: 10px serif; font-optical-sizing: none; }",
+      ".foo{font:10px serif;font-optical-sizing:none}",
+    );
+    minify_test(
+      ".foo { font-synthesis-style: oblique-only; font: 10px serif; }",
+      ".foo{font-synthesis-style:oblique-only;font:10px serif}",
+    );
+    minify_test(
+      ".foo { font: 10px serif; font-synthesis-style: oblique-only; }",
+      ".foo{font:10px serif;font-synthesis-style:oblique-only}",
+    );
   }
 
   #[test]
