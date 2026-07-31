@@ -6364,6 +6364,19 @@ mod tests {
       "@font-face{font-family:\"revert-layer\"}",
     );
 
+    minify_test(
+        ".foo{font-family:named-font,named-font}",
+        ".foo{font-family:named-font}",
+    );
+    minify_test(
+        ".foo{font-family:monospace,monospace}",
+        ".foo{font-family:monospace,monospace}",
+    );
+    minify_test(
+        ".foo{font-family:monospace,monospace;font-size:16px}",
+        ".foo{font-family:monospace,monospace;font-size:16px}",
+    );
+
     prefix_test(
       r#"
       .foo {
