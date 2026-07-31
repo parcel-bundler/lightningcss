@@ -5301,6 +5301,69 @@ mod tests {
       },
     );
 
+    // justify-self: auto is not equivalent to a self-position align-self, so the
+    // shorthand must keep both values. https://github.com/parcel-bundler/lightningcss/issues/1182
+    test(
+      r#"
+      .foo {
+        align-self: self-start;
+        justify-self: auto;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: self-start auto;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        align-self: auto;
+        justify-self: auto;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: auto;
+      }
+    "#
+      },
+    );
+
+    // Likewise, justify-self: stretch only collapses when align-self is stretch.
+    test(
+      r#"
+      .foo {
+        align-self: normal;
+        justify-self: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: normal stretch;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        align-self: stretch;
+        justify-self: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: stretch;
+      }
+    "#
+      },
+    );
+
     test(
       r#"
       .foo {
@@ -5311,6 +5374,38 @@ mod tests {
       indoc! {r#"
       .foo {
         place-items: center;
+      }
+    "#
+      },
+    );
+
+    // place-items has the same rule: justify-items: stretch only collapses when
+    // align-items is stretch.
+    test(
+      r#"
+      .foo {
+        align-items: normal;
+        justify-items: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-items: normal stretch;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        align-items: stretch;
+        justify-items: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-items: stretch;
       }
     "#
       },
