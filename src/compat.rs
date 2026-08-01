@@ -456,7 +456,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -548,7 +548,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -593,7 +593,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -638,7 +638,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -683,7 +683,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -728,7 +728,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -773,7 +773,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -818,7 +818,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -910,7 +910,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -955,7 +955,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1025,7 +1025,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1070,7 +1070,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1160,7 +1160,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1205,7 +1205,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1250,7 +1250,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1337,7 +1337,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1382,7 +1382,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1427,7 +1427,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1472,7 +1472,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1517,7 +1517,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -1584,7 +1584,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 9502720 {
+          if version < 9830400 {
             return false;
           }
         }
@@ -3634,58 +3634,6 @@ impl Feature {
           return false;
         }
       }
-      Feature::TargetCurrent => {
-        if let Some(version) = browsers.chrome {
-          if version < 8847360 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.edge {
-          if version < 8847360 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.android {
-          if version < 8847360 {
-            return false;
-          }
-        }
-        if browsers.firefox.is_some()
-          || browsers.ie.is_some()
-          || browsers.ios_saf.is_some()
-          || browsers.opera.is_some()
-          || browsers.safari.is_some()
-          || browsers.samsung.is_some()
-        {
-          return false;
-        }
-      }
-      Feature::TargetBeforeAfter => {
-        if let Some(version) = browsers.chrome {
-          if version < 9306112 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.edge {
-          if version < 9306112 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.android {
-          if version < 9306112 {
-            return false;
-          }
-        }
-        if browsers.firefox.is_some()
-          || browsers.ie.is_some()
-          || browsers.ios_saf.is_some()
-          || browsers.opera.is_some()
-          || browsers.safari.is_some()
-          || browsers.samsung.is_some()
-        {
-          return false;
-        }
-      }
       Feature::TargetText => {
         if let Some(version) = browsers.chrome {
           if version < 5832704 {
@@ -3777,6 +3725,16 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.safari {
+          if version < 1769472 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1769472 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.samsung {
           if version < 1900544 {
             return false;
@@ -3787,11 +3745,7 @@ impl Feature {
             return false;
           }
         }
-        if browsers.firefox.is_some()
-          || browsers.ie.is_some()
-          || browsers.ios_saf.is_some()
-          || browsers.safari.is_some()
-        {
+        if browsers.firefox.is_some() || browsers.ie.is_some() {
           return false;
         }
       }
@@ -3811,6 +3765,16 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.safari {
+          if version < 1769472 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1769472 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.samsung {
           if version < 1900544 {
             return false;
@@ -3821,11 +3785,7 @@ impl Feature {
             return false;
           }
         }
-        if browsers.firefox.is_some()
-          || browsers.ie.is_some()
-          || browsers.ios_saf.is_some()
-          || browsers.safari.is_some()
-        {
+        if browsers.firefox.is_some() || browsers.ie.is_some() {
           return false;
         }
       }
@@ -5786,33 +5746,28 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.safari {
+          if version < 1769472 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1769472 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.android {
           if version < 9043968 {
             return false;
           }
         }
-        if browsers.firefox.is_some()
-          || browsers.ie.is_some()
-          || browsers.ios_saf.is_some()
-          || browsers.safari.is_some()
-          || browsers.samsung.is_some()
-        {
+        if browsers.firefox.is_some() || browsers.ie.is_some() || browsers.samsung.is_some() {
           return false;
         }
       }
       Feature::WebkitFillAvailableSize => {
         if let Some(version) = browsers.firefox {
           if version < 9568256 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.safari {
-          if version < 458752 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.ios_saf {
-          if version < 458752 {
             return false;
           }
         }
@@ -5825,7 +5780,9 @@ impl Feature {
           || browsers.chrome.is_some()
           || browsers.edge.is_some()
           || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
           || browsers.opera.is_some()
+          || browsers.safari.is_some()
         {
           return false;
         }
@@ -5847,6 +5804,58 @@ impl Feature {
           || browsers.firefox.is_some()
           || browsers.ie.is_some()
           || browsers.opera.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::TargetCurrent => {
+        if let Some(version) = browsers.chrome {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::TargetBeforeAfter => {
+        if let Some(version) = browsers.chrome {
+          if version < 9306112 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 9306112 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 9306112 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
           || browsers.samsung.is_some()
         {
           return false;
