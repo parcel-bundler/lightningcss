@@ -10928,6 +10928,35 @@ mod tests {
       },
     );
 
+    // Regression: incompatible selectors must not be dropped when the compatible
+    // selector portion is merged into a preceding rule. (#1260)
+    prefix_test(
+      r#"
+      .a:last-child {
+        border-bottom: none;
+      }
+
+      .a:last-child,
+      .a:has(+ .b) {
+        display: flex;
+      }
+      "#,
+      indoc! {r#"
+      .a:last-child {
+        border-bottom: none;
+        display: flex;
+      }
+
+      .a:has( + .b) {
+        display: flex;
+      }
+      "#},
+      Browsers {
+        chrome: Some(104 << 16),
+        ..Browsers::default()
+      },
+    );
+
     nesting_test_with_targets(
       r#"
       .foo {
