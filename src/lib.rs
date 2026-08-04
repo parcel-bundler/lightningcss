@@ -30578,6 +30578,11 @@ mod tests {
       ".foo{ container-type: inline-size }",
       ".foo{container-type:inline-size}",
     );
+    minify_test(".foo{ container-type: anchored }", ".foo{container-type:anchored}");
+    minify_test(
+      ".foo{ container-type: anchored inline-size }",
+      ".foo{container-type:inline-size anchored}",
+    );
     minify_test(".foo{ container-name: none; }", ".foo{container-name:none}");
     minify_test(".foo{ container-name: foo; }", ".foo{container-name:foo}");
     minify_test(".foo{ container: foo / normal; }", ".foo{container:foo}");
@@ -30585,6 +30590,7 @@ mod tests {
       ".foo{ container: foo / inline-size; }",
       ".foo{container:foo/inline-size}",
     );
+    minify_test(".foo{ container: foo / anchored; }", ".foo{container:foo/anchored}");
     minify_test(".foo { width: calc(1cqw + 2cqw) }", ".foo{width:3cqw}");
     minify_test(".foo { width: calc(1cqh + 2cqh) }", ".foo{width:3cqh}");
     minify_test(".foo { width: calc(1cqi + 2cqi) }", ".foo{width:3cqi}");
@@ -30800,6 +30806,136 @@ mod tests {
       }
     "#,
       "@container not scroll-state(scrollable:top){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:flip-block){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container popover anchored(fallback: flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container popover anchored(fallback:flip-block){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container not anchored(fallback: flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container not anchored(fallback:flip-block){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container (inline-size > 45em) and anchored(fallback: flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container (inline-size>45em) and anchored(fallback:flip-block){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: flip-block flip-inline) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:flip-block flip-inline){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: --my-fallback) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:--my-fallback){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: none) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:none){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: flip-start flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:flip-block flip-start){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: --my-fallback flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:--my-fallback flip-block){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: flip-block --my-fallback flip-inline) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:--my-fallback flip-block flip-inline){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: flip-y flip-x) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:flip-x flip-y){.foo{color:red}}",
+    );
+    error_test(
+      "@container anchored(fallback: --a --b) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Ident("--b".into())),
+    );
+    error_test(
+      "@container anchored(fallback: flip-block flip-block) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Ident("flip-block".into())),
+    );
+
+    // size and inline-size are mutually exclusive; invalid combinations fall through to unparsed
+    // (round-trip preserves verbatim instead of normalizing through bitflags).
+    minify_test(
+      ".foo { container-type: size inline-size }",
+      ".foo{container-type:size inline-size}",
+    );
+    // duplicate keywords are not allowed
+    minify_test(
+      ".foo { container-type: anchored anchored }",
+      ".foo{container-type:anchored anchored}",
     );
 
     // Disallow 'none', 'not', 'and', 'or' as a `<container-name>`
