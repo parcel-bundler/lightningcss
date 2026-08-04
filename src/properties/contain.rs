@@ -56,16 +56,23 @@ impl<'i> Parse<'i> for ContainerType {
     let mut value = ContainerType::empty();
     let size = ContainerType::InlineSize | ContainerType::Size;
 
-    while let Ok(ident) = input.try_parse(|input| input.expect_ident_cloned()) {
-      let location = input.current_source_location();
-      let flag = match_ignore_ascii_case! { &ident,
-        "inline-size" if !value.intersects(size) => ContainerType::InlineSize,
-        "size" if !value.intersects(size) => ContainerType::Size,
-        "scroll-state" if !value.contains(ContainerType::ScrollState) => ContainerType::ScrollState,
-        "anchored" if !value.contains(ContainerType::Anchored) => ContainerType::Anchored,
-        _ => return Err(location.new_unexpected_token_error(cssparser::Token::Ident(ident.clone()))),
-      };
-      value |= flag;
+    loop {
+      let flag = input.try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
+        let location = input.current_source_location();
+        let ident = input.expect_ident_cloned()?;
+        match_ignore_ascii_case! { &ident,
+          "inline-size" if !value.intersects(size) => Ok(ContainerType::InlineSize),
+          "size" if !value.intersects(size) => Ok(ContainerType::Size),
+          "scroll-state" if !value.contains(ContainerType::ScrollState) => Ok(ContainerType::ScrollState),
+          "anchored" if !value.contains(ContainerType::Anchored) => Ok(ContainerType::Anchored),
+          _ => Err(location.new_unexpected_token_error(cssparser::Token::Ident(ident.clone()))),
+        }
+      });
+
+      match flag {
+        Ok(flag) => value |= flag,
+        Err(..) => break,
+      }
     }
 
     if value.is_empty() {

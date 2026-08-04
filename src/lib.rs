@@ -30887,6 +30887,44 @@ mod tests {
     "#,
       "@container anchored(fallback:flip-block flip-start){.foo{color:red}}",
     );
+    minify_test(
+      r#"
+      @container anchored(fallback: --my-fallback flip-block) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:--my-fallback flip-block){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: flip-block --my-fallback flip-inline) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:--my-fallback flip-block flip-inline){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container anchored(fallback: flip-y flip-x) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container anchored(fallback:flip-x flip-y){.foo{color:red}}",
+    );
+    error_test(
+      "@container anchored(fallback: --a --b) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Ident("--b".into())),
+    );
+    error_test(
+      "@container anchored(fallback: flip-block flip-block) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Ident("flip-block".into())),
+    );
 
     // size and inline-size are mutually exclusive; invalid combinations fall through to unparsed
     // (round-trip preserves verbatim instead of normalizing through bitflags).

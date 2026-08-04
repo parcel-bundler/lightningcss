@@ -7754,14 +7754,10 @@ export type AnchoredFallbackValue =
       type: "none";
     }
   | {
-      type: "ident";
-      value: String;
-    }
-  | {
-      type: "tactic";
-      value: TryTactic;
+      type: "fallback";
+      value: PositionTryFallback;
     };
-export type TryTacticFlag = "flip-block" | "flip-inline" | "flip-start";
+export type TryTacticFlag = "flip-block" | "flip-inline" | "flip-start" | "flip-x" | "flip-y";
 export type TryTactic = TryTacticFlag[];
 /**
  * A property within a `@view-transition` rule.
@@ -9927,6 +9923,21 @@ export interface ContainerRule<D = Declaration, M = MediaQuery> {
    * The rules within the `@container` rule.
    */
   rules: Rule<D, M>[];
+}
+/**
+ * A `[<dashed-ident> || <try-tactic>]` fallback, as used in the [position-try-fallbacks](https://drafts.csswg.org/css-anchor-position-1/#position-try-fallbacks) property and the [`anchored(fallback: ...)`](https://drafts.csswg.org/css-anchor-position-2/#fallback-feature) container query feature.
+ *
+ * At least one of `name` and `tactic` is present. Note: the `<position-area>` form is not yet supported.
+ */
+export interface PositionTryFallback {
+  /**
+   * A `<dashed-ident>` referencing a `@position-try` rule name.
+   */
+  name?: String | null;
+  /**
+   * A `<try-tactic>` keyword combination. Empty if only a name is given.
+   */
+  tactic: TryTactic;
 }
 /**
  * A [@scope](https://drafts.csswg.org/css-cascade-6/#scope-atrule) rule.
