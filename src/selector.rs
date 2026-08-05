@@ -649,6 +649,10 @@ impl<'i> parcel_selectors::parser::NonTSPseudoClass<'i> for PseudoClass<'i> {
     )
   }
 
+  fn is_valid_after_search_text(&self) -> bool {
+    matches!(*self, PseudoClass::Current)
+  }
+
   fn is_valid_before_webkit_scrollbar(&self) -> bool {
     !matches!(*self, PseudoClass::WebKitScrollbar(..))
   }
@@ -1348,6 +1352,10 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
         | PseudoElement::ViewTransitionNew { .. }
         | PseudoElement::ViewTransitionOld { .. }
     )
+  }
+
+  fn is_search_text(&self) -> bool {
+    matches!(*self, PseudoElement::SearchText)
   }
 
   fn is_unknown(&self) -> bool {

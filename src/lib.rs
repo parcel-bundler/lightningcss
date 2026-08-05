@@ -6674,6 +6674,33 @@ mod tests {
   }
 
   #[test]
+  fn test_search_text_selectors() {
+    minify_test("::search-text { color: red }", "::search-text{color:red}");
+    minify_test(
+      "::search-text:current { color: red }",
+      "::search-text:current{color:red}",
+    );
+    minify_test(
+      "::search-text:not(:current) { color: red }",
+      "::search-text:not(:current){color:red}",
+    );
+    minify_test(
+      ":current::search-text { color: red }",
+      ":current::search-text{color:red}",
+    );
+
+    for selector in [
+      "::search-text:hover",
+      "::search-text:current(*)",
+      "::search-text:past",
+      "::search-text:future",
+    ] {
+      let source = format!("{selector} {{ color: red }}");
+      assert!(StyleSheet::parse(&source, ParserOptions::default()).is_err());
+    }
+  }
+
+  #[test]
   fn test_selectors() {
     minify_test(":nth-col(2n) {width: 20px}", ":nth-col(2n){width:20px}");
     minify_test(":nth-col(10n-1) {width: 20px}", ":nth-col(10n-1){width:20px}");
