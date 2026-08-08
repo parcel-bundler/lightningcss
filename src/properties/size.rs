@@ -8,6 +8,7 @@ use crate::logical::PropertyCategory;
 use crate::macros::{enum_property, property_bitflags};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
+use crate::targets::Targets;
 use crate::traits::{IsCompatible, Parse, PropertyHandler, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::values::ratio::Ratio;
@@ -287,6 +288,70 @@ impl IsCompatible for MaxSize {
   }
 }
 
+// Keep prefix generation out of each property arm to avoid duplicating it in `flush`.
+#[derive(Clone, Copy)]
+enum SizeFallback {
+  Stretch,
+  MinContent,
+  MaxContent,
+  FitContent,
+}
+
+impl SizeFallback {
+  #[inline(never)]
+  fn prefixes(self, targets: Targets) -> VendorPrefix {
+    let feature = match self {
+      SizeFallback::Stretch => crate::prefixes::Feature::Stretch,
+      SizeFallback::MinContent => crate::prefixes::Feature::MinContent,
+      SizeFallback::MaxContent => crate::prefixes::Feature::MaxContent,
+      SizeFallback::FitContent => crate::prefixes::Feature::FitContent,
+    };
+    targets.prefixes(VendorPrefix::None, feature) - VendorPrefix::None
+  }
+
+  #[inline(never)]
+  fn size(self, prefix: VendorPrefix) -> Size {
+    match self {
+      SizeFallback::Stretch => Size::Stretch(prefix),
+      SizeFallback::MinContent => Size::MinContent(prefix),
+      SizeFallback::MaxContent => Size::MaxContent(prefix),
+      SizeFallback::FitContent => Size::FitContent(prefix),
+    }
+  }
+
+  #[inline(never)]
+  fn max_size(self, prefix: VendorPrefix) -> MaxSize {
+    match self {
+      SizeFallback::Stretch => MaxSize::Stretch(prefix),
+      SizeFallback::MinContent => MaxSize::MinContent(prefix),
+      SizeFallback::MaxContent => MaxSize::MaxContent(prefix),
+      SizeFallback::FitContent => MaxSize::FitContent(prefix),
+    }
+  }
+}
+
+#[inline(never)]
+fn size_fallback(value: &Size) -> Option<SizeFallback> {
+  match value {
+    Size::Stretch(VendorPrefix::None) => Some(SizeFallback::Stretch),
+    Size::MinContent(VendorPrefix::None) => Some(SizeFallback::MinContent),
+    Size::MaxContent(VendorPrefix::None) => Some(SizeFallback::MaxContent),
+    Size::FitContent(VendorPrefix::None) => Some(SizeFallback::FitContent),
+    _ => None,
+  }
+}
+
+#[inline(never)]
+fn max_size_fallback(value: &MaxSize) -> Option<SizeFallback> {
+  match value {
+    MaxSize::Stretch(VendorPrefix::None) => Some(SizeFallback::Stretch),
+    MaxSize::MinContent(VendorPrefix::None) => Some(SizeFallback::MinContent),
+    MaxSize::MaxContent(VendorPrefix::None) => Some(SizeFallback::MaxContent),
+    MaxSize::FitContent(VendorPrefix::None) => Some(SizeFallback::FitContent),
+    _ => None,
+  }
+}
+
 fn parse_fit_content<'i, 't>(
   input: &mut Parser<'i, 't>,
 ) -> Result<LengthPercentage, ParseError<'i, ParserError<'i>>> {
@@ -490,55 +555,43 @@ impl SizeHandler {
     self.has_any = false;
     let logical_supported = !context.should_compile_logical(Feature::LogicalSize);
 
-    macro_rules! prefix {
-      ($prop: ident, $size: ident, $feature: ident) => {
-        if !self.flushed_properties.contains(SizeProperty::$prop) {
-          let prefixes =
-            context.targets.prefixes(VendorPrefix::None, crate::prefixes::Feature::$feature) - VendorPrefix::None;
-          for prefix in prefixes {
-            dest.push(Property::$prop($size::$feature(prefix)));
-          }
-        }
-      };
-    }
-
     macro_rules! property {
-      ($prop: ident, $val: ident, $size: ident) => {{
+      ($prop: ident, $val: ident, $fallback: ident, $constructor: ident) => {{
         if let Some(val) = std::mem::take(&mut self.$val) {
-          match val {
-            $size::Stretch(VendorPrefix::None) => prefix!($prop, $size, Stretch),
-            $size::MinContent(VendorPrefix::None) => prefix!($prop, $size, MinContent),
-            $size::MaxContent(VendorPrefix::None) => prefix!($prop, $size, MaxContent),
-            $size::FitContent(VendorPrefix::None) => prefix!($prop, $size, FitContent),
-            _ => {}
+          if !self.flushed_properties.contains(SizeProperty::$prop) {
+            if let Some(fallback) = $fallback(&val) {
+              for prefix in fallback.prefixes(context.targets) {
+                dest.push(Property::$prop(fallback.$constructor(prefix)));
+              }
+            }
           }
-          dest.push(Property::$prop(val.clone()));
+          dest.push(Property::$prop(val));
           self.flushed_properties.insert(SizeProperty::$prop);
         }
       }};
     }
 
     macro_rules! logical {
-      ($prop: ident, $val: ident, $physical: ident, $size: ident) => {
+      ($prop: ident, $val: ident, $physical: ident, $fallback: ident, $constructor: ident) => {
         if logical_supported {
-          property!($prop, $val, $size);
+          property!($prop, $val, $fallback, $constructor);
         } else {
-          property!($physical, $val, $size);
+          property!($physical, $val, $fallback, $constructor);
         }
       };
     }
 
-    property!(Width, width, Size);
-    property!(MinWidth, min_width, Size);
-    property!(MaxWidth, max_width, MaxSize);
-    property!(Height, height, Size);
-    property!(MinHeight, min_height, Size);
-    property!(MaxHeight, max_height, MaxSize);
-    logical!(BlockSize, block_size, Height, Size);
-    logical!(MinBlockSize, min_block_size, MinHeight, Size);
-    logical!(MaxBlockSize, max_block_size, MaxHeight, MaxSize);
-    logical!(InlineSize, inline_size, Width, Size);
-    logical!(MinInlineSize, min_inline_size, MinWidth, Size);
-    logical!(MaxInlineSize, max_inline_size, MaxWidth, MaxSize);
+    property!(Width, width, size_fallback, size);
+    property!(MinWidth, min_width, size_fallback, size);
+    property!(MaxWidth, max_width, max_size_fallback, max_size);
+    property!(Height, height, size_fallback, size);
+    property!(MinHeight, min_height, size_fallback, size);
+    property!(MaxHeight, max_height, max_size_fallback, max_size);
+    logical!(BlockSize, block_size, Height, size_fallback, size);
+    logical!(MinBlockSize, min_block_size, MinHeight, size_fallback, size);
+    logical!(MaxBlockSize, max_block_size, MaxHeight, max_size_fallback, max_size);
+    logical!(InlineSize, inline_size, Width, size_fallback, size);
+    logical!(MinInlineSize, min_inline_size, MinWidth, size_fallback, size);
+    logical!(MaxInlineSize, max_inline_size, MaxWidth, max_size_fallback, max_size);
   }
 }
