@@ -747,7 +747,13 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
 }
 
 impl<'i> BorderHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList, context: &mut PropertyHandlerContext<'i, '_>) {
+  // Fallback pushes are uncommon, and outlining them avoids duplicating large `Property` moves.
+  #[inline(never)]
+  fn push_fallback(dest: &mut DeclarationList<'i>, property: Property<'i>) {
+    dest.push(property);
+  }
+
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -759,6 +765,13 @@ impl<'i> BorderHandler<'i> {
     macro_rules! logical_prop {
       ($ltr: ident, $ltr_key: ident, $rtl: ident, $rtl_key: ident, $val: expr) => {{
         context.add_logical_rule(Property::$ltr($val.clone()), Property::$rtl($val.clone()));
+      }};
+    }
+
+    macro_rules! logical_prop_move {
+      ($ltr: ident, $ltr_key: ident, $rtl: ident, $rtl_key: ident, $val: expr) => {{
+        let val = $val;
+        context.add_logical_rule(Property::$ltr(val.clone()), Property::$rtl(val));
       }};
     }
 
@@ -775,7 +788,7 @@ impl<'i> BorderHandler<'i> {
         if !self.flushed_properties.contains(BorderProperty::$prop) {
           let fallbacks = val.get_fallbacks(context.targets);
           for fallback in fallbacks {
-            dest.push(Property::$prop(fallback))
+            Self::push_fallback(dest, Property::$prop(fallback))
           }
         }
         push!($prop, val);
@@ -794,21 +807,21 @@ impl<'i> BorderHandler<'i> {
         if logical_supported {
           push!(BorderInlineStartWidth, $val);
         } else {
-          logical_prop!(BorderLeftWidth, border_left_width, BorderRightWidth, border_right_width, $val);
+          logical_prop_move!(BorderLeftWidth, border_left_width, BorderRightWidth, border_right_width, $val);
         }
       };
       (BorderInlineStartColor => $val: expr) => {
         if logical_supported {
           fallbacks!(BorderInlineStartColor => $val);
         } else {
-          logical_prop!(BorderLeftColor, border_left_color, BorderRightColor, border_right_color, $val);
+          logical_prop_move!(BorderLeftColor, border_left_color, BorderRightColor, border_right_color, $val);
         }
       };
       (BorderInlineStartStyle => $val: expr) => {
         if logical_supported {
           push!(BorderInlineStartStyle, $val);
         } else {
-          logical_prop!(BorderLeftStyle, border_left_style, BorderRightStyle, border_right_style, $val);
+          logical_prop_move!(BorderLeftStyle, border_left_style, BorderRightStyle, border_right_style, $val);
         }
       };
       (BorderInlineEnd => $val: expr) => {
@@ -822,21 +835,21 @@ impl<'i> BorderHandler<'i> {
         if logical_supported {
           push!(BorderInlineEndWidth, $val);
         } else {
-          logical_prop!(BorderRightWidth, border_right_width, BorderLeftWidth, border_left_width, $val);
+          logical_prop_move!(BorderRightWidth, border_right_width, BorderLeftWidth, border_left_width, $val);
         }
       };
       (BorderInlineEndColor => $val: expr) => {
         if logical_supported {
           fallbacks!(BorderInlineEndColor => $val);
         } else {
-          logical_prop!(BorderRightColor, border_right_color, BorderLeftColor, border_left_color, $val);
+          logical_prop_move!(BorderRightColor, border_right_color, BorderLeftColor, border_left_color, $val);
         }
       };
       (BorderInlineEndStyle => $val: expr) => {
         if logical_supported {
           push!(BorderInlineEndStyle, $val);
         } else {
-          logical_prop!(BorderRightStyle, border_right_style, BorderLeftStyle, border_left_style, $val);
+          logical_prop_move!(BorderRightStyle, border_right_style, BorderLeftStyle, border_left_style, $val);
         }
       };
       (BorderBlockStart => $val: expr) => {
