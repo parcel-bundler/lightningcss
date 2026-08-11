@@ -12290,45 +12290,53 @@ mod tests {
       ".foo { animation: foo 0s 3s infinite }",
       ".foo{animation:0s 3s infinite foo}",
     );
-    minify_test(".foo { animation: foo 3s --test }", ".foo{animation:3s foo --test}");
-    minify_test(".foo { animation: foo 3s scroll() }", ".foo{animation:3s foo scroll()}");
+    // animation-timeline is a reset-only component of the animation shorthand. It cannot be
+    // set there, so an invalid shorthand is preserved as authored rather than reinterpreted.
+    // https://drafts.csswg.org/scroll-animations/#animation-timeline
+    minify_test(".foo { animation: foo 3s --test }", ".foo{animation:foo 3s --test}");
+    minify_test(".foo { animation: foo 3s scroll() }", ".foo{animation:foo 3s scroll()}");
+    minify_test(".foo { animation: foo 3s auto }", ".foo{animation:foo 3s auto}");
+    minify_test(".foo { animation-timeline: --test }", ".foo{animation-timeline:--test}");
     minify_test(
-      ".foo { animation: foo 3s scroll(block) }",
-      ".foo{animation:3s foo scroll()}",
+      ".foo { animation-timeline: scroll() }",
+      ".foo{animation-timeline:scroll()}",
     );
     minify_test(
-      ".foo { animation: foo 3s scroll(root inline) }",
-      ".foo{animation:3s foo scroll(root inline)}",
+      ".foo { animation-timeline: scroll(block) }",
+      ".foo{animation-timeline:scroll()}",
     );
     minify_test(
-      ".foo { animation: foo 3s scroll(inline root) }",
-      ".foo{animation:3s foo scroll(root inline)}",
+      ".foo { animation-timeline: scroll(root inline) }",
+      ".foo{animation-timeline:scroll(root inline)}",
     );
     minify_test(
-      ".foo { animation: foo 3s scroll(inline nearest) }",
-      ".foo{animation:3s foo scroll(inline)}",
+      ".foo { animation-timeline: scroll(inline root) }",
+      ".foo{animation-timeline:scroll(root inline)}",
     );
     minify_test(
-      ".foo { animation: foo 3s view(block) }",
-      ".foo{animation:3s foo view()}",
+      ".foo { animation-timeline: scroll(inline nearest) }",
+      ".foo{animation-timeline:scroll(inline)}",
     );
     minify_test(
-      ".foo { animation: foo 3s view(inline) }",
-      ".foo{animation:3s foo view(inline)}",
+      ".foo { animation-timeline: view(block) }",
+      ".foo{animation-timeline:view()}",
     );
     minify_test(
-      ".foo { animation: foo 3s view(inline 10px 10px) }",
-      ".foo{animation:3s foo view(inline 10px)}",
+      ".foo { animation-timeline: view(inline) }",
+      ".foo{animation-timeline:view(inline)}",
     );
     minify_test(
-      ".foo { animation: foo 3s view(inline 10px 12px) }",
-      ".foo{animation:3s foo view(inline 10px 12px)}",
+      ".foo { animation-timeline: view(inline 10px 10px) }",
+      ".foo{animation-timeline:view(inline 10px)}",
     );
     minify_test(
-      ".foo { animation: foo 3s view(inline auto auto) }",
-      ".foo{animation:3s foo view(inline)}",
+      ".foo { animation-timeline: view(inline 10px 12px) }",
+      ".foo{animation-timeline:view(inline 10px 12px)}",
     );
-    minify_test(".foo { animation: foo 3s auto }", ".foo{animation:3s foo}");
+    minify_test(
+      ".foo { animation-timeline: view(inline auto auto) }",
+      ".foo{animation-timeline:view(inline)}",
+    );
     minify_test(".foo { animation-composition: add }", ".foo{animation-composition:add}");
     test(
       r#"
@@ -12441,7 +12449,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: 90ms ease-in-out .1s 2 alternate forwards foo scroll();
+        animation: 90ms ease-in-out .1s 2 alternate forwards foo;
+        animation-timeline: scroll();
       }
     "#},
     );
@@ -12461,15 +12470,41 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation-name: foo;
-        animation-duration: 90ms;
-        animation-timing-function: ease-in-out;
-        animation-iteration-count: 2;
-        animation-direction: alternate;
-        animation-play-state: running;
-        animation-delay: .1s;
-        animation-fill-mode: forwards;
+        animation: 90ms ease-in-out .1s 2 alternate forwards foo;
         animation-timeline: scroll(), view();
+      }
+    "#},
+    );
+    // animation-timeline must never be folded into the shorthand, which would make
+    // the whole declaration invalid and drop the animation.
+    // https://github.com/parcel-bundler/lightningcss/issues/1283
+    test(
+      r#"
+      .foo {
+        animation: parallax 1ms linear both;
+        animation-timeline: view();
+        animation-range: exit 0% exit 100%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: 1ms linear both parallax;
+        animation-timeline: view();
+        animation-range: exit;
+      }
+    "#},
+    );
+    // The shorthand still resets a timeline declared before it.
+    test(
+      r#"
+      .foo {
+        animation-timeline: view();
+        animation: bar 200ms;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: .2s bar;
       }
     "#},
     );
@@ -12584,7 +12619,8 @@ mod tests {
     prefix_test(
       r#"
       .foo {
-        animation: .2s ease-in-out bar scroll();
+        animation: .2s ease-in-out bar;
+        animation-timeline: scroll();
       }
     "#,
       indoc! {r#"
@@ -12601,12 +12637,14 @@ mod tests {
     prefix_test(
       r#"
       .foo {
-        animation: .2s ease-in-out bar scroll();
+        animation: .2s ease-in-out bar;
+        animation-timeline: scroll();
       }
     "#,
       indoc! {r#"
       .foo {
-        animation: .2s ease-in-out bar scroll();
+        animation: .2s ease-in-out bar;
+        animation-timeline: scroll();
       }
     "#},
       Browsers {
@@ -12614,10 +12652,13 @@ mod tests {
         ..Browsers::default()
       },
     );
+    // The prefixed shorthand has no timeline component either, so the longhand
+    // must stay outside of it.
     prefix_test(
       r#"
       .foo {
-        animation: .2s ease-in-out bar scroll();
+        animation: .2s ease-in-out bar;
+        animation-timeline: scroll();
       }
     "#,
       indoc! {r#"
