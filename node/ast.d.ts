@@ -8996,10 +8996,6 @@ export interface Animation {
    */
   playState: AnimationPlayState;
   /**
-   * The animation timeline.
-   */
-  timeline: AnimationTimeline;
-  /**
    * The easing function for the animation.
    */
   timingFunction: EasingFunction;
