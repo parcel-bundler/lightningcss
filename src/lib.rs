@@ -6911,6 +6911,37 @@ mod tests {
       "a:last-child:first-letter{color:red}",
     );
 
+    // The `:current` pseudo-class may be combined with `::search-text`.
+    // https://drafts.csswg.org/css-pseudo-4/#selectordef-search-text
+    minify_test(
+      "::search-text:current {color:red}",
+      "::search-text:current{color:red}",
+    );
+    minify_test(
+      "::search-text:not(:current) {color:red}",
+      "::search-text:not(:current){color:red}",
+    );
+    minify_test(
+      "div::search-text:current {color:red}",
+      "div::search-text:current{color:red}",
+    );
+    error_test(
+      "::search-text:past {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
+    );
+    error_test(
+      "::search-text:future {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
+    );
+    error_test(
+      "::before:current {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
+    );
+    error_test(
+      "::search-text:current::selection {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+
     prefix_test(
       ".test:not(.foo, .bar) {color:red}",
       indoc! {r#"
