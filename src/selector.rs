@@ -1356,6 +1356,10 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
       PseudoElement::Custom { .. } | PseudoElement::CustomFunction { .. },
     )
   }
+
+  fn is_element_backed(&self) -> bool {
+    matches!(*self, PseudoElement::DetailsContent)
+  }
 }
 
 impl<'i> PseudoElement<'i> {
