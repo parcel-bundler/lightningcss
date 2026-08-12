@@ -649,6 +649,10 @@ impl<'i> parcel_selectors::parser::NonTSPseudoClass<'i> for PseudoClass<'i> {
     )
   }
 
+  fn is_current(&self) -> bool {
+    matches!(*self, PseudoClass::Current)
+  }
+
   fn is_valid_before_webkit_scrollbar(&self) -> bool {
     !matches!(*self, PseudoClass::WebKitScrollbar(..))
   }
@@ -1320,6 +1324,13 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
   fn accepts_state_pseudo_classes(&self) -> bool {
     // Be lenient.
     true
+  }
+
+  fn accepts_current_pseudo_class(&self) -> bool {
+    // The `:current` and `:not(:current)` pseudo-classes may be combined with
+    // `::search-text` to style the currently focused find-in-page match.
+    // https://drafts.csswg.org/css-pseudo-4/#selectordef-search-text
+    matches!(*self, PseudoElement::SearchText)
   }
 
   fn valid_after_slotted(&self) -> bool {
