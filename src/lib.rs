@@ -6822,6 +6822,19 @@ mod tests {
       "custom-element::part(foo) {color:red}",
       "custom-element::part(foo){color:red}",
     );
+    // https://github.com/parcel-bundler/lightningcss/issues/1244
+    minify_test("::details-content::before {color:red}", "::details-content:before{color:red}");
+    minify_test("::details-content::after {color:red}", "::details-content:after{color:red}");
+    minify_test("::details-content::marker {color:red}", "::details-content::marker{color:red}");
+    minify_test(
+      "details::details-content::before {color:red}",
+      "details::details-content:before{color:red}",
+    );
+    // https://github.com/parcel-bundler/lightningcss/issues/1244
+    error_test(
+      "::details-content::part(foo) {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
     minify_test(".sm\\:text-5xl { font-size: 3rem }", ".sm\\:text-5xl{font-size:3rem}");
     minify_test("a:has(> img) {color:red}", "a:has(>img){color:red}");
     minify_test("dt:has(+ dt) {color:red}", "dt:has(+dt){color:red}");
