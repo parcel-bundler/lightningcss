@@ -99,9 +99,6 @@ test('minification works as expected on older yet modern android versions', () =
 })
 
 test('throws on an invalid pseudo-element inside :has()', () => {
-  // Pseudo-elements are not valid within :has(), and :has() is a non-forgiving
-  // relative selector list, so the whole selector is invalid rather than
-  // producing an empty :has(). See https://github.com/parcel-bundler/lightningcss/issues/1239
   let error;
   try {
     transform({
@@ -118,9 +115,7 @@ test('throws on an invalid pseudo-element inside :has()', () => {
 
 test('throws on an empty or malformed :has()', () => {
   const invalid = {
-    // An empty :has() is invalid (non-forgiving relative selector list).
     'foo:has() { color: red }': 'Unexpected end of input',
-    // `slot="selection"` is not a valid selector (missing attribute brackets).
     'foo:has(slot="selection") { color: red }': `Unexpected token Delim('=')`,
   };
 
@@ -144,8 +139,6 @@ test('drops the rule and warns for an invalid :has() when error recovery is enab
     minify: true,
   });
 
-  // The invalid rule is dropped entirely (no invalid empty `:has()` is emitted),
-  // the valid rule is preserved, and a warning is surfaced.
   assert.equal(res.code.toString(), 'a{color:green}');
   assert.equal(res.warnings.length, 1);
   assert.equal(res.warnings[0].message, 'Invalid state');

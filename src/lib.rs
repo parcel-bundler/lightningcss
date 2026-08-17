@@ -6845,9 +6845,7 @@ mod tests {
       "video:not(:has(::backdrop)) {color:red}",
       ParserError::SelectorError(SelectorError::InvalidState),
     );
-    // An empty :has() is invalid (non-forgiving relative selector list).
     error_test("foo:has() {color:red}", ParserError::EndOfInput);
-    // `slot="selection"` is not a valid selector (missing attribute brackets).
     error_test(
       "foo:has(slot=\"selection\") {color:red}",
       ParserError::UnexpectedToken(Token::Delim('=')),
