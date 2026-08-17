@@ -2838,12 +2838,12 @@ where
   P: Parser<'i, Impl = Impl>,
   Impl: SelectorImpl<'i>,
 {
-  let mut child_state = *state;
+  let mut child_state = *state | SelectorParsingState::DISALLOW_PSEUDOS;
   let inner = SelectorList::parse_relative_with_state(
     parser,
     input,
     &mut child_state,
-    parser.is_and_where_error_recovery(),
+    ParseErrorRecovery::DiscardList,
     NestingRequirement::None,
   )?;
   if child_state.contains(SelectorParsingState::AFTER_NESTING) {
@@ -3929,6 +3929,15 @@ pub mod tests {
     assert!(parse("foo:where()").is_err());
     assert!(parse("foo:where(div, foo, .bar baz)").is_ok());
     assert!(parse("foo:where(::before)").is_err());
+
+    assert!(parse("foo:has(bar)").is_ok());
+    assert!(parse("foo:has(::before)").is_err());
+    assert!(parse("foo:not(:has(::before))").is_err());
+    assert!(parse("foo:has(bar, ::before)").is_err());
+    assert!(parse("foo:has()").is_err());
+    assert!(parse("foo:has(slot=\"selection\")").is_err());
+    assert!(parse("foo:has()").is_err());
+    assert!(parse(":has(slot=\"selection\")").is_err());
 
     assert!(parse("foo::details-content").is_ok());
     assert!(parse("foo::target-text").is_ok());

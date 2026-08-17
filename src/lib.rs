@@ -6837,6 +6837,21 @@ mod tests {
     minify_test(".x:has(.bar, #foo) {color:red}", ".x:has(.bar,#foo){color:red}");
     minify_test(".x:has(span + span) {color:red}", ".x:has(span+span){color:red}");
     minify_test("a:has(:visited) {color:red}", "a:has(:visited){color:red}");
+    error_test(
+      "a:has(::before) {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+    error_test(
+      "video:not(:has(::backdrop)) {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+    // An empty :has() is invalid (non-forgiving relative selector list).
+    error_test("foo:has() {color:red}", ParserError::EndOfInput);
+    // `slot="selection"` is not a valid selector (missing attribute brackets).
+    error_test(
+      "foo:has(slot=\"selection\") {color:red}",
+      ParserError::UnexpectedToken(Token::Delim('=')),
+    );
     for element in [
       "-webkit-scrollbar",
       "-webkit-scrollbar-button",
