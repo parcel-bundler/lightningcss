@@ -3936,7 +3936,6 @@ pub mod tests {
     assert!(parse("foo:has(bar, ::before)").is_err());
     assert!(parse("foo:has()").is_err());
     assert!(parse("foo:has(slot=\"selection\")").is_err());
-    assert!(parse("foo:has()").is_err());
     assert!(parse(":has(slot=\"selection\")").is_err());
 
     assert!(parse("foo::details-content").is_ok());
