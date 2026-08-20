@@ -14211,6 +14211,20 @@ mod tests {
       },
     );
 
+    prefix_test(
+      ".foo { background-image: linear-gradient(oklch(0% 0 0), oklch(100% 0 0)), linear-gradient(currentcolor, currentcolor); }",
+      indoc! { r#"
+        .foo {
+          background-image: linear-gradient(#000, #fff), linear-gradient(currentColor, currentColor);
+          background-image: linear-gradient(lab(0% 0 0), lab(100% 0 0)), linear-gradient(currentColor, currentColor);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
     // Test cases from https://github.com/postcss/autoprefixer/blob/541295c0e6dd348db2d3f52772b59cd403c59d29/test/cases/gradient.css
     prefix_test(
       r#"
