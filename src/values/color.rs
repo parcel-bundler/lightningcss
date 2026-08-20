@@ -509,7 +509,7 @@ impl CssColor {
 
   /// Returns a fallback color for the given fallback type.
   pub fn get_fallback(&self, kind: ColorFallbackKind) -> CssColor {
-    if matches!(self, CssColor::RGBA(_)) {
+    if matches!(self, CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::System(_)) {
       return self.clone();
     }
 
