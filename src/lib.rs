@@ -15376,6 +15376,42 @@ mod tests {
   }
 
   #[test]
+  fn test_supports_vendor_prefixes_preserved() {
+    // Issue #710: a prefixed feature query is load-bearing *because* it is
+    // prefixed, so un-prefixing one inverts what its author asked for.
+    // These only broke as an operand of `and` / `or`; a lone condition is
+    // returned straight from `parse` and never reaches the merge path.
+    minify_test(
+      "@supports (display: flex) and (-webkit-box-orient: vertical) { .a { color: red } }",
+      "@supports (display:flex) and ((-webkit-box-orient:vertical)){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (display: flex) or (-moz-appearance: none) { .a { color: red } }",
+      "@supports (display:flex) or ((-moz-appearance:none)){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (-webkit-backdrop-filter: blur(1px)) and (display: flex) { .a { color: red } }",
+      "@supports ((-webkit-backdrop-filter:blur(1px))) and (display:flex){.a{color:red}}",
+    );
+    // The original report: only the middle condition was being rewritten.
+    minify_test(
+      "@supports (display: -webkit-box) and (-webkit-box-orient: vertical) and (-webkit-line-clamp: 3) { .a { color: red } }",
+      "@supports (display:-webkit-box) and ((-webkit-box-orient:vertical)) and (-webkit-line-clamp:3){.a{color:red}}",
+    );
+    // A lone condition was already correct and must stay that way.
+    minify_test(
+      "@supports (-webkit-box-orient: vertical) { .a { color: red } }",
+      "@supports ((-webkit-box-orient:vertical)){.a{color:red}}",
+    );
+    // Merging equal declarations across prefixes still collapses into one
+    // condition carrying every prefix seen.
+    minify_test(
+      "@supports (-webkit-box-orient: vertical) or (-moz-box-orient: vertical) { .a { color: red } }",
+      "@supports ((-webkit-box-orient:vertical) or (-moz-box-orient:vertical)){.a{color:red}}",
+    );
+  }
+
+  #[test]
   fn test_counter_style() {
     test(
       r#"
