@@ -186,41 +186,37 @@ pub fn main() -> Result<(), std::io::Error> {
 
       let mut stylesheet = if cli_args.bundle {
         let mut bundler = Bundler::new(&fs, source_map.as_mut(), options);
-        bundler.bundle(Path::new(&filename)).unwrap()
+        report_error(bundler.bundle(Path::new(&filename)))
       } else {
         if let Some(sm) = &mut source_map {
           sm.add_source(&filename);
           let _ = sm.set_source_content(0, &source);
         }
         options.filename = filename;
-        StyleSheet::parse(&source, options).unwrap()
+        report_error(StyleSheet::parse(&source, options))
       };
 
       let targets = if !cli_args.targets.is_empty() {
-        Browsers::from_browserslist(&cli_args.targets).unwrap()
+        report_error(Browsers::from_browserslist(&cli_args.targets))
       } else if cli_args.browserslist {
-        Browsers::load_browserslist().unwrap()
+        report_error(Browsers::load_browserslist())
       } else {
         None
       }
       .into();
 
-      stylesheet
-        .minify(MinifyOptions {
-          targets,
-          ..MinifyOptions::default()
-        })
-        .unwrap();
+      report_error(stylesheet.minify(MinifyOptions {
+        targets,
+        ..MinifyOptions::default()
+      }));
 
-      stylesheet
-        .to_css(PrinterOptions {
-          minify: cli_args.minify,
-          source_map: source_map.as_mut(),
-          project_root: Some(&project_root.to_string_lossy()),
-          targets,
-          ..PrinterOptions::default()
-        })
-        .unwrap()
+      report_error(stylesheet.to_css(PrinterOptions {
+        minify: cli_args.minify,
+        source_map: source_map.as_mut(),
+        project_root: Some(&project_root.to_string_lossy()),
+        targets,
+        ..PrinterOptions::default()
+      }))
     };
 
     let map = if let Some(ref mut source_map) = source_map {
@@ -291,6 +287,18 @@ pub fn main() -> Result<(), std::io::Error> {
   }
 
   Ok(())
+}
+
+// Print a parse/transform error and exit instead of panicking, so bad input
+// doesn't produce a backtrace and core dump.
+fn report_error<T, E: std::fmt::Display>(result: Result<T, E>) -> T {
+  match result {
+    Ok(value) => value,
+    Err(err) => {
+      eprintln!("{}", err);
+      std::process::exit(1);
+    }
+  }
 }
 
 fn infer_css_modules_filename(path: &Path) -> Result<String, std::io::Error> {
