@@ -14850,6 +14850,18 @@ mod tests {
       }"#,
       "@supports (anchor-name:--foo){@position-try --bar{top:anchor(bottom)}}",
     );
+
+    // Not allowed nested inside a style rule.
+    error_test(
+      r#"
+      .foo {
+        @position-try --bar {
+          top: anchor(bottom);
+        }
+      }
+    "#,
+      ParserError::AtRuleInvalid("position-try".into()),
+    );
   }
 
   #[test]
@@ -30146,6 +30158,42 @@ mod tests {
         }
     "#},
     );
+
+    // @property must appear at the top level of a stylesheet. Nested inside a
+    // style rule it is invalid and should error, just like other rules that are
+    // not allowed in a style rule (e.g. @keyframes).
+    error_test(
+      r#"
+      .foo {
+        @property --angle {
+          syntax: '<angle>';
+          inherits: false;
+          initial-value: 0deg;
+        }
+
+        color: red;
+      }
+    "#,
+      ParserError::AtRuleInvalid("property".into()),
+    );
+
+    // With error recovery enabled the same input produces a warning instead of
+    // failing the whole parse.
+    let warnings = error_recovery_test(
+      r#"
+      .foo {
+        @property --angle {
+          syntax: '<angle>';
+          inherits: false;
+          initial-value: 0deg;
+        }
+
+        color: red;
+      }
+    "#,
+    );
+    assert_eq!(warnings.len(), 1);
+    assert_eq!(warnings[0].kind, ParserError::AtRuleInvalid("property".into()));
   }
 
   #[test]
