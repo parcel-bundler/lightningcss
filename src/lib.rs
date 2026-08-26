@@ -15078,6 +15078,28 @@ mod tests {
 
   #[test]
   fn test_supports_rule() {
+    // A vendor-prefixed feature query must keep its prefix when it is an OPERAND
+    // of `and` / `or`, not only when it stands alone. The merge pass bound the
+    // unprefixed id over `property_id` and then stored THAT, so a condition
+    // matching nothing already seen was pushed stripped: `-webkit-box-orient`
+    // became `box-orient`, which no browser implements, silently disabling the
+    // whole block. Regression test for #710.
+    //
+    // These carry no `Browsers` targets on purpose. Every existing assertion for
+    // this merge sets them, and the prefixing pass then re-adds what was lost,
+    // which is why the bug survived the tests that shipped with the feature.
+    minify_test(
+      "@supports (display: flex) and (-webkit-box-orient: vertical) { .a { color: red } }",
+      "@supports (display:flex) and ((-webkit-box-orient:vertical)){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (display: flex) or (-moz-appearance: none) { .a { color: red } }",
+      "@supports (display:flex) or ((-moz-appearance:none)){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (display: -webkit-box) and (-webkit-box-orient: vertical) and (-webkit-line-clamp: 3) { .a { color: red } }",
+      "@supports (display:-webkit-box) and ((-webkit-box-orient:vertical)) and (-webkit-line-clamp:3){.a{color:red}}",
+    );
     test(
       r#"
       @supports (foo: bar) {
