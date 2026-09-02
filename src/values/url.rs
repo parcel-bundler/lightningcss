@@ -60,7 +60,7 @@ impl<'i> ToCss for Url<'i> {
     }
 
     use cssparser::ToCss;
-    if dest.minify() {
+    if dest.options().minify {
       let mut buf = String::new();
       Token::UnquotedUrl(CowRcStr::from(self.url.as_ref())).to_css(&mut buf)?;
 

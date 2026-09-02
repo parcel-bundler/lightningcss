@@ -224,7 +224,7 @@ impl<'i> ToCss for KeyframesRule<'i> {
           if first_rule {
             first_rule = false;
           } else {
-            if !dest.minify() {
+            if !dest.options().minify {
               dest.write_char('\n')?; // no indent
             }
             dest.newline()?;
@@ -240,7 +240,7 @@ impl<'i> ToCss for KeyframesRule<'i> {
           for keyframe in &self.keyframes {
             if first {
               first = false;
-            } else if !dest.minify() {
+            } else if !dest.options().minify {
               dest.write_char('\n')?; // no indent
             }
             dest.newline()?;
@@ -312,7 +312,7 @@ impl ToCss for KeyframeSelector {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       KeyframeSelector::Percentage(p) => {
-        if dest.minify() && *p == Percentage(1.0) {
+        if dest.options().minify && *p == Percentage(1.0) {
           dest.write_str("to")?;
           Ok(())
         } else {
@@ -320,7 +320,7 @@ impl ToCss for KeyframeSelector {
         }
       }
       KeyframeSelector::From => {
-        if dest.minify() {
+        if dest.options().minify {
           dest.write_str("0%")?;
           Ok(())
         } else {

@@ -361,7 +361,7 @@ impl<S: ToCss> ToCss for PositionComponent<S> {
     use PositionComponent::*;
     match &self {
       Center => {
-        if dest.minify() {
+        if dest.options().minify {
           dest.write_str("50%")?;
           Ok(())
         } else {

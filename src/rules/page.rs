@@ -209,7 +209,7 @@ impl<'i> ToCss for PageRule<'i> {
     dest.write_str("@page")?;
     if let Some(first) = self.selectors.first() {
       // Space is only required if the first selector has a name.
-      if !dest.minify() || first.name.is_some() {
+      if !dest.options().minify || first.name.is_some() {
         dest.write_char(' ')?;
       }
       let mut first = true;
@@ -235,7 +235,7 @@ impl<'i> ToCss for PageRule<'i> {
         for decl in &$decls {
           dest.newline()?;
           decl.to_css(dest, $important)?;
-          if i != len - 1 || !dest.minify() {
+          if i != len - 1 || !dest.options().minify {
             dest.write_char(';')?;
           }
           i += 1;
@@ -247,7 +247,7 @@ impl<'i> ToCss for PageRule<'i> {
     write!(self.declarations.important_declarations, true);
 
     if !self.rules.is_empty() {
-      if !dest.minify() && self.declarations.len() > 0 {
+      if !dest.options().minify && self.declarations.len() > 0 {
         dest.write_char('\n')?;
       }
       dest.newline()?;
@@ -257,7 +257,7 @@ impl<'i> ToCss for PageRule<'i> {
         if first {
           first = false;
         } else {
-          if !dest.minify() {
+          if !dest.options().minify {
             dest.write_char('\n')?;
           }
           dest.newline()?;

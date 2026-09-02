@@ -219,7 +219,7 @@ impl<'a, 'i, T: ToCss> ToCss for StyleRule<'i, T> {
         if first_rule {
           first_rule = false;
         } else {
-          if !dest.minify() {
+          if !dest.options().minify {
             dest.write_char('\n')?; // no indent
           }
           dest.newline()?;
@@ -265,7 +265,10 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
 
     macro_rules! newline {
       () => {
-        if !dest.minify() && (supports_nesting || len > 0 || has_preserved_rules) && !self.rules.0.is_empty() {
+        if !dest.options().minify
+          && (supports_nesting || len > 0 || has_preserved_rules)
+          && !self.rules.0.is_empty()
+        {
           if len > 0 || has_preserved_rules {
             dest.write_char('\n')?;
           }
@@ -292,7 +295,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
     } else {
       let mut first = true;
       for rule in self.rules.0.iter().filter(|rule| must_preserve_rule(rule)) {
-        if !dest.minify() || first {
+        if !dest.options().minify || first {
           dest.newline()?;
         }
         rule.to_css(dest)?;
@@ -315,7 +318,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
             if first {
               first = false;
             } else {
-              if !dest.minify() {
+              if !dest.options().minify {
                 dest.write_char('\n')?;
               }
               dest.newline()?;

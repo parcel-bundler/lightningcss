@@ -139,7 +139,7 @@ impl<'i> ToCss for PropertyRule<'i> {
       dest.whitespace()?;
       initial_value.to_css(dest)?;
 
-      if !dest.minify() {
+      if !dest.options().minify {
         dest.write_char(';')?;
       }
     }

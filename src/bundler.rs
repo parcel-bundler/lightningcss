@@ -958,7 +958,7 @@ mod tests {
   fn bundle<P: SourceProvider>(fs: P, entry: &str) -> String {
     let mut bundler = Bundler::<_, _, ()>::new(&fs, None, ParserOptions::default());
     let stylesheet = bundler.bundle(Path::new(entry)).unwrap();
-    stylesheet.to_css(PrinterOptions::default()).unwrap().code
+    stylesheet.to_css(PrinterOptions::default(), None::<&mut ()>).unwrap().code
   }
 
   fn bundle_css_module<P: SourceProvider>(
@@ -990,10 +990,13 @@ mod tests {
     let mut stylesheet = bundler.bundle(Path::new(entry)).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet
-      .to_css(PrinterOptions {
-        project_root,
-        ..PrinterOptions::default()
-      })
+      .to_css(
+        PrinterOptions {
+          project_root,
+          ..PrinterOptions::default()
+        },
+        None::<&mut ()>,
+      )
       .unwrap();
     (res.code, res.exports.unwrap())
   }
@@ -1022,10 +1025,13 @@ mod tests {
       })
       .unwrap();
     stylesheet
-      .to_css(PrinterOptions {
-        targets,
-        ..PrinterOptions::default()
-      })
+      .to_css(
+        PrinterOptions {
+          targets,
+          ..PrinterOptions::default()
+        },
+        None::<&mut ()>,
+      )
       .unwrap()
       .code
   }
@@ -2198,8 +2204,8 @@ mod tests {
         PrinterOptions {
           minify: true,
           ..PrinterOptions::default()
-        }
-        .with_source_map(Some(&mut sm)),
+        },
+        Some(&mut sm),
       )
       .unwrap();
     let map = sm.to_json(None).unwrap();

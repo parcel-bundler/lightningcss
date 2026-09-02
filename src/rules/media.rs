@@ -46,7 +46,7 @@ impl<'i, T: Clone> MediaRule<'i, T> {
 impl<'a, 'i, T: ToCss> ToCss for MediaRule<'i, T> {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     // If the media query always matches, we can just output the nested rules.
-    if dest.minify() && self.query.always_matches() {
+    if dest.options().minify && self.query.always_matches() {
       self.rules.to_css(dest)?;
       return Ok(());
     }
