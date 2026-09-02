@@ -276,6 +276,10 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
     name: CowRcStr<'i>,
   ) -> Result<PseudoElement<'i>, ParseError<'i, Self::Error>> {
     use PseudoElement::*;
+    let scroll_navigation_controls = self
+      .options
+      .flags
+      .contains(ParserFlags::SCROLL_NAVIGATION_CONTROLS);
     let pseudo_element = match_ignore_ascii_case! { &name,
       "before" => Before,
       "after" => After,
@@ -310,6 +314,10 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
       "picker-icon" => PickerIcon,
       "checkmark" => Checkmark,
 
+      // https://drafts.csswg.org/css-overflow-5/#scroll-navigation-controls
+      "scroll-marker" if scroll_navigation_controls => ScrollMarker,
+      "scroll-marker-group" if scroll_navigation_controls => ScrollMarkerGroup,
+
       "view-transition" => ViewTransition,
 
       "grammar-error" => GrammarError,
@@ -332,11 +340,17 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
     arguments: &mut Parser<'i, 't>,
   ) -> Result<<Self::Impl as SelectorImpl<'i>>::PseudoElement, ParseError<'i, Self::Error>> {
     use PseudoElement::*;
+    let scroll_navigation_controls = self
+      .options
+      .flags
+      .contains(ParserFlags::SCROLL_NAVIGATION_CONTROLS);
     let pseudo_element = match_ignore_ascii_case! { &name,
       "cue" => CueFunction { selector: Box::new(Selector::parse(self, arguments)?) },
       "cue-region" => CueRegionFunction { selector: Box::new(Selector::parse(self, arguments)?) },
       "highlight" => HighlightFunction { name: CustomIdent::parse(arguments)? },
       "picker" => PickerFunction { identifier: Ident::parse(arguments)? },
+      // https://drafts.csswg.org/css-overflow-5/#scroll-navigation-controls
+      "scroll-button" if scroll_navigation_controls => ScrollButton { direction: ScrollButtonDirection::parse(arguments)? },
       "view-transition-group" => ViewTransitionGroup { part: ViewTransitionPartSelector::parse(arguments)? },
       "view-transition-image-pair" => ViewTransitionImagePair { part: ViewTransitionPartSelector::parse(arguments)? },
       "view-transition-old" => ViewTransitionOld { part: ViewTransitionPartSelector::parse(arguments)? },
@@ -647,6 +661,16 @@ impl<'i> parcel_selectors::parser::NonTSPseudoClass<'i> for PseudoClass<'i> {
         | PseudoClass::FocusWithin
         | PseudoClass::FocusVisible
     )
+  }
+
+  fn is_valid_after_scroll_marker(&self) -> bool {
+    // css-overflow-5 defines these three to match ::scroll-marker, so they are
+    // valid there even though they are not user action states.
+    self.is_user_action_state()
+      || matches!(
+        *self,
+        PseudoClass::TargetCurrent | PseudoClass::TargetBefore | PseudoClass::TargetAfter
+      )
   }
 
   fn is_valid_before_webkit_scrollbar(&self) -> bool {
@@ -1017,6 +1041,15 @@ pub enum PseudoElement<'i> {
   PickerIcon,
   /// The [::checkmark](https://drafts.csswg.org/css-forms-1/#styling-checkmarks-the-checkmark-pseudo-element) pseudo element.
   Checkmark,
+  /// The [::scroll-marker](https://drafts.csswg.org/css-overflow-5/#selectordef-scroll-marker) pseudo element.
+  ScrollMarker,
+  /// The [::scroll-marker-group](https://drafts.csswg.org/css-overflow-5/#selectordef-scroll-marker-group) pseudo element.
+  ScrollMarkerGroup,
+  /// The [::scroll-button()](https://drafts.csswg.org/css-overflow-5/#selectordef-scroll-button---scroll-button-direction) functional pseudo element.
+  ScrollButton {
+    /// The direction the button scrolls its scroll container toward.
+    direction: ScrollButtonDirection,
+  },
   /// The [::grammar-error](https://drafts.csswg.org/css-pseudo/#selectordef-grammar-error) pseudo element.
   GrammarError,
   /// The [::spelling-error](https://drafts.csswg.org/css-pseudo/#selectordef-spelling-error) pseudo element.
@@ -1298,6 +1331,13 @@ where
     }
     PickerIcon => dest.write_str("::picker-icon"),
     Checkmark => dest.write_str("::checkmark"),
+    ScrollMarker => dest.write_str("::scroll-marker"),
+    ScrollMarkerGroup => dest.write_str("::scroll-marker-group"),
+    ScrollButton { direction } => {
+      dest.write_str("::scroll-button(")?;
+      direction.to_css(dest)?;
+      dest.write_char(')')
+    }
     GrammarError => dest.write_str("::grammar-error"),
     SpellingError => dest.write_str("::spelling-error"),
     Custom { name: val } => {
@@ -1311,6 +1351,95 @@ where
       args.to_css_raw(dest)?;
       dest.write_char(')')
     }
+  }
+}
+
+/// A [`<scroll-button-direction>`](https://drafts.csswg.org/css-overflow-5/#typedef-scroll-button-direction)
+/// value, or `*`, as accepted by the `::scroll-button()` pseudo element.
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub enum ScrollButtonDirection {
+  /// `*`, which selects every scroll button of the scroll container.
+  #[cfg_attr(feature = "serde", serde(rename = "*"))]
+  All,
+  /// `up`
+  Up,
+  /// `down`
+  Down,
+  /// `left`
+  Left,
+  /// `right`
+  Right,
+  /// `block-start`
+  BlockStart,
+  /// `block-end`
+  BlockEnd,
+  /// `inline-start`
+  InlineStart,
+  /// `inline-end`
+  InlineEnd,
+  /// `prev`
+  Prev,
+  /// `next`
+  Next,
+}
+
+impl ScrollButtonDirection {
+  /// Returns a string representation of the value.
+  pub fn as_str(&self) -> &str {
+    use ScrollButtonDirection::*;
+    match self {
+      All => "*",
+      Up => "up",
+      Down => "down",
+      Left => "left",
+      Right => "right",
+      BlockStart => "block-start",
+      BlockEnd => "block-end",
+      InlineStart => "inline-start",
+      InlineEnd => "inline-end",
+      Prev => "prev",
+      Next => "next",
+    }
+  }
+}
+
+impl<'i> Parse<'i> for ScrollButtonDirection {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if input.try_parse(|input| input.expect_delim('*')).is_ok() {
+      return Ok(ScrollButtonDirection::All);
+    }
+
+    let location = input.current_source_location();
+    let ident = input.expect_ident()?;
+    match_ignore_ascii_case! { &*ident,
+      "up" => Ok(ScrollButtonDirection::Up),
+      "down" => Ok(ScrollButtonDirection::Down),
+      "left" => Ok(ScrollButtonDirection::Left),
+      "right" => Ok(ScrollButtonDirection::Right),
+      "block-start" => Ok(ScrollButtonDirection::BlockStart),
+      "block-end" => Ok(ScrollButtonDirection::BlockEnd),
+      "inline-start" => Ok(ScrollButtonDirection::InlineStart),
+      "inline-end" => Ok(ScrollButtonDirection::InlineEnd),
+      "prev" => Ok(ScrollButtonDirection::Prev),
+      "next" => Ok(ScrollButtonDirection::Next),
+      _ => Err(location.new_custom_error(ParserError::SelectorError(SelectorError::UnexpectedIdent(ident.into()))))
+    }
+  }
+}
+
+impl ToCss for ScrollButtonDirection {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.write_str(self.as_str())
   }
 }
 
@@ -1348,6 +1477,10 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
         | PseudoElement::ViewTransitionNew { .. }
         | PseudoElement::ViewTransitionOld { .. }
     )
+  }
+
+  fn is_scroll_marker(&self) -> bool {
+    matches!(*self, PseudoElement::ScrollMarker)
   }
 
   fn is_unknown(&self) -> bool {
@@ -2021,6 +2154,9 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           PseudoElement::PickerFunction { identifier: _ } => Feature::Picker,
           PseudoElement::PickerIcon => Feature::PickerIcon,
           PseudoElement::Checkmark => Feature::Checkmark,
+          PseudoElement::ScrollMarker => Feature::ScrollMarker,
+          PseudoElement::ScrollMarkerGroup => Feature::ScrollMarkerGroup,
+          PseudoElement::ScrollButton { direction: _ } => Feature::ScrollButton,
           PseudoElement::GrammarError => Feature::GrammarError,
           PseudoElement::SpellingError => Feature::SpellingError,
           PseudoElement::Custom { name: _ } | _ => return false,

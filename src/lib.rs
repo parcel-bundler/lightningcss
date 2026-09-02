@@ -6790,6 +6790,63 @@ mod tests {
       }),
     );
 
+    // Scroll navigation control pseudo-elements, from the same spec section.
+    minify_test_with_options(
+      "li::scroll-marker { content: \"\" }",
+      "li::scroll-marker{content:\"\"}",
+      scroll_navigation_controls_options.clone(),
+    );
+    minify_test_with_options(
+      ".carousel::scroll-marker-group { display: flex }",
+      ".carousel::scroll-marker-group{display:flex}",
+      scroll_navigation_controls_options.clone(),
+    );
+    minify_test_with_options(
+      ".carousel::scroll-button(right) { content: \">\" }",
+      ".carousel::scroll-button(right){content:\">\"}",
+      scroll_navigation_controls_options.clone(),
+    );
+    minify_test_with_options(
+      ".carousel::scroll-button(*) { color: green }",
+      ".carousel::scroll-button(*){color:green}",
+      scroll_navigation_controls_options.clone(),
+    );
+    minify_test_with_options(
+      ".carousel::scroll-button(inline-end) { color: green }",
+      ".carousel::scroll-button(inline-end){color:green}",
+      scroll_navigation_controls_options.clone(),
+    );
+    // The keyword is matched case-insensitively and serialized canonically.
+    minify_test_with_options(
+      ".carousel::SCROLL-BUTTON(BLOCK-START) { color: green }",
+      ".carousel::scroll-button(block-start){color:green}",
+      scroll_navigation_controls_options.clone(),
+    );
+    // The shape the spec is actually for: a marker styled by its scroll position.
+    minify_test_with_options(
+      "li::scroll-marker:target-current { color: green }",
+      "li::scroll-marker:target-current{color:green}",
+      scroll_navigation_controls_options.clone(),
+    );
+    // ...which stays limited to scroll markers.
+    error_test_with_options(
+      "a::before:target-current { color: green }",
+      ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
+      scroll_navigation_controls_options.clone(),
+    );
+    // An unknown direction is not a scroll button.
+    error_test_with_options(
+      ".carousel::scroll-button(sideways) { color: green }",
+      ParserError::SelectorError(SelectorError::UnexpectedIdent("sideways".into())),
+      scroll_navigation_controls_options.clone(),
+    );
+    // Without the flag these are unknown pseudo-elements, and still pass through.
+    minify_test("li::scroll-marker { color: green }", "li::scroll-marker{color:green}");
+    minify_test(
+      ".carousel::scroll-button(right) { color: green }",
+      ".carousel::scroll-button(right){color:green}",
+    );
+
     error_test_with_options(
       "a::before:target-current { color: green }",
       ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
