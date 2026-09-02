@@ -78,7 +78,7 @@ pastey = "0.1.0"
 indexmap = { version = "2.2.6", features = ["serde"] }
 # CLI deps
 clap = { version = "3.0.6", features = ["derive"], optional = true }
-browserslist-rs = { version = "0.19.0", optional = true }
+browserslist-rs = { version = "0.20.0", optional = true }
 rayon = { version = "1.5.1", optional = true }
 dashmap = { version = "5.0.0", optional = true }
 serde_json = { version = "1.0.78", optional = true }
