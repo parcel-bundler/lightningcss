@@ -6,7 +6,6 @@ use std::ops::Range;
 use crate::context::{DeclarationContext, PropertyHandlerContext};
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::ParserOptions;
-use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
 use crate::properties::custom::{CustomProperty, CustomPropertyName};
 use crate::properties::masking::MaskHandler;
@@ -124,10 +123,7 @@ impl<'i> DeclarationBlock<'i> {
 }
 
 impl<'i> ToCss for DeclarationBlock<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let len = self.declarations.len() + self.important_declarations.len();
     let mut i = 0;
 
@@ -152,10 +148,10 @@ impl<'i> ToCss for DeclarationBlock<'i> {
 
 impl<'i> DeclarationBlock<'i> {
   /// Writes the declarations to a CSS block, including starting and ending braces.
-  pub fn to_css_block<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  pub fn to_css_block<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+  ) -> Result<(), PrinterError> {
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();
@@ -165,7 +161,8 @@ impl<'i> DeclarationBlock<'i> {
 
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}')?;
+    Ok(())
   }
 
   pub(crate) fn has_printable_declarations(&self) -> bool {
@@ -183,16 +180,13 @@ impl<'i> DeclarationBlock<'i> {
   }
 
   /// Writes the declarations to a CSS declaration block.
-  pub fn to_css_declarations<W>(
+  pub fn to_css_declarations<PrinterT: crate::printer::PrinterTrait>(
     &self,
-    dest: &mut Printer<W>,
+    dest: &mut PrinterT,
     has_nested_rules: bool,
     selectors: &SelectorList,
     source_index: u32,
-  ) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  ) -> Result<(), PrinterError> {
     let mut i = 0;
     let len = self.len();
 
@@ -202,11 +196,11 @@ impl<'i> DeclarationBlock<'i> {
           // The CSS modules `composes` property is handled specially, and omitted during printing.
           // We need to add the classes it references to the list for the selectors in this rule.
           if let crate::properties::Property::Composes(composes) = &decl {
-            if dest.is_nested() && dest.css_module.is_some() {
+            if dest.state().indent > 2 && dest.state().css_module.as_ref().is_some() {
               return Err(dest.error(PrinterErrorKind::InvalidComposesNesting, composes.loc));
             }
 
-            if let Some(css_module) = &mut dest.css_module {
+            if let Some(css_module) = dest.state_mut().css_module.as_mut() {
               css_module
                 .handle_composes(&selectors, &composes, source_index)
                 .map_err(|e| dest.error(e, composes.loc))?;
@@ -219,7 +213,7 @@ impl<'i> DeclarationBlock<'i> {
           }
 
           decl.to_css(dest, $important)?;
-          if i != len - 1 || !dest.minify || has_nested_rules {
+          if i != len - 1 || !dest.options().minify || has_nested_rules {
             dest.write_char(';')?;
           }
 

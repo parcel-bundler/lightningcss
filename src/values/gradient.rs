@@ -11,7 +11,6 @@ use crate::compat;
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::targets::{should_compile, Browsers, Targets};
 use crate::traits::{IsCompatible, Parse, ToCss, TrySign, Zero};
 use crate::vendor_prefix::VendorPrefix;
@@ -191,10 +190,7 @@ impl<'i> Parse<'i> for Gradient {
 }
 
 impl ToCss for Gradient {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let (f, prefix) = match self {
       Gradient::Linear(g) => ("linear-gradient(", Some(g.vendor_prefix)),
       Gradient::RepeatingLinear(g) => ("repeating-linear-gradient(", Some(g.vendor_prefix)),
@@ -220,7 +216,9 @@ impl ToCss for Gradient {
       Gradient::WebKitGradient(g) => g.to_css(dest)?,
     }
 
-    dest.write_char(')')
+    dest.write_char(')')?;
+
+    Ok(())
   }
 }
 
@@ -264,10 +262,11 @@ impl LinearGradient {
     })
   }
 
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+    is_prefixed: bool,
+  ) -> Result<(), PrinterError> {
     let angle = match &self.direction {
       LineDirection::Vertical(VerticalPositionKeyword::Bottom) => 180.0,
       LineDirection::Vertical(VerticalPositionKeyword::Top) => 0.0,
@@ -282,7 +281,7 @@ impl LinearGradient {
     // If we have `to top` or `0deg`, and all of the positions and hints are percentages,
     // we can flip the gradient the other direction and omit the direction.
     } else if angle == 0.0
-      && dest.minify
+      && dest.options().minify
       && self.items.iter().all(|item| {
         matches!(
           item,
@@ -392,10 +391,7 @@ impl<'i> RadialGradient {
 }
 
 impl ToCss for RadialGradient {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.shape != EndingShape::default() {
       self.shape.to_css(dest)?;
       if self.position.is_center() {
@@ -497,17 +493,24 @@ impl LineDirection {
     Ok(LineDirection::Vertical(y))
   }
 
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+    is_prefixed: bool,
+  ) -> Result<(), PrinterError> {
     match self {
       LineDirection::Angle(angle) => angle.to_css(dest),
       LineDirection::Horizontal(k) => {
-        if dest.minify {
+        if dest.options().minify {
           match k {
-            HorizontalPositionKeyword::Left => dest.write_str("270deg"),
-            HorizontalPositionKeyword::Right => dest.write_str("90deg"),
+            HorizontalPositionKeyword::Left => {
+              dest.write_str("270deg")?;
+              Ok(())
+            }
+            HorizontalPositionKeyword::Right => {
+              dest.write_str("90deg")?;
+              Ok(())
+            }
           }
         } else {
           if !is_prefixed {
@@ -517,10 +520,16 @@ impl LineDirection {
         }
       }
       LineDirection::Vertical(k) => {
-        if dest.minify {
+        if dest.options().minify {
           match k {
-            VerticalPositionKeyword::Top => dest.write_str("0deg"),
-            VerticalPositionKeyword::Bottom => dest.write_str("180deg"),
+            VerticalPositionKeyword::Top => {
+              dest.write_str("0deg")?;
+              Ok(())
+            }
+            VerticalPositionKeyword::Bottom => {
+              dest.write_str("180deg")?;
+              Ok(())
+            }
           }
         } else {
           if !is_prefixed {
@@ -676,10 +685,7 @@ impl<'i> Parse<'i> for Circle {
 }
 
 impl ToCss for Circle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       Circle::Radius(r) => r.to_css(dest),
       Circle::Extent(extent) => {
@@ -756,10 +762,7 @@ impl<'i> Parse<'i> for Ellipse {
 }
 
 impl ToCss for Ellipse {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     // The `ellipse` keyword is optional, so we don't emit it.
     match self {
       Ellipse::Size { x, y } => {
@@ -831,10 +834,7 @@ impl ConicGradient {
 }
 
 impl ToCss for ConicGradient {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if !self.angle.is_zero() {
       dest.write_str("from ")?;
       self.angle.to_css(dest)?;
@@ -896,10 +896,7 @@ impl<'i, D: Parse<'i>> Parse<'i> for ColorStop<D> {
 }
 
 impl<D: ToCss> ToCss for ColorStop<D> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.color.to_css(dest)?;
     if let Some(position) = &self.position {
       dest.write_char(' ')?;
@@ -936,10 +933,7 @@ pub enum GradientItem<D> {
 }
 
 impl<D: ToCss> ToCss for GradientItem<D> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       GradientItem::ColorStop(stop) => stop.to_css(dest),
       GradientItem::Hint(hint) => hint.to_css(dest),
@@ -1023,14 +1017,11 @@ fn parse_items<'i, 't, D: Parse<'i>>(
 
 fn serialize_items<
   D: ToCss + std::cmp::PartialEq<D> + std::ops::Mul<f32, Output = D> + TrySign + Clone + std::fmt::Debug,
-  W,
+  PrinterT: crate::printer::PrinterTrait,
 >(
   items: &Vec<GradientItem<DimensionPercentage<D>>>,
-  dest: &mut Printer<W>,
-) -> Result<(), PrinterError>
-where
-  W: std::fmt::Write,
-{
+  dest: &mut PrinterT,
+) -> Result<(), PrinterError> {
   let mut first = true;
   let mut last: Option<&GradientItem<DimensionPercentage<D>>> = None;
   for item in items {
@@ -1041,7 +1032,7 @@ where
 
     // Use double position stop if the last stop is the same color and all targets support it.
     if let Some(prev) = last {
-      if !should_compile!(dest.targets.current, DoublePositionGradients) {
+      if !should_compile!(dest.state().targets.current, DoublePositionGradients) {
         match (prev, item) {
           (
             GradientItem::ColorStop(ColorStop {
@@ -1152,10 +1143,7 @@ impl<'i> Parse<'i> for WebKitGradient {
 }
 
 impl ToCss for WebKitGradient {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       WebKitGradient::Linear { from, to, stops } => {
         dest.write_str("linear")?;
@@ -1255,10 +1243,7 @@ impl<'i> Parse<'i> for WebKitColorStop {
 }
 
 impl ToCss for WebKitColorStop {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.position == 0.0 {
       dest.write_str("from(")?;
       self.color.to_css(dest)?;
@@ -1271,7 +1256,8 @@ impl ToCss for WebKitColorStop {
       dest.delim(',', false)?;
       self.color.to_css(dest)?;
     }
-    dest.write_char(')')
+    dest.write_char(')')?;
+    Ok(())
   }
 }
 
@@ -1306,10 +1292,7 @@ impl<'i> Parse<'i> for WebKitGradientPoint {
 }
 
 impl ToCss for WebKitGradientPoint {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.x.to_css(dest)?;
     dest.write_char(' ')?;
     self.y.to_css(dest)
@@ -1351,28 +1334,28 @@ impl<'i, S: Parse<'i>> Parse<'i> for WebKitGradientPointComponent<S> {
 }
 
 impl<S: ToCss + Clone + Into<LengthPercentage>> ToCss for WebKitGradientPointComponent<S> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use WebKitGradientPointComponent::*;
     match &self {
       Center => {
-        if dest.minify {
-          dest.write_str("50%")
+        if dest.options().minify {
+          dest.write_str("50%")?;
+          Ok(())
         } else {
-          dest.write_str("center")
+          dest.write_str("center")?;
+          Ok(())
         }
       }
       Number(lp) => {
         if matches!(lp, NumberOrPercentage::Percentage(Percentage(p)) if *p == 0.0) {
-          dest.write_char('0')
+          dest.write_char('0')?;
+          Ok(())
         } else {
           lp.to_css(dest)
         }
       }
       Side(s) => {
-        if dest.minify {
+        if dest.options().minify {
           let lp: LengthPercentage = s.clone().into();
           lp.to_css(dest)?;
         } else {

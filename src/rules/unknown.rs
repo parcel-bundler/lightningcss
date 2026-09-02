@@ -2,7 +2,6 @@
 
 use super::Location;
 use crate::error::PrinterError;
-use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
@@ -30,11 +29,7 @@ pub struct UnknownAtRule<'i> {
 }
 
 impl<'i> ToCss for UnknownAtRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_char('@')?;
     dest.write_str(&self.name)?;
@@ -52,9 +47,11 @@ impl<'i> ToCss for UnknownAtRule<'i> {
       block.to_css(dest, false)?;
       dest.dedent();
       dest.newline()?;
-      dest.write_char('}')
+      dest.write_char('}')?;
+      Ok(())
     } else {
-      dest.write_char(';')
+      dest.write_char(';')?;
+      Ok(())
     }
   }
 }

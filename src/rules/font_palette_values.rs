@@ -3,7 +3,6 @@
 use super::supports::SupportsRule;
 use super::{CssRule, CssRuleList, Location, MinifyContext};
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::properties::custom::CustomProperty;
 use crate::properties::font::FontFamily;
 use crate::stylesheet::ParserOptions;
@@ -202,13 +201,16 @@ impl<'i> Parse<'i> for BasePalette {
 }
 
 impl ToCss for BasePalette {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      BasePalette::Light => dest.write_str("light"),
-      BasePalette::Dark => dest.write_str("dark"),
+      BasePalette::Light => {
+        dest.write_str("light")?;
+        Ok(())
+      }
+      BasePalette::Dark => {
+        dest.write_str("dark")?;
+        Ok(())
+      }
       BasePalette::Integer(i) => (*i as CSSInteger).to_css(dest),
     }
   }
@@ -234,10 +236,7 @@ impl<'i> Parse<'i> for OverrideColors {
 }
 
 impl ToCss for OverrideColors {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     (self.index as CSSInteger).to_css(dest)?;
     dest.write_char(' ')?;
     self.color.to_css(dest)
@@ -358,11 +357,7 @@ impl<'i> FontPaletteValuesRule<'i> {
 }
 
 impl<'i> ToCss for FontPaletteValuesRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_str("@font-palette-values ")?;
     self.name.to_css(dest)?;
@@ -373,21 +368,19 @@ impl<'i> ToCss for FontPaletteValuesRule<'i> {
     for (i, prop) in self.properties.iter().enumerate() {
       dest.newline()?;
       prop.to_css(dest)?;
-      if i != len - 1 || !dest.minify {
+      if i != len - 1 || !dest.options().minify {
         dest.write_char(';')?;
       }
     }
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}')?;
+    Ok(())
   }
 }
 
 impl<'i> ToCss for FontPaletteValuesProperty<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     macro_rules! property {
       ($prop: literal, $value: expr) => {{
         dest.write_str($prop)?;

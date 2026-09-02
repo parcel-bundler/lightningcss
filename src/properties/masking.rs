@@ -8,7 +8,6 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_list_shorthand, define_shorthand, enum_property, property_bitflags};
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::properties::Property;
 use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
@@ -310,10 +309,7 @@ impl<'i> Parse<'i> for Mask<'i> {
 }
 
 impl<'i> ToCss for Mask<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.image.to_css(dest)?;
 
     if self.position != Position::default() || self.size != BackgroundSize::default() {
@@ -427,12 +423,12 @@ impl<'i> Parse<'i> for ClipPath<'i> {
 }
 
 impl<'i> ToCss for ClipPath<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      ClipPath::None => dest.write_str("none"),
+      ClipPath::None => {
+        dest.write_str("none")?;
+        Ok(())
+      }
       ClipPath::Url(url) => url.to_css(dest),
       ClipPath::Shape {
         shape,
@@ -516,10 +512,7 @@ impl<'i> Parse<'i> for MaskBorder<'i> {
 }
 
 impl<'i> ToCss for MaskBorder<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     BorderImage::to_css_internal(&self.source, &self.slice, &self.width, &self.outset, &self.repeat, dest)?;
     if self.mode != MaskBorderMode::default() {
       dest.write_char(' ')?;

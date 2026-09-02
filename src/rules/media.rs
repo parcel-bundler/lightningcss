@@ -5,7 +5,6 @@ use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, PrinterError};
 use crate::media_query::MediaList;
 use crate::parser::DefaultAtRule;
-use crate::printer::Printer;
 use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -45,17 +44,12 @@ impl<'i, T: Clone> MediaRule<'i, T> {
 }
 
 impl<'a, 'i, T: ToCss> ToCss for MediaRule<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     // If the media query always matches, we can just output the nested rules.
-    if dest.minify && self.query.always_matches() {
+    if dest.options().minify && self.query.always_matches() {
       self.rules.to_css(dest)?;
       return Ok(());
     }
-
-    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@media ")?;
     self.query.to_css(dest)?;
@@ -66,6 +60,7 @@ impl<'a, 'i, T: ToCss> ToCss for MediaRule<'i, T> {
     self.rules.to_css(dest)?;
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}')?;
+    Ok(())
   }
 }

@@ -6,7 +6,6 @@ use super::Location;
 use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::PrinterError;
 use crate::media_query::MediaList;
-use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
@@ -38,23 +37,18 @@ pub struct ImportRule<'i> {
 }
 
 impl<'i> ToCss for ImportRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    let dep = if dest.dependencies.is_some() {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
+    let dep = if dest.state().dependencies.is_some() {
       Some(ImportDependency::new(self, dest.filename()))
     } else {
       None
     };
-
-    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@import ")?;
     if let Some(dep) = dep {
       serialize_string(&dep.placeholder, dest)?;
 
-      if let Some(dependencies) = &mut dest.dependencies {
+      if let Some(dependencies) = dest.state_mut().dependencies.as_mut() {
         dependencies.push(Dependency::Import(dep))
       }
     } else {
@@ -84,6 +78,7 @@ impl<'i> ToCss for ImportRule<'i> {
       dest.write_char(' ')?;
       self.media.to_css(dest)?;
     }
-    dest.write_str(";")
+    dest.write_str(";")?;
+    Ok(())
   }
 }

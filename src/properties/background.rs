@@ -5,7 +5,6 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
@@ -73,15 +72,18 @@ impl<'i> Parse<'i> for BackgroundSize {
 }
 
 impl ToCss for BackgroundSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use BackgroundSize::*;
 
     match &self {
-      Cover => dest.write_str("cover"),
-      Contain => dest.write_str("contain"),
+      Cover => {
+        dest.write_str("cover")?;
+        Ok(())
+      }
+      Contain => {
+        dest.write_str("contain")?;
+        Ok(())
+      }
       Explicit { width, height } => {
         width.to_css(dest)?;
         if *height != LengthPercentageOrAuto::Auto {
@@ -166,14 +168,17 @@ impl<'i> Parse<'i> for BackgroundRepeat {
 }
 
 impl ToCss for BackgroundRepeat {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use BackgroundRepeatKeyword::*;
     match (&self.x, &self.y) {
-      (Repeat, NoRepeat) => dest.write_str("repeat-x"),
-      (NoRepeat, Repeat) => dest.write_str("repeat-y"),
+      (Repeat, NoRepeat) => {
+        dest.write_str("repeat-x")?;
+        Ok(())
+      }
+      (NoRepeat, Repeat) => {
+        dest.write_str("repeat-y")?;
+        Ok(())
+      }
       (x, y) => {
         x.to_css(dest)?;
         if y != x {
@@ -313,10 +318,7 @@ impl<'i> Parse<'i> for BackgroundPosition {
 }
 
 impl ToCss for BackgroundPosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let pos: Position = self.into();
     pos.to_css(dest)
   }
@@ -441,10 +443,7 @@ impl<'i> Parse<'i> for Background<'i> {
 }
 
 impl<'i> ToCss for Background<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let mut has_output = false;
 
     if self.color != CssColor::default() {
@@ -515,7 +514,7 @@ impl<'i> ToCss for Background<'i> {
 
     // If nothing was output, then this is the initial value, e.g. background: transparent
     if !has_output {
-      if dest.minify {
+      if dest.options().minify {
         // `0 0` is the shortest valid background value
         self.position.to_css(dest)?;
       } else {

@@ -3,7 +3,6 @@
 #![allow(non_upper_case_globals)]
 
 use crate::error::PrinterError;
-use crate::printer::Printer;
 use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
@@ -69,10 +68,7 @@ impl VendorPrefix {
 }
 
 impl ToCss for VendorPrefix {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     cssparser::ToCss::to_css(self, dest)?;
     Ok(())
   }
@@ -84,12 +80,13 @@ impl cssparser::ToCss for VendorPrefix {
     W: std::fmt::Write,
   {
     match *self {
-      VendorPrefix::WebKit => dest.write_str("-webkit-"),
-      VendorPrefix::Moz => dest.write_str("-moz-"),
-      VendorPrefix::Ms => dest.write_str("-ms-"),
-      VendorPrefix::O => dest.write_str("-o-"),
-      _ => Ok(()),
-    }
+      VendorPrefix::WebKit => dest.write_str("-webkit-")?,
+      VendorPrefix::Moz => dest.write_str("-moz-")?,
+      VendorPrefix::Ms => dest.write_str("-ms-")?,
+      VendorPrefix::O => dest.write_str("-o-")?,
+      _ => {}
+    };
+    Ok(())
   }
 }
 

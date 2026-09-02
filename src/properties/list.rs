@@ -5,7 +5,6 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_shorthand, enum_property, shorthand_handler};
-use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::string::CSSString;
@@ -213,15 +212,13 @@ impl<'i> Parse<'i> for CounterStyle<'i> {
 }
 
 impl ToCss for CounterStyle<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       CounterStyle::Predefined(style) => style.to_css(dest),
       CounterStyle::Name(name) => {
-        if let Some(css_module) = &mut dest.css_module {
-          css_module.reference(&name.0, dest.loc.source_index)
+        let source_index = dest.state().loc.source_index;
+        if let Some(css_module) = dest.state_mut().css_module.as_mut() {
+          css_module.reference(&name.0, source_index)
         }
         name.to_css(dest)
       }
@@ -240,7 +237,8 @@ impl ToCss for CounterStyle<'_> {
           symbol.to_css(dest)?;
           needs_space = true;
         }
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
     }
   }
@@ -412,10 +410,7 @@ impl<'i> Parse<'i> for ListStyle<'i> {
 }
 
 impl<'i> ToCss for ListStyle<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let mut needs_space = false;
     if self.position != ListStylePosition::default() {
       self.position.to_css(dest)?;

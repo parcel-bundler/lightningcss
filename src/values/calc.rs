@@ -3,7 +3,6 @@
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
-use crate::printer::Printer;
 use crate::targets::{should_compile, Browsers};
 use crate::traits::private::AddInternal;
 use crate::traits::{IsCompatible, Parse, Sign, ToCss, TryMap, TryOp, TrySign};
@@ -123,15 +122,13 @@ fn modulo(a: f32, b: f32) -> f32 {
 }
 
 impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Debug> ToCss for MathFunction<V> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       MathFunction::Calc(calc) => {
         dest.write_str("calc(")?;
         calc.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       MathFunction::Min(args) => {
         dest.write_str("min(")?;
@@ -144,7 +141,8 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
           }
           arg.to_css(dest)?;
         }
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       MathFunction::Max(args) => {
         dest.write_str("max(")?;
@@ -157,11 +155,12 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
           }
           arg.to_css(dest)?;
         }
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       MathFunction::Clamp(a, b, c) => {
         // If clamp() is unsupported by targets, output min()/max()
-        if should_compile!(dest.targets.current, ClampFunction) {
+        if should_compile!(dest.state().targets.current, ClampFunction) {
           dest.write_str("max(")?;
           a.to_css(dest)?;
           dest.delim(',', false)?;
@@ -179,7 +178,8 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
         b.to_css(dest)?;
         dest.delim(',', false)?;
         c.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       MathFunction::Round(strategy, a, b) => {
         dest.write_str("round(")?;
@@ -190,31 +190,36 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
         a.to_css(dest)?;
         dest.delim(',', false)?;
         b.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       MathFunction::Rem(a, b) => {
         dest.write_str("rem(")?;
         a.to_css(dest)?;
         dest.delim(',', false)?;
         b.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       MathFunction::Mod(a, b) => {
         dest.write_str("mod(")?;
         a.to_css(dest)?;
         dest.delim(',', false)?;
         b.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       MathFunction::Abs(v) => {
         dest.write_str("abs(")?;
         v.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       MathFunction::Sign(v) => {
         dest.write_str("sign(")?;
         v.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
       MathFunction::Hypot(args) => {
         dest.write_str("hypot(")?;
@@ -227,7 +232,8 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
           }
           arg.to_css(dest)?;
         }
-        dest.write_char(')')
+        dest.write_char(')')?;
+        Ok(())
       }
     }
   }
@@ -963,13 +969,9 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V
 }
 
 impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Debug> ToCss for Calc<V> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    let was_in_calc = dest.in_calc;
-    dest.in_calc = true;
-
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
+    let old_in_calc = dest.state().in_calc;
+    dest.state_mut().in_calc = true;
     let res = match self {
       Calc::Value(v) => v.to_css(dest),
       Calc::Number(n) => n.to_css(dest),
@@ -1000,8 +1002,7 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
       }
       Calc::Function(f) => f.to_css(dest),
     };
-
-    dest.in_calc = was_in_calc;
+    dest.state_mut().in_calc = old_in_calc;
     res
   }
 }

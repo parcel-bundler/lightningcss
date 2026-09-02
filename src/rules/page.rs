@@ -4,7 +4,6 @@ use super::Location;
 use crate::declaration::{parse_declaration, DeclarationBlock};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
-use crate::printer::Printer;
 use crate::stylesheet::ParserOptions;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
@@ -141,11 +140,7 @@ pub struct PageMarginRule<'i> {
 }
 
 impl<'i> ToCss for PageMarginRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_char('@')?;
     self.margin_box.to_css(dest)?;
@@ -209,16 +204,12 @@ impl<'i> PageRule<'i> {
 }
 
 impl<'i> ToCss for PageRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_str("@page")?;
     if let Some(first) = self.selectors.first() {
       // Space is only required if the first selector has a name.
-      if !dest.minify || first.name.is_some() {
+      if !dest.options().minify || first.name.is_some() {
         dest.write_char(' ')?;
       }
       let mut first = true;
@@ -244,7 +235,7 @@ impl<'i> ToCss for PageRule<'i> {
         for decl in &$decls {
           dest.newline()?;
           decl.to_css(dest, $important)?;
-          if i != len - 1 || !dest.minify {
+          if i != len - 1 || !dest.options().minify {
             dest.write_char(';')?;
           }
           i += 1;
@@ -256,7 +247,7 @@ impl<'i> ToCss for PageRule<'i> {
     write!(self.declarations.important_declarations, true);
 
     if !self.rules.is_empty() {
-      if !dest.minify && self.declarations.len() > 0 {
+      if !dest.options().minify && self.declarations.len() > 0 {
         dest.write_char('\n')?;
       }
       dest.newline()?;
@@ -266,7 +257,7 @@ impl<'i> ToCss for PageRule<'i> {
         if first {
           first = false;
         } else {
-          if !dest.minify {
+          if !dest.options().minify {
             dest.write_char('\n')?;
           }
           dest.newline()?;
@@ -277,15 +268,13 @@ impl<'i> ToCss for PageRule<'i> {
 
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}')?;
+    Ok(())
   }
 }
 
 impl<'i> ToCss for PageSelector<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if let Some(name) = &self.name {
       dest.write_str(&name)?;
     }

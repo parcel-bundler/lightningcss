@@ -9,7 +9,6 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_shorthand, enum_property};
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::targets::{should_compile, Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::calc::{Calc, MathFunction};
@@ -76,10 +75,7 @@ impl<'i> Parse<'i> for TextTransformOther {
 }
 
 impl ToCss for TextTransformOther {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let mut needs_space = false;
     if self.contains(TextTransformOther::FullWidth) {
       dest.write_str("full-width")?;
@@ -196,10 +192,7 @@ impl<'i> Parse<'i> for TextTransform {
 }
 
 impl ToCss for TextTransform {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let mut needs_space = false;
     if self.case != TextTransformCase::None || self.other.is_empty() {
       self.case.to_css(dest)?;
@@ -427,10 +420,7 @@ impl<'i> Parse<'i> for TextIndent {
 }
 
 impl ToCss for TextIndent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.value.to_css(dest)?;
     if self.hanging {
       dest.write_str(" hanging")?;
@@ -531,20 +521,20 @@ impl<'i> Parse<'i> for TextDecorationLine {
 }
 
 impl ToCss for TextDecorationLine {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.is_empty() {
-      return dest.write_str("none");
+      dest.write_str("none")?;
+      return Ok(());
     }
 
     if self.contains(TextDecorationLine::SpellingError) {
-      return dest.write_str("spelling-error");
+      dest.write_str("spelling-error")?;
+      return Ok(());
     }
 
     if self.contains(TextDecorationLine::GrammarError) {
-      return dest.write_str("grammar-error");
+      dest.write_str("grammar-error")?;
+      return Ok(());
     }
 
     let mut needs_space = false;
@@ -772,10 +762,7 @@ impl<'i> Parse<'i> for TextDecoration {
 }
 
 impl ToCss for TextDecoration {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.line.to_css(dest)?;
     if self.line.is_empty() {
       return Ok(());
@@ -920,12 +907,12 @@ impl<'i> Parse<'i> for TextEmphasisStyle<'i> {
 }
 
 impl<'i> ToCss for TextEmphasisStyle<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      TextEmphasisStyle::None => dest.write_str("none"),
+      TextEmphasisStyle::None => {
+        dest.write_str("none")?;
+        Ok(())
+      }
       TextEmphasisStyle::String(s) => s.to_css(dest),
       TextEmphasisStyle::Keyword { fill, shape } => {
         let mut needs_space = false;
@@ -988,10 +975,7 @@ impl<'i> Parse<'i> for TextEmphasis<'i> {
 }
 
 impl<'i> ToCss for TextEmphasis<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.style.to_css(dest)?;
 
     if self.style != TextEmphasisStyle::None && self.color != CssColor::current_color() {
@@ -1083,10 +1067,7 @@ impl Default for BoxDecorationBreak {
 }
 
 impl ToCss for TextEmphasisPosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.vertical.to_css(dest)?;
     if self.horizontal != TextEmphasisPositionHorizontal::Right {
       dest.write_char(' ')?;
@@ -1421,10 +1402,7 @@ impl<'i> Parse<'i> for TextShadow {
 }
 
 impl ToCss for TextShadow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.x_offset.to_css(dest)?;
     dest.write_char(' ')?;
     self.y_offset.to_css(dest)?;

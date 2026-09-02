@@ -2,7 +2,6 @@
 
 use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -42,10 +41,7 @@ impl Ratio {
 }
 
 impl ToCss for Ratio {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.0.to_css(dest)?;
     if self.1 != 1.0 {
       dest.delim('/', true)?;

@@ -5,7 +5,6 @@ use super::calc::{Calc, MathFunction};
 use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{
   private::{AddInternal, TryAdd},
@@ -27,10 +26,10 @@ impl LengthPercentage {
     LengthPercentage::Dimension(LengthValue::Px(val))
   }
 
-  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  pub(crate) fn to_css_unitless<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+  ) -> Result<(), PrinterError> {
     match self {
       DimensionPercentage::Dimension(d) => d.to_css_unitless(dest),
       _ => self.to_css(dest),
@@ -455,16 +454,14 @@ define_length_units! {
 }
 
 impl ToCss for LengthValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let (value, unit) = self.to_unit_value();
 
     // The unit can be omitted if the value is zero, except inside calc()
     // expressions, where unitless numbers won't be parsed as dimensions.
-    if !dest.in_calc && value == 0.0 {
-      return dest.write_char('0');
+    if !dest.state().in_calc && value == 0.0 {
+      dest.write_char('0')?;
+      return Ok(());
     }
 
     serialize_dimension(value, unit, dest)
@@ -472,10 +469,10 @@ impl ToCss for LengthValue {
 }
 
 impl LengthValue {
-  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  pub(crate) fn to_css_unitless<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+  ) -> Result<(), PrinterError> {
     match self {
       LengthValue::Px(value) => value.to_css(dest),
       _ => self.to_css(dest),
@@ -483,10 +480,11 @@ impl LengthValue {
   }
 }
 
-pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
-where
-  W: std::fmt::Write,
-{
+pub(crate) fn serialize_dimension<PrinterT: crate::printer::PrinterTrait>(
+  value: f32,
+  unit: &str,
+  dest: &mut PrinterT,
+) -> Result<(), PrinterError> {
   use cssparser::ToCss;
   let int_value = if value.fract() == 0.0 { Some(value as i32) } else { None };
   let token = Token::Dimension {
@@ -501,12 +499,15 @@ where
     if value < 0.0 {
       if let Some(stripped) = s.strip_prefix("-0") {
         dest.write_char('-')?;
-        dest.write_str(stripped)
+        dest.write_str(stripped)?;
+        Ok(())
       } else {
-        dest.write_str(&s)
+        dest.write_str(&s)?;
+        Ok(())
       }
     } else {
-      dest.write_str(s.trim_start_matches('0'))
+      dest.write_str(s.trim_start_matches('0'))?;
+      Ok(())
     }
   } else {
     token.to_css(dest)?;
@@ -564,10 +565,7 @@ impl<'i> Parse<'i> for Length {
 }
 
 impl ToCss for Length {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       Length::Value(a) => a.to_css(dest),
       Length::Calc(c) => c.to_css(dest),
