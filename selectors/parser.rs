@@ -45,6 +45,10 @@ pub trait PseudoElement<'i>: Sized + ToCss {
     false
   }
 
+  fn is_scroll_marker(&self) -> bool {
+    false
+  }
+
   fn is_unknown(&self) -> bool {
     false
   }
@@ -69,6 +73,18 @@ pub trait NonTSPseudoClass<'i>: Sized + ToCss {
 
   fn is_valid_after_webkit_scrollbar(&self) -> bool {
     false
+  }
+
+  /// Whether this pseudo-class may follow a `::scroll-marker` pseudo-element.
+  ///
+  /// Selectors 4 allows only the user action pseudo-classes after a
+  /// pseudo-element. css-overflow-5 extends that for scroll markers: it
+  /// defines `:target-current`, `:target-before` and `:target-after`
+  /// specifically to match them.
+  ///
+  /// https://drafts.csswg.org/css-overflow-5/#selectordef-target-current
+  fn is_valid_after_scroll_marker(&self) -> bool {
+    self.is_user_action_state()
   }
 
   fn visit<V>(&self, _visitor: &mut V) -> bool
@@ -137,6 +153,7 @@ bitflags! {
         const AFTER_WEBKIT_SCROLLBAR = 1 << 8;
         const AFTER_VIEW_TRANSITION = 1 << 9;
         const AFTER_UNKNOWN_PSEUDO_ELEMENT = 1 << 10;
+        const AFTER_SCROLL_MARKER = 1 << 11;
     }
 }
 
@@ -2791,6 +2808,9 @@ where
         if p.is_view_transition() {
           state.insert(SelectorParsingState::AFTER_VIEW_TRANSITION);
         }
+        if p.is_scroll_marker() {
+          state.insert(SelectorParsingState::AFTER_SCROLL_MARKER);
+        }
         builder.push_simple_selector(Component::PseudoElement(p));
       }
     }
@@ -3125,6 +3145,10 @@ where
   if state.intersects(SelectorParsingState::AFTER_WEBKIT_SCROLLBAR) {
     if !pseudo_class.is_valid_after_webkit_scrollbar() {
       return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterWebKitScrollbar));
+    }
+  } else if state.intersects(SelectorParsingState::AFTER_SCROLL_MARKER) {
+    if !pseudo_class.is_valid_after_scroll_marker() {
+      return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterPseudoElement));
     }
   } else if state.intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT) {
     if !pseudo_class.is_user_action_state() {

@@ -342,6 +342,9 @@ let mdnFeatures = {
   picker: mdn.css.selectors.picker.__compat.support,
   pickerIcon: mdn.css.selectors['picker-icon'].__compat.support,
   checkmark: mdn.css.selectors.checkmark.__compat.support,
+  scrollMarker: mdn.css.selectors['scroll-marker'].__compat.support,
+  scrollMarkerGroup: mdn.css.selectors['scroll-marker-group'].__compat.support,
+  scrollButton: mdn.css.selectors['scroll-button'].__compat.support,
   grammarError: mdn.css.selectors['grammar-error'].__compat.support,
   spellingError: mdn.css.selectors['spelling-error'].__compat.support,
   statePseudoClass: Object.fromEntries(
