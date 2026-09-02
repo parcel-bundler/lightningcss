@@ -514,7 +514,7 @@ impl<'i> ToCss for Background<'i> {
 
     // If nothing was output, then this is the initial value, e.g. background: transparent
     if !has_output {
-      if dest.minify() {
+      if dest.options().minify {
         // `0 0` is the shortest valid background value
         self.position.to_css(dest)?;
       } else {

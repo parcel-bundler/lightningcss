@@ -84,8 +84,8 @@ impl ToCss for AbsoluteFontWeight {
     use AbsoluteFontWeight::*;
     match self {
       Weight(val) => val.to_css(dest)?,
-      Normal => dest.write_str(if dest.minify() { "400" } else { "normal" })?,
-      Bold => dest.write_str(if dest.minify() { "700" } else { "bold" })?,
+      Normal => dest.write_str(if dest.options().minify { "400" } else { "normal" })?,
+      Bold => dest.write_str(if dest.options().minify { "700" } else { "bold" })?,
     };
     Ok(())
   }
@@ -260,7 +260,7 @@ impl Into<Percentage> for &FontStretch {
 
 impl ToCss for FontStretch {
   fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
-    if dest.minify() {
+    if dest.options().minify {
       let percentage: Percentage = self.into();
       return percentage.to_css(dest);
     }

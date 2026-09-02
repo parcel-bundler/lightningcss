@@ -281,7 +281,7 @@ impl LinearGradient {
     // If we have `to top` or `0deg`, and all of the positions and hints are percentages,
     // we can flip the gradient the other direction and omit the direction.
     } else if angle == 0.0
-      && dest.minify()
+      && dest.options().minify
       && self.items.iter().all(|item| {
         matches!(
           item,
@@ -501,7 +501,7 @@ impl LineDirection {
     match self {
       LineDirection::Angle(angle) => angle.to_css(dest),
       LineDirection::Horizontal(k) => {
-        if dest.minify() {
+        if dest.options().minify {
           match k {
             HorizontalPositionKeyword::Left => {
               dest.write_str("270deg")?;
@@ -520,7 +520,7 @@ impl LineDirection {
         }
       }
       LineDirection::Vertical(k) => {
-        if dest.minify() {
+        if dest.options().minify {
           match k {
             VerticalPositionKeyword::Top => {
               dest.write_str("0deg")?;
@@ -1338,7 +1338,7 @@ impl<S: ToCss + Clone + Into<LengthPercentage>> ToCss for WebKitGradientPointCom
     use WebKitGradientPointComponent::*;
     match &self {
       Center => {
-        if dest.minify() {
+        if dest.options().minify {
           dest.write_str("50%")?;
           Ok(())
         } else {
@@ -1355,7 +1355,7 @@ impl<S: ToCss + Clone + Into<LengthPercentage>> ToCss for WebKitGradientPointCom
         }
       }
       Side(s) => {
-        if dest.minify() {
+        if dest.options().minify {
           let lp: LengthPercentage = s.clone().into();
           lp.to_css(dest)?;
         } else {

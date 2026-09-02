@@ -213,7 +213,7 @@ impl<'i> DeclarationBlock<'i> {
           }
 
           decl.to_css(dest, $important)?;
-          if i != len - 1 || !dest.minify() || has_nested_rules {
+          if i != len - 1 || !dest.options().minify || has_nested_rules {
             dest.write_char(';')?;
           }
 

@@ -74,7 +74,7 @@ impl<'i, T: ToCss> ToCss for ScopeRule<'i, T> {
       dest.whitespace()?;
     }
     if let Some(scope_end) = &self.scope_end {
-      if dest.minify() {
+      if dest.options().minify {
         dest.write_char(' ')?;
       }
       dest.write_str("to (")?;

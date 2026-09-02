@@ -1069,7 +1069,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRuleList<'i, T> {
       if first {
         first = false;
       } else {
-        if !dest.minify()
+        if !dest.options().minify
           && !(last_without_block
             && matches!(
               rule,
@@ -1083,7 +1083,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRuleList<'i, T> {
       rule.to_css(dest)?;
 
       // If this is an invisible nested declarations rule, and not the last rule in the block, add a semicolon.
-      if dest.minify()
+      if dest.options().minify
         && !should_compile!(dest.state().targets.current, Nesting)
         && matches!(rule, CssRule::NestedDeclarations(_))
         && i != self.0.len() - 1

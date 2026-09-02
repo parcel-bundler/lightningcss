@@ -3,7 +3,7 @@
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::printer::{Printer, PrinterTrait};
+use crate::printer::{PrinterTrait, Printer};
 use crate::properties::{Property, PropertyId};
 use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::{Browsers, Targets};
