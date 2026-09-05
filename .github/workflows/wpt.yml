@@ -61,5 +61,5 @@ jobs:
           name: wpt-report
           path: wpt/results.html
           if-no-files-found: warn
-          compression: 'none'
+          archive: false
           retention-days: 14

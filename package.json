@@ -63,7 +63,6 @@
     "markdown-it-table-of-contents": "^0.6.0",
     "napi-wasm": "^1.0.1",
     "node-fetch": "^3.1.0",
-    "oxfmt": "^0.66.0",
     "parcel": "^2.8.2",
     "patch-package": "^6.5.0",
     "path-browserify": "^1.0.1",
@@ -97,7 +96,6 @@
     "test:wpt": "node wpt/run.mjs",
     "report:wpt": "node wpt/report.mjs",
     "test:wpt:browser": "node wpt/run.mjs --browser",
-    "test:wpt:harness": "cargo test --locked --example wpt_adapter && node --test wpt/test/*.test.mjs",
-    "format:wpt": "oxfmt wpt/"
+    "test:wpt:harness": "cargo test --locked --example wpt_adapter && node --test wpt/test/*.test.mjs"
   }
 }
