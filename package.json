@@ -92,6 +92,10 @@
     "website:build": "yarn wasm:build-release && parcel build 'website/*.html' website/playground/index.html",
     "build-ast": "cargo run --example schema --features jsonschema && node scripts/build-ast.js",
     "tsc": "tsc -p node/tsconfig.json",
-    "test": "uvu node/test"
+    "test": "uvu node/test",
+    "test:wpt": "node wpt/run.mjs",
+    "report:wpt": "node wpt/report.mjs",
+    "test:wpt:browser": "node wpt/run.mjs --browser",
+    "test:wpt:harness": "cargo test --locked --example wpt_adapter && node --test wpt/test/*.test.mjs"
   }
 }
