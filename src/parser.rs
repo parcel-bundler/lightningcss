@@ -674,6 +674,12 @@ impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Nested
             if name.is_some() && input.is_exhausted() {
               // name only, no condition - allowed by new syntax
               AtRulePrelude::Container(name, None)
+            } else if self.options.error_recovery {
+              // When error recovery is enabled, use Unknown for unparseable conditions
+              // instead of propagating the error. This allows the CSS to be parsed
+              // despite unsupported @container syntax (e.g., future scroll-state queries).
+              self.options.warn(e);
+              AtRulePrelude::Container(name, Some(ContainerCondition::Unknown(TokenList::parse(input, &self.options, 0)?)))
             } else {
               // condition parsing failed (e.g., empty brackets or invalid tokens)
               return Err(e);
