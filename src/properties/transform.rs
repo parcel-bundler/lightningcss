@@ -8,6 +8,7 @@ use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::traits::{Parse, PropertyHandler, ToCss, Zero};
+use crate::values::number::NonNegative;
 use crate::values::{
   angle::Angle,
   length::{Length, LengthPercentage},
@@ -200,7 +201,7 @@ pub enum Transform {
   /// A skew along the Y axis.
   SkewY(Angle),
   /// A perspective transform.
-  Perspective(Length),
+  Perspective(NonNegative<Length>),
   /// A 2D matrix transform.
   Matrix(Matrix<f32>),
   /// A 3D matrix transform.
@@ -709,7 +710,7 @@ impl Matrix3d<f32> {
       perspective_matrix = perspective_matrix.inverse().unwrap().transpose();
       let perspective = perspective_matrix.multiply_vector(&right_hand_side);
       if perspective[0] == 0.0 && perspective[1] == 0.0 && perspective[3] == 0.0 {
-        transforms.push(Transform::Perspective(Length::px(-1.0 / perspective[2])))
+        transforms.push(Transform::Perspective(NonNegative(Length::px(-1.0 / perspective[2]))))
       } else {
         return None;
       }
@@ -1010,7 +1011,7 @@ impl<'i> Parse<'i> for Transform {
           Ok(Transform::SkewY(angle))
         },
         "perspective" => {
-          let len = Length::parse(input)?;
+          let len = NonNegative::<Length>::parse(input)?;
           Ok(Transform::Perspective(len))
         },
         _ => Err(location.new_unexpected_token_error(
@@ -1360,7 +1361,7 @@ impl Transform {
       Transform::SkewX(x) => return Some(Matrix3d::skew(to_radians!(x), 0.0)),
       Transform::SkewY(y) => return Some(Matrix3d::skew(0.0, to_radians!(y))),
       Transform::Perspective(len) => {
-        if let Some(len) = len.to_px() {
+        if let Some(len) = len.0.to_px() {
           return Some(Matrix3d::perspective(len));
         }
       }
@@ -1420,7 +1421,7 @@ pub enum Perspective {
   /// No perspective transform is applied.
   None,
   /// Distance to the center of projection.
-  Length(Length),
+  Length(NonNegative<Length>),
 }
 
 /// A value for the [translate](https://drafts.csswg.org/css-transforms-2/#propdef-translate) property.

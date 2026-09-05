@@ -6,6 +6,7 @@ use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss, Zero};
 use crate::values::color::ColorFallbackKind;
+use crate::values::number::NonNegative;
 use crate::values::{angle::Angle, color::CssColor, length::Length, percentage::NumberOrPercentage, url::Url};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -24,23 +25,23 @@ use smallvec::SmallVec;
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Filter<'i> {
   /// A `blur()` filter.
-  Blur(Length),
+  Blur(NonNegative<Length>),
   /// A `brightness()` filter.
-  Brightness(NumberOrPercentage),
+  Brightness(NonNegative<NumberOrPercentage>),
   /// A `contrast()` filter.
-  Contrast(NumberOrPercentage),
+  Contrast(NonNegative<NumberOrPercentage>),
   /// A `grayscale()` filter.
-  Grayscale(NumberOrPercentage),
+  Grayscale(NonNegative<NumberOrPercentage>),
   /// A `hue-rotate()` filter.
   HueRotate(Angle),
   /// An `invert()` filter.
-  Invert(NumberOrPercentage),
+  Invert(NonNegative<NumberOrPercentage>),
   /// An `opacity()` filter.
-  Opacity(NumberOrPercentage),
+  Opacity(NonNegative<NumberOrPercentage>),
   /// A `saturate()` filter.
-  Saturate(NumberOrPercentage),
+  Saturate(NonNegative<NumberOrPercentage>),
   /// A `sepia()` filter.
-  Sepia(NumberOrPercentage),
+  Sepia(NonNegative<NumberOrPercentage>),
   /// A `drop-shadow()` filter.
   DropShadow(DropShadow),
   /// A `url()` reference to an SVG filter.
@@ -59,22 +60,22 @@ impl<'i> Parse<'i> for Filter<'i> {
     match_ignore_ascii_case! { &function,
       "blur" => {
         input.parse_nested_block(|input| {
-          Ok(Filter::Blur(input.try_parse(Length::parse).unwrap_or(Length::zero())))
+          Ok(Filter::Blur(input.try_parse(NonNegative::<Length>::parse).unwrap_or(NonNegative::zero())))
         })
       },
       "brightness" => {
         input.parse_nested_block(|input| {
-          Ok(Filter::Brightness(input.try_parse(NumberOrPercentage::parse).unwrap_or(NumberOrPercentage::Number(1.0))))
+          Ok(Filter::Brightness(input.try_parse(NonNegative::<NumberOrPercentage>::parse).unwrap_or(NonNegative(NumberOrPercentage::Number(1.0)))))
         })
       },
       "contrast" => {
         input.parse_nested_block(|input| {
-          Ok(Filter::Contrast(input.try_parse(NumberOrPercentage::parse).unwrap_or(NumberOrPercentage::Number(1.0))))
+          Ok(Filter::Contrast(input.try_parse(NonNegative::<NumberOrPercentage>::parse).unwrap_or(NonNegative(NumberOrPercentage::Number(1.0)))))
         })
       },
       "grayscale" => {
         input.parse_nested_block(|input| {
-          Ok(Filter::Grayscale(input.try_parse(NumberOrPercentage::parse).unwrap_or(NumberOrPercentage::Number(1.0))))
+          Ok(Filter::Grayscale(input.try_parse(NonNegative::<NumberOrPercentage>::parse).unwrap_or(NonNegative(NumberOrPercentage::Number(1.0)))))
         })
       },
       "hue-rotate" => {
@@ -85,22 +86,22 @@ impl<'i> Parse<'i> for Filter<'i> {
       },
       "invert" => {
         input.parse_nested_block(|input| {
-          Ok(Filter::Invert(input.try_parse(NumberOrPercentage::parse).unwrap_or(NumberOrPercentage::Number(1.0))))
+          Ok(Filter::Invert(input.try_parse(NonNegative::<NumberOrPercentage>::parse).unwrap_or(NonNegative(NumberOrPercentage::Number(1.0)))))
         })
       },
       "opacity" => {
         input.parse_nested_block(|input| {
-          Ok(Filter::Opacity(input.try_parse(NumberOrPercentage::parse).unwrap_or(NumberOrPercentage::Number(1.0))))
+          Ok(Filter::Opacity(input.try_parse(NonNegative::<NumberOrPercentage>::parse).unwrap_or(NonNegative(NumberOrPercentage::Number(1.0)))))
         })
       },
       "saturate" => {
         input.parse_nested_block(|input| {
-          Ok(Filter::Saturate(input.try_parse(NumberOrPercentage::parse).unwrap_or(NumberOrPercentage::Number(1.0))))
+          Ok(Filter::Saturate(input.try_parse(NonNegative::<NumberOrPercentage>::parse).unwrap_or(NonNegative(NumberOrPercentage::Number(1.0)))))
         })
       },
       "sepia" => {
         input.parse_nested_block(|input| {
-          Ok(Filter::Sepia(input.try_parse(NumberOrPercentage::parse).unwrap_or(NumberOrPercentage::Number(1.0))))
+          Ok(Filter::Sepia(input.try_parse(NonNegative::<NumberOrPercentage>::parse).unwrap_or(NonNegative(NumberOrPercentage::Number(1.0)))))
         })
       },
       "drop-shadow" => {
@@ -123,14 +124,14 @@ impl<'i> ToCss for Filter<'i> {
     match self {
       Filter::Blur(val) => {
         dest.write_str("blur(")?;
-        if *val != Length::zero() {
+        if *val != NonNegative::zero() {
           val.to_css(dest)?;
         }
         dest.write_char(')')
       }
       Filter::Brightness(val) => {
         dest.write_str("brightness(")?;
-        let v: f32 = val.into();
+        let v: f32 = (&val.0).into();
         if v != 1.0 {
           val.to_css(dest)?;
         }
@@ -138,7 +139,7 @@ impl<'i> ToCss for Filter<'i> {
       }
       Filter::Contrast(val) => {
         dest.write_str("contrast(")?;
-        let v: f32 = val.into();
+        let v: f32 = (&val.0).into();
         if v != 1.0 {
           val.to_css(dest)?;
         }
@@ -146,7 +147,7 @@ impl<'i> ToCss for Filter<'i> {
       }
       Filter::Grayscale(val) => {
         dest.write_str("grayscale(")?;
-        let v: f32 = val.into();
+        let v: f32 = (&val.0).into();
         if v != 1.0 {
           val.to_css(dest)?;
         }
@@ -161,7 +162,7 @@ impl<'i> ToCss for Filter<'i> {
       }
       Filter::Invert(val) => {
         dest.write_str("invert(")?;
-        let v: f32 = val.into();
+        let v: f32 = (&val.0).into();
         if v != 1.0 {
           val.to_css(dest)?;
         }
@@ -169,7 +170,7 @@ impl<'i> ToCss for Filter<'i> {
       }
       Filter::Opacity(val) => {
         dest.write_str("opacity(")?;
-        let v: f32 = val.into();
+        let v: f32 = (&val.0).into();
         if v != 1.0 {
           val.to_css(dest)?;
         }
@@ -177,7 +178,7 @@ impl<'i> ToCss for Filter<'i> {
       }
       Filter::Saturate(val) => {
         dest.write_str("saturate(")?;
-        let v: f32 = val.into();
+        let v: f32 = (&val.0).into();
         if v != 1.0 {
           val.to_css(dest)?;
         }
@@ -185,7 +186,7 @@ impl<'i> ToCss for Filter<'i> {
       }
       Filter::Sepia(val) => {
         dest.write_str("sepia(")?;
-        let v: f32 = val.into();
+        let v: f32 = (&val.0).into();
         if v != 1.0 {
           val.to_css(dest)?;
         }
@@ -234,7 +235,7 @@ pub struct DropShadow {
   /// The y offset of the drop shadow.
   pub y_offset: Length,
   /// The blur radius of the drop shadow.
-  pub blur: Length,
+  pub blur: NonNegative<Length>,
 }
 
 impl<'i> Parse<'i> for DropShadow {
@@ -247,7 +248,7 @@ impl<'i> Parse<'i> for DropShadow {
         let value = input.try_parse::<_, _, ParseError<ParserError<'i>>>(|input| {
           let horizontal = Length::parse(input)?;
           let vertical = Length::parse(input)?;
-          let blur = input.try_parse(Length::parse).unwrap_or(Length::zero());
+          let blur = input.try_parse(NonNegative::<Length>::parse).unwrap_or(NonNegative::zero());
           Ok((horizontal, vertical, blur))
         });
 
@@ -286,7 +287,7 @@ impl ToCss for DropShadow {
     dest.write_char(' ')?;
     self.y_offset.to_css(dest)?;
 
-    if self.blur != Length::zero() {
+    if self.blur != NonNegative::zero() {
       dest.write_char(' ')?;
       self.blur.to_css(dest)?;
     }

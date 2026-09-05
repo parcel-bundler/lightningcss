@@ -27,7 +27,7 @@
 //! use smallvec::smallvec;
 //! use lightningcss::{
 //!   properties::{Property, PropertyId, background::*},
-//!   values::{url::Url, image::Image, color::{CssColor, RGBA}, position::*, length::*},
+//!   values::{number::NonNegative, url::Url, image::Image, color::{CssColor, RGBA}, position::*, length::*},
 //!   stylesheet::{ParserOptions, PrinterOptions},
 //!   dependencies::Location,
 //! };
@@ -60,8 +60,8 @@
 //!       y: BackgroundRepeatKeyword::Repeat,
 //!     },
 //!     size: BackgroundSize::Explicit {
-//!       width: LengthPercentageOrAuto::LengthPercentage(LengthPercentage::px(50.0)),
-//!       height: LengthPercentageOrAuto::LengthPercentage(LengthPercentage::px(100.0)),
+//!       width: NonNegative(LengthPercentageOrAuto::LengthPercentage(LengthPercentage::px(50.0))),
+//!       height: NonNegative(LengthPercentageOrAuto::LengthPercentage(LengthPercentage::px(100.0))),
 //!     },
 //!     attachment: BackgroundAttachment::Fixed,
 //!     origin: BackgroundOrigin::PaddingBox,
@@ -129,7 +129,7 @@ use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
 use crate::targets::Targets;
 use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
-use crate::values::number::{CSSInteger, CSSNumber};
+use crate::values::number::{CSSInteger, CSSNumber, NonNegative};
 use crate::values::string::CowArcStr;
 use crate::values::{
   alpha::*, color::*, easing::EasingFunction, ident::DashedIdentReference, ident::NoneOrCustomIdentList, image::*,
@@ -1252,7 +1252,7 @@ define_properties! {
   "inset-inline": InsetInline(InsetInline) shorthand: true,
   "inset": Inset(Inset) shorthand: true,
 
-  "border-spacing": BorderSpacing(Size2D<Length>),
+  "border-spacing": BorderSpacing(Size2D<NonNegative<Length>>),
 
   "border-top-color": BorderTopColor(CssColor) [logical_group: BorderColor, category: Physical],
   "border-bottom-color": BorderBottomColor(CssColor) [logical_group: BorderColor, category: Physical],
@@ -1281,18 +1281,18 @@ define_properties! {
   "border-inline-start-width": BorderInlineStartWidth(BorderSideWidth) [logical_group: BorderWidth, category: Logical],
   "border-inline-end-width": BorderInlineEndWidth(BorderSideWidth) [logical_group: BorderWidth, category: Logical],
 
-  "border-top-left-radius": BorderTopLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
-  "border-top-right-radius": BorderTopRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
-  "border-bottom-left-radius": BorderBottomLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
-  "border-bottom-right-radius": BorderBottomRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
-  "border-start-start-radius": BorderStartStartRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
-  "border-start-end-radius": BorderStartEndRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
-  "border-end-start-radius": BorderEndStartRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
-  "border-end-end-radius": BorderEndEndRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
+  "border-top-left-radius": BorderTopLeftRadius(Size2D<NonNegative<LengthPercentage>>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-top-right-radius": BorderTopRightRadius(Size2D<NonNegative<LengthPercentage>>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-bottom-left-radius": BorderBottomLeftRadius(Size2D<NonNegative<LengthPercentage>>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-bottom-right-radius": BorderBottomRightRadius(Size2D<NonNegative<LengthPercentage>>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-start-start-radius": BorderStartStartRadius(Size2D<NonNegative<LengthPercentage>>) [logical_group: BorderRadius, category: Logical],
+  "border-start-end-radius": BorderStartEndRadius(Size2D<NonNegative<LengthPercentage>>) [logical_group: BorderRadius, category: Logical],
+  "border-end-start-radius": BorderEndStartRadius(Size2D<NonNegative<LengthPercentage>>) [logical_group: BorderRadius, category: Logical],
+  "border-end-end-radius": BorderEndEndRadius(Size2D<NonNegative<LengthPercentage>>) [logical_group: BorderRadius, category: Logical],
   "border-radius": BorderRadius(BorderRadius, VendorPrefix) / WebKit / Moz shorthand: true,
 
   "border-image-source": BorderImageSource(Image<'i>),
-  "border-image-outset": BorderImageOutset(Rect<LengthOrNumber>),
+  "border-image-outset": BorderImageOutset(Rect<NonNegative<LengthOrNumber>>),
   "border-image-repeat": BorderImageRepeat(BorderImageRepeat),
   "border-image-width": BorderImageWidth(Rect<BorderImageSideWidth>),
   "border-image-slice": BorderImageSlice(BorderImageSlice),
@@ -1331,9 +1331,9 @@ define_properties! {
   "flex-direction": FlexDirection(FlexDirection, VendorPrefix) / WebKit / Ms,
   "flex-wrap": FlexWrap(FlexWrap, VendorPrefix) / WebKit / Ms,
   "flex-flow": FlexFlow(FlexFlow, VendorPrefix) / WebKit / Ms shorthand: true,
-  "flex-grow": FlexGrow(CSSNumber, VendorPrefix) / WebKit,
-  "flex-shrink": FlexShrink(CSSNumber, VendorPrefix) / WebKit,
-  "flex-basis": FlexBasis(LengthPercentageOrAuto, VendorPrefix) / WebKit,
+  "flex-grow": FlexGrow(NonNegative<CSSNumber>, VendorPrefix) / WebKit,
+  "flex-shrink": FlexShrink(NonNegative<CSSNumber>, VendorPrefix) / WebKit,
+  "flex-basis": FlexBasis(NonNegative<LengthPercentageOrAuto>, VendorPrefix) / WebKit,
   "flex": Flex(Flex, VendorPrefix) / WebKit / Ms shorthand: true,
   "order": Order(CSSInteger, VendorPrefix) / WebKit,
 
@@ -1356,7 +1356,7 @@ define_properties! {
   "box-direction": BoxDirection(BoxDirection, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-ordinal-group": BoxOrdinalGroup(CSSInteger, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-align": BoxAlign(BoxAlign, VendorPrefix) / WebKit / Moz unprefixed: false,
-  "box-flex": BoxFlex(CSSNumber, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-flex": BoxFlex(NonNegative<CSSNumber>, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-flex-group": BoxFlexGroup(CSSInteger, VendorPrefix) / WebKit unprefixed: false,
   "box-pack": BoxPack(BoxPack, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-lines": BoxLines(BoxLines, VendorPrefix) / WebKit / Moz unprefixed: false,
@@ -1369,9 +1369,9 @@ define_properties! {
   "flex-line-pack": FlexLinePack(FlexLinePack, VendorPrefix) / Ms unprefixed: false,
 
   // Microsoft extensions
-  "flex-positive": FlexPositive(CSSNumber, VendorPrefix) / Ms unprefixed: false,
-  "flex-negative": FlexNegative(CSSNumber, VendorPrefix) / Ms unprefixed: false,
-  "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / Ms unprefixed: false,
+  "flex-positive": FlexPositive(NonNegative<CSSNumber>, VendorPrefix) / Ms unprefixed: false,
+  "flex-negative": FlexNegative(NonNegative<CSSNumber>, VendorPrefix) / Ms unprefixed: false,
+  "flex-preferred-size": FlexPreferredSize(NonNegative<LengthPercentageOrAuto>, VendorPrefix) / Ms unprefixed: false,
 
   "grid-template-columns": GridTemplateColumns(TrackSizing<'i>),
   "grid-template-rows": GridTemplateRows(TrackSizing<'i>),
@@ -1401,14 +1401,14 @@ define_properties! {
   "margin-inline": MarginInline(MarginInline) shorthand: true,
   "margin": Margin(Margin) shorthand: true,
 
-  "padding-top": PaddingTop(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
-  "padding-bottom": PaddingBottom(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
-  "padding-left": PaddingLeft(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
-  "padding-right": PaddingRight(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
-  "padding-block-start": PaddingBlockStart(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
-  "padding-block-end": PaddingBlockEnd(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
-  "padding-inline-start": PaddingInlineStart(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
-  "padding-inline-end": PaddingInlineEnd(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
+  "padding-top": PaddingTop(NonNegative<LengthPercentage>) [logical_group: Padding, category: Physical],
+  "padding-bottom": PaddingBottom(NonNegative<LengthPercentage>) [logical_group: Padding, category: Physical],
+  "padding-left": PaddingLeft(NonNegative<LengthPercentage>) [logical_group: Padding, category: Physical],
+  "padding-right": PaddingRight(NonNegative<LengthPercentage>) [logical_group: Padding, category: Physical],
+  "padding-block-start": PaddingBlockStart(NonNegative<LengthPercentage>) [logical_group: Padding, category: Logical],
+  "padding-block-end": PaddingBlockEnd(NonNegative<LengthPercentage>) [logical_group: Padding, category: Logical],
+  "padding-inline-start": PaddingInlineStart(NonNegative<LengthPercentage>) [logical_group: Padding, category: Logical],
+  "padding-inline-end": PaddingInlineEnd(NonNegative<LengthPercentage>) [logical_group: Padding, category: Logical],
   "padding-block": PaddingBlock(PaddingBlock) shorthand: true,
   "padding-inline": PaddingInline(PaddingInline) shorthand: true,
   "padding": Padding(Padding) shorthand: true,
@@ -1425,14 +1425,14 @@ define_properties! {
   "scroll-margin-inline": ScrollMarginInline(ScrollMarginInline) shorthand: true,
   "scroll-margin": ScrollMargin(ScrollMargin) shorthand: true,
 
-  "scroll-padding-top": ScrollPaddingTop(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
-  "scroll-padding-bottom": ScrollPaddingBottom(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
-  "scroll-padding-left": ScrollPaddingLeft(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
-  "scroll-padding-right": ScrollPaddingRight(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
-  "scroll-padding-block-start": ScrollPaddingBlockStart(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
-  "scroll-padding-block-end": ScrollPaddingBlockEnd(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
-  "scroll-padding-inline-start": ScrollPaddingInlineStart(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
-  "scroll-padding-inline-end": ScrollPaddingInlineEnd(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-top": ScrollPaddingTop(NonNegative<LengthPercentageOrAuto>) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-bottom": ScrollPaddingBottom(NonNegative<LengthPercentageOrAuto>) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-left": ScrollPaddingLeft(NonNegative<LengthPercentageOrAuto>) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-right": ScrollPaddingRight(NonNegative<LengthPercentageOrAuto>) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-block-start": ScrollPaddingBlockStart(NonNegative<LengthPercentageOrAuto>) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-block-end": ScrollPaddingBlockEnd(NonNegative<LengthPercentageOrAuto>) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-inline-start": ScrollPaddingInlineStart(NonNegative<LengthPercentageOrAuto>) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-inline-end": ScrollPaddingInlineEnd(NonNegative<LengthPercentageOrAuto>) [logical_group: ScrollPadding, category: Logical],
   "scroll-padding-block": ScrollPaddingBlock(ScrollPaddingBlock) shorthand: true,
   "scroll-padding-inline": ScrollPaddingInline(ScrollPaddingInline) shorthand: true,
   "scroll-padding": ScrollPadding(ScrollPadding) shorthand: true,
@@ -1449,13 +1449,13 @@ define_properties! {
   "font-palette": FontPalette(DashedIdentReference<'i>),
 
   "transition-property": TransitionProperty(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms,
-  "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,
+  "transition-duration": TransitionDuration(SmallVec<[NonNegative<Time>; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-delay": TransitionDelay(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-timing-function": TransitionTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition": Transition(SmallVec<[Transition<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms shorthand: true,
 
   "animation-name": AnimationName(AnimationNameList<'i>, VendorPrefix) / WebKit / Moz / O,
-  "animation-duration": AnimationDuration(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / O,
+  "animation-duration": AnimationDuration(SmallVec<[NonNegative<Time>; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-timing-function": AnimationTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-iteration-count": AnimationIterationCount(SmallVec<[AnimationIterationCount; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-direction": AnimationDirection(SmallVec<[AnimationDirection; 1]>, VendorPrefix) / WebKit / Moz / O,
@@ -1484,7 +1484,7 @@ define_properties! {
   // https://www.w3.org/TR/2021/CRD-css-text-3-20210422
   "text-transform": TextTransform(TextTransform),
   "white-space": WhiteSpace(WhiteSpace),
-  "tab-size": TabSize(LengthOrNumber, VendorPrefix) / Moz / O,
+  "tab-size": TabSize(NonNegative<LengthOrNumber>, VendorPrefix) / Moz / O,
   "word-break": WordBreak(WordBreak),
   "line-break": LineBreak(LineBreak),
   "hyphens": Hyphens(Hyphens, VendorPrefix) / WebKit / Moz / Ms,
@@ -1546,7 +1546,7 @@ define_properties! {
   "fill-opacity": FillOpacity(AlphaValue),
   "stroke": Stroke(SVGPaint<'i>),
   "stroke-opacity": StrokeOpacity(AlphaValue),
-  "stroke-width": StrokeWidth(LengthPercentage),
+  "stroke-width": StrokeWidth(NonNegative<LengthPercentage>),
   "stroke-linecap": StrokeLinecap(StrokeLinecap),
   "stroke-linejoin": StrokeLinejoin(StrokeLinejoin),
   "stroke-miterlimit": StrokeMiterlimit(CSSNumber),
@@ -1582,7 +1582,7 @@ define_properties! {
   "mask-border-mode": MaskBorderMode(MaskBorderMode),
   "mask-border-slice": MaskBorderSlice(BorderImageSlice),
   "mask-border-width": MaskBorderWidth(Rect<BorderImageSideWidth>),
-  "mask-border-outset": MaskBorderOutset(Rect<LengthOrNumber>),
+  "mask-border-outset": MaskBorderOutset(Rect<NonNegative<LengthOrNumber>>),
   "mask-border-repeat": MaskBorderRepeat(BorderImageRepeat),
   "mask-border": MaskBorder(MaskBorder<'i>) shorthand: true,
 
@@ -1593,7 +1593,7 @@ define_properties! {
   "mask-box-image-source": WebKitMaskBoxImageSource(Image<'i>, VendorPrefix) / WebKit unprefixed: false,
   "mask-box-image-slice": WebKitMaskBoxImageSlice(BorderImageSlice, VendorPrefix) / WebKit unprefixed: false,
   "mask-box-image-width": WebKitMaskBoxImageWidth(Rect<BorderImageSideWidth>, VendorPrefix) / WebKit unprefixed: false,
-  "mask-box-image-outset": WebKitMaskBoxImageOutset(Rect<LengthOrNumber>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-outset": WebKitMaskBoxImageOutset(Rect<NonNegative<LengthOrNumber>>, VendorPrefix) / WebKit unprefixed: false,
   "mask-box-image-repeat": WebKitMaskBoxImageRepeat(BorderImageRepeat, VendorPrefix) / WebKit unprefixed: false,
 
   // https://drafts.fxtf.org/filter-effects-1/

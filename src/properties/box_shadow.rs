@@ -11,6 +11,7 @@ use crate::targets::Browsers;
 use crate::traits::{IsCompatible, Parse, PropertyHandler, ToCss, Zero};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::Length;
+use crate::values::number::NonNegative;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -35,7 +36,7 @@ pub struct BoxShadow {
   /// The y offset of the shadow.
   pub y_offset: Length,
   /// The blur radius of the shadow.
-  pub blur: Length,
+  pub blur: NonNegative<Length>,
   /// The spread distance of the shadow.
   pub spread: Length,
   /// Whether the shadow is inset within the box.
@@ -60,9 +61,14 @@ impl<'i> Parse<'i> for BoxShadow {
         let value = input.try_parse::<_, _, ParseError<ParserError<'i>>>(|input| {
           let horizontal = Length::parse(input)?;
           let vertical = Length::parse(input)?;
-          let blur = input.try_parse(Length::parse).unwrap_or(Length::zero());
-          let spread = input.try_parse(Length::parse).unwrap_or(Length::zero());
-          Ok((horizontal, vertical, blur, spread))
+          let blur = input.try_parse(NonNegative::<Length>::parse).ok();
+          // A rejected blur radius must not be reinterpreted as a spread.
+          let spread = if blur.is_some() {
+            input.try_parse(Length::parse).unwrap_or(Length::zero())
+          } else {
+            Length::zero()
+          };
+          Ok((horizontal, vertical, blur.unwrap_or(NonNegative::zero()), spread))
         });
 
         if let Ok(value) = value {
@@ -106,7 +112,7 @@ impl ToCss for BoxShadow {
     dest.write_char(' ')?;
     self.y_offset.to_css(dest)?;
 
-    if self.blur != Length::zero() || self.spread != Length::zero() {
+    if self.blur != NonNegative::zero() || self.spread != Length::zero() {
       dest.write_char(' ')?;
       self.blur.to_css(dest)?;
 
