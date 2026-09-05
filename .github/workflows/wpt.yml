@@ -15,7 +15,6 @@ jobs:
     timeout-minutes: 30
     env:
       CARGO_TERM_COLOR: always
-      WPT_CHECKOUT: ${{ runner.temp }}/lightningcss-wpt
       # This workflow runs the parser/transform matrix without a browser.
       PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
     steps:
@@ -34,6 +33,8 @@ jobs:
 
       - name: Clone pinned WPT revision
         run: |
+          WPT_CHECKOUT="$RUNNER_TEMP/lightningcss-wpt"
+          echo "WPT_CHECKOUT=$WPT_CHECKOUT" >> "$GITHUB_ENV"
           wpt_repository=$(node -p 'require("./wpt/revision.json").repository')
           wpt_revision=$(node -p 'require("./wpt/revision.json").commit')
           git clone --depth 1 --filter=blob:none --sparse "$wpt_repository" "$WPT_CHECKOUT"
