@@ -11,7 +11,7 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, TokenOrValue, VendorPrefix};
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::ident::DashedIdent;
-use crate::values::number::CSSNumber;
+use crate::values::number::{CSSNumber, NonNegative};
 use crate::values::percentage::Percentage;
 use crate::values::size::Size2D;
 use crate::values::string::CSSString;
@@ -100,14 +100,14 @@ pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum AnimationIterationCount {
   /// The animation will repeat the specified number of times.
-  Number(CSSNumber),
+  Number(NonNegative<CSSNumber>),
   /// The animation will repeat forever.
   Infinite,
 }
 
 impl Default for AnimationIterationCount {
   fn default() -> Self {
-    AnimationIterationCount::Number(1.0)
+    AnimationIterationCount::Number(NonNegative(1.0))
   }
 }
 
@@ -588,7 +588,7 @@ define_list_shorthand! {
     #[cfg_attr(feature = "serde", serde(borrow))]
     name: AnimationName(AnimationName<'i>, VendorPrefix),
     /// The animation duration.
-    duration: AnimationDuration(Time, VendorPrefix),
+    duration: AnimationDuration(NonNegative<Time>, VendorPrefix),
     /// The easing function for the animation.
     timing_function: AnimationTimingFunction(EasingFunction, VendorPrefix),
     /// The number of times the animation will run.
@@ -619,9 +619,9 @@ impl<'i> Parse<'i> for Animation<'i> {
     let mut timeline = None;
 
     macro_rules! parse_prop {
-      ($var: ident, $type: ident) => {
+      ($var: ident, $type: ty) => {
         if $var.is_none() {
-          if let Ok(value) = input.try_parse($type::parse) {
+          if let Ok(value) = input.try_parse(<$type>::parse) {
             $var = Some(value);
             continue;
           }
@@ -630,9 +630,12 @@ impl<'i> Parse<'i> for Animation<'i> {
     }
 
     loop {
-      parse_prop!(duration, Time);
+      parse_prop!(duration, NonNegative<Time>);
       parse_prop!(timing_function, EasingFunction);
-      parse_prop!(delay, Time);
+      // The first time must be a duration, even if it is invalid.
+      if duration.is_some() {
+        parse_prop!(delay, Time);
+      }
       parse_prop!(iteration_count, AnimationIterationCount);
       parse_prop!(direction, AnimationDirection);
       parse_prop!(fill_mode, AnimationFillMode);
@@ -644,9 +647,9 @@ impl<'i> Parse<'i> for Animation<'i> {
 
     Ok(Animation {
       name: name.unwrap_or(AnimationName::None),
-      duration: duration.unwrap_or(Time::Seconds(0.0)),
+      duration: duration.unwrap_or(NonNegative(Time::Seconds(0.0))),
       timing_function: timing_function.unwrap_or(EasingFunction::Ease),
-      iteration_count: iteration_count.unwrap_or(AnimationIterationCount::Number(1.0)),
+      iteration_count: iteration_count.unwrap_or(AnimationIterationCount::Number(NonNegative(1.0))),
       direction: direction.unwrap_or(AnimationDirection::Normal),
       play_state: play_state.unwrap_or(AnimationPlayState::Running),
       delay: delay.unwrap_or(Time::Seconds(0.0)),
@@ -722,7 +725,7 @@ pub type AnimationList<'i> = SmallVec<[Animation<'i>; 1]>;
 #[derive(Default)]
 pub(crate) struct AnimationHandler<'i> {
   names: Option<(SmallVec<[AnimationName<'i>; 1]>, VendorPrefix)>,
-  durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
+  durations: Option<(SmallVec<[NonNegative<Time>; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
   iteration_counts: Option<(SmallVec<[AnimationIterationCount; 1]>, VendorPrefix)>,
   directions: Option<(SmallVec<[AnimationDirection; 1]>, VendorPrefix)>,

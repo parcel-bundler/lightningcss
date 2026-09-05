@@ -15,6 +15,7 @@ use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorth
 use crate::values::calc::{Calc, MathFunction};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::{Length, LengthPercentage, LengthValue};
+use crate::values::number::NonNegative;
 use crate::values::percentage::Percentage;
 use crate::values::string::CSSString;
 use crate::vendor_prefix::VendorPrefix;
@@ -458,7 +459,7 @@ pub enum TextSizeAdjust {
   /// No size adjustment when displaying on a small device.
   None,
   /// When displaying on a small device, the font size is multiplied by this percentage.
-  Percentage(Percentage),
+  Percentage(NonNegative<Percentage>),
 }
 
 bitflags! {
@@ -1373,9 +1374,9 @@ pub struct TextShadow {
   /// The y offset of the text shadow.
   pub y_offset: Length,
   /// The blur radius of the text shadow.
-  pub blur: Length,
+  pub blur: NonNegative<Length>,
   /// The spread distance of the text shadow.
-  pub spread: Length, // added in Level 4 spec
+  pub spread: NonNegative<Length>, // added in Level 4 spec
 }
 
 impl<'i> Parse<'i> for TextShadow {
@@ -1388,9 +1389,14 @@ impl<'i> Parse<'i> for TextShadow {
         let value = input.try_parse::<_, _, ParseError<ParserError<'i>>>(|input| {
           let horizontal = Length::parse(input)?;
           let vertical = Length::parse(input)?;
-          let blur = input.try_parse(Length::parse).unwrap_or(Length::zero());
-          let spread = input.try_parse(Length::parse).unwrap_or(Length::zero());
-          Ok((horizontal, vertical, blur, spread))
+          let blur = input.try_parse(NonNegative::<Length>::parse).ok();
+          // A rejected blur radius must not be reinterpreted as a spread.
+          let spread = if blur.is_some() {
+            input.try_parse(NonNegative::<Length>::parse).unwrap_or(NonNegative::zero())
+          } else {
+            NonNegative::zero()
+          };
+          Ok((horizontal, vertical, blur.unwrap_or(NonNegative::zero()), spread))
         });
 
         if let Ok(value) = value {
@@ -1429,11 +1435,11 @@ impl ToCss for TextShadow {
     dest.write_char(' ')?;
     self.y_offset.to_css(dest)?;
 
-    if self.blur != Length::zero() || self.spread != Length::zero() {
+    if self.blur != NonNegative::zero() || self.spread != NonNegative::zero() {
       dest.write_char(' ')?;
       self.blur.to_css(dest)?;
 
-      if self.spread != Length::zero() {
+      if self.spread != NonNegative::zero() {
         dest.write_char(' ')?;
         self.spread.to_css(dest)?;
       }

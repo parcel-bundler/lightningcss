@@ -16,6 +16,7 @@ use crate::targets::Targets;
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::*;
+use crate::values::number::NonNegative;
 use crate::values::rect::Rect;
 use crate::values::size::Size2D;
 #[cfg(feature = "visitor")]
@@ -40,7 +41,7 @@ pub enum BorderSideWidth {
   /// A UA defined `thick` value.
   Thick,
   /// An explicit width.
-  Length(Length),
+  Length(NonNegative<Length>),
 }
 
 impl Default for BorderSideWidth {
