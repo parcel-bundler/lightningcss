@@ -59,8 +59,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wpt-report
-          path: |
-            wpt/results.html
-            wpt/results.json
+          path: wpt/results.html
           if-no-files-found: warn
+          compression: 'none'
           retention-days: 14
