@@ -1,0 +1,65 @@
+name: WPT diagnostics
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wpt:
+    name: WPT diagnostics (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 30
+    env:
+      CARGO_TERM_COLOR: always
+      WPT_CHECKOUT: ${{ runner.temp }}/lightningcss-wpt
+      # This workflow runs the parser/transform matrix without a browser.
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Clone pinned WPT revision
+        run: |
+          wpt_repository=$(node -p 'require("./wpt/revision.json").repository')
+          wpt_revision=$(node -p 'require("./wpt/revision.json").commit')
+          git clone --depth 1 --filter=blob:none --sparse "$wpt_repository" "$WPT_CHECKOUT"
+          git -C "$WPT_CHECKOUT" fetch --depth 1 origin "$wpt_revision"
+          git -C "$WPT_CHECKOUT" checkout --detach "$wpt_revision"
+          git -C "$WPT_CHECKOUT" sparse-checkout set css
+
+      - name: Extract full corpus
+        run: node wpt/extract.mjs "$WPT_CHECKOUT" --discovery --output wpt/fixtures.json
+
+      - name: Run WPT tests
+        run: yarn test:wpt
+
+      # The harness deliberately exits nonzero for existing findings. Retain
+      # that outcome, but still produce artifacts from any results it wrote.
+      - name: Generate HTML report
+        if: ${{ always() && hashFiles('wpt/results.json') != '' }}
+        run: yarn report:wpt
+
+      - name: Upload WPT report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wpt-report
+          path: |
+            wpt/results.html
+            wpt/results.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,15 +1,15 @@
-# Opt-in WPT harness
+# WPT diagnostic harness
 
-This harness adapts a subset of the Web Platform Tests to Lightning CSS. It is a diagnostic tool, not a claim of browser conformance. It is deliberately **not connected to CI** and has no accepted-failure baseline yet.
+This harness adapts a subset of the Web Platform Tests to Lightning CSS. It is a diagnostic tool, not a claim of browser conformance. It runs locally on demand and in a **non-blocking GitHub Actions workflow**. There is no accepted-failure baseline yet.
 
-The initial milestone implements property-value extraction, parser recognition, and browser checks for context-free parsing/shorthand helpers. It uses the pinned revision in `revision.json`; `fixtures.json` contains the full current extraction: 24,344 cases from 902 pages, plus records for 150 unsupported and 9 empty pages. `selection.json` retains the optional eight-file starter selection. Derived fixtures retain their upstream paths and source hashes; see `LICENSE-WPT.md`.
+The initial milestone implements property-value extraction, parser recognition, and browser checks for context-free parsing/shorthand helpers. It uses the pinned revision in `revision.json`; `fixtures.json` is generated locally or in CI and is not committed. The full current extraction contains 24,344 cases from 902 pages, plus records for 150 unsupported and 9 empty pages. `selection.json` retains the optional eight-file starter selection. Derived fixtures retain their upstream paths and source hashes; see `LICENSE-WPT.md`.
 
 ## Run
 
 Use the repository's normal Rust/Node development setup. Node 18+ is needed for the harness tests. Python 3 is needed only to regenerate fixtures. Existing Puppeteer is used for browser checks; no new dependencies are installed.
 
 ```sh
-# Parser/serializer/optimizer diagnostics, no WPT checkout or browser required.
+# After generating fixtures (see below): parser/serializer/optimizer diagnostics.
 yarn test:wpt
 
 # Include browser checks. Set this to a Chrome executable available on your OS.
@@ -37,6 +37,12 @@ Browser baseline failures, coverage gaps, contextual matches, and cases needing 
 
 The four modes are `print`, `minify`, `lower`, and `lower-minify`. `print` only parses/prints. The other modes run declaration optimization; the `lower` modes additionally target Chrome 80. `lower` prints readable output and `lower-minify` prints compact output. This target is an initial stress configuration, not a browser support claim. The browser oracle runs original and emitted CSS in the same current browser, and records that browser's version/executable. `--modes print,minify` selects a smaller matrix.
 
+## GitHub Actions
+
+`.github/workflows/wpt.yml` runs on pull requests to `master`, pushes to `master`, and manual dispatch. It clones the revision from `wpt/revision.json` into the runner's temporary directory, extracts the full corpus with `--discovery`, and runs all four parser/transform modes. Browser checks are not enabled in this workflow.
+
+The job uses `continue-on-error` so findings do not fail the overall workflow. Report generation and artifact upload run after test failures whenever results are available. Download the **wpt-report** artifact from the Actions run to get `results.html` and the underlying `results.json`; artifacts are retained for 14 days. Setup failures that produce no results remain visible in the job logs.
+
 ## Readable HTML reports
 
 ```sh
@@ -55,7 +61,7 @@ The HTML summarizes the supplied results file; it does not rerun tests or change
 
 ## Refresh or expand the corpus
 
-A checkout is only necessary for extraction. The research checkout may still be available at `/private/tmp/lightningcss-wpt-research`. For a new checkout:
+Generate `fixtures.json` before the first local run. A checkout is only necessary for extraction. The research checkout may still be available at `/private/tmp/lightningcss-wpt-research`. For a new checkout:
 
 ```sh
 git clone --depth 1 --filter=blob:none --sparse https://github.com/web-platform-tests/wpt.git /tmp/lightningcss-wpt
@@ -118,4 +124,4 @@ The broader parser-only run caught nine panics, including infinite hue values an
 3. **Next:** selector/rule/media/recovery adapters and contextual computed-value tests under WPT's server.
 4. **Later:** selected reftests with untransformed references, then a separately reviewed CI baseline and scheduled discovery.
 
-Keep the opt-in behavior until findings and assertion policy have been reviewed. The design rationale and broader scope are in `../WPT-HARNESS-RESEARCH.md`.
+Keep CI non-blocking until findings and assertion policy have been reviewed. The design rationale and broader scope are in `../WPT-HARNESS-RESEARCH.md`.
