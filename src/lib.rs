@@ -18278,6 +18278,73 @@ mod tests {
     }
   }
 
+  #[track_caller]
+  fn parse_to_rgb(input: &str) -> String {
+    use cssparser::ToCss;
+    use cssparser_color::RgbaLegacy;
+
+    let color = CssColor::parse_string(input).unwrap().to_rgb().unwrap();
+    let CssColor::RGBA(color) = color else {
+      panic!("expected RGB color: {input}");
+    };
+    RgbaLegacy::new(color.red, color.green, color.blue, color.alpha_f32()).to_css_string()
+  }
+
+  #[test]
+  fn test_color_hsl_hwb_rounding() {
+    for (input, expected) in [
+      // WPT: css/css-color/parsing/color-valid-hwb.html
+      // https://github.com/web-platform-tests/wpt/blob/17d68806f7be968ed38196f068db03fb3a5dff2a/css/css-color/parsing/color-valid-hwb.html#L46-L49
+      ("hwb(320deg 30% 40%)", "rgb(153, 77, 128)"),
+      ("hwb(350deg 30% 40%)", "rgb(153, 77, 89)"),
+      ("hwb(0deg 10% 50%)", "rgb(128, 26, 26)"),
+      ("hwb(120deg 10% 50%)", "rgb(26, 128, 26)"),
+      ("hwb(0 20% 100%)", "rgb(43, 43, 43)"),
+      ("hsl(0 50% 20%)", "rgb(77, 26, 26)"),
+      ("hsla(0, 50%, 20%, .5)", "rgba(77, 26, 26, 0.5)"),
+      ("hsl(0 100% 65%)", "rgb(255, 77, 77)"),
+      ("hsl(10 100% 50%)", "rgb(255, 43, 0)"),
+      // Mixed component types, hue normalization, and the gray boundary.
+      ("hwb(-40 30 40% / 50%)", "rgba(153, 77, 128, 0.5)"),
+      ("hwb(680 calc(20% + 10%) 40)", "rgb(153, 77, 128)"),
+      ("hwb(0 20% 80%)", "rgb(51, 51, 51)"),
+      // Values on either side of a half-integer must not be biased by an epsilon.
+      ("hwb(0 0 50)", "rgb(128, 0, 0)"),
+      ("hsl(0 60 25%)", "rgb(102, 26, 26)"),
+      ("hwb(0 0 49.999996)", "rgb(128, 0, 0)"),
+      ("hsl(0 59.999996% 25%)", "rgb(102, 26, 26)"),
+      // ("hwb(0 0 50.000004)", "rgb(128, 0, 0)"),
+      // ("hsl(0 60.000004% 25%)", "rgb(102, 26, 26)"),
+
+      // Relative colors, interpolation, and missing components share conversion paths.
+      ("hwb(from red 320 calc(20% + 10%) 40)", "rgb(153, 77, 128)"),
+      ("color-mix(in hsl, hsl(0 0% 20%), hsl(0 100% 20%))", "rgb(77, 26, 26)"),
+      ("hwb(320 30% 40% / none)", "rgba(153, 77, 128, 0)"),
+      // Representative controls for other paths to RGB.
+      ("rgb(50% 10% 30% / 50%)", "rgba(128, 26, 77, 0.5)"),
+      // ("color(srgb .49999996 0 0)", "rgb(127, 0, 0)"), // TODO：这里浏览器进度不够，解析为 color(srgb 0.5 0 0)，所以转为后应该为 rgb(128, 0, 0)
+      ("lab(50 0 0)", "rgb(119, 119, 119)"),
+      ("oklab(.5 0 0)", "rgb(99, 99, 99)"),
+    ] {
+      assert_eq!(parse_to_rgb(input), expected, "{input}");
+    }
+
+    // TODO: Fix percentage parsing precision: 60% becomes 0.6f32 * 100 = 60.000004,
+    // causing green and blue to round to 25 instead of the correct 26.
+    // for saturation in ["60%", "60.0%", "6e1%", "calc(60%)", "calc(30% + 30%)"] {
+    //   let input = format!("hsl(0 {saturation} 25%)");
+    //   assert_eq!(parse_to_rgb(&input), "rgb(102, 26, 26)", "{input}");
+    // }
+    // assert_eq!(parse_to_rgb("hsl(from red 0 60% 25%)"), "rgb(102, 26, 26)");
+    // assert_eq!(parse_to_rgb("hsl(0 60% 25% / none)"), "rgba(102, 26, 26, 0)");
+
+    // TODO: The generic Percentage parser panics on mixed percentage/number math.
+    // assert!(CssColor::parse_string("hsl(0 calc(30% + 30) 25%)").is_err());
+
+    // This invalid input should return a parse error instead.
+    assert!(CssColor::parse_string("hsl(from red 0 calc(s + 10%) 25%)").is_err());
+  }
+
   #[test]
   fn test_color() {
     minify_test(".foo { color: yellow }", ".foo{color:#ff0}");
@@ -18308,6 +18375,7 @@ mod tests {
     minify_test(".foo { color: hwb(194 50% 0%) }", ".foo{color:#80e1ff}");
     minify_test(".foo { color: hwb(194 50 0) }", ".foo{color:#80e1ff}");
     minify_test(".foo { color: hwb(194 50% 50%) }", ".foo{color:gray}");
+    minify_test(".foo { color: hwb(320deg 30% 40%) }", ".foo{color:#994d80}");
     minify_test(".foo { color: light-dark(#FFF, #FFF) }", ".foo{color:#fff}");
     // minify_test(".foo { color: ActiveText }", ".foo{color:ActiveTet}");
     minify_test(
@@ -19439,10 +19507,7 @@ mod tests {
     );
 
     // Test in image()
-    minify_test(
-      ".foo { mask: image(alpha(from red / 1))}",
-      ".foo{mask:image(red)}",
-    );
+    minify_test(".foo { mask: image(alpha(from red / 1))}", ".foo{mask:image(red)}");
 
     // Test in linear-gradient()
     minify_test(
@@ -21273,6 +21338,74 @@ mod tests {
   }
 
   #[test]
+  fn test_color_mix_hsl_hwb_precision() {
+    // The shorter arc has midpoint 350deg. HWB converts to RGB (153, 76.5, 89.25).
+    for method in ["hwb", "hwb shorter hue"] {
+      for (first, second) in [(20, 320), (320, 20)] {
+        minify_test(
+          &format!(".foo {{ color: color-mix(in {method}, hwb({first} 30% 40%), hwb({second} 30% 40%)) }}"),
+          ".foo{color:#994d59}",
+        );
+      }
+    }
+
+    for (input, expected) in [
+      // Nested mixes must retain the inner result's components and alpha.
+      (
+        "color-mix(in hwb, color-mix(in hwb, hwb(20 30% 40%), hwb(320 30% 40%)), hwb(350 30% 40%))",
+        "rgb(153, 77, 89)",
+      ),
+      (
+        "color-mix(in hsl, color-mix(in hsl, hsl(0 10 20), hsl(0 30 40)), hsl(0 20 30))",
+        "rgb(92, 61, 61)",
+      ),
+      (
+        "color-mix(in hwb, color-mix(in hwb, hwb(0 0 0 / .2), hwb(0 0 0 / .4)), hwb(0 0 0 / .3))",
+        "rgba(255, 0, 0, 0.3)",
+      ),
+      // Relative colors retain the origin's unquantized components.
+      ("hwb(from hwb(350 30% 40%) h w b)", "rgb(153, 77, 89)"),
+      ("hsl(from hsl(0 20 30) h s l)", "rgb(92, 61, 61)"),
+      ("hwb(from hwb(350 30 40) h calc(w - 30) b)", "rgb(153, 0, 26)"),
+      ("hsl(from hsl(0 20 30) h calc(s - 20) l)", "rgb(77, 77, 77)"),
+      // A missing component takes the other color's component before interpolation.
+      (
+        "color-mix(in hwb, hwb(none 30% 40% / none), hwb(350 30% 40% / .5))",
+        "rgba(153, 77, 89, 0.5)",
+      ),
+      (
+        "color-mix(in hsl, hsl(none 20 30 / none), hsl(0 20 30 / .5))",
+        "rgba(92, 61, 61, 0.5)",
+      ),
+      // Achromatic results still convert to gray.
+      (
+        "color-mix(in hwb, hwb(20 50% 50%), hwb(320 50% 50%))",
+        "rgb(128, 128, 128)",
+      ),
+      ("color-mix(in hsl, hsl(20 0 50), hsl(320 0 50))", "rgb(128, 128, 128)"),
+    ] {
+      assert_eq!(parse_to_rgb(input), expected, "{input}");
+    }
+
+    // Inspect alpha before serialization: rounding to a byte would give 77/255.
+    for input in [
+      "color-mix(in hsl, hsl(0 100 50 / .2), hsl(0 100 50 / .4))",
+      "color-mix(in hwb, hwb(0 0 0 / .2), hwb(0 0 0 / .4))",
+    ] {
+      let color = CssColor::parse_string(input).unwrap();
+      let rgb = crate::values::color::SRGB::try_from(&color).unwrap();
+      assert!((rgb.alpha - 0.3).abs() < 1e-6, "{input}");
+
+      #[cfg(feature = "serde")]
+      {
+        let json = serde_json::to_string(&color).unwrap();
+        let restored: CssColor = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored, color);
+      }
+    }
+  }
+
+  #[test]
   fn test_color_mix() {
     minify_test(
       ".foo { color: color-mix(in lab, purple 50%, plum 50%); }",
@@ -21321,7 +21454,7 @@ mod tests {
     // minify_test(".foo { color: color-mix(in hsl, color(display-p3 0 1 0) 80%, yellow); }", ".foo{color:hsl(108 100% 49.9184%) }");
     minify_test(
       ".foo { color: color-mix(in hsl, hsl(120 100% 49.898%) 80%, yellow); }",
-      ".foo{color:#33fe00}",
+      ".foo{color:#3f0}",
     );
     minify_test(
       ".foo { color: color-mix(in srgb, rgb(100% 0% 0% / 0.7) 25%, rgb(0% 100% 0% / 0.2)); }",
@@ -21437,7 +21570,7 @@ mod tests {
     );
     minify_test(
       ".foo { color: color-mix(in hsl, 25% hsl(120deg 10% 20% / .4), hsl(30deg 30% 40% / .8)) }",
-      ".foo{color:#797245b3}",
+      ".foo{color:#787245b3}",
     );
     minify_test(
       ".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4), 25% hsl(30deg 30% 40% / .8)) }",
@@ -21449,15 +21582,15 @@ mod tests {
     );
     minify_test(
       ".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4) 25%, hsl(30deg 30% 40% / .8) 75%) }",
-      ".foo{color:#797245b3}",
+      ".foo{color:#787245b3}",
     );
     minify_test(
       ".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4) 30%, hsl(30deg 30% 40% / .8) 90%) }",
-      ".foo{color:#797245b3}",
+      ".foo{color:#787245b3}",
     ); // Scale down > 100% sum.
     minify_test(
       ".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4) 12.5%, hsl(30deg 30% 40% / .8) 37.5%) }",
-      ".foo{color:#79724559}",
+      ".foo{color:#78724559}",
     ); // Scale up < 100% sum, causes alpha multiplication.
     minify_test(
       ".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4) 0%, hsl(30deg 30% 40% / .8)) }",
@@ -21672,7 +21805,7 @@ mod tests {
 
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20%), hwb(30deg 30% 40%)) }",
-      &canonicalize("rgb(147, 179, 52)"),
+      &canonicalize("rgb(147, 179, 51)"),
     );
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20%) 25%, hwb(30deg 30% 40%)) }",
@@ -21684,11 +21817,11 @@ mod tests {
     );
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20%), 25% hwb(30deg 30% 40%)) }",
-      &canonicalize("rgb(96, 191, 39)"),
+      &canonicalize("rgb(96, 191, 38)"),
     );
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20%), hwb(30deg 30% 40%) 25%) }",
-      &canonicalize("rgb(96, 191, 39)"),
+      &canonicalize("rgb(96, 191, 38)"),
     );
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20%) 25%, hwb(30deg 30% 40%) 75%) }",
@@ -21709,19 +21842,19 @@ mod tests {
 
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4), hwb(30deg 30% 40% / .8)) }",
-      &canonicalize("rgba(143, 170, 60, 0.6)"),
+      &canonicalize("rgba(142, 170, 60, 0.6)"),
     );
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4) 25%, hwb(30deg 30% 40% / .8)) }",
-      &canonicalize("rgba(160, 149, 70, 0.7)"),
+      &canonicalize("rgba(160, 149, 69, 0.7)"),
     );
     minify_test(
       ".foo { color: color-mix(in hwb, 25% hwb(120deg 10% 20% / .4), hwb(30deg 30% 40% / .8)) }",
-      &canonicalize("rgba(160, 149, 70, 0.7)"),
+      &canonicalize("rgba(160, 149, 69, 0.7)"),
     );
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20%), 25% hwb(30deg 30% 40% / .8)) }",
-      &canonicalize("rgba(95, 193, 37, 0.95)"),
+      &canonicalize("rgba(95, 193, 36, 0.95)"),
     );
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4), hwb(30deg 30% 40% / .8) 25%) }",
@@ -21729,23 +21862,29 @@ mod tests {
     );
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4) 25%, hwb(30deg 30% 40% / .8) 75%) }",
-      &canonicalize("rgba(160, 149, 70, 0.7)"),
+      &canonicalize("rgba(160, 149, 69, 0.7)"),
     );
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4) 30%, hwb(30deg 30% 40% / .8) 90%) }",
-      &canonicalize("rgba(160, 149, 70, 0.7)"),
+      &canonicalize("rgba(160, 149, 69, 0.7)"),
     ); // Scale down > 100% sum.
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4) 12.5%, hwb(30deg 30% 40% / .8) 37.5%) }",
-      &canonicalize("rgba(160, 149, 70, 0.35)"),
+      &canonicalize("rgba(160, 149, 69, 0.35)"),
     ); // Scale up < 100% sum, causes alpha multiplication.
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4) 0%, hwb(30deg 30% 40% / .8)) }",
       &canonicalize("rgba(153, 115, 77, 0.8)"),
     );
 
-    //  minify_test(".foo { color: color-mix(in hwb, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
-    //  minify_test(".foo { color: color-mix(in hwb, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    minify_test(
+      ".foo { color: color-mix(in hwb, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }",
+      &canonicalize("hwb(50deg 30% 40%)"),
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }",
+      &canonicalize("hwb(50deg 30% 40%)"),
+    );
     minify_test(
       ".foo { color: color-mix(in hwb, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }",
       &canonicalize("hwb(10deg 30% 40%)"),
@@ -21763,8 +21902,14 @@ mod tests {
       &canonicalize("hwb(350deg 30% 40%)"),
     );
 
-    //  minify_test(".foo { color: color-mix(in hwb shorter hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
-    //  minify_test(".foo { color: color-mix(in hwb shorter hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    minify_test(
+      ".foo { color: color-mix(in hwb shorter hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }",
+      &canonicalize("hwb(50deg 30% 40%)"),
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb shorter hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }",
+      &canonicalize("hwb(50deg 30% 40%)"),
+    );
     minify_test(
       ".foo { color: color-mix(in hwb shorter hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }",
       &canonicalize("hwb(10deg 30% 40%)"),
@@ -21790,22 +21935,43 @@ mod tests {
       ".foo { color: color-mix(in hwb longer hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }",
       &canonicalize("hwb(230deg 30% 40%)"),
     );
-    //  minify_test(".foo { color: color-mix(in hwb longer hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
-    //  minify_test(".foo { color: color-mix(in hwb longer hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
-    //  minify_test(".foo { color: color-mix(in hwb longer hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
-    //  minify_test(".foo { color: color-mix(in hwb longer hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
+    minify_test(
+      ".foo { color: color-mix(in hwb longer hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }",
+      &canonicalize("hwb(190deg 30% 40%)"),
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb longer hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }",
+      &canonicalize("hwb(190deg 30% 40%)"),
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb longer hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }",
+      &canonicalize("hwb(170deg 30% 40%)"),
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb longer hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }",
+      &canonicalize("hwb(170deg 30% 40%)"),
+    );
 
-    // minify_test(".foo { color: color-mix(in hwb increasing hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    minify_test(
+      ".foo { color: color-mix(in hwb increasing hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }",
+      &canonicalize("hwb(50deg 30% 40%)"),
+    );
     minify_test(
       ".foo { color: color-mix(in hwb increasing hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }",
       &canonicalize("hwb(230deg 30% 40%)"),
     );
-    // minify_test(".foo { color: color-mix(in hwb increasing hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
+    minify_test(
+      ".foo { color: color-mix(in hwb increasing hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }",
+      &canonicalize("hwb(190deg 30% 40%)"),
+    );
     minify_test(
       ".foo { color: color-mix(in hwb increasing hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }",
       &canonicalize("hwb(10deg 30% 40%)"),
     );
-    // minify_test(".foo { color: color-mix(in hwb increasing hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
+    minify_test(
+      ".foo { color: color-mix(in hwb increasing hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }",
+      &canonicalize("hwb(170deg 30% 40%)"),
+    );
     minify_test(
       ".foo { color: color-mix(in hwb increasing hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }",
       &canonicalize("hwb(350deg 30% 40%)"),
@@ -21815,24 +21981,51 @@ mod tests {
       ".foo { color: color-mix(in hwb decreasing hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }",
       &canonicalize("hwb(230deg 30% 40%)"),
     );
-    // minify_test(".foo { color: color-mix(in hwb decreasing hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    minify_test(
+      ".foo { color: color-mix(in hwb decreasing hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }",
+      &canonicalize("hwb(50deg 30% 40%)"),
+    );
     minify_test(
       ".foo { color: color-mix(in hwb decreasing hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }",
       &canonicalize("hwb(10deg 30% 40%)"),
     );
-    // minify_test(".foo { color: color-mix(in hwb decreasing hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
+    minify_test(
+      ".foo { color: color-mix(in hwb decreasing hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }",
+      &canonicalize("hwb(190deg 30% 40%)"),
+    );
     minify_test(
       ".foo { color: color-mix(in hwb decreasing hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }",
       &canonicalize("hwb(350deg 30% 40%)"),
     );
-    // minify_test(".foo { color: color-mix(in hwb decreasing hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
+    minify_test(
+      ".foo { color: color-mix(in hwb decreasing hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }",
+      &canonicalize("hwb(170deg 30% 40%)"),
+    );
 
-    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
-    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
-    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
-    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
-    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
-    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
+    minify_test(
+      ".foo { color: color-mix(in hwb specified hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }",
+      &canonicalize("hwb(50deg 30% 40%)"),
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb specified hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }",
+      &canonicalize("hwb(50deg 30% 40%)"),
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb specified hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }",
+      &canonicalize("hwb(190deg 30% 40%)"),
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb specified hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }",
+      &canonicalize("hwb(190deg 30% 40%)"),
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb specified hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }",
+      &canonicalize("hwb(170deg 30% 40%)"),
+    );
+    minify_test(
+      ".foo { color: color-mix(in hwb specified hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }",
+      &canonicalize("hwb(170deg 30% 40%)"),
+    );
 
     minify_test(
       ".foo { color: color-mix(in hwb, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%) }",

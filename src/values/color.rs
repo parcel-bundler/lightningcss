@@ -19,7 +19,7 @@ use crate::visitor::{Visit, VisitTypes, Visitor};
 use bitflags::bitflags;
 use cssparser::color::{parse_hash_color, parse_named_color};
 use cssparser::*;
-use cssparser_color::{hsl_to_rgb, AngleOrNumber, ColorParser, NumberOrPercentage};
+use cssparser_color::{AngleOrNumber, ColorParser, NumberOrPercentage};
 use std::any::TypeId;
 use std::f32::consts::PI;
 use std::fmt::Write;
@@ -47,7 +47,7 @@ pub enum CssColor {
   /// The [`currentColor`](https://www.w3.org/TR/css-color-4/#currentcolor-color) keyword.
   #[cfg_attr(feature = "serde", serde(with = "CurrentColor"))]
   CurrentColor,
-  /// An value in the RGB color space, including values parsed as hex colors, or the `rgb()`, `hsl()`, and `hwb()` functions.
+  /// An 8-bit value in the RGB color space, including values parsed as hex colors or the `rgb()` function.
   #[cfg_attr(
     feature = "serde",
     serde(serialize_with = "serialize_rgba", deserialize_with = "deserialize_rgba")
@@ -58,8 +58,10 @@ pub enum CssColor {
   LAB(Box<LABColor>),
   /// A value in a predefined color space, e.g. `display-p3`.
   Predefined(Box<PredefinedColor>),
-  /// A floating point representation of an RGB, HSL, or HWB color when it contains `none` components.
-  Float(Box<FloatColor>),
+  /// A floating point representation of an HSL or HWB color, or an RGB color with `none` components.
+  /// Performance Optimization: stored inline to avoid heap allocations when creating or cloning colors.
+  /// Avoid using Box<FloatColor>.
+  Float(FloatColor),
   /// The [`light-dark()`](https://drafts.csswg.org/css-color-5/#light-dark) function.
   #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "LightDark"))]
@@ -209,9 +211,9 @@ pub enum PredefinedColor {
   XYZd65(XYZd65),
 }
 
-/// A floating point representation of color types that
-/// are usually stored as RGBA. These are used when there
-/// are any `none` components, which are represented as NaN.
+/// A floating point representation of RGB, HSL, and HWB colors.
+/// HSL and HWB components retain their precision for interpolation and relative colors.
+/// Missing (`none`) components are represented as NaN.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
@@ -347,7 +349,7 @@ impl CssColor {
         PredefinedColor::XYZd50(xyz) => xyz.alpha,
         PredefinedColor::XYZd65(xyz) => xyz.alpha,
       },
-      CssColor::Float(float) => match &**float {
+      CssColor::Float(float) => match float {
         FloatColor::RGB(rgb) => rgb.alpha,
         FloatColor::HSL(hsl) => hsl.alpha,
         FloatColor::HWB(hwb) => hwb.alpha,
@@ -364,7 +366,7 @@ impl CssColor {
         // 128/255 ≈ 0.50196 and accumulate error in nested alpha()/color-mix() calls.
         let mut rgb = RGB::from(rgba);
         rgb.alpha = alpha;
-        CssColor::Float(Box::new(FloatColor::RGB(rgb)))
+        CssColor::Float(FloatColor::RGB(rgb))
       }
       CssColor::LAB(mut lab) => {
         match &mut *lab {
@@ -389,7 +391,7 @@ impl CssColor {
         CssColor::Predefined(predefined)
       }
       CssColor::Float(mut float) => {
-        match &mut *float {
+        match &mut float {
           FloatColor::RGB(rgb) => rgb.alpha = alpha,
           FloatColor::HSL(hsl) => hsl.alpha = alpha,
           FloatColor::HWB(hwb) => hwb.alpha = alpha,
@@ -701,7 +703,7 @@ impl ToCss for CssColor {
       CssColor::Predefined(predefined) => write_predefined(predefined, dest),
       CssColor::Float(float) => {
         // Serialize as hex.
-        let rgb = RGB::from(**float);
+        let rgb = RGB::from(*float);
         CssColor::from(rgb).to_css(dest)
       }
       CssColor::LightDark(light, dark) => {
@@ -1137,22 +1139,12 @@ fn parse_color_function<'i, 't>(
     },
     "hsl" | "hsla" => {
       parse_hsl_hwb::<HSL, _>(input, &mut parser, true, |h, s, l, a| {
-        let hsl = HSL { h, s, l, alpha: a };
-        if !h.is_nan() && !s.is_nan() && !l.is_nan() && !a.is_nan() {
-          CssColor::RGBA(hsl.into())
-        } else {
-          CssColor::Float(Box::new(FloatColor::HSL(hsl)))
-        }
+        HSL { h, s, l, alpha: a }.into()
       })
     },
     "hwb" => {
       parse_hsl_hwb::<HWB, _>(input, &mut parser, false, |h, w, b, a| {
-        let hwb = HWB { h, w, b, alpha: a };
-        if !h.is_nan() && !w.is_nan() && !b.is_nan() && !a.is_nan() {
-          CssColor::RGBA(hwb.into())
-        } else {
-          CssColor::Float(Box::new(FloatColor::HWB(hwb)))
-        }
+        HWB { h, w, b, alpha: a }.into()
       })
     },
     "rgb" | "rgba" => {
@@ -1365,7 +1357,7 @@ fn parse_predefined_relative<'i, 't>(
 }
 
 /// Parses the hsl() and hwb() functions.
-/// The results of this function are stored as floating point if there are any `none` components.
+/// Components are kept as floating point until serialization or explicit conversion to RGBA.
 #[inline]
 fn parse_hsl_hwb<'i, 't, T: TryFrom<CssColor> + ColorSpace, F: Fn(f32, f32, f32, f32) -> CssColor>(
   input: &mut Parser<'i, 't>,
@@ -1435,7 +1427,7 @@ fn parse_rgb<'i, 't>(
           )))
         }
       } else {
-        Ok(CssColor::Float(Box::new(FloatColor::RGB(RGB { r, g, b, alpha }))))
+        Ok(CssColor::Float(FloatColor::RGB(RGB { r, g, b, alpha })))
       }
     })
   })
@@ -2795,16 +2787,30 @@ impl From<SRGB> for HSL {
   }
 }
 
+/// https://drafts.csswg.org/css-color-4/#hsl-to-rgb
+/// Keep intermediate values in f64: f32 arithmetic can move an exact half-byte
+/// below the rounding boundary. HWB also needs this precision until its final
+/// white/black adjustment, so do not return an SRGB (whose fields are f32) here.
+fn hsl_to_rgb(h: f64, s: f64, l: f64) -> [f64; 3] {
+  let h = h.rem_euclid(360.0);
+  let s = s / 100.0;
+  let l = l / 100.0;
+  let a = s * l.min(1.0 - l);
+  [0.0, 8.0, 4.0].map(|n| {
+    let k = (n + h / 30.0) % 12.0;
+    l - a * (k - 3.0).min(9.0 - k).clamp(-1.0, 1.0)
+  })
+}
+
 impl From<HSL> for SRGB {
   fn from(hsl: HSL) -> SRGB {
     // https://drafts.csswg.org/css-color/#hsl-to-rgb
     let hsl = hsl.resolve_missing();
-    let h = (hsl.h - 360.0 * (hsl.h / 360.0).floor()) / 360.0;
-    let (r, g, b) = hsl_to_rgb(h, hsl.s / 100.0, hsl.l / 100.0);
+    let [r, g, b] = hsl_to_rgb(hsl.h as f64, hsl.s as f64, hsl.l as f64);
     SRGB {
-      r,
-      g,
-      b,
+      r: r as f32,
+      g: g as f32,
+      b: b as f32,
       alpha: hsl.alpha,
     }
   }
@@ -2832,12 +2838,11 @@ impl From<HWB> for SRGB {
   fn from(hwb: HWB) -> SRGB {
     // https://drafts.csswg.org/css-color/#hwb-to-rgb
     let hwb = hwb.resolve_missing();
-    let h = hwb.h;
-    let w = hwb.w / 100.0;
-    let b = hwb.b / 100.0;
+    let w = hwb.w as f64 / 100.0;
+    let b = hwb.b as f64 / 100.0;
 
     if w + b >= 1.0 {
-      let gray = w / (w + b);
+      let gray = (w / (w + b)) as f32;
       return SRGB {
         r: gray,
         g: gray,
@@ -2846,17 +2851,14 @@ impl From<HWB> for SRGB {
       };
     }
 
-    let mut rgba = SRGB::from(HSL {
-      h,
-      s: 100.0,
-      l: 50.0,
-      alpha: hwb.alpha,
-    });
+    let [red, green, blue] = hsl_to_rgb(hwb.h as f64, 100.0, 50.0);
     let x = 1.0 - w - b;
-    rgba.r = rgba.r * x + w;
-    rgba.g = rgba.g * x + w;
-    rgba.b = rgba.b * x + w;
-    rgba
+    SRGB {
+      r: (red * x + w) as f32,
+      g: (green * x + w) as f32,
+      b: (blue * x + w) as f32,
+      alpha: hwb.alpha,
+    }
   }
 }
 
@@ -3101,7 +3103,7 @@ macro_rules! color_space {
           CssColor::RGBA(rgba) => (*rgba).into(),
           CssColor::LAB(lab) => (**lab).into(),
           CssColor::Predefined(predefined) => (**predefined).into(),
-          CssColor::Float(float) => (**float).into(),
+          CssColor::Float(float) => (*float).into(),
           CssColor::CurrentColor => return Err(()),
           CssColor::LightDark(..) => return Err(()),
           CssColor::System(..) => return Err(()),
@@ -3116,7 +3118,7 @@ macro_rules! color_space {
           CssColor::RGBA(rgba) => rgba.into(),
           CssColor::LAB(lab) => (*lab).into(),
           CssColor::Predefined(predefined) => (*predefined).into(),
-          CssColor::Float(float) => (*float).into(),
+          CssColor::Float(float) => float.into(),
           CssColor::CurrentColor => return Err(()),
           CssColor::LightDark(..) => return Err(()),
           CssColor::System(..) => return Err(()),
@@ -3198,11 +3200,20 @@ macro_rules! rgb {
       }
     }
   };
+  ($t: ident, float) => {
+    impl From<$t> for CssColor {
+      fn from(color: $t) -> CssColor {
+        // Preserve HSL/HWB components and alpha for interpolation and relative colors.
+        // Converting to 8-bit RGBA here would lose precision, including in nested color-mix().
+        CssColor::Float(FloatColor::$t(color))
+      }
+    }
+  };
 }
 
 rgb!(SRGB);
-rgb!(HSL);
-rgb!(HWB);
+rgb!(HSL, float);
+rgb!(HWB, float);
 rgb!(RGB);
 
 impl From<RGBA> for CssColor {
@@ -3460,7 +3471,7 @@ impl CssColor {
         PredefinedColor::XYZd50(..) => TypeId::of::<XYZd50>(),
         PredefinedColor::XYZd65(..) => TypeId::of::<XYZd65>(),
       },
-      CssColor::Float(float) => match &**float {
+      CssColor::Float(float) => match float {
         FloatColor::RGB(..) => TypeId::of::<SRGB>(),
         FloatColor::HSL(..) => TypeId::of::<HSL>(),
         FloatColor::HWB(..) => TypeId::of::<HWB>(),
