@@ -10254,6 +10254,546 @@ mod tests {
   }
 
   #[test]
+  fn test_merge_common_custom_properties_revisit() {
+    // Adapted from cssnano's "should revisit a predecessor after replacing an adjacent pair".
+    let expected = indoc! {r#"
+      .a, .b {
+        --x: 1;
+        --color: red;
+      }
+
+      .b {
+        --background: blue;
+      }
+    "#};
+    test(
+      r#"
+      .a, .b {
+        --x: 1;
+      }
+
+      .a {
+        --color: red;
+      }
+
+      .b {
+        --color: red;
+        --background: blue;
+      }
+    "#,
+      expected,
+    );
+    // Like cssnano's convergence test, a second pass must not find another merge.
+    test(expected, expected);
+
+    // Extraction can also expose identical blocks of ordinary declarations.
+    let expected = indoc! {r#"
+      .a, .b {
+        color: red;
+      }
+
+      .b, .c {
+        --shared: long-value;
+      }
+
+      .c {
+        color: green;
+      }
+    "#};
+    test(
+      r#"
+      .a {
+        color: red;
+      }
+
+      .b {
+        --shared: long-value;
+        color: red;
+      }
+
+      .c {
+        --shared: long-value;
+        color: green;
+      }
+    "#,
+      expected,
+    );
+    test(expected, expected);
+  }
+
+  #[test]
+  fn test_merge_common_custom_properties_selector_arguments() {
+    // Extend cssnano's unknown-selector and :host regression cases to nested arguments.
+    for source in [
+      indoc! {r#"
+        .a {
+          --shared: very-long-shared-value;
+          color: red;
+        }
+
+        :host(:nonsense) {
+          --shared: very-long-shared-value;
+          color: green;
+        }
+      "#},
+      indoc! {r#"
+        .a {
+          --shared: very-long-shared-value;
+          color: red;
+        }
+
+        ::slotted(:nonsense) {
+          --shared: very-long-shared-value;
+          color: green;
+        }
+      "#},
+      indoc! {r#"
+        .a {
+          --shared: very-long-shared-value;
+          color: red;
+        }
+
+        ::cue(:nonsense) {
+          --shared: very-long-shared-value;
+          color: green;
+        }
+      "#},
+      indoc! {r#"
+        .a {
+          --shared: very-long-shared-value;
+          color: red;
+        }
+
+        ::cue(.b .c) {
+          --shared: very-long-shared-value;
+          color: green;
+        }
+      "#},
+    ] {
+      test(source, source);
+    }
+  }
+
+  #[test]
+  fn test_merge_common_custom_properties_nested_has() {
+    // Nesting inside :has() must be detected just like nesting inside :is().
+    let source = indoc! {r#"
+      .parent {
+        :has(&) {
+          --shared: very-long-shared-value;
+          color: red;
+        }
+
+        :has(&.b) {
+          --shared: very-long-shared-value;
+          color: green;
+        }
+      }
+    "#};
+    test(source, source);
+  }
+
+  // Cases adapted from cssnano/postcss-merge-rules (MIT), with declarations
+  // changed to custom properties where appropriate:
+  // The upstream fixture license is preserved in tests/cssnano/LICENSE.
+  // https://github.com/cssnano/cssnano/blob/13b2373173ce49c78b8a2015d8c3f6b025ccfc3e/packages/postcss-merge-rules/test/index.js
+  #[test]
+  fn test_merge_common_custom_properties_cssnano() {
+    // Different declaration order (cssnano test/index.js:40).
+    test(
+      r#"
+      h1 {
+        --color: red;
+        --line-height: 1.5;
+        --font-size: 2em;
+      }
+
+      h2 {
+        --font-size: 2em;
+        --color: red;
+        --line-height: 1.5;
+      }
+    "#,
+      indoc! {r#"
+      h1, h2 {
+        --color: red;
+        --line-height: 1.5;
+        --font-size: 2em;
+      }
+    "#},
+    );
+
+    // Partial merging across three rules (cssnano test/index.js:194).
+    test(
+      r#"
+      h1 {
+        --color: red;
+        --text-decoration: underline;
+      }
+
+      h2 {
+        --text-decoration: underline;
+        --color: green;
+      }
+
+      h3 {
+        --font-weight: bold;
+        --color: green;
+      }
+    "#,
+      indoc! {r#"
+      h1 {
+        --color: red;
+      }
+
+      h1, h2 {
+        --text-decoration: underline;
+      }
+
+      h2, h3 {
+        --color: green;
+      }
+
+      h3 {
+        --font-weight: bold;
+      }
+    "#},
+    );
+
+    // The middle rule becomes empty (cssnano test/index.js:226).
+    test(
+      r#"
+      .test-1 {
+        --margin-top: 10px;
+        --margin-bottom: 20px;
+      }
+
+      .test-2 {
+        --margin-top: 10px;
+      }
+
+      .another-test {
+        --margin-top: 10px;
+        --margin-bottom: 30px;
+      }
+    "#,
+      indoc! {r#"
+      .test-1 {
+        --margin-bottom: 20px;
+      }
+
+      .test-1, .test-2, .another-test {
+        --margin-top: 10px;
+      }
+
+      .another-test {
+        --margin-bottom: 30px;
+      }
+    "#},
+    );
+
+    // Repeated declarations are already deduplicated by Lightning CSS (cssnano test/index.js:478).
+    test(
+      r#"
+      h1 {
+        --display: block;
+        --display: block;
+      }
+
+      h2 {
+        --display: block;
+        --display: block;
+      }
+    "#,
+      indoc! {r#"
+      h1, h2 {
+        --display: block;
+      }
+    "#},
+    );
+
+    // An overridden value must not be extracted (cssnano test/index.js:510).
+    test(
+      r#"
+      .a {
+        --font-family: Arial;
+        --font-family: Helvetica;
+      }
+
+      .b {
+        --font-family: Arial;
+      }
+    "#,
+      indoc! {r#"
+      .a {
+        --font-family: Helvetica;
+      }
+
+      .b {
+        --font-family: Arial;
+      }
+    "#},
+    );
+
+    // Only the final matching value survives (cssnano test/index.js:646).
+    test(
+      r#"
+      .a {
+        --margin-left: 2px;
+        color: red;
+      }
+
+      .b {
+        --margin-left: 2px;
+        --margin-left: 1px;
+        --margin-left: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .a {
+        color: red;
+      }
+
+      .a, .b {
+        --margin-left: 2px;
+      }
+    "#},
+    );
+
+    // Custom properties with related-looking names are independent (cssnano test/propertyRelations.js).
+    test(
+      r#"
+      .a {
+        --font: serif;
+        --font-size: 12px;
+        color: red;
+      }
+
+      .b {
+        --font: serif;
+        --font-size: 18px;
+        color: green;
+      }
+    "#,
+      indoc! {r#"
+      .a {
+        --font-size: 12px;
+        color: red;
+      }
+
+      .a, .b {
+        --font: serif;
+      }
+
+      .b {
+        --font-size: 18px;
+        color: green;
+      }
+    "#},
+    );
+
+    // A predecessor merge preserves normal and important overrides independently.
+    test(
+      r#"
+      .a, .b {
+        --color: black;
+        --fallback: stable;
+        --color: green !important;
+      }
+
+      .a {
+        --color: red;
+        --shared: long-value;
+      }
+
+      .b {
+        --color: red;
+        --shared: long-value;
+        --background: blue;
+      }
+    "#,
+      indoc! {r#"
+      .a, .b {
+        --color: red;
+        --fallback: stable;
+        --shared: long-value;
+        --color: green !important;
+      }
+
+      .b {
+        --background: blue;
+      }
+    "#},
+    );
+
+    // Logical and physical declarations retain their order (cssnano test/index.js:1261).
+    test(
+      r#"
+      .a {
+        --shared: long-value;
+        margin-inline-start: 1px;
+        margin-top: 2px;
+      }
+
+      .b {
+        --shared: long-value;
+        margin-inline-start: 3px;
+        margin-top: 4px;
+      }
+    "#,
+      indoc! {r#"
+      .a {
+        margin-inline-start: 1px;
+        margin-top: 2px;
+      }
+
+      .a, .b {
+        --shared: long-value;
+      }
+
+      .b {
+        margin-inline-start: 3px;
+        margin-top: 4px;
+      }
+    "#},
+    );
+
+    // A forgiving selector argument may contain unsupported selectors.
+    test(
+      r#"
+      .a {
+        --shared: very-very-long-shared-value;
+        color: red;
+      }
+
+      :is(:nonsense, .b) {
+        --shared: very-very-long-shared-value;
+        color: green;
+      }
+    "#,
+      indoc! {r#"
+      .a {
+        color: red;
+      }
+
+      .a, :is(:nonsense, .b) {
+        --shared: very-very-long-shared-value;
+      }
+
+      :is(:nonsense, .b) {
+        color: green;
+      }
+    "#},
+    );
+  }
+
+  #[test]
+  fn test_merge_common_custom_properties_cssnano_boundaries() {
+    for source in [
+      // The selector cost exceeds the saving (cssnano test/index.js:303).
+      indoc! {r#"
+      .test0 {
+        --color: red;
+        --border: none;
+        --margin: 0;
+      }
+
+      .longlonglonglong {
+        --color: green;
+        --border: none;
+        --margin: 0;
+      }
+    "#},
+      // Different container queries (cssnano test/index.js:164).
+      indoc! {r#"
+      @container (width >= 200px) {
+        .mobile {
+          --display: none;
+        }
+      }
+
+      @container (width <= 100px) {
+        .notMobile {
+          --display: none;
+        }
+      }
+    "#},
+      // Different nested contexts (cssnano test/index.js:1004).
+      indoc! {r#"
+      @media (width >= 48rem) {
+        .wrapper {
+          --display: block;
+        }
+      }
+
+      @supports (display: flex) {
+        @media (width >= 48rem) {
+          .wrapper {
+            --display: flex;
+          }
+        }
+      }
+    "#},
+      // Keyframes use a separate rule type (cssnano test/index.js:662).
+      indoc! {r#"
+      @keyframes foo {
+        0% {
+          --shared: long-value;
+          --opacity: 0;
+        }
+
+        to {
+          --shared: long-value;
+          --opacity: 1;
+        }
+      }
+    "#},
+      // Different cascade layers must not share rules.
+      indoc! {r#"
+      @layer base {
+        .a {
+          --shared: long-value;
+          color: red;
+        }
+      }
+
+      @layer theme {
+        .b {
+          --shared: long-value;
+          color: green;
+        }
+      }
+    "#},
+      // Mixed vendor pseudo selectors (cssnano test/index.js:325).
+      indoc! {r#"
+      code :-ms-placeholder-shown {
+        --shared: very-long-shared-value;
+        color: red;
+      }
+
+      code::-moz-placeholder {
+        --shared: very-long-shared-value;
+        color: green;
+      }
+    "#},
+      // Unknown and known selectors (cssnano test/index.js:878).
+      indoc! {r#"
+      p {
+        --shared: long-value;
+        color: red;
+      }
+
+      :nonsense {
+        --shared: long-value;
+        color: green;
+      }
+    "#},
+    ] {
+      test(source, source);
+    }
+  }
+
+  #[test]
   fn test_merge_rules() {
     test(
       r#"

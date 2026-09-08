@@ -982,31 +982,110 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
   }
 }
 
-fn factor_custom_properties<'i, T>(rules: Vec<CssRule<'i, T>>, targets: Targets) -> Vec<CssRule<'i, T>> {
+fn factor_custom_properties<'i, T>(mut rules: Vec<CssRule<'i, T>>, targets: Targets) -> Vec<CssRule<'i, T>> {
   if rules.len() < 2 {
     return rules;
   }
 
   let mut result = Vec::with_capacity(rules.len());
-  for mut rule in rules {
+  rules.reverse();
+  while let Some(mut rule) = rules.pop() {
     if matches!(rule, CssRule::Ignored) {
       continue;
     }
 
     if let (Some(CssRule::Style(previous)), CssRule::Style(current)) = (result.last_mut(), &mut rule) {
-      if let Some(shared) = extract_common_custom_properties(previous, current, targets) {
-        if previous.is_empty() {
-          result.pop();
-        }
-        result.push(CssRule::Style(shared));
+      if merge_after_custom_property_extraction(previous, current, targets) {
+        rules.push(result.pop().unwrap());
+        continue;
       }
-      if current.is_empty() {
+      if let Some(shared) = extract_common_custom_properties(previous, current, targets) {
+        let previous_is_empty = previous.is_empty();
+        if !current.is_empty() {
+          rules.push(rule);
+        }
+        rules.push(CssRule::Style(shared));
+        let previous = result.pop().unwrap();
+        if !previous_is_empty {
+          rules.push(previous);
+        }
+        // A rewrite can enable a merge with the predecessor. Revisit only the
+        // changed neighborhood. Every rewrite strictly reduces serialized size.
         continue;
       }
     }
     result.push(rule);
   }
   result
+}
+
+fn merge_after_custom_property_extraction<'i, T>(
+  previous: &mut StyleRule<'i, T>,
+  current: &mut StyleRule<'i, T>,
+  targets: Targets,
+) -> bool {
+  let only_custom_properties = |declarations: &DeclarationBlock<'i>| {
+    declarations.iter().all(|(property, _)| {
+      matches!(property, Property::Custom(custom) if matches!(custom.name, CustomPropertyName::Custom(_)))
+    })
+  };
+  if (previous.selectors != current.selectors && previous.declarations != current.declarations)
+    || !previous.rules.0.is_empty()
+    || !current.rules.0.is_empty()
+    || previous.loc.source_index != current.loc.source_index
+    || (previous.vendor_prefix | current.vendor_prefix).intersects(!VendorPrefix::None)
+    || previous.selectors.0.iter().any(has_nesting)
+    || current.selectors.0.iter().any(has_nesting)
+    || !previous.is_compatible(targets)
+    || !current.is_compatible(targets)
+  {
+    return false;
+  }
+
+  if previous.declarations == current.declarations {
+    if previous.selectors != current.selectors {
+      previous.selectors.0.extend(current.selectors.0.drain(..));
+    }
+    previous.vendor_prefix |= current.vendor_prefix;
+    return true;
+  }
+
+  if !(only_custom_properties(&previous.declarations) || only_custom_properties(&current.declarations)) {
+    return false;
+  }
+
+  // At least one block contains only custom properties, so ordinary properties
+  // cannot interact across the blocks. Resolve repeated custom properties within
+  // each importance level without re-running handlers that generate fallbacks.
+  for (previous, current) in [
+    (
+      &mut previous.declarations.declarations,
+      &mut current.declarations.declarations,
+    ),
+    (
+      &mut previous.declarations.important_declarations,
+      &mut current.declarations.important_declarations,
+    ),
+  ] {
+    let mut indices = HashMap::new();
+    for (index, property) in previous.iter().enumerate() {
+      if let Property::Custom(custom) = property {
+        indices.insert(custom.name.clone(), index);
+      }
+    }
+    for property in current.drain(..) {
+      if let Property::Custom(custom) = &property {
+        if let Some(index) = indices.get(&custom.name) {
+          previous[*index] = property;
+          continue;
+        }
+        indices.insert(custom.name.clone(), previous.len());
+      }
+      previous.push(property);
+    }
+  }
+  previous.vendor_prefix |= current.vendor_prefix;
+  true
 }
 
 fn extract_common_custom_properties<'i, T>(
@@ -1017,8 +1096,7 @@ fn extract_common_custom_properties<'i, T>(
   if !previous.rules.0.is_empty()
     || !current.rules.0.is_empty()
     || previous.loc.source_index != current.loc.source_index
-    || previous.vendor_prefix != current.vendor_prefix
-    || previous.vendor_prefix.intersects(!VendorPrefix::None)
+    || (previous.vendor_prefix | current.vendor_prefix).intersects(!VendorPrefix::None)
   {
     return None;
   }
@@ -1118,7 +1196,7 @@ fn extract_common_custom_properties<'i, T>(
   selectors.0.extend(current.selectors.0.iter().cloned());
   Some(StyleRule {
     selectors,
-    vendor_prefix: previous.vendor_prefix,
+    vendor_prefix: previous.vendor_prefix | current.vendor_prefix,
     declarations,
     rules: CssRuleList(vec![]),
     loc: previous.loc,

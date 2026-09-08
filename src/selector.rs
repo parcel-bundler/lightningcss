@@ -69,7 +69,15 @@ pub(crate) fn has_nesting(selector: &Selector) -> bool {
     type Impl = Selectors;
 
     fn visit_simple_selector(&mut self, component: &Component<'i>) -> bool {
-      !matches!(component, Component::Nesting)
+      match component {
+        Component::Nesting => false,
+        // SelectorVisitor does not descend into these arguments by default.
+        Component::Has(selectors) | Component::Any(_, selectors) => selectors.iter().all(|s| s.visit(self)),
+        Component::PseudoElement(
+          PseudoElement::CueFunction { selector } | PseudoElement::CueRegionFunction { selector },
+        ) => Selector::visit(selector, self),
+        _ => true,
+      }
     }
   }
 
@@ -1946,7 +1954,15 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           continue;
         }
 
-        Component::Scope | Component::Host(_) | Component::Slotted(_) => Feature::Shadowdomv1,
+        Component::Host(Some(selector)) | Component::Slotted(selector) => {
+          // These arguments are not forgiving: an unsupported selector inside
+          // the function invalidates the entire outer selector list as well.
+          if !is_compatible(std::slice::from_ref(selector), targets) {
+            return false;
+          }
+          Feature::Shadowdomv1
+        }
+        Component::Scope | Component::Host(None) => Feature::Shadowdomv1,
 
         Component::Part(_) => Feature::PartPseudo,
 
@@ -2027,7 +2043,15 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           PseudoElement::Marker => Feature::MarkerPseudo,
           PseudoElement::Backdrop(prefix) if *prefix == VendorPrefix::None => Feature::Dialog,
           PseudoElement::Cue => Feature::Cue,
-          PseudoElement::CueFunction { selector: _ } => Feature::CueFunction,
+          PseudoElement::CueFunction { selector } => {
+            if selector.has_combinator()
+              || selector.has_pseudo_element()
+              || !is_compatible(std::slice::from_ref(selector), targets)
+            {
+              return false;
+            }
+            Feature::CueFunction
+          }
           PseudoElement::ViewTransition
           | PseudoElement::ViewTransitionNew { .. }
           | PseudoElement::ViewTransitionOld { .. }
