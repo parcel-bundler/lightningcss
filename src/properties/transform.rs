@@ -1058,7 +1058,7 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
       Translate3d(x, y, z) => {
-        if dest.minify && !x.is_zero() && y.is_zero() && z.is_zero() {
+        if dest.minify && y.is_zero() && z.is_zero() {
           dest.write_str("translate(")?;
           x.to_css(dest)?;
         } else if dest.minify && x.is_zero() && !y.is_zero() && z.is_zero() {
