@@ -290,6 +290,8 @@ pub struct Printer<'a, 'c, W, S: SourceMap = ()> {
   #[cfg(feature = "custom_sourcemap")]
   pub(crate) source_maps: Vec<Option<S>>,
   #[cfg(feature = "custom_sourcemap")]
+  pub(crate) source_map_source_indices: &'c [Option<u32>],
+  #[cfg(feature = "custom_sourcemap")]
   sources_with_content: FxHashSet<u32>,
   #[cfg(not(feature = "custom_sourcemap"))]
   source_map: PhantomData<fn() -> S>,
@@ -336,6 +338,8 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
       #[cfg(feature = "custom_sourcemap")]
       source_maps: Vec::new(),
       #[cfg(feature = "custom_sourcemap")]
+      source_map_source_indices: &[],
+      #[cfg(feature = "custom_sourcemap")]
       sources_with_content: FxHashSet::default(),
       #[cfg(not(feature = "custom_sourcemap"))]
       source_map: PhantomData,
@@ -352,6 +356,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
       state: self.state,
       source_map,
       source_maps: Vec::new(),
+      source_map_source_indices: &[],
       sources_with_content: FxHashSet::default(),
     }
   }
@@ -568,7 +573,12 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
       let mut original = OriginalLocation {
         original_line: loc.line,
         original_column: loc.column - 1,
-        source: loc.source_index,
+        source: self
+          .source_map_source_indices
+          .get(loc.source_index as usize)
+          .copied()
+          .flatten()
+          .unwrap_or(loc.source_index),
         name: None,
       };
 
