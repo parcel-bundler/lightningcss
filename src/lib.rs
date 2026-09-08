@@ -2175,6 +2175,72 @@ mod tests {
 
   #[test]
   pub fn test_border_image() {
+    minify_test(
+      r#"
+      .foo {
+        border-image: none;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    test(
+      r#"
+      .foo {
+        border-image: none;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        border-image: none;
+      }
+      "#},
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image: none 100% / 1 / 0 stretch;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image-source: none;
+        border-image-slice: 100%;
+        border-image-width: 1;
+        border-image-outset: 0;
+        border-image-repeat: stretch;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        -webkit-border-image: none;
+        border-image: none !important;
+      }
+      "#,
+      ".foo{-webkit-border-image:none;border-image:none!important}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image: url(border.png) 1;
+      }
+      .foo.active {
+        border-image: none;
+      }
+      "#,
+      ".foo{border-image:url(border.png) 1}.foo.active{border-image:none}",
+    );
+
     test(
       r#"
       .foo {
@@ -27675,6 +27741,22 @@ mod tests {
       ".foo{mask:url(masks.svg#star) 0/16px repeat-y,url(masks.svg#circle) 100%/16px repeat-y}",
     );
 
+    minify_test(
+      r#"
+      .foo {
+        mask-border: none;
+      }
+      "#,
+      ".foo{mask-border:none}",
+    );
+    minify_test(
+      r#"
+      .foo {
+        -webkit-mask-box-image: none;
+      }
+      "#,
+      ".foo{-webkit-mask-box-image:none}",
+    );
     minify_test(
       ".foo { mask-border: url('border-mask.png') 25; }",
       ".foo{mask-border:url(border-mask.png) 25}",
