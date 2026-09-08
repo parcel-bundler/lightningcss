@@ -5,9 +5,14 @@ use crate::error::{ParserError, PrinterError};
 use crate::logical::PropertyCategory;
 use crate::macros::{define_shorthand, rect_shorthand, size_shorthand};
 use crate::printer::Printer;
+use crate::properties::custom::{Token, TokenOrValue};
 use crate::properties::{Property, PropertyId};
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
-use crate::values::{length::LengthPercentageOrAuto, rect::Rect, size::Size2D};
+use crate::values::{
+  length::{LengthPercentage, LengthPercentageOrAuto},
+  rect::Rect,
+  size::Size2D,
+};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -264,6 +269,22 @@ macro_rules! side_handler {
             self.has_any = true;
           }
           Unparsed(val) if matches!(val.property_id, PropertyId::$top | PropertyId::$bottom | PropertyId::$left | PropertyId::$right | PropertyId::$block_start | PropertyId::$block_end | PropertyId::$inline_start | PropertyId::$inline_end | PropertyId::$block_shorthand | PropertyId::$inline_shorthand | PropertyId::$shorthand) => {
+            // Keep the explicit zero fallback when padding is already at its initial value.
+            // Other side shorthands may have a different initial value (e.g. inset: auto).
+            if val.property_id == PropertyId::Padding
+              && self.category == PropertyCategory::Physical
+              && self.block_start.is_none() && self.block_end.is_none()
+              && self.inline_start.is_none() && self.inline_end.is_none()
+              && matches!(val.value.0.as_slice(), [TokenOrValue::Token(Token::Ident(value))] if value.eq_ignore_ascii_case("initial"))
+              && [&self.top, &self.right, &self.bottom, &self.left].iter().all(|value| {
+                value.as_ref() == Some(&LengthPercentageOrAuto::LengthPercentage(LengthPercentage::px(0.0)))
+              })
+            {
+              // Preserve the flush boundary so later declarations stay after this reset.
+              self.flush(dest, context);
+              return true;
+            }
+
             // Even if we weren't able to parse the value (e.g. due to var() references),
             // we can still add vendor prefixes to the property itself.
             match &val.property_id {
