@@ -703,7 +703,11 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         self
           .flushed_properties
           .insert(MaskProperty::try_from(&val.property_id).unwrap());
-        dest.push(Property::Unparsed(unparsed));
+        if matches!(unparsed.property_id, PropertyId::MaskImage(_)) {
+          self.push_mask_image(Property::Unparsed(unparsed), dest);
+        } else {
+          dest.push(Property::Unparsed(unparsed));
+        }
       }
       Property::MaskBorderSource(val) => property!(border_source, val, &VendorPrefix::None),
       Property::WebKitMaskBoxImageSource(val, _) => property!(border_source, val, &VendorPrefix::WebKit),
@@ -903,7 +907,7 @@ impl<'i> MaskHandler<'i> {
             if p.is_empty() {
               p = prefix;
             }
-            dest.push(Property::MaskImage(fallback, p))
+            self.push_mask_image(Property::MaskImage(fallback, p), dest)
           }
 
           let p = images
@@ -916,7 +920,7 @@ impl<'i> MaskHandler<'i> {
           }
         }
 
-        dest.push(Property::MaskImage(images, prefix));
+        self.push_mask_image(Property::MaskImage(images, prefix), dest);
         self.flushed_properties.insert(MaskProperty::MaskImage);
       }
     }
@@ -951,6 +955,47 @@ impl<'i> MaskHandler<'i> {
       dest.push(Property::MaskMode(modes));
       self.flushed_properties.insert(MaskProperty::MaskMode);
     }
+  }
+
+  fn push_mask_image(&self, property: Property<'i>, dest: &mut DeclarationList<'i>) {
+    let prefix = property.property_id().prefix();
+    for i in (0..dest.len()).rev() {
+      let adjacent = i == dest.len() - 1;
+      let previous_prefix = match (&mut dest[i], &property) {
+        (Property::MaskImage(previous, previous_prefix), Property::MaskImage(value, _)) => {
+          if previous != value {
+            continue;
+          }
+          previous_prefix
+        }
+        (Property::Unparsed(previous), Property::Unparsed(value)) => {
+          let PropertyId::MaskImage(previous_prefix) = &mut previous.property_id else {
+            break;
+          };
+          if previous.value != value.value {
+            continue;
+          }
+          previous_prefix
+        }
+        (Property::MaskImage(..), _) => continue,
+        (Property::Unparsed(previous), _) if matches!(previous.property_id, PropertyId::MaskImage(_)) => continue,
+        _ => break,
+      };
+
+      // Keep the last occurrence of each prefix in an image fallback chain.
+      // Moving a later declaration earlier could change the cascade in browsers
+      // that treat the prefixed and unprefixed properties as aliases.
+      // Preserve nonadjacent declarations if no prefixes would remain, so the
+      // first value in the fallback chain does not change on a second minify.
+      if !adjacent && (*previous_prefix - prefix).is_empty() {
+        continue;
+      }
+      previous_prefix.remove(prefix);
+      if previous_prefix.is_empty() {
+        dest.remove(i);
+      }
+    }
+    dest.push(property);
   }
 
   fn flush_mask_shorthand(
