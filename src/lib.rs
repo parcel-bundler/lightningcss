@@ -9848,6 +9848,412 @@ mod tests {
   }
 
   #[test]
+  fn test_merge_common_custom_properties() {
+    test(
+      r#"
+      html {
+        --foreground: #000;
+        --foreground-rgb: 0,0,0;
+        --background: #fff;
+      }
+
+      html[data-theme="dark"] {
+        --foreground: #000;
+        --foreground-rgb: 0,0,0;
+        --background: #222;
+      }
+      "#,
+      indoc! {r#"
+      html {
+        --background: #fff;
+      }
+
+      html, html[data-theme="dark"] {
+        --foreground: #000;
+        --foreground-rgb: 0,0,0;
+      }
+
+      html[data-theme="dark"] {
+        --background: #222;
+      }
+      "#},
+    );
+
+    // Either original rule may become empty after extraction.
+    test(
+      r#"
+      .a {
+        --shared: long-value;
+      }
+
+      .b {
+        --shared: long-value;
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      .a, .b {
+        --shared: long-value;
+      }
+
+      .b {
+        color: red;
+      }
+      "#},
+    );
+
+    test(
+      r#"
+      .a {
+        --shared: long-value;
+        color: red;
+      }
+
+      .b {
+        --shared: long-value;
+      }
+      "#,
+      indoc! {r#"
+      .a {
+        color: red;
+      }
+
+      .a, .b {
+        --shared: long-value;
+      }
+      "#},
+    );
+
+    // Shared declarations retain their importance.
+    test(
+      r#"
+      .a {
+        --shared: long-value !important;
+        color: red;
+      }
+
+      .b {
+        --shared: long-value !important;
+        color: blue;
+      }
+      "#,
+      indoc! {r#"
+      .a {
+        color: red;
+      }
+
+      .a, .b {
+        --shared: long-value !important;
+      }
+
+      .b {
+        color: #00f;
+      }
+      "#},
+    );
+
+    // Variable references do not depend on declaration order.
+    test(
+      r#"
+      .a {
+        --shared: var(--color);
+        --color: red;
+      }
+
+      .b {
+        --color: blue;
+        --shared: var(--color);
+      }
+      "#,
+      indoc! {r#"
+      .a {
+        --color: red;
+      }
+
+      .a, .b {
+        --shared: var(--color);
+      }
+
+      .b {
+        --color: blue;
+      }
+      "#},
+    );
+
+    // The all shorthand does not reset custom properties.
+    test(
+      r#"
+      .a {
+        all: initial;
+        --shared: long-value;
+      }
+
+      .b {
+        all: unset;
+        --shared: long-value;
+      }
+      "#,
+      indoc! {r#"
+      .a {
+        all: initial;
+      }
+
+      .a, .b {
+        --shared: long-value;
+      }
+
+      .b {
+        all: unset;
+      }
+      "#},
+    );
+
+    // Rules can share declarations within the same conditional block.
+    test(
+      r#"
+      @media print {
+        .a {
+          --shared: long-value;
+          color: red;
+        }
+
+        .b {
+          --shared: long-value;
+          color: blue;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media print {
+        .a {
+          color: red;
+        }
+
+        .a, .b {
+          --shared: long-value;
+        }
+
+        .b {
+          color: #00f;
+        }
+      }
+      "#},
+    );
+
+    // Factor when the serialized declaration saves one byte over the extra selectors.
+    test(
+      r#"
+      .a {
+        --x: ab;
+        color: red;
+      }
+
+      .b {
+        --x: ab;
+        color: green;
+      }
+      "#,
+      indoc! {r#"
+      .a {
+        color: red;
+      }
+
+      .a, .b {
+        --x: ab;
+      }
+
+      .b {
+        color: green;
+      }
+      "#},
+    );
+  }
+
+  #[test]
+  fn test_merge_common_custom_properties_boundaries() {
+    for source in [
+      // Names are case-sensitive.
+      indoc! {r#"
+      .a {
+        --shared: long-value;
+        color: red;
+      }
+
+      .b {
+        --SHARED: long-value;
+        color: green;
+      }
+      "#},
+      // Values must match.
+      indoc! {r#"
+      .a {
+        --shared: long-value;
+        color: red;
+      }
+
+      .b {
+        --shared: other-value;
+        color: green;
+      }
+      "#},
+      // Importance must match.
+      indoc! {r#"
+      .a {
+        color: red;
+        --shared: long-value !important;
+      }
+
+      .b {
+        --shared: long-value;
+        color: green;
+      }
+      "#},
+      // Repeated selectors would cost more than the shared declaration.
+      indoc! {r#"
+      .long-selector-a {
+        --x: 0;
+        color: red;
+      }
+
+      .long-selector-b {
+        --x: 0;
+        color: green;
+      }
+      "#},
+      // A tie is left unchanged.
+      indoc! {r#"
+      .a {
+        --x: 0;
+        color: red;
+      }
+
+      .b {
+        --x: 0;
+        color: green;
+      }
+      "#},
+      // Do not move declarations across intervening rules.
+      indoc! {r#"
+      .a {
+        --shared: long-value;
+        color: red;
+      }
+
+      .c {
+        --shared: override;
+      }
+
+      .b {
+        --shared: long-value;
+        color: green;
+      }
+      "#},
+      // Do not move declarations across conditional boundaries.
+      indoc! {r#"
+      .a {
+        --shared: long-value;
+        color: red;
+      }
+
+      @media print {
+        .b {
+          --shared: long-value;
+          color: green;
+        }
+      }
+      "#},
+      // Ordinary declarations may have shorthand interactions.
+      indoc! {r#"
+      .a {
+        color: red;
+        padding-top: 20px;
+      }
+
+      .b {
+        color: green;
+        padding-top: 20px;
+      }
+      "#},
+    ] {
+      test(source, source);
+    }
+
+    // Unsupported selectors must not invalidate the other rule in a selector list.
+    let source = indoc! {r#"
+    .a {
+      --shared: long-value;
+      color: red;
+    }
+
+    .b:has(.c) {
+      --shared: long-value;
+      color: green;
+    }
+    "#};
+    prefix_test(
+      source,
+      source,
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // CSS Modules can change selector and variable lengths when printing.
+    let source = indoc! {r#"
+    html {
+      --shared: long-value;
+      color: red;
+    }
+
+    body {
+      --shared: long-value;
+      color: green;
+    }
+    "#};
+    test_with_options(
+      source,
+      source,
+      ParserOptions {
+        css_modules: Some(Default::default()),
+        ..ParserOptions::default()
+      },
+    );
+
+    // Nested selectors can expand to much longer selector lists when lowered.
+    for source in [
+      indoc! {r#"
+      .parent {
+        &.a {
+          --shared: long-value;
+          color: red;
+        }
+
+        &.b {
+          --shared: long-value;
+          color: green;
+        }
+      }
+      "#},
+      indoc! {r#"
+      .parent {
+        :is(&, .a) {
+          --shared: long-value;
+          color: red;
+        }
+
+        :is(&, .b) {
+          --shared: long-value;
+          color: green;
+        }
+      }
+      "#},
+    ] {
+      test(source, source);
+    }
+  }
+
+  #[test]
   fn test_merge_rules() {
     test(
       r#"

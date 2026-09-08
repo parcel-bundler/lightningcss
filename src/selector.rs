@@ -61,6 +61,21 @@ pub type SelectorList<'i> = parcel_selectors::SelectorList<'i, Selectors>;
 pub type Selector<'i> = parcel_selectors::parser::Selector<'i, Selectors>;
 /// An individual component within a selector.
 pub type Component<'i> = parcel_selectors::parser::Component<'i, Selectors>;
+
+/// Whether a selector contains nesting, including inside a functional pseudo class.
+pub(crate) fn has_nesting(selector: &Selector) -> bool {
+  struct WithoutNesting;
+  impl<'i> parcel_selectors::visitor::SelectorVisitor<'i> for WithoutNesting {
+    type Impl = Selectors;
+
+    fn visit_simple_selector(&mut self, component: &Component<'i>) -> bool {
+      !matches!(component, Component::Nesting)
+    }
+  }
+
+  !selector.visit(&mut WithoutNesting)
+}
+
 /// A combinator.
 pub use parcel_selectors::parser::Combinator;
 
