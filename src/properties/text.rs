@@ -1192,16 +1192,29 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
           _ => dest.push(property.clone()),
         }
       }
-      Unparsed(val) if is_text_decoration_property(&val.property_id) => {
+      Unparsed(val) => {
+        let feature = if is_text_decoration_property(&val.property_id) {
+          Feature::TextDecoration
+        } else if is_text_emphasis_property(&val.property_id) {
+          Feature::TextEmphasis
+        } else {
+          return false;
+        };
+
         self.finalize(dest, context);
-        let mut unparsed = val.get_prefixed(context.targets, Feature::TextDecoration);
+        let mut unparsed = val.get_prefixed(context.targets, feature);
         context.add_unparsed_fallbacks(&mut unparsed);
-        dest.push(Property::Unparsed(unparsed))
-      }
-      Unparsed(val) if is_text_emphasis_property(&val.property_id) => {
-        self.finalize(dest, context);
-        let mut unparsed = val.get_prefixed(context.targets, Feature::TextEmphasis);
-        context.add_unparsed_fallbacks(&mut unparsed);
+
+        // Combine adjacent identical values after adding prefixes and fallbacks.
+        // Only inspect the last declaration so intervening longhands retain their order.
+        if let Some(Property::Unparsed(previous)) = dest.last_mut() {
+          let prefix = unparsed.property_id.prefix();
+          if previous.property_id.with_prefix(prefix) == unparsed.property_id && previous.value == unparsed.value {
+            previous.property_id.add_prefix(prefix);
+            return true;
+          }
+        }
+
         dest.push(Property::Unparsed(unparsed))
       }
       _ => return false,

@@ -16787,6 +16787,208 @@ mod tests {
   }
 
   #[test]
+  fn test_unparsed_text_decoration_prefixes() {
+    let targets = Browsers {
+      safari: Some((14 << 16) | (1 << 8)),
+      ..Browsers::default()
+    };
+    let expected = indoc! {"
+      .link {
+        -webkit-text-decoration: underline var(--accent);
+        text-decoration: underline var(--accent);
+      }
+    "};
+
+    for source in [
+      indoc! {"
+        .link {
+          text-decoration: underline var(--accent);
+        }
+      "},
+      indoc! {"
+        .link {
+          -webkit-text-decoration: underline var(--accent);
+          text-decoration: underline var(--accent);
+        }
+      "},
+      indoc! {"
+        .link {
+          text-decoration: underline var(--accent);
+          -webkit-text-decoration: underline var(--accent);
+        }
+      "},
+      indoc! {"
+        .link {
+          -webkit-text-decoration: underline var(--accent);
+          -webkit-text-decoration: underline var(--accent);
+          text-decoration: underline var(--accent);
+        }
+      "},
+      indoc! {"
+        .link {
+          -webkit-text-decoration: underline var(--accent);
+          /* An ordinary comment does not prevent deduplication. */
+          text-decoration: underline var(--accent);
+        }
+      "},
+    ] {
+      prefix_test(source, expected, targets);
+    }
+
+    // An already-prefixed result must not grow when minified again.
+    prefix_test(expected, expected, targets);
+
+    let important = indoc! {"
+      .link {
+        -webkit-text-decoration: underline var(--accent) !important;
+        text-decoration: underline var(--accent) !important;
+      }
+    "};
+    prefix_test(important, important, targets);
+
+    let fallback = indoc! {"
+      .link {
+        -webkit-text-decoration: underline var(--accent, red);
+        text-decoration: underline var(--accent, red);
+      }
+    "};
+    prefix_test(fallback, fallback, targets);
+
+    // Explicit prefixes are retained even if the targets do not require them.
+    prefix_test(
+      expected,
+      expected,
+      Browsers {
+        chrome: Some(120 << 16),
+        ..Browsers::default()
+      },
+    );
+    test(expected, expected);
+  }
+
+  #[test]
+  fn test_unparsed_text_prefix_boundaries() {
+    let targets = Browsers {
+      safari: Some((14 << 16) | (1 << 8)),
+      ..Browsers::default()
+    };
+
+    for source in [
+      // Different values must retain their vendor-specific fallbacks.
+      indoc! {"
+        .link {
+          -webkit-text-decoration: var(--old);
+          -webkit-text-decoration: var(--new);
+          text-decoration: var(--new);
+        }
+      "},
+      // Normal and important declarations must not share prefix state.
+      indoc! {"
+        .link {
+          -webkit-text-decoration: var(--decoration);
+          -webkit-text-decoration: var(--decoration) !important;
+          text-decoration: var(--decoration) !important;
+        }
+      "},
+      // An intervening parsed longhand prevents moving the later shorthand.
+      indoc! {"
+        .link {
+          -webkit-text-decoration: var(--decoration);
+          text-decoration: var(--decoration);
+          text-decoration-color: red;
+          -webkit-text-decoration: var(--decoration);
+          text-decoration: var(--decoration);
+        }
+      "},
+      // An unparsed longhand is also a barrier, even with identical tokens.
+      indoc! {"
+        .link {
+          -webkit-text-decoration: var(--value);
+          text-decoration: var(--value);
+          -webkit-text-decoration-color: var(--value);
+          text-decoration-color: var(--value);
+          -webkit-text-decoration: var(--value);
+          text-decoration: var(--value);
+        }
+      "},
+      // Prefix state cannot cross rule or conditional boundaries.
+      indoc! {"
+        .link {
+          -webkit-text-decoration: var(--decoration);
+          text-decoration: var(--decoration);
+        }
+
+        @media print {
+          .link {
+            -webkit-text-decoration: var(--decoration);
+            text-decoration: var(--decoration);
+          }
+        }
+      "},
+    ] {
+      prefix_test(source, source, targets);
+    }
+
+    // Prefix-only input must not acquire an unprefixed declaration.
+    let prefixed = indoc! {"
+      .link {
+        -webkit-text-decoration: var(--decoration);
+      }
+    "};
+    prefix_test(prefixed, prefixed, targets);
+  }
+
+  #[test]
+  fn test_unparsed_text_longhand_prefixes() {
+    let source = indoc! {"
+      .link {
+        -webkit-text-decoration-line: var(--value);
+        text-decoration-line: var(--value);
+        -webkit-text-decoration-style: var(--value);
+        text-decoration-style: var(--value);
+        -webkit-text-decoration-color: var(--value);
+        text-decoration-color: var(--value);
+        text-decoration-thickness: var(--value);
+      }
+    "};
+    prefix_test(
+      source,
+      source,
+      Browsers {
+        safari: Some(12 << 16),
+        ..Browsers::default()
+      },
+    );
+  }
+
+  #[test]
+  fn test_unparsed_text_emphasis_prefixes() {
+    let targets = Browsers {
+      chrome: Some(80 << 16),
+      ..Browsers::default()
+    };
+    let source = indoc! {"
+      .label {
+        -webkit-text-emphasis: filled var(--mark);
+        text-emphasis: filled var(--mark);
+      }
+    "};
+    prefix_test(source, source, targets);
+
+    let longhands = indoc! {"
+      .label {
+        -webkit-text-emphasis-style: var(--value);
+        text-emphasis-style: var(--value);
+        -webkit-text-emphasis-color: var(--value);
+        text-emphasis-color: var(--value);
+        -webkit-text-emphasis-position: var(--value);
+        text-emphasis-position: var(--value);
+      }
+    "};
+    prefix_test(longhands, longhands, targets);
+  }
+
+  #[test]
   fn test_text_emphasis() {
     minify_test(".foo { text-emphasis-style: none }", ".foo{text-emphasis-style:none}");
     minify_test(
