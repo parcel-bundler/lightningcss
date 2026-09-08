@@ -70,11 +70,13 @@ use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::{parse_rule_list, parse_style_block, DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
 use crate::prefixes::Feature;
-use crate::printer::Printer;
+use crate::printer::{Printer, PrinterOptions};
+use crate::properties::custom::CustomPropertyName;
+use crate::properties::Property;
 use crate::rules::keyframes::KeyframesName;
-use crate::selector::{is_compatible, is_equivalent, Component, Selector, SelectorList};
+use crate::selector::{has_nesting, is_compatible, is_equivalent, Component, Selector, SelectorList};
 use crate::stylesheet::ParserOptions;
-use crate::targets::{should_compile, TargetsWithSupportsScope};
+use crate::targets::{should_compile, Targets, TargetsWithSupportsScope};
 use crate::traits::{AtRuleParser, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
@@ -968,9 +970,237 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
       }
     }
 
-    self.0 = rules;
+    // The duplicate-rule keys borrow rules and their declarations. Finish using
+    // them before extracting declarations into new rules.
+    drop(style_rules);
+    self.0 = if context.css_modules {
+      rules
+    } else {
+      factor_custom_properties(rules, context.targets.current)
+    };
     Ok(())
   }
+}
+
+fn factor_custom_properties<'i, T>(mut rules: Vec<CssRule<'i, T>>, targets: Targets) -> Vec<CssRule<'i, T>> {
+  if rules.len() < 2 {
+    return rules;
+  }
+
+  let mut result = Vec::with_capacity(rules.len());
+  rules.reverse();
+  while let Some(mut rule) = rules.pop() {
+    if matches!(rule, CssRule::Ignored) {
+      continue;
+    }
+
+    if let (Some(CssRule::Style(previous)), CssRule::Style(current)) = (result.last_mut(), &mut rule) {
+      if merge_after_custom_property_extraction(previous, current, targets) {
+        rules.push(result.pop().unwrap());
+        continue;
+      }
+      if let Some(shared) = extract_common_custom_properties(previous, current, targets) {
+        let previous_is_empty = previous.is_empty();
+        if !current.is_empty() {
+          rules.push(rule);
+        }
+        rules.push(CssRule::Style(shared));
+        let previous = result.pop().unwrap();
+        if !previous_is_empty {
+          rules.push(previous);
+        }
+        // A rewrite can enable a merge with the predecessor. Revisit only the
+        // changed neighborhood. Every rewrite strictly reduces serialized size.
+        continue;
+      }
+    }
+    result.push(rule);
+  }
+  result
+}
+
+fn merge_after_custom_property_extraction<'i, T>(
+  previous: &mut StyleRule<'i, T>,
+  current: &mut StyleRule<'i, T>,
+  targets: Targets,
+) -> bool {
+  let only_custom_properties = |declarations: &DeclarationBlock<'i>| {
+    declarations.iter().all(|(property, _)| {
+      matches!(property, Property::Custom(custom) if matches!(custom.name, CustomPropertyName::Custom(_)))
+    })
+  };
+  if (previous.selectors != current.selectors && previous.declarations != current.declarations)
+    || !previous.rules.0.is_empty()
+    || !current.rules.0.is_empty()
+    || previous.loc.source_index != current.loc.source_index
+    || (previous.vendor_prefix | current.vendor_prefix).intersects(!VendorPrefix::None)
+    || previous.selectors.0.iter().any(has_nesting)
+    || current.selectors.0.iter().any(has_nesting)
+    || !previous.is_compatible(targets)
+    || !current.is_compatible(targets)
+  {
+    return false;
+  }
+
+  if previous.declarations == current.declarations {
+    if previous.selectors != current.selectors {
+      previous.selectors.0.extend(current.selectors.0.drain(..));
+    }
+    previous.vendor_prefix |= current.vendor_prefix;
+    return true;
+  }
+
+  if !(only_custom_properties(&previous.declarations) || only_custom_properties(&current.declarations)) {
+    return false;
+  }
+
+  // At least one block contains only custom properties, so ordinary properties
+  // cannot interact across the blocks. Resolve repeated custom properties within
+  // each importance level without re-running handlers that generate fallbacks.
+  for (previous, current) in [
+    (
+      &mut previous.declarations.declarations,
+      &mut current.declarations.declarations,
+    ),
+    (
+      &mut previous.declarations.important_declarations,
+      &mut current.declarations.important_declarations,
+    ),
+  ] {
+    let mut indices = HashMap::new();
+    for (index, property) in previous.iter().enumerate() {
+      if let Property::Custom(custom) = property {
+        indices.insert(custom.name.clone(), index);
+      }
+    }
+    for property in current.drain(..) {
+      if let Property::Custom(custom) = &property {
+        if let Some(index) = indices.get(&custom.name) {
+          previous[*index] = property;
+          continue;
+        }
+        indices.insert(custom.name.clone(), previous.len());
+      }
+      previous.push(property);
+    }
+  }
+  previous.vendor_prefix |= current.vendor_prefix;
+  true
+}
+
+fn extract_common_custom_properties<'i, T>(
+  previous: &mut StyleRule<'i, T>,
+  current: &mut StyleRule<'i, T>,
+  targets: Targets,
+) -> Option<StyleRule<'i, T>> {
+  if !previous.rules.0.is_empty()
+    || !current.rules.0.is_empty()
+    || previous.loc.source_index != current.loc.source_index
+    || (previous.vendor_prefix | current.vendor_prefix).intersects(!VendorPrefix::None)
+  {
+    return None;
+  }
+
+  // Custom properties have no shorthand interactions, and `all` does not reset
+  // them. Only equal names, values, and importance can move into the shared rule.
+  let mut properties = HashMap::new();
+  for (property, important) in previous.declarations.iter() {
+    if let Property::Custom(custom) = property {
+      if matches!(custom.name, CustomPropertyName::Custom(_)) {
+        properties.insert((&custom.name, important), property);
+      }
+    }
+  }
+  if properties.is_empty() {
+    return None;
+  }
+
+  let mut common = HashSet::new();
+  let mut css = String::new();
+  let mut printer = Printer::new(
+    &mut css,
+    PrinterOptions {
+      minify: true,
+      targets,
+      ..PrinterOptions::default()
+    },
+  );
+  for (property, important) in current.declarations.iter() {
+    if let Property::Custom(custom) = property {
+      if properties
+        .get(&(&custom.name, important))
+        .is_some_and(|other| **other == *property)
+      {
+        property.to_css(&mut printer, important).ok()?;
+        printer.write_char(';').ok()?;
+        common.insert((custom.name.clone(), important));
+      }
+    }
+  }
+  if common.is_empty()
+    || previous.selectors.0.iter().any(has_nesting)
+    || current.selectors.0.iter().any(has_nesting)
+    || !previous.is_compatible(targets)
+    || !current.is_compatible(targets)
+  {
+    return None;
+  }
+
+  let shared_size = css.len() - 1;
+  let options = || PrinterOptions {
+    minify: true,
+    targets,
+    ..PrinterOptions::default()
+  };
+  let previous_selectors_size = previous.selectors.to_css_string(options()).ok()?.len();
+  let current_selectors_size = current.selectors.to_css_string(options()).ok()?.len();
+  let previous_remains = previous.declarations.len() > common.len();
+  let current_remains = current.declarations.len() > common.len();
+
+  // Account for the extra selector list and braces, and for semicolons removed
+  // from the original blocks. Do not factor when the minified output would grow.
+  let overhead = match (previous_remains, current_remains) {
+    (true, true) => previous_selectors_size + current_selectors_size + 1,
+    (false, true) => current_selectors_size,
+    (true, false) => previous_selectors_size,
+    (false, false) => 0,
+  };
+  if shared_size <= overhead {
+    return None;
+  }
+
+  let mut declarations = DeclarationBlock::new();
+  for (previous, current, shared, important) in [
+    (
+      &mut previous.declarations.declarations,
+      &mut current.declarations.declarations,
+      &mut declarations.declarations,
+      false,
+    ),
+    (
+      &mut previous.declarations.important_declarations,
+      &mut current.declarations.important_declarations,
+      &mut declarations.important_declarations,
+      true,
+    ),
+  ] {
+    let is_common = |property: &Property<'i>| match property {
+      Property::Custom(custom) => common.contains(&(custom.name.clone(), important)),
+      _ => false,
+    };
+    shared.extend(previous.extract_if(.., |property| is_common(property)));
+    current.retain(|property| !is_common(property));
+  }
+
+  let mut selectors = previous.selectors.clone();
+  selectors.0.extend(current.selectors.0.iter().cloned());
+  Some(StyleRule {
+    selectors,
+    vendor_prefix: previous.vendor_prefix | current.vendor_prefix,
+    declarations,
+    rules: CssRuleList(vec![]),
+    loc: previous.loc,
+  })
 }
 
 fn merge_style_rules<'i, T>(
