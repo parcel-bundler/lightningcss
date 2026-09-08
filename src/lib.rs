@@ -13304,10 +13304,24 @@ mod tests {
       "transform:scaleX(.1)"
     );
 
-    // TODO: Re-enable with a better solution
-    //       See: https://github.com/parcel-bundler/lightningcss/issues/288
-    // minify_test(".foo { transform: scale(3); scale: 0.5 }", ".foo{transform:scale(1.5)}");
-    minify_test(".foo { scale: 0.5; transform: scale(3); }", ".foo{transform:scale(3)}");
+    minify_test(
+      r#"
+      .foo {
+        transform: scale(3);
+        scale: 0.5;
+      }
+      "#,
+      ".foo{transform:scale(3);scale:.5}",
+    );
+    minify_test(
+      r#"
+      .foo {
+        scale: 0.5;
+        transform: scale(3);
+      }
+      "#,
+      ".foo{transform:scale(3);scale:.5}",
+    );
 
     prefix_test(
       r#"
@@ -13361,6 +13375,216 @@ mod tests {
         transform: translateX(20px);
       }
       "#},
+    );
+  }
+
+  #[test]
+  fn test_individual_transforms() {
+    for (property, value, identity) in [
+      ("translate", "10px", "0"),
+      ("rotate", "30deg", "0deg"),
+      ("scale", "2", "1"),
+    ] {
+      // `transform` is not a shorthand that resets the individual properties.
+      for (transform, individual) in [("scale(3)", value), ("none", "none"), ("none", identity)] {
+        let expected = format!(
+          indoc! {r#"
+          .box {{
+            transform: {transform};
+            {property}: {individual};
+          }}
+          "#},
+          transform = transform,
+          property = property,
+          individual = individual,
+        );
+        test(
+          &format!(
+            r#"
+            .box {{
+              transform: {transform};
+              {property}: {individual};
+            }}
+            "#,
+          ),
+          &expected,
+        );
+        test(
+          &format!(
+            r#"
+            .box {{
+              {property}: {individual};
+              transform: {transform};
+            }}
+            "#,
+          ),
+          &expected,
+        );
+      }
+    }
+
+    test(
+      r#"
+      .box {
+        transform: translateX(5px);
+        scale: 2;
+        rotate: 30deg;
+        translate: 10px;
+        transform: scale(3);
+        translate: 20px 30px;
+        rotate: x 40deg;
+        scale: 4 5;
+      }
+      "#,
+      indoc! {r#"
+      .box {
+        transform: scale(3);
+        translate: 20px 30px;
+        rotate: x 40deg;
+        scale: 4 5;
+      }
+      "#},
+    );
+
+    test(
+      r#"
+      .base {
+        translate: 10px;
+        rotate: 30deg;
+        scale: 2;
+      }
+
+      .base.reset {
+        transform: none;
+        translate: none;
+        rotate: none;
+        scale: none;
+      }
+
+      .base.identity {
+        translate: 0;
+        rotate: 0deg;
+        scale: 1;
+        transform: none;
+      }
+      "#,
+      indoc! {r#"
+      .base {
+        translate: 10px;
+        rotate: 30deg;
+        scale: 2;
+      }
+
+      .base.reset {
+        transform: none;
+        translate: none;
+        rotate: none;
+        scale: none;
+      }
+
+      .base.identity {
+        transform: none;
+        translate: 0;
+        rotate: 0deg;
+        scale: 1;
+      }
+      "#},
+    );
+
+    test(
+      r#"
+      .box {
+        transform: scale(2) !important;
+        translate: 10px;
+        rotate: 30deg !important;
+        scale: 3;
+        translate: 20px !important;
+        transform: none;
+        translate: 30px !important;
+      }
+      "#,
+      indoc! {r#"
+      .box {
+        transform: none;
+        translate: 10px;
+        scale: 3;
+        transform: scale(2) !important;
+        translate: 30px !important;
+        rotate: 30deg !important;
+      }
+      "#},
+    );
+
+    test(
+      r#"
+      .box {
+        transform: rotate(10deg);
+        translate: 10px;
+        translate: var(--shift);
+        rotate: 20deg;
+        transform: var(--motion);
+        scale: 2;
+        scale: var(--zoom);
+        transform: translateX(2px);
+      }
+      "#,
+      indoc! {r#"
+      .box {
+        transform: rotate(10deg);
+        translate: 10px;
+        translate: var(--shift);
+        rotate: 20deg;
+        transform: var(--motion);
+        scale: 2;
+        scale: var(--zoom);
+        transform: translateX(2px);
+      }
+      "#},
+    );
+
+    test(
+      r#"
+      .box {
+        -webkit-transform: scale(2);
+        translate: 10px;
+        transform: scale(3);
+        rotate: 30deg;
+      }
+      "#,
+      indoc! {r#"
+      .box {
+        -webkit-transform: scale(2);
+        translate: 10px;
+        transform: scale(3);
+        rotate: 30deg;
+      }
+      "#},
+    );
+
+    prefix_test(
+      r#"
+      .box {
+        translate: 10px;
+        transform: scale(2);
+        rotate: none;
+        scale: 1;
+      }
+      "#,
+      indoc! {r#"
+      .box {
+        -webkit-transform: scale(2);
+        -moz-transform: scale(2);
+        transform: scale(2);
+        translate: 10px;
+        rotate: none;
+        scale: 1;
+      }
+      "#},
+      Browsers {
+        firefox: Some(6 << 16),
+        safari: Some(6 << 16),
+        ..Browsers::default()
+      },
     );
   }
 

@@ -1739,14 +1739,12 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
     use Property::*;
 
     macro_rules! individual_property {
-      ($prop: ident, $val: ident) => {
-        if let Some((transform, _)) = &mut self.transform {
-          transform.0.push($val.to_transform())
-        } else {
-          self.$prop = Some($val.clone());
-          self.has_any = true;
-        }
-      };
+      ($prop: ident, $val: ident) => {{
+        // Individual transforms cascade independently of `transform`. Keep them
+        // separate so declaration order cannot change their composition or resets.
+        self.$prop = Some($val.clone());
+        self.has_any = true;
+      }};
     }
 
     match property {
@@ -1767,10 +1765,6 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
           self.transform = Some((val.clone(), *vp));
           self.has_any = true;
         }
-
-        self.translate = None;
-        self.rotate = None;
-        self.scale = None;
       }
       Translate(val) => individual_property!(translate, val),
       Rotate(val) => individual_property!(rotate, val),
