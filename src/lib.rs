@@ -8418,10 +8418,151 @@ mod tests {
     "#},
       indoc! {r#"
     .test {
-      width: calc(var(--test) + 2px);
       width: calc(var(--test) - 2px);
     }
     "#},
+    );
+  }
+
+  #[test]
+  fn test_overridden_variable_calculations() {
+    test(
+      r#"
+      .layout {
+        padding-right: calc(var(--gutter) + var(--sidebar));
+        padding-right: calc(var(--gutter) + var(--sidebar) - var(--scrollbar, 0px));
+      }
+
+      .nested {
+        width: calc(var(--width) * 2);
+        width: calc((var(--width) + calc(var(--extra, var(--default, 2px)))) / 2);
+      }
+
+      .important {
+        margin-left: calc(var(--offset) + 1px) !important;
+        margin-left: calc(var(--offset) + 2px) !important;
+        margin-left: calc(var(--offset) + 3px);
+      }
+
+      .chain {
+        height: calc(var(--height) + 1px);
+        height: calc(var(--height) + 2px);
+        height: calc(var(--height) + 3px);
+      }
+      "#,
+      indoc! {r#"
+      .layout {
+        padding-right: calc(var(--gutter) + var(--sidebar) - var(--scrollbar, 0px));
+      }
+
+      .nested {
+        width: calc((var(--width) + calc(var(--extra, var(--default, 2px)))) / 2);
+      }
+
+      .important {
+        margin-left: calc(var(--offset) + 3px);
+        margin-left: calc(var(--offset) + 2px) !important;
+      }
+
+      .chain {
+        height: calc(var(--height) + 3px);
+      }
+      "#},
+    );
+
+    test(
+      r#"
+      .plain-fallback {
+        padding-right: 12px;
+        padding-right: calc(var(--gutter) + 3px);
+      }
+
+      .new-function {
+        padding-right: calc(var(--gutter) + 4px);
+        padding-right: calc(var(--gutter) + env(safe-area-inset-right));
+      }
+
+      .longhand {
+        padding: calc(var(--gutter) + 5px);
+        padding-right: calc(var(--gutter) + 6px);
+      }
+
+      .reserved-name {
+        padding-right: calc(var(--gutter) + 7px);
+        padding-right: calc(var(--, 8px));
+      }
+
+      .invalid-fallback {
+        padding-right: calc(var(--gutter) + 9px);
+        padding-right: calc(var(--gutter, !));
+      }
+
+      .unknown-syntax {
+        padding-right: calc(var(--gutter) + 10px);
+        padding-right: calc(var(--gutter) + 1unknown);
+      }
+
+      .intervening-property {
+        padding-right: calc(var(--gutter) + 11px);
+        padding: 1px;
+        padding-right: calc(var(--gutter) + 12px);
+      }
+      "#,
+      indoc! {r#"
+      .plain-fallback {
+        padding-right: 12px;
+        padding-right: calc(var(--gutter) + 3px);
+      }
+
+      .new-function {
+        padding-right: calc(var(--gutter) + 4px);
+        padding-right: calc(var(--gutter) + env(safe-area-inset-right));
+      }
+
+      .longhand {
+        padding: calc(var(--gutter) + 5px);
+        padding-right: calc(var(--gutter) + 6px);
+      }
+
+      .reserved-name {
+        padding-right: calc(var(--gutter) + 7px);
+        padding-right: calc(var(--, 8px));
+      }
+
+      .invalid-fallback {
+        padding-right: calc(var(--gutter) + 9px);
+        padding-right: calc(var(--gutter, !));
+      }
+
+      .unknown-syntax {
+        padding-right: calc(var(--gutter) + 10px);
+        padding-right: calc(var(--gutter) + 1unknown);
+      }
+
+      .intervening-property {
+        padding-right: calc(var(--gutter) + 11px);
+        padding: 1px;
+        padding-right: calc(var(--gutter) + 12px);
+      }
+      "#},
+    );
+
+    prefix_test(
+      r#"
+      .legacy {
+        padding-right: calc(var(--gutter) + 1px);
+        padding-right: calc(var(--gutter) + 2px);
+      }
+      "#,
+      indoc! {r#"
+      .legacy {
+        padding-right: calc(var(--gutter) + 2px);
+      }
+      "#},
+      Browsers {
+        ie: Some(11 << 16),
+        ..Browsers::default()
+      },
     );
   }
 
