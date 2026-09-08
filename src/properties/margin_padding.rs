@@ -4,7 +4,6 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::logical::PropertyCategory;
 use crate::macros::{define_shorthand, rect_shorthand, size_shorthand};
-use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::{length::LengthPercentageOrAuto, rect::Rect, size::Size2D};

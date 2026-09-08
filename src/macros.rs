@@ -83,8 +83,9 @@ macro_rules! enum_property {
     }
 
     impl ToCss for $name {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-        dest.write_str(self.as_str())
+      fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
+        dest.write_str(self.as_str())?;
+        Ok(())
       }
     }
   };
@@ -152,7 +153,7 @@ macro_rules! shorthand_property {
     }
 
     impl$(<$l>)? ToCss for $name$(<$l>)? {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+      fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
         let mut needs_space = false;
         macro_rules! print_one {
           ($k: ident, $t: ty) => {
@@ -755,10 +756,7 @@ macro_rules! rect_shorthand {
     }
 
     impl ToCss for $name {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-      where
-        W: std::fmt::Write,
-      {
+      fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
         Rect::new(&self.top, &self.right, &self.bottom, &self.left).to_css(dest)
       }
     }
@@ -798,10 +796,7 @@ macro_rules! size_shorthand {
     }
 
     impl ToCss for $name {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-      where
-        W: std::fmt::Write,
-      {
+      fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
         Size2D(&self.$a_key, &self.$b_key).to_css(dest)
       }
     }

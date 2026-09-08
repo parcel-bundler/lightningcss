@@ -971,6 +971,7 @@ dependencies = [
  "predicates 2.1.5",
  "pretty_assertions",
  "rayon",
+ "rustc-hash",
  "schemars",
  "serde",
  "serde-content",

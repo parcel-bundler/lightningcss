@@ -3,7 +3,6 @@
 use super::Location;
 use crate::error::PrinterError;
 use crate::media_query::MediaList;
-use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::DashedIdent;
 #[cfg(feature = "visitor")]
@@ -27,16 +26,13 @@ pub struct CustomMediaRule<'i> {
 }
 
 impl<'i> ToCss for CustomMediaRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_str("@custom-media ")?;
     self.name.to_css(dest)?;
     dest.write_char(' ')?;
     self.query.to_css(dest)?;
-    dest.write_char(';')
+    dest.write_char(';')?;
+    Ok(())
   }
 }

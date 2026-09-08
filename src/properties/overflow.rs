@@ -6,7 +6,6 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_shorthand, enum_property};
-use crate::printer::Printer;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -48,10 +47,7 @@ impl<'i> Parse<'i> for Overflow {
 }
 
 impl ToCss for Overflow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.x.to_css(dest)?;
     if self.y != self.x {
       dest.write_char(' ')?;

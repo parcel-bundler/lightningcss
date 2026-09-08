@@ -763,24 +763,26 @@ fn compile<'i>(
       unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
     })?;
 
-    stylesheet.to_css(PrinterOptions {
-      minify: config.minify.unwrap_or_default(),
-      source_map: source_map.as_mut(),
-      project_root,
-      targets,
-      analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
-        match d {
-          AnalyzeDependenciesOption::Bool(b) if *b => Some(DependencyOptions { remove_imports: true }),
-          AnalyzeDependenciesOption::Config(c) => Some(DependencyOptions {
-            remove_imports: !c.preserve_imports,
-          }),
-          _ => None,
-        }
-      } else {
-        None
+    stylesheet.to_css(
+      PrinterOptions {
+        minify: config.minify.unwrap_or_default(),
+        project_root,
+        targets,
+        analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
+          match d {
+            AnalyzeDependenciesOption::Bool(b) if *b => Some(DependencyOptions { remove_imports: true }),
+            AnalyzeDependenciesOption::Config(c) => Some(DependencyOptions {
+              remove_imports: !c.preserve_imports,
+            }),
+            _ => None,
+          }
+        } else {
+          None
+        },
+        pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
       },
-      pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
-    })?
+      source_map.as_mut(),
+    )?
   };
 
   let map = if let Some(mut source_map) = source_map {
@@ -898,24 +900,26 @@ fn compile_bundle<'i, 'o, P: SourceProvider, F: FnOnce(&mut StyleSheet<'i, AtRul
       unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
     })?;
 
-    stylesheet.to_css(PrinterOptions {
-      minify: config.minify.unwrap_or_default(),
-      source_map: source_map.as_mut(),
-      project_root,
-      targets,
-      analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
-        match d {
-          AnalyzeDependenciesOption::Bool(b) if *b => Some(DependencyOptions { remove_imports: true }),
-          AnalyzeDependenciesOption::Config(c) => Some(DependencyOptions {
-            remove_imports: !c.preserve_imports,
-          }),
-          _ => None,
-        }
-      } else {
-        None
+    stylesheet.to_css(
+      PrinterOptions {
+        minify: config.minify.unwrap_or_default(),
+        project_root,
+        targets,
+        analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
+          match d {
+            AnalyzeDependenciesOption::Bool(b) if *b => Some(DependencyOptions { remove_imports: true }),
+            AnalyzeDependenciesOption::Config(c) => Some(DependencyOptions {
+              remove_imports: !c.preserve_imports,
+            }),
+            _ => None,
+          }
+        } else {
+          None
+        },
+        pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
       },
-      pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
-    })?
+      source_map.as_mut(),
+    )?
   };
 
   let map = if let Some(source_map) = &mut source_map {
@@ -1022,7 +1026,6 @@ fn compile_attr<'i>(
     });
     attr.to_css(PrinterOptions {
       minify: config.minify,
-      source_map: None,
       project_root: None,
       targets,
       analyze_dependencies: if config.analyze_dependencies {

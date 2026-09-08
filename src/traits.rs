@@ -3,7 +3,7 @@
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
+use crate::printer::{PrinterTrait, Printer};
 use crate::properties::{Property, PropertyId};
 use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::{Browsers, Targets};
@@ -76,9 +76,7 @@ impl<'i, T: Parse<'i>> ParseWithOptions<'i> for T {
 /// Trait for things the can serialize themselves in CSS syntax.
 pub trait ToCss {
   /// Serialize `self` in CSS syntax, writing to `dest`.
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write;
+  fn to_css<PrinterT: PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError>;
 
   /// Serialize `self` in CSS syntax and return a string.
   ///
@@ -98,28 +96,19 @@ impl<'a, T> ToCss for &'a T
 where
   T: ToCss + ?Sized,
 {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     (*self).to_css(dest)
   }
 }
 
 impl<T: ToCss> ToCss for Box<T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     (**self).to_css(dest)
   }
 }
 
 impl<T: ToCss> ToCss for Option<T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if let Some(v) = self {
       v.to_css(dest)?;
     }

@@ -5,7 +5,6 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::properties::Property;
 use crate::targets::Browsers;
 use crate::traits::{IsCompatible, Parse, PropertyHandler, ToCss, Zero};
@@ -94,10 +93,7 @@ impl<'i> Parse<'i> for BoxShadow {
 }
 
 impl ToCss for BoxShadow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.inset {
       dest.write_str("inset ")?;
     }

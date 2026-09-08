@@ -10,8 +10,7 @@ use crate::declaration::DeclarationBlock;
 use crate::error::ParserError;
 use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
-use crate::printer::Printer;
-use crate::rules::{CssRule, CssRuleList};
+use crate::rules::{detach_style_context, style_context_ptr, CssRule, CssRuleList, StyleContext};
 use crate::selector::{
   downlevel_selectors, get_prefix, is_compatible, is_pure_css_modules_selector, is_unused, SelectorList,
 };
@@ -212,10 +211,7 @@ where
 }
 
 impl<'a, 'i, T: ToCss> ToCss for StyleRule<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.vendor_prefix.is_empty() {
       self.to_css_base(dest)
     } else {
@@ -224,28 +220,26 @@ impl<'a, 'i, T: ToCss> ToCss for StyleRule<'i, T> {
         if first_rule {
           first_rule = false;
         } else {
-          if !dest.minify {
+          if !dest.options().minify {
             dest.write_char('\n')?; // no indent
           }
           dest.newline()?;
         }
-        dest.vendor_prefix = prefix;
-        self.to_css_base(dest)?;
+        let old = dest.state().vendor_prefix;
+        dest.state_mut().vendor_prefix = prefix;
+        let res = self.to_css_base(dest);
+        dest.state_mut().vendor_prefix = old;
+        res?;
       }
-
-      dest.vendor_prefix = VendorPrefix::empty();
       Ok(())
     }
   }
 }
 
 impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
-  fn to_css_base<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css_base<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
-    let supports_nesting = self.rules.0.is_empty() || !should_compile!(dest.targets.current, Nesting);
+    let supports_nesting = self.rules.0.is_empty() || !should_compile!(dest.state().targets.current, Nesting);
     let must_preserve_rule = |rule: &CssRule<'i, T>| matches!(rule, CssRule::Unknown(_));
     let has_preserved_rules = !supports_nesting && self.rules.0.iter().any(must_preserve_rule);
     let has_hoisted_rules = !supports_nesting && self.rules.0.iter().any(|rule| !must_preserve_rule(rule));
@@ -253,7 +247,6 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
     let has_declarations = supports_nesting || len > 0 || self.rules.0.is_empty() || has_preserved_rules;
 
     if has_declarations {
-      #[cfg(feature = "sourcemap")]
       dest.add_mapping(self.loc);
       self.selectors.to_css(dest)?;
       dest.whitespace()?;
@@ -273,7 +266,10 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
 
     macro_rules! newline {
       () => {
-        if !dest.minify && (supports_nesting || len > 0 || has_preserved_rules) && !self.rules.0.is_empty() {
+        if !dest.options().minify
+          && (supports_nesting || len > 0 || has_preserved_rules)
+          && !self.rules.0.is_empty()
+        {
           if len > 0 || has_preserved_rules {
             dest.write_char('\n')?;
           }
@@ -300,7 +296,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
     } else {
       let mut first = true;
       for rule in self.rules.0.iter().filter(|rule| must_preserve_rule(rule)) {
-        if !dest.minify || first {
+        if !dest.options().minify || first {
           dest.newline()?;
         }
         rule.to_css(dest)?;
@@ -310,25 +306,153 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
 
       if has_hoisted_rules {
         newline!();
-        dest.with_context(&self.selectors, |dest| {
-          let mut first = true;
-          for rule in self.rules.0.iter().filter(|rule| !must_preserve_rule(rule)) {
-            if first {
-              first = false;
-            } else {
-              if !dest.minify {
-                dest.write_char('\n')?;
-              }
-              dest.newline()?;
-            }
-            rule.to_css(dest)?;
-          }
-
-          Ok::<(), PrinterError>(())
-        })?;
+        let parent = dest.state().context;
+        dest.state_mut().context = None;
+        let ctx = StyleContext {
+          selectors: unsafe { std::mem::transmute(&self.selectors) },
+          parent: detach_style_context(parent),
+        };
+        dest.state_mut().context = Some(style_context_ptr(&ctx));
+        let res = self.to_css_hoisted_rules(dest);
+        dest.state_mut().context = parent;
+        res?;
       }
     }
 
     Ok(())
+  }
+
+  fn to_css_hoisted_rules<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+  ) -> Result<(), PrinterError> {
+    let mut first = true;
+    for rule in self.rules.0.iter().filter(|rule| !matches!(rule, CssRule::Unknown(_))) {
+      if first {
+        first = false;
+      } else {
+        if !dest.options().minify {
+          dest.write_char('\n')?;
+        }
+        dest.newline()?;
+      }
+      rule.to_css(dest)?;
+    }
+
+    Ok(())
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::printer::{Printer, PrinterOptions, PrinterTrait};
+  use crate::stylesheet::{ParserOptions, StyleSheet};
+  use crate::targets::Features;
+  use std::cell::Cell;
+
+  fn nesting_options() -> PrinterOptions<'static> {
+    PrinterOptions {
+      targets: Targets {
+        include: Features::Nesting,
+        ..Targets::default()
+      },
+      ..PrinterOptions::default()
+    }
+  }
+
+  #[test]
+  fn restores_context_after_nested_writer_error() {
+    struct FailingWriter<'a> {
+      writes: &'a Cell<usize>,
+      fail_at: usize,
+    }
+
+    impl std::fmt::Write for FailingWriter<'_> {
+      fn write_str(&mut self, _: &str) -> std::fmt::Result {
+        let index = self.writes.get();
+        self.writes.set(index + 1);
+        if index == self.fail_at {
+          Err(std::fmt::Error)
+        } else {
+          Ok(())
+        }
+      }
+    }
+
+    let sheet = StyleSheet::parse(
+      ".a { & .b { & .c { color: red } } & .d { color: blue } }",
+      ParserOptions::default(),
+    )
+    .unwrap();
+    let CssRule::Style(rule) = &sheet.rules.0[0] else {
+      panic!("expected style rule");
+    };
+    let parent = StyleContext {
+      selectors: &rule.selectors,
+      parent: None,
+    };
+
+    for context in [None, Some(style_context_ptr(&parent))] {
+      let writes = Cell::new(0);
+      let mut writer = FailingWriter {
+        writes: &writes,
+        fail_at: usize::MAX,
+      };
+      let mut printer = Printer::new(&mut writer, nesting_options());
+      printer.state.context = context;
+      rule.to_css(&mut printer).unwrap();
+      let total_writes = writes.get();
+
+      // Fail at every write, including separators between hoisted rules.
+      for fail_at in 0..total_writes {
+        writes.set(0);
+        let mut writer = FailingWriter {
+          writes: &writes,
+          fail_at,
+        };
+        let mut printer = Printer::new(&mut writer, nesting_options());
+        printer.state.context = context;
+        assert!(rule.to_css(&mut printer).is_err());
+        assert_eq!(printer.state.context, context, "write {fail_at}");
+        rule.to_css(&mut printer).unwrap();
+        assert_eq!(printer.state.context, context);
+      }
+    }
+  }
+
+  #[test]
+  fn restores_context_after_nested_custom_rule_error() {
+    struct FailingRule;
+
+    impl ToCss for FailingRule {
+      fn to_css<P: PrinterTrait>(&self, _: &mut P) -> Result<(), PrinterError> {
+        Err(std::fmt::Error.into())
+      }
+    }
+
+    let sheet = StyleSheet::parse(".a {}", ParserOptions::default()).unwrap();
+    let CssRule::Style(parsed) = &sheet.rules.0[0] else {
+      panic!("expected style rule");
+    };
+    let rule = StyleRule {
+      selectors: parsed.selectors.clone(),
+      vendor_prefix: parsed.vendor_prefix,
+      declarations: parsed.declarations.clone(),
+      rules: CssRuleList(vec![CssRule::Custom(FailingRule)]),
+      loc: parsed.loc,
+    };
+    let parent = StyleContext {
+      selectors: &parsed.selectors,
+      parent: None,
+    };
+    for context in [None, Some(style_context_ptr(&parent))] {
+      let mut css = String::new();
+      let mut printer = Printer::new(&mut css, nesting_options());
+      printer.state.context = context;
+      assert!(rule.to_css(&mut printer).is_err());
+      assert_eq!(printer.state.context, context);
+      parsed.to_css(&mut printer).unwrap();
+    }
   }
 }

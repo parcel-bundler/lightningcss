@@ -2,7 +2,6 @@
 
 use super::Location;
 use crate::error::PrinterError;
-use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::Ident;
 use crate::values::string::CSSString;
@@ -30,11 +29,7 @@ pub struct NamespaceRule<'i> {
 }
 
 impl<'i> ToCss for NamespaceRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_str("@namespace ")?;
     if let Some(prefix) = &self.prefix {
@@ -43,6 +38,7 @@ impl<'i> ToCss for NamespaceRule<'i> {
     }
 
     self.url.to_css(dest)?;
-    dest.write_char(';')
+    dest.write_char(';')?;
+    Ok(())
   }
 }

@@ -3,7 +3,6 @@
 use super::ident::Ident;
 use super::number::{CSSInteger, CSSNumber};
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::stylesheet::ParserOptions;
 use crate::traits::{Parse, ToCss};
@@ -396,10 +395,7 @@ impl<'i> Parse<'i> for SyntaxString {
 }
 
 impl ToCss for SyntaxString {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.write_char('"')?;
     match self {
       SyntaxString::Universal => dest.write_char('*')?,
@@ -417,29 +413,31 @@ impl ToCss for SyntaxString {
       }
     }
 
-    dest.write_char('"')
+    dest.write_char('"')?;
+
+    Ok(())
   }
 }
 
 impl ToCss for SyntaxComponent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.kind.to_css(dest)?;
     match self.multiplier {
       Multiplier::None => Ok(()),
-      Multiplier::Comma => dest.write_char('#'),
-      Multiplier::Space => dest.write_char('+'),
+      Multiplier::Comma => {
+        dest.write_char('#')?;
+        Ok(())
+      }
+      Multiplier::Space => {
+        dest.write_char('+')?;
+        Ok(())
+      }
     }
   }
 }
 
 impl ToCss for SyntaxComponentKind {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use SyntaxComponentKind::*;
     let s = match self {
       Length => "<length>",
@@ -459,15 +457,13 @@ impl ToCss for SyntaxComponentKind {
       CustomIdent => "<custom-ident>",
       Literal(l) => l,
     };
-    dest.write_str(s)
+    dest.write_str(s)?;
+    Ok(())
   }
 }
 
 impl<'i> ToCss for ParsedComponent<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use ParsedComponent::*;
     match self {
       Length(v) => v.to_css(dest),

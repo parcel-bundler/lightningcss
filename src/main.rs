@@ -213,13 +213,15 @@ pub fn main() -> Result<(), std::io::Error> {
         .unwrap();
 
       stylesheet
-        .to_css(PrinterOptions {
-          minify: cli_args.minify,
-          source_map: source_map.as_mut(),
-          project_root: Some(&project_root.to_string_lossy()),
-          targets,
-          ..PrinterOptions::default()
-        })
+        .to_css(
+          PrinterOptions {
+            minify: cli_args.minify,
+            project_root: Some(&project_root.to_string_lossy()),
+            targets,
+            ..PrinterOptions::default()
+          },
+          source_map.as_mut(),
+        )
         .unwrap()
     };
 

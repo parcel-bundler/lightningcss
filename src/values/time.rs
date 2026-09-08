@@ -4,7 +4,6 @@ use super::angle::impl_try_from_angle;
 use super::calc::Calc;
 use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::traits::private::AddInternal;
 use crate::traits::{impl_op, Map, Op, Parse, Sign, ToCss, Zero};
 #[cfg(feature = "visitor")]
@@ -95,29 +94,30 @@ impl<'i> TryFrom<&Token<'i>> for Time {
 }
 
 impl ToCss for Time {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     // 0.1s is shorter than 100ms
     // anything smaller is longer
     match self {
       Time::Seconds(s) => {
         if *s > 0.0 && *s < 0.1 {
           (*s * 1000.0).to_css(dest)?;
-          dest.write_str("ms")
+          dest.write_str("ms")?;
+          Ok(())
         } else {
           s.to_css(dest)?;
-          dest.write_str("s")
+          dest.write_str("s")?;
+          Ok(())
         }
       }
       Time::Milliseconds(ms) => {
         if *ms == 0.0 || *ms >= 100.0 {
           (*ms / 1000.0).to_css(dest)?;
-          dest.write_str("s")
+          dest.write_str("s")?;
+          Ok(())
         } else {
           ms.to_css(dest)?;
-          dest.write_str("ms")
+          dest.write_str("ms")?;
+          Ok(())
         }
       }
     }

@@ -2,7 +2,6 @@
 
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
-use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 use crate::values::length::LengthPercentage;
@@ -169,12 +168,12 @@ impl<'i> Parse<'i> for StrokeDasharray {
 }
 
 impl ToCss for StrokeDasharray {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      StrokeDasharray::None => dest.write_str("none"),
+      StrokeDasharray::None => {
+        dest.write_str("none")?;
+        Ok(())
+      }
       StrokeDasharray::Values(values) => {
         let mut first = true;
         for value in values {

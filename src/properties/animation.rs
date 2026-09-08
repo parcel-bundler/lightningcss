@@ -7,7 +7,6 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, TokenOrValue, VendorPrefix};
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::ident::DashedIdent;
@@ -46,27 +45,31 @@ pub enum AnimationName<'i> {
 }
 
 impl<'i> ToCss for AnimationName<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    let css_module_animation_enabled =
-      dest.css_module.as_ref().map_or(false, |css_module| css_module.config.animation);
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
+    let css_module_animation_enabled = dest
+      .state()
+      .css_module
+      .as_ref()
+      .map_or(false, |css_module| css_module.config.animation);
+    let source_index = dest.state().loc.source_index;
 
     match self {
-      AnimationName::None => dest.write_str("none"),
+      AnimationName::None => {
+        dest.write_str("none")?;
+        Ok(())
+      }
       AnimationName::Ident(s) => {
         if css_module_animation_enabled {
-          if let Some(css_module) = &mut dest.css_module {
-            css_module.reference(&s.0, dest.loc.source_index)
+          if let Some(css_module) = dest.state_mut().css_module.as_mut() {
+            css_module.reference(&s.0, source_index)
           }
         }
         s.to_css_with_options(dest, css_module_animation_enabled)
       }
       AnimationName::String(s) => {
         if css_module_animation_enabled {
-          if let Some(css_module) = &mut dest.css_module {
-            css_module.reference(&s, dest.loc.source_index)
+          if let Some(css_module) = dest.state_mut().css_module.as_mut() {
+            css_module.reference(&s, source_index)
           }
         }
 
@@ -251,10 +254,7 @@ impl<'i> Parse<'i> for ScrollTimeline {
 }
 
 impl ToCss for ScrollTimeline {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.write_str("scroll(")?;
 
     let mut needs_space = false;
@@ -270,7 +270,9 @@ impl ToCss for ScrollTimeline {
       self.axis.to_css(dest)?;
     }
 
-    dest.write_char(')')
+    dest.write_char(')')?;
+
+    Ok(())
   }
 }
 
@@ -354,10 +356,7 @@ impl<'i> Parse<'i> for ViewTimeline {
 }
 
 impl ToCss for ViewTimeline {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.write_str("view(")?;
     let mut needs_space = false;
     if self.axis != ScrollAxis::default() {
@@ -372,7 +371,9 @@ impl ToCss for ViewTimeline {
       self.inset.to_css(dest)?;
     }
 
-    dest.write_char(')')
+    dest.write_char(')')?;
+
+    Ok(())
   }
 }
 
@@ -446,12 +447,16 @@ impl<'i> AnimationAttachmentRange {
     Ok(AnimationAttachmentRange::TimelineRange { name, offset })
   }
 
-  fn to_css<W>(&self, dest: &mut Printer<W>, default: f32) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(
+    &self,
+    dest: &mut PrinterT,
+    default: f32,
+  ) -> Result<(), PrinterError> {
     match self {
-      Self::Normal => dest.write_str("normal"),
+      Self::Normal => {
+        dest.write_str("normal")?;
+        Ok(())
+      }
       Self::LengthPercentage(val) => val.to_css(dest),
       Self::TimelineRange { name, offset } => {
         name.to_css(dest)?;
@@ -487,10 +492,7 @@ impl<'i> Parse<'i> for AnimationRangeStart {
 }
 
 impl ToCss for AnimationRangeStart {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.0.to_css(dest, 0.0)
   }
 }
@@ -511,10 +513,7 @@ impl<'i> Parse<'i> for AnimationRangeEnd {
 }
 
 impl ToCss for AnimationRangeEnd {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.0.to_css(dest, 1.0)
   }
 }
@@ -556,10 +555,7 @@ impl<'i> Parse<'i> for AnimationRange {
 }
 
 impl ToCss for AnimationRange {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.start.to_css(dest)?;
 
     let omit_end = match (&self.start.0, &self.end.0) {
@@ -657,10 +653,7 @@ impl<'i> Parse<'i> for Animation<'i> {
 }
 
 impl<'i> ToCss for Animation<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match &self.name {
       AnimationName::None => {}
       AnimationName::Ident(CustomIdent(name)) | AnimationName::String(CSSString(name)) => {

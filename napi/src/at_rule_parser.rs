@@ -2,12 +2,13 @@ use std::collections::HashMap;
 
 use cssparser::*;
 use lightningcss::{
-  declaration::DeclarationBlock,
-  error::ParserError,
-  rules::{CssRuleList, Location},
-  stylesheet::ParserOptions,
-  traits::{AtRuleParser, ToCss},
-  values::{
+    declaration::DeclarationBlock,
+    error::ParserError,
+    printer::PrinterTrait,
+    rules::{CssRuleList, Location},
+    stylesheet::ParserOptions,
+    traits::{AtRuleParser, ToCss},
+    values::{
     string::CowArcStr,
     syntax::{ParsedComponent, SyntaxString},
   },
@@ -161,13 +162,7 @@ impl<'i> AtRuleParser<'i> for CustomAtRuleParser {
 }
 
 impl<'i> ToCss for AtRule<'i> {
-  fn to_css<W>(
-    &self,
-    dest: &mut lightningcss::printer::Printer<W>,
-  ) -> Result<(), lightningcss::error::PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), lightningcss::error::PrinterError> {
     dest.write_char('@')?;
     serialize_identifier(&self.name, dest)?;
     if let Some(prelude) = &self.prelude {

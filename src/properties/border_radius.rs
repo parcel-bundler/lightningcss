@@ -7,7 +7,6 @@ use crate::error::{ParserError, PrinterError};
 use crate::logical::PropertyCategory;
 use crate::macros::define_shorthand;
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::length::*;
@@ -62,10 +61,7 @@ impl<'i> Parse<'i> for BorderRadius {
 }
 
 impl ToCss for BorderRadius {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let widths = Rect::new(
       &self.top_left.0,
       &self.top_right.0,
