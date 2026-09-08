@@ -3922,6 +3922,325 @@ mod tests {
   }
 
   #[test]
+  fn test_redundant_padding_initial() {
+    for source in [
+      r#"
+        padding: 0;
+        padding: initial;
+      "#,
+      r#"
+        padding: 0px 0 0px 0;
+        padding: initial;
+      "#,
+      r#"
+        padding-top: 0;
+        padding-right: 0;
+        padding-bottom: 0;
+        padding-left: 0;
+        padding: initial;
+      "#,
+      r#"
+        PADDING: 0;
+        PADDING: INITIAL;
+      "#,
+      r#"
+        padding: 0;
+        padding: \69 nitial;
+      "#,
+    ] {
+      attr_test(source, "padding:0", true, None);
+    }
+
+    test(
+      r#"
+      .foo {
+        padding: 0;
+        padding: initial;
+      }
+      "#,
+      indoc! {r#"
+        .foo {
+          padding: 0;
+        }
+      "#},
+    );
+
+    // Preserve the explicit zero fallback even for targets without initial support.
+    for targets in [
+      Browsers {
+        ie: Some(11 << 16),
+        ..Default::default()
+      },
+      Browsers {
+        chrome: Some(120 << 16),
+        ..Default::default()
+      },
+    ] {
+      attr_test(
+        r#"
+        padding: 0;
+        padding: initial;
+      "#,
+        "padding:0",
+        true,
+        Some(targets),
+      );
+    }
+
+    // Every physical side must be a known zero length. Do not generalize to other shorthands.
+    for (source, expected) in [
+      (
+        r#"
+        padding: initial;
+      "#,
+        "padding:initial",
+      ),
+      (
+        r#"
+        padding: 1px;
+        padding: initial;
+      "#,
+        "padding:1px;padding:initial",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding-left: 1px;
+        padding: initial;
+      "#,
+        "padding:0 0 0 1px;padding:initial",
+      ),
+      (
+        r#"
+        padding-top: 0;
+        padding-right: 0;
+        padding-bottom: 0;
+        padding: initial;
+      "#,
+        "padding-top:0;padding-bottom:0;padding-right:0;padding:initial",
+      ),
+      (
+        r#"
+        padding: 0%;
+        padding: initial;
+      "#,
+        "padding:0%;padding:initial",
+      ),
+      (
+        r#"
+        padding: 0 0%;
+        padding: initial;
+      "#,
+        "padding:0 0%;padding:initial",
+      ),
+      (
+        r#"
+        padding: 0em;
+        padding: initial;
+      "#,
+        "padding:0;padding:initial",
+      ),
+      (
+        r#"
+        padding: auto;
+        padding: initial;
+      "#,
+        "padding:auto;padding:initial",
+      ),
+      (
+        r#"
+        margin: 0;
+        margin: initial;
+      "#,
+        "margin:0;margin:initial",
+      ),
+      (
+        r#"
+        scroll-padding: 0;
+        scroll-padding: initial;
+      "#,
+        "scroll-padding:0;scroll-padding:initial",
+      ),
+      (
+        r#"
+        inset: 0;
+        inset: initial;
+      "#,
+        "inset:0;inset:initial",
+      ),
+      (
+        r#"
+        margin: 0;
+        padding: initial;
+      "#,
+        "padding:initial;margin:0",
+      ),
+    ] {
+      attr_test(source, expected, true, None);
+    }
+
+    // Logical declarations, unparsed values, and all must keep their existing ordering.
+    for (source, expected) in [
+      (
+        r#"
+        padding: 0;
+        padding-inline-start: 2px;
+        padding: initial;
+      "#,
+        "padding:0;padding-inline-start:2px;padding:initial",
+      ),
+      (
+        r#"
+        padding-inline-start: 2px;
+        padding: 0;
+        padding: initial;
+      "#,
+        "padding-inline-start:2px;padding:0;padding:initial",
+      ),
+      (
+        r#"
+        padding-inline: 0;
+        padding-block: 0;
+        padding: initial;
+      "#,
+        "padding-block:0;padding-inline:0;padding:initial",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding: var(--space);
+        padding: initial;
+      "#,
+        "padding:0;padding:var(--space);padding:initial",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding-left: var(--space);
+        padding: initial;
+      "#,
+        "padding:0;padding-left:var(--space);padding:initial",
+      ),
+      (
+        r#"
+        padding: 0;
+        all: inherit;
+        padding: initial;
+      "#,
+        "all:inherit;padding:initial",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding: initial;
+        padding-top: 2px;
+      "#,
+        "padding:0;padding-top:2px",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding: initial;
+        padding-inline-start: 2px;
+      "#,
+        "padding:0;padding-inline-start:2px",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding: initial 0;
+      "#,
+        "padding:0;padding:initial 0",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding: initial;
+        padding: initial;
+      "#,
+        "padding:0;padding:initial",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding: initial;
+        -webkit-padding-start: 2px;
+      "#,
+        "padding:0;-webkit-padding-start:2px",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding: initial;
+        -webkit-padding-end: 2px;
+      "#,
+        "padding:0;-webkit-padding-end:2px",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding: initial;
+        -webkit-padding-before: 2px;
+      "#,
+        "padding:0;-webkit-padding-before:2px",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding: initial;
+        -webkit-padding-after: 2px;
+      "#,
+        "padding:0;-webkit-padding-after:2px",
+      ),
+    ] {
+      attr_test(source, expected, true, None);
+    }
+
+    for keyword in ["inherit", "unset", "revert", "revert-layer"] {
+      let source = format!(
+        "padding: 0;\n\
+         padding: {keyword};"
+      );
+      let expected = format!("padding:0;padding:{keyword}");
+      attr_test(&source, &expected, true, None);
+    }
+
+    for (source, expected) in [
+      (
+        r#"
+        padding: 0 !important;
+        padding: initial !important;
+      "#,
+        "padding:0!important",
+      ),
+      (
+        r#"
+        padding: 0 !important;
+        padding: initial;
+      "#,
+        "padding:initial;padding:0!important",
+      ),
+      (
+        r#"
+        padding: 0;
+        padding: initial !important;
+      "#,
+        "padding:0;padding:initial!important",
+      ),
+      (
+        r#"
+        padding: 0 !important;
+        padding: initial !important;
+        padding-left: 2px !important;
+      "#,
+        "padding:0!important;padding-left:2px!important",
+      ),
+    ] {
+      attr_test(source, expected, true, None);
+    }
+  }
+
+  #[test]
   fn test_scroll_padding() {
     prefix_test(
       r#"
