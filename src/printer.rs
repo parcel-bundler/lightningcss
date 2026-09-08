@@ -9,6 +9,8 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::{serialize_identifier, serialize_name};
 #[cfg(feature = "sourcemap")]
 use parcel_sourcemap::SourceMap as ParcelSourceMap;
+#[cfg(feature = "custom_sourcemap")]
+use rustc_hash::FxHashSet;
 #[cfg(not(feature = "custom_sourcemap"))]
 use std::marker::PhantomData;
 
@@ -287,6 +289,8 @@ pub struct Printer<'a, 'c, W, S: SourceMap = ()> {
   pub(crate) source_map: Option<&'a mut S>,
   #[cfg(feature = "custom_sourcemap")]
   pub(crate) source_maps: Vec<Option<S>>,
+  #[cfg(feature = "custom_sourcemap")]
+  sources_with_content: FxHashSet<u32>,
   #[cfg(not(feature = "custom_sourcemap"))]
   source_map: PhantomData<fn() -> S>,
 }
@@ -331,6 +335,8 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
       options,
       #[cfg(feature = "custom_sourcemap")]
       source_maps: Vec::new(),
+      #[cfg(feature = "custom_sourcemap")]
+      sources_with_content: FxHashSet::default(),
       #[cfg(not(feature = "custom_sourcemap"))]
       source_map: PhantomData,
     }
@@ -346,6 +352,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
       state: self.state,
       source_map,
       source_maps: Vec::new(),
+      sources_with_content: FxHashSet::default(),
     }
   }
 
@@ -576,8 +583,12 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> Printer<'a, 'c, W, S> {
           original.source = source_index;
           original.name = name;
 
-          let content = sm.get_source_content(orig.source).unwrap().to_owned();
-          map.set_source_content(source_index, &content);
+          if !self.sources_with_content.contains(&source_index) {
+            if let Some(content) = sm.get_source_content(orig.source) {
+              map.set_source_content(source_index, content);
+              self.sources_with_content.insert(source_index);
+            }
+          }
 
           found_mapping = true;
         }

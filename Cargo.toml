@@ -50,7 +50,7 @@ serde = [
   "into_owned",
 ]
 sourcemap = ["custom_sourcemap", "dep:parcel_sourcemap"]
-custom_sourcemap = []
+custom_sourcemap = ["dep:rustc-hash"]
 visitor = []
 into_owned = [
   "static-self",
@@ -75,6 +75,7 @@ lazy_static = "1.4.0"
 const-str = "1.1.0"
 pathdiff = "0.2.1"
 ahash = "0.8.7"
+rustc-hash = { version = "2", optional = true }
 pastey = "0.1.0"
 indexmap = { version = "2.2.6", features = ["serde"] }
 # CLI deps

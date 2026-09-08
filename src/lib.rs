@@ -31241,20 +31241,77 @@ mod tests {
       None
     }
 
-    fn find_closest_mapping(&mut self, _line: u32, _column: u32) -> Option<OriginalLocation> {
-      None
+    fn find_closest_mapping(&mut self, line: u32, column: u32) -> Option<OriginalLocation> {
+      self
+        .mappings
+        .iter()
+        .rev()
+        .find(|(generated_line, generated_column, _)| (*generated_line, *generated_column) <= (line, column))
+        .and_then(|(_, _, original)| *original)
     }
 
-    fn get_source(&self, _source_index: u32) -> Option<&str> {
-      None
+    fn get_source(&self, source_index: u32) -> Option<&str> {
+      self.sources.get(source_index as usize).map(String::as_str)
     }
 
-    fn get_name(&self, _name_index: u32) -> Option<&str> {
-      None
+    fn get_name(&self, name_index: u32) -> Option<&str> {
+      self.names.get(name_index as usize).map(String::as_str)
     }
 
-    fn get_source_content(&self, _source_index: u32) -> Option<&str> {
-      None
+    fn get_source_content(&self, source_index: u32) -> Option<&str> {
+      self
+        .sources_content
+        .iter()
+        .find(|(index, _)| *index == source_index)
+        .map(|(_, content)| content.as_str())
+    }
+  }
+
+  #[test]
+  fn test_custom_source_map_remapped_content() {
+    use crate::printer::Printer;
+
+    for content in [None, Some(""), Some(".original { color: red }")] {
+      let original = OriginalLocation {
+        original_line: 10,
+        original_column: 5,
+        source: 0,
+        name: Some(0),
+      };
+      let input_map = || TestSourceMap {
+        sources: vec!["original.scss".into()],
+        names: vec!["original".into()],
+        sources_content: content.map(|content| vec![(0, content.into())]).unwrap_or_default(),
+        mappings: vec![(0, 0, Some(original))],
+      };
+      let mut output = TestSourceMap::default();
+      // Ensure the cache uses output indices, which may differ from input indices.
+      output.add_source("existing.css");
+      let mut css = String::new();
+      let mut printer = Printer::new(&mut css, PrinterOptions::default()).with_source_map(Some(&mut output));
+      printer.source_maps = vec![Some(input_map()), Some(input_map())];
+      for source_index in [0, 1] {
+        for line in 0..100 {
+          printer.add_mapping(Location {
+            source_index,
+            line,
+            column: 1,
+          });
+        }
+      }
+      drop(printer);
+
+      assert_eq!(output.sources, vec!["existing.css", "original.scss"]);
+      assert_eq!(output.names, vec!["original"]);
+      assert_eq!(
+        output.sources_content,
+        content.map(|content| vec![(1, content.into())]).unwrap_or_default()
+      );
+      assert_eq!(output.mappings.len(), 200);
+      assert!(output
+        .mappings
+        .iter()
+        .all(|(_, _, location)| *location == Some(OriginalLocation { source: 1, ..original })));
     }
   }
 
