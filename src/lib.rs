@@ -30152,42 +30152,71 @@ mod tests {
   fn test_quoting_unquoting_urls() {
     // Single quotes avoid escaping the double quotes in SVG attributes.
     minify_test(
-      r#".foo { background-image: url('data:image/svg+xml,<svg width="1" height="1"></svg>') }"#,
+      r#"
+      .foo {
+        background-image: url('data:image/svg+xml,<svg width="1" height="1"></svg>');
+      }
+      "#,
       r#".foo{background-image:url('data:image/svg+xml,<svg width="1" height="1"></svg>')}"#,
     );
 
     // Keep double quotes when they are shorter or tied with single quotes.
     minify_test(
-      r#".foo { background-image: url("a 'b' c"), url('a "b" \'c\''), url('a "b" \'c') }"#,
+      r#"
+      .foo {
+        background-image: url("a 'b' c"), url('a "b" \'c\''), url('a "b" \'c');
+      }
+      "#,
       r#".foo{background-image:url("a 'b' c"),url("a \"b\" 'c'"),url('a "b" \'c')}"#,
     );
 
     // Unquoted output still wins ties, including an empty URL.
     minify_test(
-      r#".foo { background-image: url('"'), url('""'), url('"""'), url('') }"#,
+      r#"
+      .foo {
+        background-image: url('"'), url('""'), url('"""'), url('');
+      }
+      "#,
       r#".foo{background-image:url(\"),url(\"\"),url('"""'),url()}"#,
     );
 
     // Escaped quotes and backslashes are parsed before choosing the quote style.
     minify_test(
-      r#".foo { background-image: url("a \\\"b\\\" \\c"), url('a "b" \\\'c') }"#,
+      r#"
+      .foo {
+        background-image: url("a \\\"b\\\" \\c"), url('a "b" \\\'c');
+      }
+      "#,
       r#".foo{background-image:url('a \\"b\\" \\c'),url('a "b" \\\'c')}"#,
     );
 
     // Preserve control characters and hex escape terminators before hex digits and spaces.
     minify_test(
-      r#".foo { background-image: url('"a"\a f\d  \c a\1 b\7f c\9 "é😀"') }"#,
+      r#"
+      .foo {
+        background-image: url('"a"\a f\d  \c a\1 b\7f c\9 "é😀"');
+      }
+      "#,
       r#".foo{background-image:url('"a"\a f\d  \c a\1 b\7f c\9 "é😀"')}"#,
     );
 
     minify_test(
-      ".foo { background-image: url('\"a\" \\\nb\\0 c') }",
+      r#"
+      .foo {
+        background-image: url('"a" \
+b\0 c');
+      }
+      "#,
       r#".foo{background-image:url('"a" b�c')}"#,
     );
 
     // Keep the existing double-quoted output when not minifying.
     test(
-      r#".foo { background-image: url('a "b" c') }"#,
+      r#"
+      .foo {
+        background-image: url('a "b" c');
+      }
+      "#,
       ".foo {\n  background-image: url(\"a \\\"b\\\" c\");\n}\n",
     );
 
@@ -30261,8 +30290,15 @@ mod tests {
 
   #[test]
   fn test_url_quoting_dependencies() {
-    let stylesheet =
-      StyleSheet::parse(r#".foo { background-image: url('a "b" c') }"#, ParserOptions::default()).unwrap();
+    let stylesheet = StyleSheet::parse(
+      r#"
+      .foo {
+        background-image: url('a "b" c');
+      }
+      "#,
+      ParserOptions::default(),
+    )
+    .unwrap();
     let result = stylesheet
       .to_css(PrinterOptions {
         minify: true,
@@ -30286,7 +30322,14 @@ mod tests {
   #[cfg(feature = "sourcemap")]
   fn test_url_quoting_source_map() {
     let stylesheet = StyleSheet::parse(
-      ".foo { background-image: url('\"a\" \\a b') }\n.bar { color: red }",
+      r#"
+      .foo {
+        background-image: url('"a" \a b');
+      }
+      .bar {
+        color: red;
+      }
+      "#,
       ParserOptions::default(),
     )
     .unwrap();
@@ -30301,7 +30344,7 @@ mod tests {
     let column = result.code.find(".bar").unwrap() as u32;
     let mapping = sm.find_closest_mapping(0, column).unwrap();
     assert_eq!(mapping.generated_column, column);
-    assert_eq!(mapping.original.unwrap().original_line, 1);
+    assert_eq!(mapping.original.unwrap().original_line, 4);
   }
 
   #[test]
