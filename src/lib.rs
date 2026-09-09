@@ -18322,7 +18322,7 @@ mod tests {
       ("hwb(320 30% 40% / none)", "rgba(153, 77, 128, 0)"),
       // Representative controls for other paths to RGB.
       ("rgb(50% 10% 30% / 50%)", "rgba(128, 26, 77, 0.5)"),
-      // ("color(srgb .49999996 0 0)", "rgb(127, 0, 0)"), // TODO：这里浏览器进度不够，解析为 color(srgb 0.5 0 0)，所以转为后应该为 rgb(128, 0, 0)
+      // ("color(srgb .49999996 0 0)", "rgb(127, 0, 0)"), // TODO：The browser here lacks sufficient precision and parses it as color(sRGB 0.5 0 0), so it should be converted to rgb(128, 0, 0).
       ("lab(50 0 0)", "rgb(119, 119, 119)"),
       ("oklab(.5 0 0)", "rgb(99, 99, 99)"),
     ] {
@@ -18331,6 +18331,11 @@ mod tests {
 
     // TODO: Fix percentage parsing precision: 60% becomes 0.6f32 * 100 = 60.000004,
     // causing green and blue to round to 25 instead of the correct 26.
+    // 
+    // This is best fixed by cssparser, which we rely on; 
+    // I've already filed a bug report with Firefox. 
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=2070608
+    //
     // for saturation in ["60%", "60.0%", "6e1%", "calc(60%)", "calc(30% + 30%)"] {
     //   let input = format!("hsl(0 {saturation} 25%)");
     //   assert_eq!(parse_to_rgb(&input), "rgb(102, 26, 26)", "{input}");
@@ -18338,11 +18343,21 @@ mod tests {
     // assert_eq!(parse_to_rgb("hsl(from red 0 60% 25%)"), "rgb(102, 26, 26)");
     // assert_eq!(parse_to_rgb("hsl(0 60% 25% / none)"), "rgba(102, 26, 26, 0)");
 
-    // TODO: The generic Percentage parser panics on mixed percentage/number math.
-    // assert!(CssColor::parse_string("hsl(0 calc(30% + 30) 25%)").is_err());
+    // Mixed percentage/number math must return a parse error instead of panicking.
+    assert!(CssColor::parse_string("hsl(0 calc(30% + 30) 25%)").is_err());
 
     // This invalid input should return a parse error instead.
     assert!(CssColor::parse_string("hsl(from red 0 calc(s + 10%) 25%)").is_err());
+
+    // Invalid values that do not conform to the CSS specification are output as-is.
+    minify_test(
+      ".foo { color: hsl( 0 calc( 20% + 30 ) 25% ); }",
+      ".foo{color:hsl(0 calc(20% + 30) 25%)}",
+    );
+    minify_test(
+      ".foo { color: hsl( 0 calc( 20% + 30% ) 25% ); }",
+      ".foo{color:#602020}",
+    );
   }
 
   #[test]

@@ -26,8 +26,8 @@ impl<'i> Parse<'i> for Percentage {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
-      // Percentages are always compatible, so they will always compute to a value.
-      Ok(_) => unreachable!(),
+      // A percentage must resolve to a value, not a number or an unresolved expression.
+      Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       _ => {}
     }
 
@@ -480,6 +480,31 @@ impl<D: ToCss + std::ops::Mul<CSSNumber, Output = D> + TrySign + Clone + std::fm
       DimensionPercentage::Dimension(length) => length.to_css(dest),
       DimensionPercentage::Percentage(percent) => percent.to_css(dest),
       DimensionPercentage::Calc(calc) => calc.to_css(dest),
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_percentage_math() {
+    for input in [
+      "calc(30% + 30)",
+      "calc(30 + 30%)",
+      "calc(30% - 30)",
+      "calc(30)",
+      "min(30%, 30)",
+      "max(30, 30%)",
+      "clamp(0%, 30, 100%)",
+    ] {
+      let error = Percentage::parse_string(input).expect_err(input);
+      assert!(matches!(error.kind, ParseErrorKind::Custom(ParserError::InvalidValue)), "{input}");
+    }
+
+    for input in ["50%", "calc(25% + 25%)", "calc(25% * 2)", "calc(2 * 25%)", "calc(100% / 2)"] {
+      assert_eq!(Percentage::parse_string(input).unwrap(), Percentage(0.5), "{input}");
     }
   }
 }
