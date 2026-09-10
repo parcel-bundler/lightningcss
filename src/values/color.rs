@@ -1518,6 +1518,8 @@ fn parse_alpha<'i, 't>(
 ) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   let res = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
     parse_number_or_percentage(input, parser, 1.0)?.clamp(0.0, 1.0)
+  } else if let Some(from) = &parser.from {
+    from.components.3
   } else {
     1.0
   };

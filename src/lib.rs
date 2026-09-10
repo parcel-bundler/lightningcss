@@ -19473,10 +19473,36 @@ mod tests {
     test("rgb(from rebeccapurple r g b)", "#639");
     test("rgb(from rebeccapurple r g b / alpha)", "#639");
     test("rgb(from rgb(20%, 40%, 60%, 80%) r g b / alpha)", "#369c");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r g b)", "#369c");
     test("rgb(from hsl(120deg 20% 50% / .5) r g b / alpha)", "#66996680");
+    test("rgb(from rgb(255 0 0 / 50%) r g b)", "rgba(255, 0, 0, 0.5)");
+    test("rgb(from rgb(255, 0, 0, 0) r g b)", "#f000");
+    test("rgb(from color(srgb 1 0 0 / 50%) r g b)", "rgba(255, 0, 0, 0.5)");
+    test("rgb(from color(srgb 1 0 0 / 50%) r g b / alpha)", "rgba(255, 0, 0, 0.5)");
+    test("color(from color(srgb 1 0 0 / 50%) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
+    test("color(from color(srgb 1 0 0 / 50%) srgb r g b / alpha)", "color(srgb 1 0 0 / 0.5)");
+
+    // Test with alpha()
+    test("color(from alpha(from red / 0.5) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
+    test("color(from alpha(from red / 0.5) srgb r g b / alpha)", "color(srgb 1 0 0 / 0.5)");
+    test("color(from alpha(from red / 0.5) srgb r g b / 0.8)", "color(srgb 1 0 0 / 0.8)");
+    test("color(from alpha(from rgba(255, 0, 0, 1) / 0.5) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
+    // TODO: Floating-point precision issue; the current result is: .501961
+    // test("color(from alpha(from rgb(255 0 0 / 50%) / alpha) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
+
+    // Explicit alpha overrides the inherited value. 
+    test("rgb(from rgb(255 0 0 / 0.8) r g b / 1)", "red");
+    test("rgb(from rgb(255 0 0 / 0) r g b / 1)", "red");
+    test("rgb(from rgb(255 0 0 / 50%) r g b / none)", "rgba(255, 0, 0, 0)");
+    test("rgb(from color(srgb 1 0 0) r g b / 80%)", "rgba(255, 0, 0, 0.8)");
+    test("rgb(from color(srgb 1 0 0 / 0.5) r g b / calc(alpha - 0.3))", "rgba(255, 0, 0, 0.2)");
+    test("color(from color(display-p3 0.7 0.5 0.3 / 0.4) display-p3 r g b / .6)", "color(display-p3 0.7 0.5 0.3 / 0.6)");
+    test("color(from color(srgb 1 0 0) srgb r g b / 0.5)", "color(srgb 1 0 0 / 0.5)");
+    test("color(from color(srgb 1 0 0 / 100%) srgb r g b / 50%)", "color(srgb 1 0 0 / 0.5)");
 
     // Test nesting relative colors.
     test("rgb(from rgb(from rebeccapurple r g b) r g b)", "#639");
+    test("rgb(from rgb(from rgb(255 0 0 / 0.8) g b r) r g b)", "#00fc");
 
     // Testing non-sRGB origin colors to see gamut mapping.
     test("rgb(from color(display-p3 0 1 0) r g b / alpha)", "#00f942"); // Naive clip based mapping would give rgb(0, 255, 0).
@@ -19576,7 +19602,7 @@ mod tests {
     test("rgb(from rebeccapurple b alpha r / g)", "rgba(153, 1, 102, 1)");
     test("rgb(from rebeccapurple r r r / r)", "rgba(102, 102, 102, 1)");
     test("rgb(from rebeccapurple alpha alpha alpha / alpha)", "rgb(1, 1, 1)");
-    test("rgb(from rgb(20%, 40%, 60%, 80%) g b r)", "rgb(102, 153, 51)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) g b r)", "rgba(102, 153, 51, 0.8)");
     test("rgb(from rgb(20%, 40%, 60%, 80%) b alpha r / g)", "rgba(153, 1, 51, 1)");
     test("rgb(from rgb(20%, 40%, 60%, 80%) r r r / r)", "rgba(51, 51, 51, 1)");
     test(
@@ -19588,9 +19614,9 @@ mod tests {
     test("rgb(from rebeccapurple r 20% 10)", "rgb(102, 51, 10)");
     test("rgb(from rebeccapurple r 10 20%)", "rgb(102, 10, 51)");
     test("rgb(from rebeccapurple 0% 10 10)", "rgb(0, 10, 10)");
-    test("rgb(from rgb(20%, 40%, 60%, 80%) r 20% 10)", "rgb(51, 51, 10)");
-    test("rgb(from rgb(20%, 40%, 60%, 80%) r 10 20%)", "rgb(51, 10, 51)");
-    test("rgb(from rgb(20%, 40%, 60%, 80%) 0% 10 10)", "rgb(0, 10, 10)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r 20% 10)", "rgba(51, 51, 10, 0.8)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r 10 20%)", "rgba(51, 10, 51, 0.8)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) 0% 10 10)", "rgba(0, 10, 10, 0.8)");
 
     // Testing with calc().
     test("rgb(from rebeccapurple calc(r) calc(g) calc(b))", "rgb(102, 51, 153)");
@@ -19717,7 +19743,7 @@ mod tests {
       "hsl(from rebeccapurple h calc(alpha * 100) calc(alpha * 100) / calc(alpha * 100))",
       "rgb(255, 255, 255)",
     );
-    test("hsl(from rgb(20%, 40%, 60%, 80%) h l s)", "rgb(77, 128, 179)");
+    test("hsl(from rgb(20%, 40%, 60%, 80%) h l s)", "rgba(77, 128, 179, 0.8)");
     test(
       "hsl(from rgb(20%, 40%, 60%, 80%) h calc(alpha * 100) l / calc(s / 100))",
       "rgba(20, 102, 184, 0.5)",
@@ -19760,7 +19786,7 @@ mod tests {
     // FIXME: Clarify with spec editors if 'none' should pass through to the constants.
     test("hsl(from hsl(none none none) h s l)", "rgb(0, 0, 0)");
     test("hsl(from hsl(none none none / none) h s l / alpha)", "rgba(0, 0, 0, 0)");
-    test("hsl(from hsl(120deg none 50% / .5) h s l)", "rgb(128, 128, 128)");
+    test("hsl(from hsl(120deg none 50% / .5) h s l)", "rgba(128, 128, 128, 0.5)");
     test(
       "hsl(from hsl(120deg 20% 50% / none) h s l / alpha)",
       "rgba(102, 153, 102, 0)",
@@ -19867,7 +19893,7 @@ mod tests {
       "hwb(from rebeccapurple h calc(alpha * 100) calc(alpha * 100) / alpha)",
       "rgb(128, 128, 128)",
     );
-    test("hwb(from rgb(20%, 40%, 60%, 80%) h b w)", "rgb(102, 153, 204)");
+    test("hwb(from rgb(20%, 40%, 60%, 80%) h b w)", "rgba(102, 153, 204, 0.8)");
     test(
       "hwb(from rgb(20%, 40%, 60%, 80%) h calc(alpha * 100) w / calc(b / 100))",
       "rgba(204, 204, 204, 0.4)",
@@ -19913,7 +19939,7 @@ mod tests {
       "hwb(from hwb(none none none / none) h w b / alpha)",
       "rgba(255, 0, 0, 0)",
     );
-    test("hwb(from hwb(120deg none 50% / .5) h w b)", "rgb(0, 128, 0)");
+    test("hwb(from hwb(120deg none 50% / .5) h w b)", "rgba(0, 128, 0, 0.5)");
     test(
       "hwb(from hwb(120deg 20% 50% / none) h w b / alpha)",
       "rgba(51, 128, 51, 0)",
@@ -20068,7 +20094,7 @@ mod tests {
       );
       test(
         &format!("{}(from {}(25% 20 50 / 40%) l b a)", color_space, color_space),
-        &format!("{}(25% 50 20)", color_space),
+        &format!("{}(25% 50 20 / 0.4)", color_space),
       );
       test(
         &format!("{}(from {}(25% 20 50 / 40%) l a a / a)", color_space, color_space),
@@ -20149,6 +20175,15 @@ mod tests {
     // test(&format!("{}(from {}($1", color_space, color_space), &format!("{}$2", color_space))
 
     for color_space in &["lch", "oklch"] {
+      // Cover omitted alpha in LCH and OKLCH.
+      test(
+        &format!(
+          "{}(from {}(50% 0.2 120 / 0.4) l c h)",
+          color_space, color_space
+        ),
+        &format!("{}(50% 0.2 120 / 0.4)", color_space),
+      );
+
       // Testing no modifications.
       test(
         &format!("{}(from {}(70% 45 30) l c h)", color_space, color_space),
@@ -20466,7 +20501,7 @@ mod tests {
           "color(from color({} 0.7 0.5 0.3 / 40%) {} r g b)",
           color_space, color_space
         ),
-        &format!("color({} 0.7 0.5 0.3)", color_space),
+        &format!("color({} 0.7 0.5 0.3 / 0.4)", color_space),
       );
       test(
         &format!(
@@ -20752,7 +20787,7 @@ mod tests {
           "color(from color({} 0.7 0.5 0.3 / 40%) {} g b r)",
           color_space, color_space
         ),
-        &format!("color({} 0.5 0.3 0.7)", color_space),
+        &format!("color({} 0.5 0.3 0.7 / 0.4)", color_space),
       );
       test(
         &format!(
@@ -20821,7 +20856,7 @@ mod tests {
           "color(from color({} -0.7 -0.5 -0.3 / -40%) {} r g b)",
           color_space, color_space
         ),
-        &format!("color({} -0.7 -0.5 -0.3)", color_space),
+        &format!("color({} -0.7 -0.5 -0.3 / 0)", color_space),
       );
       test(
         &format!(
@@ -20948,7 +20983,7 @@ mod tests {
           "color(from color({} 7 -20.5 100 / 40%) {} x y z)",
           color_space, color_space
         ),
-        &format!("color({} 7 -20.5 100)", result_color_space),
+        &format!("color({} 7 -20.5 100 / 0.4)", result_color_space),
       );
       test(
         &format!(
@@ -21118,7 +21153,7 @@ mod tests {
           "color(from color({} 7 -20.5 100 / 40%) {} y z x)",
           color_space, color_space
         ),
-        &format!("color({} -20.5 100 7)", result_color_space),
+        &format!("color({} -20.5 100 7 / 0.4)", result_color_space),
       );
       test(
         &format!(
