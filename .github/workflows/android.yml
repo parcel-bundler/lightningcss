@@ -1,19 +1,18 @@
-name: Build LightningCSS - Android ARMv7
+name: Build LightningCSS Android ARMv7
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-  pull_request:
 
 jobs:
-  build-android-armv7:
-    name: Android ARMv7 (armeabi-v7a)
+  build:
+    name: Android ARMv7
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/codebysushil/linux-android-armv7/linux-android-armv7:latest
+      image: ghcr.io/codebysushil/linux-android-armv7-builder:latest
 
     env:
       RUST_TARGET: armv7-linux-androideabi
@@ -22,107 +21,172 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show build environment
+      - name: Show toolchain
+        shell: bash
         run: |
-          echo "=== Node ==="
+          set -eux
+
           node --version
-
-          echo "=== npm ==="
           npm --version
+          yarn --version
 
-          echo "=== Yarn ==="
-          yarn --version || true
-
-          echo "=== Rust ==="
           rustc --version
           cargo --version
 
-          echo "=== Clang ==="
           clang --version
-
-          echo "=== LLVM Strip ==="
           llvm-strip --version
 
-          echo "=== Android NDK ==="
           ndk-build --version || true
 
+      - name: Detect Android NDK
+        shell: bash
+        run: |
+          set -e
+
+          echo "Searching for Android NDK..."
+
+          NDK=""
+
+          for dir in \
+            "${ANDROID_NDK_LATEST_HOME:-}" \
+            "${ANDROID_NDK_HOME:-}" \
+            "/opt/android-sdk/ndk"/* \
+            "/opt/android-ndk" \
+            "/usr/local/android-ndk" \
+            "/android-sdk/ndk"/* \
+            "/sdk/ndk"/*
+          do
+            if [ -n "$dir" ] && [ -d "$dir" ]; then
+              if [ -f "$dir/source.properties" ]; then
+                NDK="$dir"
+                break
+              fi
+            fi
+          done
+
+          if [ -z "$NDK" ]; then
+            echo "ERROR: Android NDK was not found."
+            echo
+            echo "Searching filesystem:"
+            find / -type f -name source.properties 2>/dev/null \
+              | grep -i ndk \
+              | head -20 || true
+
+            exit 1
+          fi
+
+          echo "Android NDK found:"
+          echo "$NDK"
+
+          echo "ANDROID_NDK_LATEST_HOME=$NDK" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
+
+      - name: Verify Android NDK
+        shell: bash
+        run: |
+          set -eux
+
+          echo "ANDROID_NDK_LATEST_HOME=$ANDROID_NDK_LATEST_HOME"
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
+
+          test -d "$ANDROID_NDK_LATEST_HOME"
+
+          ls -la "$ANDROID_NDK_LATEST_HOME"
+
+      - name: Verify ARMv7 compiler
+        shell: bash
+        run: |
+          set -e
+
+          echo "Searching for ARMv7 Android compiler..."
+
+          find "$ANDROID_NDK_LATEST_HOME" \
+            -type f \
+            \( \
+              -name 'armv7a-linux-androideabi*-clang' \
+              -o \
+              -name 'armv7a-linux-androideabi*-clang++' \
+            \) \
+            -print
+
       - name: Setup Rust target
+        shell: bash
         run: |
           rustup target add "$RUST_TARGET"
 
-      - name: Verify Android target
-        run: |
-          rustup target list --installed
-
-      - name: Configure Android NDK
-        shell: bash
-        run: |
-          if [ -n "${ANDROID_NDK_LATEST_HOME:-}" ]; then
-            echo "ANDROID_NDK_LATEST_HOME=$ANDROID_NDK_LATEST_HOME"
-          elif [ -n "${ANDROID_NDK_HOME:-}" ]; then
-            export ANDROID_NDK_LATEST_HOME="$ANDROID_NDK_HOME"
-            echo "ANDROID_NDK_LATEST_HOME=$ANDROID_NDK_LATEST_HOME"
-          else
-            NDK_DIR="$(find /opt /usr/local /android-sdk /sdk \
-              -maxdepth 5 \
-              -type d \
-              -name 'android-ndk*' \
-              2>/dev/null | sort -V | tail -n 1 || true)"
-
-            if [ -n "$NDK_DIR" ]; then
-              echo "ANDROID_NDK_LATEST_HOME=$NDK_DIR" >> "$GITHUB_ENV"
-              echo "Found Android NDK: $NDK_DIR"
-            else
-              echo "WARNING: Android NDK directory was not automatically found."
-            fi
-          fi
-
-      - name: Verify Android compiler
-        shell: bash
-        run: |
-          echo "ANDROID_NDK_LATEST_HOME=${ANDROID_NDK_LATEST_HOME:-not-set}"
-
-          if [ -n "${ANDROID_NDK_LATEST_HOME:-}" ]; then
-            find "$ANDROID_NDK_LATEST_HOME" \
-              -type f \
-              \( -name 'armv7a-linux-androideabi*-clang' \
-              -o -name 'armv7a-linux-androideabi*-clang++' \) \
-              -print
-          fi
-
-      - name: Install dependencies
+      - name: Install Node dependencies
         uses: bahmutov/npm-install@v1.8.32
 
       - name: Build release
+        shell: bash
         env:
           RUST_TARGET: ${{ env.RUST_TARGET }}
           ANDROID_NDK_LATEST_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
         run: |
           yarn build-release
 
-      - name: Build LightningCSS
+      # ------------------------------------------------------------
+      # Build the LightningCSS CLI
+      # ------------------------------------------------------------
+
+      - name: Build LightningCSS CLI
+        shell: bash
         env:
           RUST_TARGET: ${{ env.RUST_TARGET }}
           ANDROID_NDK_LATEST_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
         run: |
-          yarn napi build \
-            --bin lightningcss \
+          cargo build \
             --release \
-            --target "$RUST_TARGET"
+            --target "$RUST_TARGET" \
+            --bin lightningcss \
+            --features cli
 
-      - name: Find generated native module
+      - name: Copy CLI binary
         shell: bash
         run: |
-          echo "Searching for .node files..."
+          cp \
+            "target/$RUST_TARGET/release/lightningcss" \
+            "lightningcss-arm-android"
+
+          chmod +x lightningcss-arm-android
+
+          ls -lh lightningcss-arm-android
+
+      # ------------------------------------------------------------
+      # Build N-API module
+      # ------------------------------------------------------------
+
+      - name: Build N-API module
+        shell: bash
+        env:
+          RUST_TARGET: ${{ env.RUST_TARGET }}
+          ANDROID_NDK_LATEST_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+        run: |
+          yarn napi build \
+            --release \
+            --target "$RUST_TARGET"
+            --features cli
+
+      - name: Find N-API module
+        shell: bash
+        run: |
+          set -e
+
+          echo "Generated .node files:"
 
           find . \
             -type f \
             -name '*.node' \
             -print
 
-      - name: Rename native module
+      - name: Rename N-API module
         shell: bash
         run: |
+          set -e
+
           NODE_FILE="$(find . -type f -name '*.node' | head -n 1)"
 
           if [ -z "$NODE_FILE" ]; then
@@ -130,35 +194,64 @@ jobs:
             exit 1
           fi
 
-          echo "Generated native module:"
+          echo "Using:"
           echo "$NODE_FILE"
 
-          cp "$NODE_FILE" lightningcss-arm-android.node
+          cp "$NODE_FILE" \
+            lightningcss-arm-android.node
 
-          echo "Final artifact:"
           ls -lh lightningcss-arm-android.node
 
-      - name: Strip debug symbols
+      # ------------------------------------------------------------
+      # Strip
+      # ------------------------------------------------------------
+
+      - name: Strip CLI
+        shell: bash
+        run: |
+          llvm-strip lightningcss-arm-android
+
+      - name: Strip N-API module
         shell: bash
         run: |
           llvm-strip lightningcss-arm-android.node
 
-      - name: Verify final binary
+      # ------------------------------------------------------------
+      # Verify
+      # ------------------------------------------------------------
+
+      - name: Verify binaries
         shell: bash
         run: |
-          echo "=== File information ==="
-          file lightningcss-arm-android.node
+          echo "=== CLI ==="
+          file lightningcss-arm-android
+          ls -lh lightningcss-arm-android
 
-          echo "=== Size ==="
+          echo
+          echo "=== N-API ==="
+          file lightningcss-arm-android.node
           ls -lh lightningcss-arm-android.node
 
-          echo "=== ELF information ==="
-          readelf -h lightningcss-arm-android.node || true
+          echo
+          echo "=== ELF CLI ==="
+          readelf -h lightningcss-arm-android \
+            | grep -E 'Class|Machine|Type'
 
-      - name: Upload artifact
+          echo
+          echo "=== ELF N-API ==="
+          readelf -h lightningcss-arm-android.node \
+            | grep -E 'Class|Machine|Type'
+
+      # ------------------------------------------------------------
+      # Upload
+      # ------------------------------------------------------------
+
+      - name: Upload ARMv7 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: lightningcss-arm-android
-          path: lightningcss-arm-android.node
+          name: lightningcss-android-armv7
+          path: |
+            lightningcss-arm-android
+            lightningcss-arm-android.node
           if-no-files-found: error
           retention-days: 30
