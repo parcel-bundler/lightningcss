@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/codebysushil/linux-android-armv7-builder:latest
+      image: ghcr.io/codebysushil/linux-android-armv7/linux-android-armv7:latest
+      # image: ghcr.io/codebysushil/linux-android-armv7/linux-android-armv7:latest
 
     env:
       RUST_TARGET: armv7-linux-androideabi
