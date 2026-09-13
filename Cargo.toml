@@ -31,7 +31,7 @@ required-features = ["cli"]
 [lib]
 name = "lightningcss"
 path = "src/lib.rs"
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["bundler", "nodejs", "sourcemap"]
