@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   build:
@@ -168,7 +168,7 @@ jobs:
         run: |
           yarn napi build \
             --release \
-            --target "$RUST_TARGET"
+            --target "$RUST_TARGET" \
             --features cli
 
       - name: Find N-API module
