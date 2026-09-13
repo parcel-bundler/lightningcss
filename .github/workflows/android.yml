@@ -1,0 +1,164 @@
+name: Build LightningCSS - Android ARMv7
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-android-armv7:
+    name: Android ARMv7 (armeabi-v7a)
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/codebysushil/linux-android-armv7-builder:latest
+
+    env:
+      RUST_TARGET: armv7-linux-androideabi
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show build environment
+        run: |
+          echo "=== Node ==="
+          node --version
+
+          echo "=== npm ==="
+          npm --version
+
+          echo "=== Yarn ==="
+          yarn --version || true
+
+          echo "=== Rust ==="
+          rustc --version
+          cargo --version
+
+          echo "=== Clang ==="
+          clang --version
+
+          echo "=== LLVM Strip ==="
+          llvm-strip --version
+
+          echo "=== Android NDK ==="
+          ndk-build --version || true
+
+      - name: Setup Rust target
+        run: |
+          rustup target add "$RUST_TARGET"
+
+      - name: Verify Android target
+        run: |
+          rustup target list --installed
+
+      - name: Configure Android NDK
+        shell: bash
+        run: |
+          if [ -n "${ANDROID_NDK_LATEST_HOME:-}" ]; then
+            echo "ANDROID_NDK_LATEST_HOME=$ANDROID_NDK_LATEST_HOME"
+          elif [ -n "${ANDROID_NDK_HOME:-}" ]; then
+            export ANDROID_NDK_LATEST_HOME="$ANDROID_NDK_HOME"
+            echo "ANDROID_NDK_LATEST_HOME=$ANDROID_NDK_LATEST_HOME"
+          else
+            NDK_DIR="$(find /opt /usr/local /android-sdk /sdk \
+              -maxdepth 5 \
+              -type d \
+              -name 'android-ndk*' \
+              2>/dev/null | sort -V | tail -n 1 || true)"
+
+            if [ -n "$NDK_DIR" ]; then
+              echo "ANDROID_NDK_LATEST_HOME=$NDK_DIR" >> "$GITHUB_ENV"
+              echo "Found Android NDK: $NDK_DIR"
+            else
+              echo "WARNING: Android NDK directory was not automatically found."
+            fi
+          fi
+
+      - name: Verify Android compiler
+        shell: bash
+        run: |
+          echo "ANDROID_NDK_LATEST_HOME=${ANDROID_NDK_LATEST_HOME:-not-set}"
+
+          if [ -n "${ANDROID_NDK_LATEST_HOME:-}" ]; then
+            find "$ANDROID_NDK_LATEST_HOME" \
+              -type f \
+              \( -name 'armv7a-linux-androideabi*-clang' \
+              -o -name 'armv7a-linux-androideabi*-clang++' \) \
+              -print
+          fi
+
+      - name: Install dependencies
+        uses: bahmutov/npm-install@v1.8.32
+
+      - name: Build release
+        env:
+          RUST_TARGET: ${{ env.RUST_TARGET }}
+          ANDROID_NDK_LATEST_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+        run: |
+          yarn build-release
+
+      - name: Build LightningCSS
+        env:
+          RUST_TARGET: ${{ env.RUST_TARGET }}
+          ANDROID_NDK_LATEST_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+        run: |
+          yarn napi build \
+            --bin lightningcss \
+            --release \
+            --target "$RUST_TARGET"
+
+      - name: Find generated native module
+        shell: bash
+        run: |
+          echo "Searching for .node files..."
+
+          find . \
+            -type f \
+            -name '*.node' \
+            -print
+
+      - name: Rename native module
+        shell: bash
+        run: |
+          NODE_FILE="$(find . -type f -name '*.node' | head -n 1)"
+
+          if [ -z "$NODE_FILE" ]; then
+            echo "ERROR: No .node file was generated."
+            exit 1
+          fi
+
+          echo "Generated native module:"
+          echo "$NODE_FILE"
+
+          cp "$NODE_FILE" lightningcss-arm-android.node
+
+          echo "Final artifact:"
+          ls -lh lightningcss-arm-android.node
+
+      - name: Strip debug symbols
+        shell: bash
+        run: |
+          llvm-strip lightningcss-arm-android.node
+
+      - name: Verify final binary
+        shell: bash
+        run: |
+          echo "=== File information ==="
+          file lightningcss-arm-android.node
+
+          echo "=== Size ==="
+          ls -lh lightningcss-arm-android.node
+
+          echo "=== ELF information ==="
+          readelf -h lightningcss-arm-android.node || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lightningcss-arm-android
+          path: lightningcss-arm-android.node
+          if-no-files-found: error
+          retention-days: 30
