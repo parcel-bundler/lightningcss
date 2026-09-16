@@ -6823,16 +6823,75 @@ mod tests {
       "custom-element::part(foo){color:red}",
     );
     // https://github.com/parcel-bundler/lightningcss/issues/1244
-    minify_test("::details-content::before {color:red}", "::details-content:before{color:red}");
-    minify_test("::details-content::after {color:red}", "::details-content:after{color:red}");
-    minify_test("::details-content::marker {color:red}", "::details-content::marker{color:red}");
+    minify_test(
+      "::details-content::before {color:red}",
+      "::details-content:before{color:red}",
+    );
+    minify_test(
+      "::details-content::after {color:red}",
+      "::details-content:after{color:red}",
+    );
+    minify_test(
+      "::details-content::marker {color:red}",
+      "::details-content::marker{color:red}",
+    );
     minify_test(
       "details::details-content::before {color:red}",
       "details::details-content:before{color:red}",
     );
+    // ::marker may also follow ::before/::after.
+    // https://drafts.csswg.org/css-pseudo-4/#marker-pseudo
+    minify_test("::before::marker {color:red}", ":before::marker{color:red}");
+    minify_test(
+      "::details-content::before::marker {color:red}",
+      "::details-content:before::marker{color:red}",
+    );
+    // Element-backed pseudo-elements may follow ::part(), and vice versa other
+    // pseudo-elements may follow element-backed ones.
+    // https://drafts.csswg.org/css-pseudo-4/#element-like
+    minify_test(
+      "::part(foo)::details-content::before {color:red}",
+      "::part(foo)::details-content:before{color:red}",
+    );
+    // ::picker() is element-backed like ::details-content.
+    minify_test(
+      "::picker(select)::before {color:red}",
+      "::picker(select):before{color:red}",
+    );
+    // The view-transition pseudo-elements only accept :only-child, not other
+    // pseudo-elements.
+    error_test(
+      "::view-transition-group(foo)::before {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
     // https://github.com/parcel-bundler/lightningcss/issues/1244
     error_test(
       "::details-content::part(foo) {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+    error_test(
+      "::details-content::slotted(div) {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+    // Only ::marker may follow ::before/::after.
+    error_test(
+      "::details-content::before::before {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+    error_test(
+      "::details-content::before::selection {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+    error_test(
+      "::before::details-content {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+    error_test(
+      "::marker::marker {color:red}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+    error_test(
+      "::part(foo)::part(bar) {color:red}",
       ParserError::SelectorError(SelectorError::InvalidState),
     );
     minify_test(".sm\\:text-5xl { font-size: 3rem }", ".sm\\:text-5xl{font-size:3rem}");
@@ -19452,10 +19511,7 @@ mod tests {
     );
 
     // Test in image()
-    minify_test(
-      ".foo { mask: image(alpha(from red / 1))}",
-      ".foo{mask:image(red)}",
-    );
+    minify_test(".foo { mask: image(alpha(from red / 1))}", ".foo{mask:image(red)}");
 
     // Test in linear-gradient()
     minify_test(
