@@ -48,6 +48,28 @@ pub trait PseudoElement<'i>: Sized + ToCss {
   fn is_unknown(&self) -> bool {
     false
   }
+
+  /// Whether this pseudo-element is valid when directly after a
+  /// ::before/::after pseudo (e.g. ::marker).
+  fn valid_after_before_or_after(&self) -> bool {
+    false
+  }
+
+  /// Whether this pseudo-element is element-backed, i.e. it represents a real
+  /// element (such as `::details-content`). All pseudo-classes and
+  /// pseudo-elements are syntactically allowed after it, as if it were a type
+  /// selector.
+  ///
+  /// https://drafts.csswg.org/css-pseudo-4/#element-like
+  fn parses_as_element_backed(&self) -> bool {
+    false
+  }
+
+  /// Whether this pseudo-element is ::before or ::after, which are treated
+  /// specially when deciding what can come after them.
+  fn is_before_or_after(&self) -> bool {
+    false
+  }
 }
 
 /// A trait that represents a pseudo-class.
@@ -109,21 +131,32 @@ bitflags! {
         /// If so, then we can only parse a subset of pseudo-elements, and
         /// whatever comes after them if so.
         const AFTER_PART = 1 << 2;
-        /// Whether we've parsed a pseudo-element (as in, an
-        /// `Impl::PseudoElement` thus not accounting for `::slotted` or
-        /// `::part`) already.
+        /// Whether we've parsed a non-element-backed pseudo-element (as in, an
+        /// `Impl::PseudoElement` thus not accounting for `::slotted`, `::part`
+        /// or element-backed pseudo-elements) already.
         ///
         /// If so, then other pseudo-elements and most other selectors are
         /// disallowed.
-        const AFTER_PSEUDO_ELEMENT = 1 << 3;
+        const AFTER_NON_ELEMENT_BACKED_PSEUDO = 1 << 3;
         /// Whether we've parsed a non-stateful pseudo-element (again, as-in
         /// `Impl::PseudoElement`) already. If so, then other pseudo-classes are
-        /// disallowed. If this flag is set, `AFTER_PSEUDO_ELEMENT` must be set
+        /// disallowed. If this flag is set, `AFTER_NON_ELEMENT_BACKED_PSEUDO` must be set
         /// as well.
         const AFTER_NON_STATEFUL_PSEUDO_ELEMENT = 1 << 4;
 
+        /// Whether we've parsed an element-backed pseudo-element (as in,
+        /// `::details-content`), which accepts pseudo-classes and other
+        /// pseudo-elements after it, like ::part() does.
+        ///
+        /// https://drafts.csswg.org/css-pseudo-4/#element-like
+        const AFTER_ELEMENT_BACKED_PSEUDO_ELEMENT = 1 << 11;
+
+        /// Whether we've parsed a ::before or ::after pseudo-element, after
+        /// which some pseudo-elements (e.g. ::marker) may follow.
+        const AFTER_BEFORE_OR_AFTER_PSEUDO = 1 << 12;
+
         /// Whether we are after any of the pseudo-like things.
-        const AFTER_PSEUDO = Self::AFTER_PART.bits() | Self::AFTER_SLOTTED.bits() | Self::AFTER_PSEUDO_ELEMENT.bits();
+        const AFTER_PSEUDO = Self::AFTER_PART.bits() | Self::AFTER_SLOTTED.bits() | Self::AFTER_NON_ELEMENT_BACKED_PSEUDO.bits() | Self::AFTER_ELEMENT_BACKED_PSEUDO_ELEMENT.bits() | Self::AFTER_BEFORE_OR_AFTER_PSEUDO.bits();
 
         /// Whether we explicitly disallow combinators.
         const DISALLOW_COMBINATORS = 1 << 5;
@@ -143,8 +176,14 @@ bitflags! {
 impl SelectorParsingState {
   #[inline]
   fn allows_pseudos(self) -> bool {
+    // Pseudo-elements are allowed after ::part(), after element-backed
+    // pseudo-elements, and after ::before/::after (where they are further
+    // restricted by `valid_after_before_or_after`), but not after other
+    // pseudo-elements.
     // NOTE(emilio): We allow pseudos after ::part and such.
-    !self.intersects(Self::AFTER_PSEUDO_ELEMENT | Self::DISALLOW_PSEUDOS)
+    !self.intersects(Self::DISALLOW_PSEUDOS)
+      && !(self.intersects(Self::AFTER_NON_ELEMENT_BACKED_PSEUDO)
+        && !self.intersects(Self::AFTER_BEFORE_OR_AFTER_PSEUDO))
   }
 
   #[inline]
@@ -163,7 +202,11 @@ impl SelectorParsingState {
   // state, and so on.
   #[inline]
   fn allows_custom_functional_pseudo_classes(self) -> bool {
-    !self.intersects(Self::AFTER_PSEUDO)
+    // Functional pseudo-classes are allowed after ::part() and element-backed
+    // pseudo-elements, but not after ::slotted() or non-element-backed
+    // pseudo-elements.
+    // https://drafts.csswg.org/css-pseudo-4/#element-like
+    !self.intersects(Self::AFTER_SLOTTED | Self::AFTER_NON_ELEMENT_BACKED_PSEUDO)
   }
 
   #[inline]
@@ -2230,8 +2273,11 @@ where
     }
   }
 
-  let has_pseudo_element = state
-    .intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT | SelectorParsingState::AFTER_UNKNOWN_PSEUDO_ELEMENT);
+  let has_pseudo_element = state.intersects(
+    SelectorParsingState::AFTER_NON_ELEMENT_BACKED_PSEUDO
+      | SelectorParsingState::AFTER_UNKNOWN_PSEUDO_ELEMENT
+      | SelectorParsingState::AFTER_ELEMENT_BACKED_PSEUDO_ELEMENT,
+  );
   let slotted = state.intersects(SelectorParsingState::AFTER_SLOTTED);
   let part = state.intersects(SelectorParsingState::AFTER_PART);
   let (spec, components) = builder.build(has_pseudo_element, slotted, part);
@@ -2776,8 +2822,18 @@ where
         builder.push_simple_selector(Component::Slotted(selector));
       }
       SimpleSelectorParseResult::PseudoElement(p) => {
-        if !p.is_unknown() {
-          state.insert(SelectorParsingState::AFTER_PSEUDO_ELEMENT);
+        if p.parses_as_element_backed() {
+          state.insert(SelectorParsingState::AFTER_ELEMENT_BACKED_PSEUDO_ELEMENT);
+          builder.push_combinator(Combinator::PseudoElement);
+        } else if !p.is_unknown() {
+          state.insert(SelectorParsingState::AFTER_NON_ELEMENT_BACKED_PSEUDO);
+          if p.is_before_or_after() {
+            state.insert(SelectorParsingState::AFTER_BEFORE_OR_AFTER_PSEUDO);
+          } else {
+            // Only a pseudo-element directly after ::before/::after may use
+            // its allowlist, so e.g. `::before::marker::marker` is rejected.
+            state.remove(SelectorParsingState::AFTER_BEFORE_OR_AFTER_PSEUDO);
+          }
           builder.push_combinator(Combinator::PseudoElement);
         } else {
           state.insert(SelectorParsingState::AFTER_UNKNOWN_PSEUDO_ELEMENT);
@@ -3058,6 +3114,12 @@ where
           P::parse_pseudo_element(parser, location, name)?
         };
 
+        if state.intersects(SelectorParsingState::AFTER_BEFORE_OR_AFTER_PSEUDO)
+          && !pseudo_element.valid_after_before_or_after()
+        {
+          return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+        }
+
         if state.intersects(SelectorParsingState::AFTER_SLOTTED) && !pseudo_element.valid_after_slotted() {
           return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
         }
@@ -3126,7 +3188,7 @@ where
     if !pseudo_class.is_valid_after_webkit_scrollbar() {
       return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterWebKitScrollbar));
     }
-  } else if state.intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT) {
+  } else if state.intersects(SelectorParsingState::AFTER_NON_ELEMENT_BACKED_PSEUDO) {
     if !pseudo_class.is_user_action_state() {
       return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterPseudoElement));
     }
@@ -3150,6 +3212,7 @@ pub mod tests {
   pub enum PseudoClass {
     Hover,
     Active,
+    Current,
     Lang(String),
   }
 
@@ -3157,6 +3220,16 @@ pub mod tests {
   pub enum PseudoElement {
     Before,
     After,
+    Marker,
+    DetailsContent,
+    TargetText,
+    SearchText,
+    Highlight(String),
+    Picker(String),
+    PickerIcon,
+    Checkmark,
+    GrammarError,
+    SpellingError,
   }
 
   impl<'i> parser::PseudoElement<'i> for PseudoElement {
@@ -3168,6 +3241,18 @@ pub mod tests {
 
     fn valid_after_slotted(&self) -> bool {
       true
+    }
+
+    fn valid_after_before_or_after(&self) -> bool {
+      matches!(*self, PseudoElement::Marker)
+    }
+
+    fn parses_as_element_backed(&self) -> bool {
+      matches!(*self, PseudoElement::DetailsContent)
+    }
+
+    fn is_before_or_after(&self) -> bool {
+      matches!(*self, PseudoElement::Before | PseudoElement::After)
     }
   }
 
@@ -3193,6 +3278,7 @@ pub mod tests {
       match *self {
         PseudoClass::Hover => dest.write_str(":hover"),
         PseudoClass::Active => dest.write_str(":active"),
+        PseudoClass::Current => dest.write_str(":current"),
         PseudoClass::Lang(ref lang) => {
           dest.write_str(":lang(")?;
           serialize_identifier(lang, dest)?;
@@ -3210,6 +3296,24 @@ pub mod tests {
       match *self {
         PseudoElement::Before => dest.write_str("::before"),
         PseudoElement::After => dest.write_str("::after"),
+        PseudoElement::Marker => dest.write_str("::marker"),
+        PseudoElement::DetailsContent => dest.write_str("::details-content"),
+        PseudoElement::TargetText => dest.write_str("::target-text"),
+        PseudoElement::SearchText => dest.write_str("::search-text"),
+        PseudoElement::Highlight(ref name) => {
+          dest.write_str("::highlight(")?;
+          serialize_identifier(name, dest)?;
+          dest.write_char(')')
+        }
+        PseudoElement::Picker(ref name) => {
+          dest.write_str("::picker(")?;
+          serialize_identifier(name, dest)?;
+          dest.write_char(')')
+        }
+        PseudoElement::PickerIcon => dest.write_str("::picker-icon"),
+        PseudoElement::Checkmark => dest.write_str("::checkmark"),
+        PseudoElement::GrammarError => dest.write_str("::grammar-error"),
+        PseudoElement::SpellingError => dest.write_str("::spelling-error"),
       }
     }
   }
@@ -3352,6 +3456,7 @@ pub mod tests {
       match_ignore_ascii_case! { &name,
           "hover" => return Ok(PseudoClass::Hover),
           "active" => return Ok(PseudoClass::Active),
+          "current" => return Ok(PseudoClass::Current),
           _ => {}
       }
       Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name)))
@@ -3380,9 +3485,38 @@ pub mod tests {
       match_ignore_ascii_case! { &name,
           "before" => return Ok(PseudoElement::Before),
           "after" => return Ok(PseudoElement::After),
+          "marker" => return Ok(PseudoElement::Marker),
+          "details-content" => return Ok(PseudoElement::DetailsContent),
+          "target-text" => return Ok(PseudoElement::TargetText),
+          "search-text" => return Ok(PseudoElement::SearchText),
+          "picker-icon" => return Ok(PseudoElement::PickerIcon),
+          "checkmark" => return Ok(PseudoElement::Checkmark),
+          "grammar-error" => return Ok(PseudoElement::GrammarError),
+          "spelling-error" => return Ok(PseudoElement::SpellingError),
           _ => {}
       }
       Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name)))
+    }
+
+    fn parse_functional_pseudo_element<'t>(
+      &self,
+      name: CowRcStr<'i>,
+      arguments: &mut CssParser<'i, 't>,
+    ) -> Result<PseudoElement, SelectorParseError<'i>> {
+      match_ignore_ascii_case! { &name,
+          "highlight" => {
+              return Ok(PseudoElement::Highlight(
+                  arguments.expect_ident_cloned()?.as_ref().to_owned(),
+              ));
+          },
+          "picker" => {
+              return Ok(PseudoElement::Picker(
+                  arguments.expect_ident_cloned()?.as_ref().to_owned(),
+              ));
+          },
+          _ => {}
+      }
+      Err(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name)))
     }
 
     fn default_namespace(&self) -> Option<DummyAtom> {
@@ -3986,6 +4120,62 @@ pub mod tests {
     assert_eq!(iter.next_sequence(), Some(Combinator::PseudoElement));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next_sequence(), None);
+  }
+
+  #[test]
+  fn test_pseudo_on_element_backed_pseudo() {
+    let selector = &parse("::details-content::before").unwrap().0[0];
+    let mut iter = selector.iter();
+    assert_eq!(iter.next(), Some(&Component::PseudoElement(PseudoElement::Before)));
+    assert_eq!(iter.next(), None);
+    let combinator = iter.next_sequence();
+    assert_eq!(combinator, Some(Combinator::PseudoElement));
+    assert_eq!(
+      iter.next(),
+      Some(&Component::PseudoElement(PseudoElement::DetailsContent))
+    );
+    assert_eq!(iter.next(), None);
+    let combinator = iter.next_sequence();
+    assert_eq!(combinator, Some(Combinator::PseudoElement));
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next_sequence(), None);
+  }
+
+  #[test]
+  fn test_pseudo_duplicate_before_after_or_marker() {
+    assert!(parse("::before::before").is_err());
+    assert!(parse("::after::after").is_err());
+    assert!(parse("::marker::marker").is_err());
+  }
+
+  #[test]
+  fn test_pseudo_after_before_or_after() {
+    // ::marker is valid after ::before/::after, but other pseudo-elements
+    // (including another ::before/::after/::marker) are not.
+    // https://drafts.csswg.org/css-pseudo-4/#generated-content
+    parse("::before::marker").unwrap();
+    parse("::after::marker").unwrap();
+    parse("::details-content::before::marker").unwrap();
+    assert!(parse("::details-content::before::before").is_err());
+    assert!(parse("::details-content::before::after").is_err());
+    assert!(parse("::before::details-content").is_err());
+    assert!(parse("::before::marker::marker").is_err());
+    assert!(parse("::marker::before").is_err());
+  }
+
+  #[test]
+  fn test_pseudo_after_part() {
+    // Almost all pseudo-elements, including element-backed ones, are allowed
+    // after ::part().
+    // https://drafts.csswg.org/css-pseudo-4/#element-like
+    parse("::part(foo)::before").unwrap();
+    parse("::part(foo)::marker").unwrap();
+    parse("::part(foo)::details-content").unwrap();
+    parse("::part(foo)::details-content::before").unwrap();
+    assert!(parse("::part(foo)::part(bar)").is_err());
+    assert!(parse("::part(foo)::slotted(div)").is_err());
+    assert!(parse("::details-content::part(foo)").is_err());
+    assert!(parse("::details-content::slotted(div)").is_err());
   }
 
   struct TestVisitor {
