@@ -17,6 +17,11 @@ rustflags = [
     "link-arg=--export-table",
     '--cfg',
     'getrandom_backend="custom"',
+    # napi-sys declares the N-API functions as undefined `extern "C"` symbols
+    # that are provided by the host at runtime. rustc 1.96+ no longer passes
+    # `--allow-undefined` to wasm-ld, so it must be requested explicitly.
+    "-C",
+    "link-arg=--allow-undefined",
 ]
 
 
