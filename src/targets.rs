@@ -224,7 +224,15 @@ impl From<Option<Browsers>> for Targets {
 
 impl Targets {
   pub(crate) fn is_compatible(&self, feature: crate::compat::Feature) -> bool {
-    self.browsers.map(|targets| feature.is_compatible(targets)).unwrap_or(true)
+    match self.browsers {
+      Some(browsers) => feature.is_compatible(browsers),
+      // Without targets, modern syntax is preserved, so an unknown browser set
+      // is treated as supporting the feature. Ask `Feature` rather than
+      // assuming: a feature that no browser implements answers `false` for
+      // every browser set, including the empty one, and still has to be
+      // compiled away or it reaches the browser as syntax nothing evaluates.
+      None => feature.is_compatible(Browsers::default()),
+    }
   }
 
   pub(crate) fn should_compile(&self, feature: crate::compat::Feature, flag: Features) -> bool {

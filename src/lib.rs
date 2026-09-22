@@ -300,6 +300,27 @@ mod tests {
 
   #[track_caller]
   fn custom_media_test(source: &str, expected: &str) {
+    custom_media_test_with_targets(
+      source,
+      expected,
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      }
+      .into(),
+    )
+  }
+
+  /// `custom_media_test` with no targets at all, which is how the docs show the
+  /// feature being enabled. No browser implements custom media queries, so the
+  /// substitution is owed whether or not a browser set was given.
+  #[track_caller]
+  fn custom_media_test_no_targets(source: &str, expected: &str) {
+    custom_media_test_with_targets(source, expected, Targets::default())
+  }
+
+  #[track_caller]
+  fn custom_media_test_with_targets(source: &str, expected: &str, targets: Targets) {
     let mut stylesheet = match StyleSheet::parse(
       &source,
       ParserOptions {
@@ -311,11 +332,7 @@ mod tests {
       Err(e) => panic_with_test_error("custom_media_test", "parse", source, e),
     };
     if let Err(e) = stylesheet.minify(MinifyOptions {
-      targets: Browsers {
-        chrome: Some(95 << 16),
-        ..Browsers::default()
-      }
-      .into(),
+      targets,
       ..MinifyOptions::default()
     }) {
       panic_with_test_error("custom_media_test", "minify", source, e);
@@ -28790,6 +28807,51 @@ mod tests {
         }
       "#},
     );
+  }
+
+  #[test]
+  fn test_custom_media_without_targets() {
+    // The example from the docs, with the options the docs show
+    // (`drafts: { customMedia: true }` and nothing else).
+    custom_media_test_no_targets(
+      r#"
+      @custom-media --modern (color), (hover);
+
+      @media (--modern) and (width > 1024px) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media ((color) or (hover)) and (width > 1024px) {
+        .a {
+          color: green;
+        }
+      }
+      "#},
+    );
+
+    // Excluding the feature still opts out.
+    let mut stylesheet = StyleSheet::parse(
+      "@custom-media --modern (color);\n@media (--modern) { .a { color: green } }",
+      ParserOptions {
+        flags: ParserFlags::CUSTOM_MEDIA,
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+    stylesheet
+      .minify(MinifyOptions {
+        targets: Targets {
+          exclude: Features::CustomMediaQueries,
+          ..Targets::default()
+        },
+        ..MinifyOptions::default()
+      })
+      .unwrap();
+    let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
+    assert_eq!(res.code, "@custom-media --modern (color);@media (--modern){.a{color:green}}");
   }
 
   #[test]
