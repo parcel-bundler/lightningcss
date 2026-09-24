@@ -168,8 +168,6 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
       "read-write" => ReadWrite(VendorPrefix::None),
       "-moz-read-write" => ReadWrite(VendorPrefix::Moz),
       "placeholder-shown" => PlaceholderShown(VendorPrefix::None),
-      "-moz-placeholder" => PlaceholderShown(VendorPrefix::Moz),
-      "-ms-input-placeholder" => PlaceholderShown(VendorPrefix::Ms),
       "default" => Default,
       "checked" => Checked,
       "indeterminate" => Indeterminate,
