@@ -555,6 +555,16 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
       HashMap::with_capacity_and_hasher(self.0.len(), BuildHasherDefault::<PrecomputedHasher>::default());
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
+      // Other rules may contribute to the same layers, including through
+      // conditional groups or imported stylesheets. Do not move layer content
+      // across them without analyzing those contributions.
+      if !matches!(
+        &rule,
+        CssRule::LayerBlock(_) | CssRule::LayerStatement(_) | CssRule::Ignored
+      ) && !matches!(&rule, CssRule::Style(style) if style.rules.0.is_empty())
+      {
+        layer_rules.clear();
+      }
       match &mut rule {
         CssRule::Keyframes(keyframes) => {
           if context.unused_symbols.contains(match &keyframes.name {
@@ -643,17 +653,21 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           }
         }
         CssRule::LayerBlock(layer) => {
-          // Merging non-adjacent layer rules is safe because they are applied
-          // in the order they are first defined.
+          // Remember the last block per top-level layer. A different path in
+          // the same hierarchy (e.g. `a.b` between two `a` blocks) may establish
+          // sublayer order or add styles that must not be reordered by merging.
           if let Some(name) = &layer.name {
-            if let Some(idx) = layer_rules.get(name) {
+            let root = &name.0[0];
+            if let Some(idx) = layer_rules.get(root) {
               if let Some(CssRule::LayerBlock(last_rule)) = rules.get_mut(*idx) {
-                last_rule.rules.0.extend(layer.rules.0.drain(..));
-                continue;
+                if last_rule.name.as_ref() == Some(name) {
+                  last_rule.rules.0.extend(layer.rules.0.drain(..));
+                  continue;
+                }
               }
             }
 
-            layer_rules.insert(name.clone(), rules.len());
+            layer_rules.insert(root.clone(), rules.len());
             has_layers = true;
           }
         }
@@ -661,8 +675,12 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           // Create @layer block rules for each declared layer name,
           // so we can merge other blocks into it later on.
           for name in &layer.names {
-            if !layer_rules.contains_key(name) {
-              layer_rules.insert(name.clone(), rules.len());
+            let root = &name.0[0];
+            let exists = layer_rules.get(root).is_some_and(|idx| {
+              matches!(rules.get(*idx), Some(CssRule::LayerBlock(layer)) if layer.name.as_ref() == Some(name))
+            });
+            if !exists {
+              layer_rules.insert(root.clone(), rules.len());
               has_layers = true;
               rules.push(CssRule::LayerBlock(LayerBlockRule {
                 name: Some(name.clone()),
@@ -902,10 +920,6 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             property_rules.insert(property.name.clone(), rules.len());
           }
         }
-        CssRule::Import(_) => {
-          // @layer blocks can't be inlined into layers declared before imports.
-          layer_rules.clear();
-        }
         _ => {}
       }
 
@@ -955,15 +969,19 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             }
           }
           CssRule::Import(import) => {
-            if let Some(layer) = &import.layer {
-              // Start a new @layer statement so the import layer is in the right order.
-              layer_statement = None;
-              if let Some(name) = layer {
+            // Even an unlayered import can declare layers in its stylesheet.
+            layer_statement = None;
+            if import.supports.is_none() && import.media.always_matches() {
+              if let Some(Some(name)) = &import.layer {
                 declared_layers.insert(name.clone());
               }
             }
           }
-          _ => {}
+          CssRule::Ignored => {}
+          CssRule::Style(style) if style.rules.0.is_empty() => {}
+          // Do not hoist declarations across rules that may establish layers,
+          // including conditionally. Keep their first-declaration order intact.
+          _ => layer_statement = None,
         }
       }
     }
