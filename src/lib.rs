@@ -10224,6 +10224,18 @@ mod tests {
   }
 
   #[test]
+  fn test_duplicate_rules_preserve_importance() {
+    minify_test(
+      ".x { --c: first !important } @layer a { .y { --c: middle } } .x { --c: last }",
+      ".x{--c:first!important}@layer a{.y{--c:middle}}.x{--c:last}",
+    );
+    minify_test(
+      ".x { color: red !important } .y { color: green } .x { color: blue }",
+      ".x{color:red!important}.y{color:green}.x{color:#00f}",
+    );
+  }
+
+  #[test]
   fn test_merge_rules() {
     test(
       r#"
