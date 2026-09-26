@@ -11,6 +11,7 @@ use crate::printer::Printer;
 use crate::properties::masking::get_webkit_mask_property;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::ident::CustomIdent;
+use crate::values::number::NonNegative;
 use crate::values::{easing::EasingFunction, time::Time};
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -26,7 +27,7 @@ define_list_shorthand! {
     #[cfg_attr(feature = "serde", serde(borrow))]
     property: TransitionProperty(PropertyId<'i>, VendorPrefix),
     /// The duration of the transition.
-    duration: TransitionDuration(Time, VendorPrefix),
+    duration: TransitionDuration(NonNegative<Time>, VendorPrefix),
     /// The delay before the transition starts.
     delay: TransitionDelay(Time, VendorPrefix),
     /// The easing function for the transition.
@@ -43,7 +44,7 @@ impl<'i> Parse<'i> for Transition<'i> {
 
     loop {
       if duration.is_none() {
-        if let Ok(value) = input.try_parse(Time::parse) {
+        if let Ok(value) = input.try_parse(NonNegative::<Time>::parse) {
           duration = Some(value);
           continue;
         }
@@ -56,7 +57,8 @@ impl<'i> Parse<'i> for Transition<'i> {
         }
       }
 
-      if delay.is_none() {
+      // The first time must be a duration, even if it is invalid.
+      if duration.is_some() && delay.is_none() {
         if let Ok(value) = input.try_parse(Time::parse) {
           delay = Some(value);
           continue;
@@ -75,7 +77,7 @@ impl<'i> Parse<'i> for Transition<'i> {
 
     Ok(Transition {
       property: property.unwrap_or(PropertyId::All),
-      duration: duration.unwrap_or(Time::Seconds(0.0)),
+      duration: duration.unwrap_or(NonNegative(Time::Seconds(0.0))),
       delay: delay.unwrap_or(Time::Seconds(0.0)),
       timing_function: timing_function.unwrap_or(EasingFunction::Ease),
     })
@@ -154,7 +156,7 @@ pub enum ViewTransitionGroup<'i> {
 #[derive(Default)]
 pub(crate) struct TransitionHandler<'i> {
   properties: Option<(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix)>,
-  durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
+  durations: Option<(SmallVec<[NonNegative<Time>; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
   has_any: bool,
@@ -210,7 +212,7 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
         let properties: SmallVec<[PropertyId; 1]> = merge_properties(val.iter().map(|b| &b.property));
         maybe_flush!(properties, &properties, vp);
 
-        let durations: SmallVec<[Time; 1]> = val.iter().map(|b| b.duration.clone()).collect();
+        let durations: SmallVec<[NonNegative<Time>; 1]> = val.iter().map(|b| b.duration.clone()).collect();
         maybe_flush!(durations, &durations, vp);
 
         let delays: SmallVec<[Time; 1]> = val.iter().map(|b| b.delay.clone()).collect();
@@ -282,7 +284,7 @@ impl<'i> TransitionHandler<'i> {
             let mut delays_iter = delays.iter().cycle().cloned();
             let mut timing_iter = timing_functions.iter().cycle().cloned();
             for property_id in $properties {
-              let duration = durations_iter.next().unwrap_or(Time::Seconds(0.0));
+              let duration = durations_iter.next().unwrap_or(NonNegative(Time::Seconds(0.0)));
               let delay = delays_iter.next().unwrap_or(Time::Seconds(0.0));
               let timing_function = timing_iter.next().unwrap_or(EasingFunction::Ease);
               let transition = Transition {

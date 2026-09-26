@@ -14,6 +14,7 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::targets::{should_compile, Browsers, Targets};
 use crate::traits::{IsCompatible, Parse, ToCss, TrySign, Zero};
+use crate::values::number::NonNegative;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -638,7 +639,7 @@ impl Default for EndingShape {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Circle {
   /// A circle with a specified radius.
-  Radius(Length),
+  Radius(NonNegative<Length>),
   /// A shape extent keyword.
   Extent(ShapeExtent),
 }
@@ -651,7 +652,7 @@ impl<'i> Parse<'i> for Circle {
       return Ok(Circle::Extent(extent));
     }
 
-    if let Ok(length) = input.try_parse(Length::parse) {
+    if let Ok(length) = input.try_parse(NonNegative::<Length>::parse) {
       // The `circle` keyword is optional if there is only a single length.
       // We are assuming here that Ellipse::parse ran first.
       let _ = input.try_parse(|input| input.expect_ident_matching("circle"));
@@ -663,7 +664,7 @@ impl<'i> Parse<'i> for Circle {
         return Ok(Circle::Extent(extent));
       }
 
-      if let Ok(length) = input.try_parse(Length::parse) {
+      if let Ok(length) = input.try_parse(NonNegative::<Length>::parse) {
         return Ok(Circle::Radius(length));
       }
 
@@ -709,9 +710,9 @@ pub enum Ellipse {
   /// An ellipse with a specified horizontal and vertical radius.
   Size {
     /// The x-radius of the ellipse.
-    x: LengthPercentage,
+    x: NonNegative<LengthPercentage>,
     /// The y-radius of the ellipse.
-    y: LengthPercentage,
+    y: NonNegative<LengthPercentage>,
   },
   /// A shape extent keyword.
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<ShapeExtent>"))]
@@ -730,8 +731,8 @@ impl<'i> Parse<'i> for Ellipse {
       return Ok(Ellipse::Extent(extent));
     }
 
-    if let Ok(x) = input.try_parse(LengthPercentage::parse) {
-      let y = LengthPercentage::parse(input)?;
+    if let Ok(x) = input.try_parse(NonNegative::<LengthPercentage>::parse) {
+      let y = NonNegative::<LengthPercentage>::parse(input)?;
       // The `ellipse` keyword is optional if there are two lengths.
       let _ = input.try_parse(|input| input.expect_ident_matching("ellipse"));
       return Ok(Ellipse::Size { x, y });
@@ -742,8 +743,8 @@ impl<'i> Parse<'i> for Ellipse {
         return Ok(Ellipse::Extent(extent));
       }
 
-      if let Ok(x) = input.try_parse(LengthPercentage::parse) {
-        let y = LengthPercentage::parse(input)?;
+      if let Ok(x) = input.try_parse(NonNegative::<LengthPercentage>::parse) {
+        let y = NonNegative::<LengthPercentage>::parse(input)?;
         return Ok(Ellipse::Size { x, y });
       }
 
@@ -1466,7 +1467,7 @@ impl WebKitGradient {
         // Webkit radial gradients are always circles, not ellipses, and must be specified in pixels.
         let radius = match &radial.shape {
           EndingShape::Circle(Circle::Radius(radius)) => {
-            if let Some(r) = radius.to_px() {
+            if let Some(r) = radius.0.to_px() {
               r
             } else {
               return Err(());
