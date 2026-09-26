@@ -61,8 +61,7 @@ impl Browsers {
   ) -> Result<Option<Browsers>, browserslist::Error> {
     use browserslist::resolve;
 
-    let query = query.into_iter().collect::<Vec<_>>();
-    Self::from_distribs(resolve(&query, &config)?)
+    Self::from_distribs(resolve(query, &config)?)
   }
 
   #[cfg(not(target_arch = "wasm32"))]
