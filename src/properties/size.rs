@@ -10,6 +10,7 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::traits::{IsCompatible, Parse, PropertyHandler, ToCss};
 use crate::values::length::LengthPercentage;
+use crate::values::number::NonNegative;
 use crate::values::ratio::Ratio;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -37,8 +38,8 @@ pub enum Size {
   /// The `auto` keyword.
   Auto,
   /// An explicit length or percentage.
-  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LengthPercentage>"))]
-  LengthPercentage(LengthPercentage),
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<NonNegative<LengthPercentage>>"))]
+  LengthPercentage(NonNegative<LengthPercentage>),
   /// The `min-content` keyword.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   MinContent(VendorPrefix),
@@ -49,8 +50,8 @@ pub enum Size {
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   FitContent(VendorPrefix),
   /// The `fit-content()` function.
-  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LengthPercentage>"))]
-  FitContentFunction(LengthPercentage),
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<NonNegative<LengthPercentage>>"))]
+  FitContentFunction(NonNegative<LengthPercentage>),
   /// The `stretch` keyword, or the `-webkit-fill-available` or `-moz-available` prefixed keywords.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Stretch(VendorPrefix),
@@ -89,7 +90,7 @@ impl<'i> Parse<'i> for Size {
       return Ok(Size::FitContentFunction(res));
     }
 
-    let lp = input.try_parse(LengthPercentage::parse)?;
+    let lp = input.try_parse(NonNegative::<LengthPercentage>::parse)?;
     Ok(Size::LengthPercentage(lp))
   }
 }
@@ -170,8 +171,8 @@ pub enum MaxSize {
   /// The `none` keyword.
   None,
   /// An explicit length or percentage.
-  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LengthPercentage>"))]
-  LengthPercentage(LengthPercentage),
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<NonNegative<LengthPercentage>>"))]
+  LengthPercentage(NonNegative<LengthPercentage>),
   /// The `min-content` keyword.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   MinContent(VendorPrefix),
@@ -182,8 +183,8 @@ pub enum MaxSize {
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   FitContent(VendorPrefix),
   /// The `fit-content()` function.
-  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LengthPercentage>"))]
-  FitContentFunction(LengthPercentage),
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<NonNegative<LengthPercentage>>"))]
+  FitContentFunction(NonNegative<LengthPercentage>),
   /// The `stretch` keyword, or the `-webkit-fill-available` or `-moz-available` prefixed keywords.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Stretch(VendorPrefix),
@@ -222,7 +223,7 @@ impl<'i> Parse<'i> for MaxSize {
       return Ok(MaxSize::FitContentFunction(res));
     }
 
-    let lp = input.try_parse(LengthPercentage::parse)?;
+    let lp = input.try_parse(NonNegative::<LengthPercentage>::parse)?;
     Ok(MaxSize::LengthPercentage(lp))
   }
 }
@@ -289,9 +290,9 @@ impl IsCompatible for MaxSize {
 
 fn parse_fit_content<'i, 't>(
   input: &mut Parser<'i, 't>,
-) -> Result<LengthPercentage, ParseError<'i, ParserError<'i>>> {
+) -> Result<NonNegative<LengthPercentage>, ParseError<'i, ParserError<'i>>> {
   input.expect_function_matching("fit-content")?;
-  input.parse_nested_block(|input| LengthPercentage::parse(input))
+  input.parse_nested_block(|input| NonNegative::<LengthPercentage>::parse(input))
 }
 
 enum_property! {

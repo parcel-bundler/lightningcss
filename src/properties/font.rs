@@ -12,7 +12,7 @@ use crate::printer::Printer;
 use crate::targets::should_compile;
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthValue;
-use crate::values::number::CSSNumber;
+use crate::values::number::{CSSNumber, NonNegative};
 use crate::values::string::CowArcStr;
 use crate::values::{angle::Angle, length::LengthPercentage, percentage::Percentage};
 #[cfg(feature = "visitor")]
@@ -158,7 +158,7 @@ enum_property! {
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontSize {
   /// An explicit size.
-  Length(LengthPercentage),
+  Length(NonNegative<LengthPercentage>),
   /// An absolute font size keyword.
   Absolute(AbsoluteFontSize),
   /// A relative font size keyword.
@@ -168,7 +168,7 @@ pub enum FontSize {
 impl IsCompatible for FontSize {
   fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
     match self {
-      FontSize::Length(LengthPercentage::Dimension(LengthValue::Rem(..))) => {
+      FontSize::Length(NonNegative(LengthPercentage::Dimension(LengthValue::Rem(..)))) => {
         Feature::FontSizeRem.is_compatible(browsers)
       }
       FontSize::Length(l) => l.is_compatible(browsers),
@@ -243,7 +243,7 @@ pub enum FontStretch {
   /// A font stretch keyword.
   Keyword(FontStretchKeyword),
   /// A percentage.
-  Percentage(Percentage),
+  Percentage(NonNegative<Percentage>),
 }
 
 impl Default for FontStretch {
@@ -255,7 +255,7 @@ impl Default for FontStretch {
 impl Into<Percentage> for &FontStretch {
   fn into(self) -> Percentage {
     match self {
-      FontStretch::Percentage(val) => val.clone(),
+      FontStretch::Percentage(val) => val.0.clone(),
       FontStretch::Keyword(keyword) => keyword.into(),
     }
   }
@@ -597,9 +597,9 @@ pub enum LineHeight {
   /// The UA sets the line height based on the font.
   Normal,
   /// A multiple of the element's font size.
-  Number(CSSNumber),
+  Number(NonNegative<CSSNumber>),
   /// An explicit height.
-  Length(LengthPercentage),
+  Length(NonNegative<LengthPercentage>),
 }
 
 impl Default for LineHeight {
