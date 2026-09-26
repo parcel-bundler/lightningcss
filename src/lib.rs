@@ -10224,6 +10224,47 @@ mod tests {
   }
 
   #[test]
+  fn test_layer_order_across_rules() {
+    // A conditional declaration can establish `a` before `b`. Hoisting the
+    // final statement changes their order when the condition matches.
+    minify_test(
+      "@layer c; @media (min-width: 600px) { @layer a { .x { --v: a } } } @layer b, a;",
+      "@layer c;@media (width>=600px){@layer a{.x{--v:a}}}@layer b,a;",
+    );
+    minify_test(
+      "@layer c; @supports (display: grid) { @layer a { .x { --v: a } } } @layer b, a;",
+      "@layer c;@supports (display:grid){@layer a{.x{--v:a}}}@layer b,a;",
+    );
+    // An unlayered import may declare layers in its stylesheet too.
+    minify_test(
+      "@layer c; @import 'a.css'; @layer b, a;",
+      "@layer c;@import \"a.css\";@layer b,a;",
+    );
+    // A conditional import cannot make a later unconditional declaration
+    // redundant: that declaration must still apply if the condition is false.
+    minify_test(
+      "@import 'a.css' layer(a) screen; @layer a, b;",
+      "@import \"a.css\" layer(a) screen;@layer a,b;",
+    );
+    // Moving the last block into the first reverses the order of declarations
+    // within `a` when the intervening condition matches.
+    minify_test(
+      "@layer a { .x { --v: first } } @media print { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
+      "@layer a{.x{--v:first}}@media print{@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
+    );
+    minify_test(
+      "@layer a { .x { --v: first } } @supports (display: grid) { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
+      "@layer a{.x{--v:first}}@supports (display:grid){@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
+    );
+    // Dotted layer names and nested blocks address the same layer hierarchy.
+    // Merging the two `a` blocks would declare `a.z` before `a.y`.
+    minify_test(
+      "@layer a { @layer x; } @layer a.y { .x { --v: y } } @layer a { @layer z { .x { --v: z } } }",
+      "@layer a{@layer x;}@layer a.y{.x{--v:y}}@layer a{@layer z{.x{--v:z}}}",
+    );
+  }
+
+  #[test]
   fn test_duplicate_rules_preserve_importance() {
     minify_test(
       ".x { --c: first !important } @layer a { .y { --c: middle } } .x { --c: last }",
