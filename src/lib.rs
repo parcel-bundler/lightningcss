@@ -13850,6 +13850,70 @@ mod tests {
   }
 
   #[test]
+  fn test_zero_translate3d() {
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, 0);
+        }
+      "},
+      ".foo{transform:translate(0)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0px, -0%, 0em);
+        }
+      "},
+      ".foo{transform:translate(0)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0%, 0px, -0px);
+        }
+      "},
+      ".foo{transform:translate(0%)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(calc(1px - 1px), 0, 0) rotate(30deg);
+        }
+      "},
+      ".foo{transform:translate(0)rotate(30deg)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          -webkit-transform: translate3d(0, 0, 0);
+        }
+      "},
+      ".foo{-webkit-transform:translate(0)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, var(--z));
+        }
+      "},
+      ".foo{transform:translate3d(0, 0, var(--z))}",
+    );
+    test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, 0);
+        }
+      "},
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, 0);
+        }
+      "},
+    );
+  }
+
+  #[test]
   pub fn test_gradients() {
     property_range_test(&["clip-path"], &[("circle(-1px)", None), ("ellipse(1px -2%)", None)]);
     property_range_test(
