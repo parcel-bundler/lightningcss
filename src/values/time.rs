@@ -2,11 +2,11 @@
 
 use super::angle::impl_try_from_angle;
 use super::calc::Calc;
-use super::number::CSSNumber;
+use super::number::{CSSNumber, NumericRange};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
-use crate::traits::{impl_op, Map, Op, Parse, Sign, ToCss, Zero};
+use crate::traits::{impl_op, Map, Op, Parse, ParseNumeric, Sign, ToCss, Zero};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -58,8 +58,17 @@ impl Zero for Time {
 
 impl<'i> Parse<'i> for Time {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    match input.try_parse(Calc::parse) {
-      Ok(Calc::Value(v)) => return Ok(*v),
+    Self::parse_with_range(input, NumericRange::All)
+  }
+}
+
+impl<'i> ParseNumeric<'i> for Time {
+  fn parse_with_range<'t>(
+    input: &mut Parser<'i, 't>,
+    range: NumericRange,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    match input.try_parse(Calc::<Self>::parse) {
+      Ok(Calc::Value(v)) => return Ok(v.map(|value| range.clamp(value))),
       // Time is always compatible, so they will always compute to a value.
       Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       _ => {}
@@ -68,6 +77,7 @@ impl<'i> Parse<'i> for Time {
     let location = input.current_source_location();
     match *input.next()? {
       Token::Dimension { value, ref unit, .. } => {
+        let value = range.check(value, location)?;
         match_ignore_ascii_case! { unit,
           "s" => Ok(Time::Seconds(value)),
           "ms" => Ok(Time::Milliseconds(value)),

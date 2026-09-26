@@ -11,6 +11,7 @@ use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::ColorFallbackKind;
 use crate::values::image::ImageFallback;
+use crate::values::number::NonNegative;
 use crate::values::{color::CssColor, image::Image, length::LengthPercentageOrAuto, position::*};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -32,9 +33,9 @@ pub enum BackgroundSize {
   /// An explicit background size.
   Explicit {
     /// The width of the background.
-    width: LengthPercentageOrAuto,
+    width: NonNegative<LengthPercentageOrAuto>,
     /// The height of the background.
-    height: LengthPercentageOrAuto,
+    height: NonNegative<LengthPercentageOrAuto>,
   },
   /// The `cover` keyword. Scales the background image to cover both the width and height of the element.
   Cover,
@@ -45,18 +46,18 @@ pub enum BackgroundSize {
 impl Default for BackgroundSize {
   fn default() -> BackgroundSize {
     BackgroundSize::Explicit {
-      width: LengthPercentageOrAuto::Auto,
-      height: LengthPercentageOrAuto::Auto,
+      width: NonNegative(LengthPercentageOrAuto::Auto),
+      height: NonNegative(LengthPercentageOrAuto::Auto),
     }
   }
 }
 
 impl<'i> Parse<'i> for BackgroundSize {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(width) = input.try_parse(LengthPercentageOrAuto::parse) {
+    if let Ok(width) = input.try_parse(NonNegative::<LengthPercentageOrAuto>::parse) {
       let height = input
-        .try_parse(LengthPercentageOrAuto::parse)
-        .unwrap_or(LengthPercentageOrAuto::Auto);
+        .try_parse(NonNegative::<LengthPercentageOrAuto>::parse)
+        .unwrap_or(NonNegative(LengthPercentageOrAuto::Auto));
       return Ok(BackgroundSize::Explicit { width, height });
     }
 
@@ -84,7 +85,7 @@ impl ToCss for BackgroundSize {
       Contain => dest.write_str("contain"),
       Explicit { width, height } => {
         width.to_css(dest)?;
-        if *height != LengthPercentageOrAuto::Auto {
+        if *height != NonNegative(LengthPercentageOrAuto::Auto) {
           dest.write_str(" ")?;
           height.to_css(dest)?;
         }
