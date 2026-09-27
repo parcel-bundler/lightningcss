@@ -23,6 +23,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
+use std::sync::Arc;
 
 /// Configuration for CSS modules.
 #[derive(Clone, Debug, PartialEq)]
@@ -63,16 +64,47 @@ impl Default for Config {
   }
 }
 
+/// A trait for objects acting like patterns
+pub trait PatternProvider: std::fmt::Debug {
+  /// Write the pattern to a destination.
+  fn write(
+    &self,
+    hash: &str,
+    path: &Path,
+    local: &str,
+    content_hash: Option<&str>,
+    dest: &mut dyn Write,
+  ) -> Result<(), std::fmt::Error>;
+
+  /// Whether the `content-hash` parameter needs to be passed into [write].
+  fn needs_content_hash(&self) -> bool;
+}
+
 /// A CSS modules class name pattern.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Pattern {
-  /// The list of segments in the pattern.
-  pub segments: SmallVec<[Segment; 2]>,
+#[derive(Clone, Debug)]
+pub enum Pattern {
+  /// A string pattern
+  Simple {
+    /// The list of segments in the pattern.
+    segments: SmallVec<[Segment; 2]>,
+  },
+  /// An object acting like a pattern
+  Provider(Arc<dyn PatternProvider + Send + Sync>),
+}
+
+impl PartialEq for Pattern {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Self::Simple { segments }, Pattern::Simple { segments: other }) => segments.eq(other),
+      (Self::Provider(this), Pattern::Provider(other)) => Arc::ptr_eq(this, other),
+      _ => false,
+    }
+  }
 }
 
 impl Default for Pattern {
   fn default() -> Self {
-    Pattern {
+    Pattern::Simple {
       segments: smallvec![Segment::Hash, Segment::Literal(Cow::Borrowed("_")), Segment::Local],
     }
   }
@@ -132,51 +164,56 @@ impl Pattern {
       }
     }
 
-    Ok(Pattern { segments })
+    Ok(Pattern::Simple { segments })
   }
 
   /// Whether the pattern contains any `[content-hash]` segments.
   pub fn has_content_hash(&self) -> bool {
-    self.segments.iter().any(|s| matches!(s, Segment::ContentHash))
+    match self {
+      Self::Simple { segments } => segments.iter().any(|s| matches!(s, Segment::ContentHash)),
+      Self::Provider(provider) => provider.needs_content_hash(),
+    }
   }
 
   /// Write the substituted pattern to a destination.
-  pub fn write<W, E>(
+  pub fn write(
     &self,
     hash: &str,
     path: &Path,
     local: &str,
-    content_hash: &str,
-    mut write: W,
-  ) -> Result<(), E>
-  where
-    W: FnMut(&str) -> Result<(), E>,
-  {
-    for segment in &self.segments {
-      match segment {
-        Segment::Literal(s) => {
-          write(s)?;
-        }
-        Segment::Name => {
-          let stem = path.file_stem().unwrap().to_str().unwrap();
-          if stem.contains('.') {
-            write(&stem.replace('.', "-"))?;
-          } else {
-            write(stem)?;
+    content_hash: Option<&str>,
+    dest: &mut dyn Write,
+  ) -> Result<(), std::fmt::Error> {
+    match self {
+      Self::Simple { segments } => {
+        for segment in segments {
+          match segment {
+            Segment::Literal(s) => {
+              dest.write_str(&s)?;
+            }
+            Segment::Name => {
+              let stem = path.file_stem().unwrap().to_str().unwrap();
+              if stem.contains('.') {
+                dest.write_str(&stem.replace('.', "-"))?;
+              } else {
+                dest.write_str(stem)?;
+              }
+            }
+            Segment::Local => {
+              dest.write_str(local)?;
+            }
+            Segment::Hash => {
+              dest.write_str(hash)?;
+            }
+            Segment::ContentHash => {
+              dest.write_str(content_hash.expect("content hash should not be None"))?;
+            }
           }
         }
-        Segment::Local => {
-          write(local)?;
-        }
-        Segment::Hash => {
-          write(hash)?;
-        }
-        Segment::ContentHash => {
-          write(content_hash)?;
-        }
+        Ok(())
       }
+      Self::Provider(provider) => provider.write(hash, path, local, content_hash, dest),
     }
-    Ok(())
   }
 
   #[inline]
@@ -186,9 +223,9 @@ impl Pattern {
     hash: &str,
     path: &Path,
     local: &str,
-    content_hash: &str,
+    content_hash: Option<&str>,
   ) -> Result<String, std::fmt::Error> {
-    self.write(hash, path, local, content_hash, |s| res.write_str(s))?;
+    self.write(hash, path, local, content_hash, &mut res)?;
     Ok(res)
   }
 }
@@ -299,7 +336,10 @@ impl<'a, 'c> CssModule<'a, 'c> {
         };
         hash(
           &source.to_string_lossy(),
-          matches!(config.pattern.segments[0], Segment::Hash),
+          match config.pattern {
+            Pattern::Simple { ref segments } => matches!(segments[0], Segment::Hash),
+            Pattern::Provider(_) => false,
+          },
         )
       })
       .collect();
@@ -325,11 +365,10 @@ impl<'a, 'c> CssModule<'a, 'c> {
             &self.hashes[source_index as usize],
             &self.sources[source_index as usize],
             local,
-            if let Some(content_hashes) = &self.content_hashes {
-              &content_hashes[source_index as usize]
-            } else {
-              ""
-            },
+            self
+              .content_hashes
+              .as_ref()
+              .map(|content_hashes| content_hashes[source_index as usize].as_str()),
           )
           .unwrap(),
         composes: vec![],
@@ -349,11 +388,10 @@ impl<'a, 'c> CssModule<'a, 'c> {
             &self.hashes[source_index as usize],
             &self.sources[source_index as usize],
             &local[2..],
-            if let Some(content_hashes) = &self.content_hashes {
-              &content_hashes[source_index as usize]
-            } else {
-              ""
-            },
+            self
+              .content_hashes
+              .as_ref()
+              .map(|content_hashes| content_hashes[source_index as usize].as_str()),
           )
           .unwrap(),
         composes: vec![],
@@ -376,11 +414,10 @@ impl<'a, 'c> CssModule<'a, 'c> {
               &self.hashes[source_index as usize],
               &self.sources[source_index as usize],
               name,
-              if let Some(content_hashes) = &self.content_hashes {
-                &content_hashes[source_index as usize]
-              } else {
-                ""
-              },
+              self
+                .content_hashes
+                .as_ref()
+                .map(|content_hashes| content_hashes[source_index as usize].as_str()),
             )
             .unwrap(),
           composes: vec![],
@@ -410,11 +447,10 @@ impl<'a, 'c> CssModule<'a, 'c> {
               &self.hashes[*source_index as usize],
               &self.sources[*source_index as usize],
               &name[2..],
-              if let Some(content_hashes) = &self.content_hashes {
-                &content_hashes[*source_index as usize]
-              } else {
-                ""
-              },
+              self
+                .content_hashes
+                .as_ref()
+                .map(|content_hashes| content_hashes[*source_index as usize].as_str()),
             )
             .unwrap(),
         )
@@ -435,11 +471,10 @@ impl<'a, 'c> CssModule<'a, 'c> {
                   &self.hashes[source_index as usize],
                   &self.sources[source_index as usize],
                   &name[2..],
-                  if let Some(content_hashes) = &self.content_hashes {
-                    &content_hashes[source_index as usize]
-                  } else {
-                    ""
-                  },
+                  self
+                    .content_hashes
+                    .as_ref()
+                    .map(|content_hashes| content_hashes[source_index as usize].as_str()),
                 )
                 .unwrap(),
               composes: vec![],
@@ -482,11 +517,10 @@ impl<'a, 'c> CssModule<'a, 'c> {
                       &self.hashes[source_index as usize],
                       &self.sources[source_index as usize],
                       name.0.as_ref(),
-                      if let Some(content_hashes) = &self.content_hashes {
-                        &content_hashes[source_index as usize]
-                      } else {
-                        ""
-                      },
+                      self
+                        .content_hashes
+                        .as_ref()
+                        .map(|content_hashes| content_hashes[source_index as usize].as_str()),
                     )
                     .unwrap(),
                 },
