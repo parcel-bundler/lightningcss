@@ -301,6 +301,10 @@ where
       self.rules.to_css(&mut printer)?;
       printer.newline()?;
 
+      if let Some(css_module) = &printer.css_module {
+        css_module.validate_composes()?;
+      }
+
       Ok(ToCssResult {
         dependencies: printer.dependencies,
         exports: Some(std::mem::take(

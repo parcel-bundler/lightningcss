@@ -8,7 +8,8 @@
 //! style sheet is printed, hashes will be added to any declared names, and references to those names
 //! will be updated accordingly. A map of the original names to compiled (hashed) names will be returned.
 
-use crate::error::PrinterErrorKind;
+use crate::dependencies::Location;
+use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
 use crate::properties::css_modules::{Composes, Specifier};
 use crate::selector::SelectorList;
 use data_encoding::{Encoding, Specification};
@@ -275,6 +276,28 @@ pub(crate) struct CssModule<'a, 'c> {
   pub content_hashes: &'a Option<Vec<String>>,
   pub exports_by_source_index: Vec<CssModuleExports>,
   pub references: &'a mut HashMap<String, CssModuleReference>,
+  /// Deferred `composes` references to verify once all rules have been printed.
+  /// `composes` is resolved during printing, but same-file references can be
+  /// forward references to classes that have not been emitted yet — so we
+  /// record them here and validate after the full stylesheet has been processed.
+  pub pending_composes: Vec<PendingCompose>,
+}
+
+/// A pending `composes` reference that must be validated against `exports_by_source_index`
+/// after the full stylesheet has been printed.
+pub(crate) struct PendingCompose {
+  /// The referenced class name (as written in the source).
+  pub name: String,
+  /// The source index of the file containing the `composes` declaration.
+  pub source_index: u32,
+  /// The source index to look up the reference in. For same-file references, this equals
+  /// `source_index`. For cross-file `SourceIndex` references (resolved by the bundler),
+  /// this is the dependency's source index.
+  pub target_source_index: u32,
+  /// Dependency specifier for error reporting, when available. `None` for same-file references.
+  pub specifier: Option<String>,
+  /// The source location of the `composes` property, used for error reporting.
+  pub loc: Location,
 }
 
 impl<'a, 'c> CssModule<'a, 'c> {
@@ -310,6 +333,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
       hashes,
       content_hashes,
       references,
+      pending_composes: Vec::new(),
     }
   }
 
@@ -473,24 +497,49 @@ impl<'a, 'c> CssModule<'a, 'c> {
           parcel_selectors::parser::Component::Class(ref id) => {
             for name in &composes.names {
               let reference = match &composes.from {
-                None => CssModuleReference::Local {
-                  name: self
-                    .config
-                    .pattern
-                    .write_to_string(
-                      String::new(),
-                      &self.hashes[source_index as usize],
-                      &self.sources[source_index as usize],
-                      name.0.as_ref(),
-                      if let Some(content_hashes) = &self.content_hashes {
-                        &content_hashes[source_index as usize]
-                      } else {
-                        ""
-                      },
-                    )
-                    .unwrap(),
-                },
+                None => {
+                  // Same-file reference. Record for deferred validation so forward
+                  // references (where the target class is declared later in the file)
+                  // still work, but typo'd or missing references are reported once
+                  // the full stylesheet has been processed.
+                  self.pending_composes.push(PendingCompose {
+                    name: name.0.as_ref().to_owned(),
+                    source_index,
+                    target_source_index: source_index,
+                    specifier: None,
+                    loc: composes.loc,
+                  });
+
+                  CssModuleReference::Local {
+                    name: self
+                      .config
+                      .pattern
+                      .write_to_string(
+                        String::new(),
+                        &self.hashes[source_index as usize],
+                        &self.sources[source_index as usize],
+                        name.0.as_ref(),
+                        if let Some(content_hashes) = &self.content_hashes {
+                          &content_hashes[source_index as usize]
+                        } else {
+                          ""
+                        },
+                      )
+                      .unwrap(),
+                  }
+                }
                 Some(Specifier::SourceIndex(dep_source_index)) => {
+                  // Cross-file reference resolved by the bundler. Like the same-file
+                  // branch, the target file may not have been processed yet, so we
+                  // defer validation until after printing.
+                  self.pending_composes.push(PendingCompose {
+                    name: name.0.as_ref().to_owned(),
+                    source_index,
+                    target_source_index: *dep_source_index,
+                    specifier: Some(self.sources[*dep_source_index as usize].to_string_lossy().into_owned()),
+                    loc: composes.loc,
+                  });
+
                   if let Some(entry) =
                     self.exports_by_source_index[*dep_source_index as usize].get(&name.0.as_ref().to_owned())
                   {
@@ -531,6 +580,32 @@ impl<'a, 'c> CssModule<'a, 'c> {
       return Err(PrinterErrorKind::InvalidComposesSelector);
     }
 
+    Ok(())
+  }
+
+  /// Validate that all pending `composes` references resolve to classes that exist
+  /// in the corresponding CSS modules exports. Called after the full stylesheet has
+  /// been printed.
+  pub fn validate_composes(&self) -> Result<(), PrinterError> {
+    for pending in &self.pending_composes {
+      if !self.exports_by_source_index[pending.target_source_index as usize].contains_key(&pending.name) {
+        let filename = self.sources[pending.source_index as usize]
+          .to_string_lossy()
+          .into_owned();
+        return Err(Error {
+          kind: PrinterErrorKind::MissingComposesName {
+            name: pending.name.clone(),
+            specifier: pending.specifier.clone(),
+          },
+          loc: Some(ErrorLocation {
+            filename,
+            // Match Printer::error's line adjustment (`loc.line - 1`).
+            line: pending.loc.line.saturating_sub(1),
+            column: pending.loc.column,
+          }),
+        });
+      }
+    }
     Ok(())
   }
 }
