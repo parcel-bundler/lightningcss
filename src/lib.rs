@@ -78,6 +78,56 @@ mod tests {
   }
 
   #[track_caller]
+  fn non_negative_test<'i, T: crate::traits::ParseNumeric<'i> + ToCss>(source: &'i str, expected: Option<&str>) {
+    use crate::values::number::NonNegative;
+
+    let result = NonNegative::<T>::parse_string(source);
+    match expected {
+      Some(expected) => {
+        let value = result.unwrap();
+        assert_eq!(
+          value.to_css_string(PrinterOptions::default()).unwrap(),
+          expected,
+          "{}",
+          source
+        );
+      }
+      None => assert!(result.is_err(), "expected {} to be invalid", source),
+    }
+  }
+
+  // Invalid known properties are preserved as unparsed declarations for browser validation.
+  #[track_caller]
+  fn property_range_test(names: &[&str], cases: &[(&str, Option<&str>)]) {
+    for name in names {
+      for (source, expected) in cases {
+        let value = Property::parse_string((*name).into(), source, ParserOptions::default()).unwrap();
+        if let Some(expected) = expected {
+          assert!(
+            !matches!(value, Property::Unparsed(_) | Property::Custom(_)),
+            "{name}: {source}"
+          );
+          assert_eq!(
+            value
+              .value_to_css_string(PrinterOptions {
+                minify: true,
+                ..PrinterOptions::default()
+              })
+              .unwrap(),
+            *expected,
+            "{name}: {source}"
+          );
+        } else {
+          assert!(
+            matches!(value, Property::Unparsed(_)),
+            "expected {name}: {source} to be invalid, got {value:?}"
+          );
+        }
+      }
+    }
+  }
+
+  #[track_caller]
   fn test_with_options<'i>(source: &'i str, expected: &'i str, options: ParserOptions<'i>) {
     let mut stylesheet = match StyleSheet::parse(&source, options) {
       Ok(stylesheet) => stylesheet,
@@ -436,6 +486,15 @@ mod tests {
 
   #[test]
   pub fn test_border_spacing() {
+    property_range_test(
+      &["border-spacing"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("1px -1px", None),
+      ],
+    );
     minify_test(
       r#"
       .foo {
@@ -503,6 +562,65 @@ mod tests {
 
   #[test]
   pub fn test_math_fn() {
+    use crate::values::angle::Angle;
+    use crate::values::length::Length;
+    use crate::values::number::{CSSInteger, CSSNumber};
+    use crate::values::percentage::{NumberOrPercentage, Percentage};
+
+    for source in ["-1", "-0.5"] {
+      non_negative_test::<CSSNumber>(source, None);
+      assert!(CSSNumber::parse_string(source).is_ok());
+    }
+    for (source, expected) in [
+      ("0", "0"),
+      ("-0", "0"),
+      ("calc(-5)", "0"),
+      ("calc(-5 + 10)", "5"),
+      ("calc(-5 * -2)", "10"),
+      ("min(-5, 10)", "0"),
+      ("max(-5, -10)", "0"),
+      ("clamp(-10, -5, -1)", "0"),
+      ("calc(min(-5, -10) + 20)", "10"),
+    ] {
+      non_negative_test::<CSSNumber>(source, Some(expected));
+      non_negative_test::<NumberOrPercentage>(source, Some(expected));
+    }
+    non_negative_test::<CSSInteger>("-1", None);
+    non_negative_test::<CSSInteger>("0", Some("0"));
+    non_negative_test::<CSSInteger>("2147483647", Some("2147483647"));
+    non_negative_test::<CSSInteger>("1.5", None);
+    for (source, expected) in [
+      ("-5%", None),
+      ("-0%", Some("-0%")),
+      ("calc(-5%)", Some("0%")),
+      ("calc(-5% + 10%)", Some("5%")),
+      ("min(-5%, 10%)", Some("0%")),
+      ("calc(min(-5%, -10%) + 20%)", Some("10%")),
+    ] {
+      non_negative_test::<Percentage>(source, expected);
+      non_negative_test::<NumberOrPercentage>(source, expected);
+    }
+    non_negative_test::<Percentage>("calc(1)", None);
+    non_negative_test::<Percentage>("calc(1px)", None);
+    assert_eq!(Percentage::parse_string("calc(-5%)").unwrap().0, -0.05);
+    for (source, expected) in [
+      ("-5deg", None),
+      ("calc(-5deg)", Some("0deg")),
+      ("calc(-5deg + 10deg)", Some("5deg")),
+      ("min(-5deg, 10deg)", Some("0deg")),
+      ("calc(1)", None),
+    ] {
+      non_negative_test::<Angle>(source, expected);
+    }
+    for (source, expected) in [
+      ("min(-5px, 10px)", "0"),
+      ("max(-5px, -10px)", "0"),
+      ("clamp(-10px, -5px, -1px)", "0"),
+      ("calc(min(-5px, -10px) + 20px)", "10px"),
+    ] {
+      non_negative_test::<Length>(source, Some(expected));
+    }
+
     // max()
     minify_test(
       r#"
@@ -619,6 +737,14 @@ mod tests {
 
   #[test]
   pub fn test_border() {
+    property_range_test(
+      &["border-width", "border-left-width", "outline-width"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+      ],
+    );
     test(
       r#"
       .foo {
@@ -2175,6 +2301,45 @@ mod tests {
 
   #[test]
   pub fn test_border_image() {
+    property_range_test(
+      &[
+        "border-image-outset",
+        "mask-border-outset",
+        "-webkit-mask-box-image-outset",
+      ],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1", None),
+        ("calc(1 - 2)", Some("0")),
+        ("calc(-1 + 2)", Some("1")),
+      ],
+    );
+    property_range_test(
+      &["border-image-width", "mask-border-width"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+        ("-1", None),
+        ("calc(1 - 2)", Some("0")),
+        ("calc(-1 + 2)", Some("1")),
+        ("auto", Some("auto")),
+      ],
+    );
+    property_range_test(
+      &["border-image-slice", "mask-border-slice"],
+      &[
+        ("-1", None),
+        ("calc(1 - 2)", Some("0")),
+        ("calc(-1 + 2)", Some("1")),
+        ("-1%", None),
+      ],
+    );
     test(
       r#"
       .foo {
@@ -2651,6 +2816,17 @@ mod tests {
 
   #[test]
   pub fn test_border_radius() {
+    property_range_test(
+      &["border-radius", "border-top-left-radius", "border-start-start-radius"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+      ],
+    );
     test(
       r#"
       .foo {
@@ -3252,6 +3428,7 @@ mod tests {
 
   #[test]
   pub fn test_margin() {
+    property_range_test(&["margin", "inset", "scroll-margin"], &[("-1px", Some("-1px"))]);
     test(
       r#"
       .foo {
@@ -3538,6 +3715,37 @@ mod tests {
 
   #[test]
   fn test_length() {
+    use crate::values::length::{Length, LengthOrNumber, LengthPercentage, LengthPercentageOrAuto, LengthValue};
+    use crate::values::number::NonNegative;
+
+    for source in ["-1px", "-1em", "-1vw", "-1"] {
+      non_negative_test::<LengthValue>(source, None);
+      non_negative_test::<Length>(source, None);
+      non_negative_test::<LengthPercentage>(source, None);
+      non_negative_test::<LengthPercentageOrAuto>(source, None);
+      non_negative_test::<LengthOrNumber>(source, None);
+      assert!(Length::parse_string(source).is_ok());
+    }
+    for source in ["0", "-0", "-0px"] {
+      non_negative_test::<LengthValue>(source, Some("0"));
+      non_negative_test::<Length>(source, Some("0"));
+    }
+    non_negative_test::<LengthValue>("2em", Some("2em"));
+    non_negative_test::<LengthPercentage>("-1%", None);
+    non_negative_test::<LengthPercentage>("10%", Some("10%"));
+    non_negative_test::<LengthPercentageOrAuto>("auto", Some("auto"));
+    non_negative_test::<LengthPercentageOrAuto>("-1%", None);
+    non_negative_test::<LengthOrNumber>("2", Some("2"));
+    non_negative_test::<LengthOrNumber>("2px", Some("2px"));
+    non_negative_test::<LengthOrNumber>("calc(-2)", Some("0"));
+    non_negative_test::<LengthOrNumber>("calc(-2px)", Some("0"));
+
+    // Backtracking a rejected range must leave the input available to another parser.
+    let mut input = cssparser::ParserInput::new("-1px");
+    let mut parser = cssparser::Parser::new(&mut input);
+    assert!(parser.try_parse(NonNegative::<Length>::parse).is_err());
+    assert_eq!(Length::parse(&mut parser).unwrap(), Length::px(-1.0));
+
     for prop in &[
       "margin-right",
       "margin",
@@ -3655,6 +3863,25 @@ mod tests {
 
   #[test]
   pub fn test_padding() {
+    property_range_test(
+      &[
+        "padding",
+        "padding-inline",
+        "padding-block",
+        "padding-top",
+        "padding-inline-start",
+      ],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+        ("auto", None),
+        ("1px -1px", None),
+      ],
+    );
     test(
       r#"
       .foo {
@@ -3923,6 +4150,18 @@ mod tests {
 
   #[test]
   fn test_scroll_padding() {
+    property_range_test(
+      &["scroll-padding", "scroll-padding-inline", "scroll-padding-top"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+        ("auto", Some("auto")),
+      ],
+    );
     prefix_test(
       r#"
       .foo {
@@ -3944,6 +4183,45 @@ mod tests {
 
   #[test]
   fn test_size() {
+    minify_test(".foo { width: 10px; width: -1px }", ".foo{width:10px;width:-1px}");
+    property_range_test(
+      &["aspect-ratio"],
+      &[
+        ("-1 / 2", None),
+        ("1 / -2", None),
+        ("calc(-1) / 2", Some("0/2")),
+        ("0 / 0", Some("0/0")),
+      ],
+    );
+    property_range_test(
+      &["width", "max-height"],
+      &[
+        ("fit-content(-1px)", None),
+        ("fit-content(calc(-1px))", Some("fit-content(0)")),
+      ],
+    );
+    property_range_test(
+      &[
+        "width",
+        "height",
+        "min-width",
+        "max-width",
+        "min-height",
+        "max-height",
+        "block-size",
+        "inline-size",
+        "min-block-size",
+        "max-inline-size",
+      ],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+      ],
+    );
     prefix_test(
       r#"
       .foo {
@@ -4275,6 +4553,19 @@ mod tests {
 
   #[test]
   pub fn test_background() {
+    property_range_test(
+      &["background-size", "mask-size"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+        ("auto", Some("auto")),
+        ("1px -1px", None),
+      ],
+    );
     test(
       r#"
       .foo {
@@ -4946,6 +5237,28 @@ mod tests {
 
   #[test]
   pub fn test_flex() {
+    property_range_test(&["flex"], &[("-1", None), ("1 -1", None), ("1 1 -1px", None)]);
+    property_range_test(
+      &["flex-basis", "-ms-flex-preferred-size"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+      ],
+    );
+    property_range_test(
+      &[
+        "flex-grow",
+        "flex-shrink",
+        "-webkit-box-flex",
+        "-ms-flex-positive",
+        "-ms-flex-negative",
+      ],
+      &[("-1", None), ("calc(1 - 2)", Some("0")), ("calc(-1 + 2)", Some("1"))],
+    );
     test(
       r#"
       .foo {
@@ -6207,6 +6520,22 @@ mod tests {
 
   #[test]
   fn test_font() {
+    property_range_test(&["font-stretch"], &[("-1%", None), ("calc(-1%)", Some("0%"))]);
+    property_range_test(
+      &["line-height"],
+      &[("-1", None), ("calc(1 - 2)", Some("0")), ("calc(-1 + 2)", Some("1"))],
+    );
+    property_range_test(
+      &["font-size", "line-height"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+      ],
+    );
     test(
       r#"
       .foo {
@@ -8061,6 +8390,47 @@ mod tests {
 
   #[test]
   fn test_calc() {
+    use crate::values::length::{Length, LengthPercentage, LengthPercentageOrAuto};
+    use crate::values::number::NonNegative;
+
+    for (source, expected) in [
+      ("calc(-5px)", "0"),
+      ("calc(5px - 10px)", "0"),
+      ("calc(-5px + 10px)", "5px"),
+      ("calc(-5px * -2)", "10px"),
+      ("calc(calc(-5px) + 10px)", "5px"),
+      ("calc(-1em)", "0"),
+      ("calc(1in - 100px)", "0"),
+      ("calc(1em - 10px)", "calc(1em - 10px)"),
+      ("min(-1em, -10px)", "min(-1em, -10px)"),
+    ] {
+      non_negative_test::<Length>(source, Some(expected));
+      non_negative_test::<LengthPercentage>(source, Some(expected));
+      non_negative_test::<LengthPercentageOrAuto>(source, Some(expected));
+    }
+    assert_eq!(Length::parse_string("calc(-5px)").unwrap(), Length::px(-5.0));
+    for source in ["calc(0)", "calc(-5)", "calc(1s)"] {
+      non_negative_test::<Length>(source, None);
+      non_negative_test::<LengthPercentage>(source, None);
+    }
+    for (source, expected) in [
+      ("calc(5%)", "5%"),
+      ("calc(0%)", "0%"),
+      ("calc(-5% + 10%)", "5%"),
+      ("calc(5% - 5%)", "0%"),
+      ("calc(100px - (100px - 100%))", "100%"),
+    ] {
+      non_negative_test::<LengthPercentage>(source, Some(expected));
+      non_negative_test::<LengthPercentageOrAuto>(source, Some(expected));
+    }
+    // Negative percentages and unresolved calculations retain their math boundary.
+    for source in ["calc(-5%)", "calc(100% - 10px)"] {
+      non_negative_test::<LengthPercentage>(source, Some(source));
+      let value = NonNegative::<LengthPercentage>::parse_string(source).unwrap();
+      let css = value.to_css_string(PrinterOptions::default()).unwrap();
+      assert_eq!(NonNegative::<LengthPercentage>::parse_string(&css).unwrap(), value);
+    }
+
     minify_test(".foo { width: calc(20px * 2) }", ".foo{width:40px}");
     minify_test(".foo { font-size: calc(100vw / 35) }", ".foo{font-size:2.85714vw}");
     minify_test(".foo { width: calc(20px * 2 * 3) }", ".foo{width:120px}");
@@ -8130,10 +8500,7 @@ mod tests {
       ".foo{width:calc(50vw - 6px)}",
     );
     minify_test(".foo { width: calc(1px + 1) }", ".foo{width:calc(1px + 1)}");
-    minify_test(
-      ".foo { width: calc( (1em - calc( 10px + 1em)) / 2) }",
-      ".foo{width:-5px}",
-    );
+    minify_test(".foo { width: calc( (1em - calc( 10px + 1em)) / 2) }", ".foo{width:0}");
     minify_test(
       ".foo { width: calc((100px - 1em) + (-50px + 1em)) }",
       ".foo{width:50px}",
@@ -8368,7 +8735,7 @@ mod tests {
     minify_test(".foo { margin: round(nearest, -23px, 5px) }", ".foo{margin:-25px}");
     minify_test(".foo { margin: calc(10px * round(22, 5)) }", ".foo{margin:200px}");
     minify_test(".foo { width: rem(18px, 5px) }", ".foo{width:3px}");
-    minify_test(".foo { width: rem(-18px, 5px) }", ".foo{width:-3px}");
+    minify_test(".foo { width: rem(-18px, 5px) }", ".foo{width:0}");
     minify_test(".foo { width: rem(18px, 5vw) }", ".foo{width:rem(18px,5vw)}");
     minify_test(".foo { rotate: rem(-140deg, -90deg) }", ".foo{rotate:-50deg}");
     minify_test(".foo { rotate: rem(140deg, -90deg) }", ".foo{rotate:50deg}");
@@ -8516,7 +8883,7 @@ mod tests {
     minify_test(".foo { width: abs(-1px)", ".foo{width:1px}");
     minify_test(".foo { width: abs(1%)", ".foo{width:abs(1%)}"); // spec says percentages must be against resolved value
 
-    minify_test(".foo { width: calc(10px * sign(-1vw)", ".foo{width:-10px}");
+    minify_test(".foo { width: calc(10px * sign(-1vw)", ".foo{width:0}");
     minify_test(
       ".foo { width: calc(10px * sign(1%)",
       ".foo{width:calc(10px * sign(1%))}",
@@ -8525,6 +8892,15 @@ mod tests {
 
   #[test]
   fn test_box_shadow() {
+    property_range_test(
+      &["box-shadow"],
+      &[
+        ("1px 2px -3px", None),
+        ("1px 2px -3px 4px", None),
+        ("1px 2px 0 -4px", Some("1px 2px 0 -4px")),
+        ("1px 2px calc(-3px)", Some("1px 2px")),
+      ],
+    );
     minify_test(
       ".foo { box-shadow: 64px 64px 12px 40px rgba(0,0,0,0.4) }",
       ".foo{box-shadow:64px 64px 12px 40px #0006}",
@@ -9844,6 +10220,59 @@ mod tests {
         }
       }
     "#},
+    );
+  }
+
+  #[test]
+  fn test_layer_order_across_rules() {
+    // A conditional declaration can establish `a` before `b`. Hoisting the
+    // final statement changes their order when the condition matches.
+    minify_test(
+      "@layer c; @media (min-width: 600px) { @layer a { .x { --v: a } } } @layer b, a;",
+      "@layer c;@media (width>=600px){@layer a{.x{--v:a}}}@layer b,a;",
+    );
+    minify_test(
+      "@layer c; @supports (display: grid) { @layer a { .x { --v: a } } } @layer b, a;",
+      "@layer c;@supports (display:grid){@layer a{.x{--v:a}}}@layer b,a;",
+    );
+    // An unlayered import may declare layers in its stylesheet too.
+    minify_test(
+      "@layer c; @import 'a.css'; @layer b, a;",
+      "@layer c;@import \"a.css\";@layer b,a;",
+    );
+    // A conditional import cannot make a later unconditional declaration
+    // redundant: that declaration must still apply if the condition is false.
+    minify_test(
+      "@import 'a.css' layer(a) screen; @layer a, b;",
+      "@import \"a.css\" layer(a) screen;@layer a,b;",
+    );
+    // Moving the last block into the first reverses the order of declarations
+    // within `a` when the intervening condition matches.
+    minify_test(
+      "@layer a { .x { --v: first } } @media print { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
+      "@layer a{.x{--v:first}}@media print{@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
+    );
+    minify_test(
+      "@layer a { .x { --v: first } } @supports (display: grid) { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
+      "@layer a{.x{--v:first}}@supports (display:grid){@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
+    );
+    // Dotted layer names and nested blocks address the same layer hierarchy.
+    // Merging the two `a` blocks would declare `a.z` before `a.y`.
+    minify_test(
+      "@layer a { @layer x; } @layer a.y { .x { --v: y } } @layer a { @layer z { .x { --v: z } } }",
+      "@layer a{@layer x;}@layer a.y{.x{--v:y}}@layer a{@layer z{.x{--v:z}}}",
+    );
+  }
+
+  #[test]
+  fn test_duplicate_rules_preserve_importance() {
+    minify_test(
+      ".x { --c: first !important } @layer a { .y { --c: middle } } .x { --c: last }",
+      ".x{--c:first!important}@layer a{.y{--c:middle}}.x{--c:last}",
+    );
+    minify_test(
+      ".x { color: red !important } .y { color: green } .x { color: blue }",
+      ".x{color:red!important}.y{color:green}.x{color:#00f}",
     );
   }
 
@@ -11358,6 +11787,32 @@ mod tests {
 
   #[test]
   fn test_transitions() {
+    property_range_test(&["transition-delay"], &[("-1s", Some("-1s"))]);
+    property_range_test(
+      &["transition"],
+      &[("opacity -1s", None), ("opacity 1s -1s", Some("opacity 1s -1s"))],
+    );
+    property_range_test(
+      &["transition-duration"],
+      &[("-1s", None), ("calc(1s - 2s)", Some("0s"))],
+    );
+    use crate::values::time::Time;
+
+    for (source, expected) in [
+      ("-1s", None),
+      ("-1ms", None),
+      ("0s", Some("0s")),
+      ("calc(-1s)", Some("0s")),
+      ("calc(500ms - 1s)", Some("0s")),
+      ("calc(-1s + 1500ms)", Some(".5s")),
+      ("calc(min(-1s, -2s) + 3s)", Some("1s")),
+      ("calc(1px)", None),
+      ("calc(1)", None),
+    ] {
+      non_negative_test::<Time>(source, expected);
+    }
+    assert!(Time::parse_string("-1s").is_ok());
+
     minify_test(".foo { transition-duration: 500ms }", ".foo{transition-duration:.5s}");
     minify_test(".foo { transition-duration: .5s }", ".foo{transition-duration:.5s}");
     minify_test(".foo { transition-duration: 99ms }", ".foo{transition-duration:99ms}");
@@ -12118,6 +12573,20 @@ mod tests {
 
   #[test]
   fn test_animation() {
+    property_range_test(&["animation-delay"], &[("-1s", Some("-1s"))]);
+    property_range_test(
+      &["animation"],
+      &[
+        ("test -1s", None),
+        ("test 1s -1s", Some("1s -1s test")),
+        ("test 1s -1", None),
+      ],
+    );
+    property_range_test(
+      &["animation-iteration-count"],
+      &[("-1", None), ("calc(1 - 2)", Some("0")), ("calc(-1 + 2)", Some("1"))],
+    );
+    property_range_test(&["animation-duration"], &[("-1s", None), ("calc(-1s)", Some("0s"))]);
     minify_test(".foo { animation-name: test }", ".foo{animation-name:test}");
     minify_test(".foo { animation-name: \"test\" }", ".foo{animation-name:test}");
     minify_test(".foo { animation-name: foo, bar }", ".foo{animation-name:foo,bar}");
@@ -12879,6 +13348,22 @@ mod tests {
 
   #[test]
   fn test_transform() {
+    property_range_test(
+      &["transform"],
+      &[
+        ("perspective(-1px)", None),
+        ("perspective(calc(-1px))", Some("perspective(0)")),
+        ("translateX(-1px)", Some("translate(-1px)")),
+      ],
+    );
+    property_range_test(
+      &["perspective"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+      ],
+    );
     test(
       ".foo { transform: perspective(500px)translate3d(10px, 0, 20px)rotateY(30deg) }",
       indoc! {r#"
@@ -13304,10 +13789,24 @@ mod tests {
       "transform:scaleX(.1)"
     );
 
-    // TODO: Re-enable with a better solution
-    //       See: https://github.com/parcel-bundler/lightningcss/issues/288
-    // minify_test(".foo { transform: scale(3); scale: 0.5 }", ".foo{transform:scale(1.5)}");
-    minify_test(".foo { scale: 0.5; transform: scale(3); }", ".foo{transform:scale(3)}");
+    minify_test(
+      r#"
+      .foo {
+        transform: scale(3);
+        scale: 0.5;
+      }
+      "#,
+      ".foo{transform:scale(3);scale:.5}",
+    );
+    minify_test(
+      r#"
+      .foo {
+        scale: 0.5;
+        transform: scale(3);
+      }
+      "#,
+      ".foo{transform:scale(3);scale:.5}",
+    );
 
     prefix_test(
       r#"
@@ -13365,7 +13864,225 @@ mod tests {
   }
 
   #[test]
+  fn test_individual_transforms() {
+    for (property, value, identity) in [
+      ("translate", "10px", "0"),
+      ("rotate", "30deg", "0deg"),
+      ("scale", "2", "1"),
+    ] {
+      // `transform` is not a shorthand that resets the individual properties.
+      for (transform, individual) in [("scale(3)", value), ("none", "none"), ("none", identity)] {
+        let expected = format!(
+          indoc! {r#"
+          .box {{
+            transform: {transform};
+            {property}: {individual};
+          }}
+          "#},
+          transform = transform,
+          property = property,
+          individual = individual,
+        );
+        test(
+          &format!(
+            r#"
+            .box {{
+              transform: {transform};
+              {property}: {individual};
+            }}
+            "#,
+          ),
+          &expected,
+        );
+        test(
+          &format!(
+            r#"
+            .box {{
+              {property}: {individual};
+              transform: {transform};
+            }}
+            "#,
+          ),
+          &expected,
+        );
+      }
+    }
+
+    test(
+      r#"
+      .box {
+        transform: translateX(5px);
+        scale: 2;
+        rotate: 30deg;
+        translate: 10px;
+        transform: scale(3);
+        translate: 20px 30px;
+        rotate: x 40deg;
+        scale: 4 5;
+      }
+      "#,
+      indoc! {r#"
+      .box {
+        transform: scale(3);
+        translate: 20px 30px;
+        rotate: x 40deg;
+        scale: 4 5;
+      }
+      "#},
+    );
+
+    test(
+      r#"
+      .base {
+        translate: 10px;
+        rotate: 30deg;
+        scale: 2;
+      }
+
+      .base.reset {
+        transform: none;
+        translate: none;
+        rotate: none;
+        scale: none;
+      }
+
+      .base.identity {
+        translate: 0;
+        rotate: 0deg;
+        scale: 1;
+        transform: none;
+      }
+      "#,
+      indoc! {r#"
+      .base {
+        translate: 10px;
+        rotate: 30deg;
+        scale: 2;
+      }
+
+      .base.reset {
+        transform: none;
+        translate: none;
+        rotate: none;
+        scale: none;
+      }
+
+      .base.identity {
+        transform: none;
+        translate: 0;
+        rotate: 0deg;
+        scale: 1;
+      }
+      "#},
+    );
+
+    test(
+      r#"
+      .box {
+        transform: scale(2) !important;
+        translate: 10px;
+        rotate: 30deg !important;
+        scale: 3;
+        translate: 20px !important;
+        transform: none;
+        translate: 30px !important;
+      }
+      "#,
+      indoc! {r#"
+      .box {
+        transform: none;
+        translate: 10px;
+        scale: 3;
+        transform: scale(2) !important;
+        translate: 30px !important;
+        rotate: 30deg !important;
+      }
+      "#},
+    );
+
+    test(
+      r#"
+      .box {
+        transform: rotate(10deg);
+        translate: 10px;
+        translate: var(--shift);
+        rotate: 20deg;
+        transform: var(--motion);
+        scale: 2;
+        scale: var(--zoom);
+        transform: translateX(2px);
+      }
+      "#,
+      indoc! {r#"
+      .box {
+        transform: rotate(10deg);
+        translate: 10px;
+        translate: var(--shift);
+        rotate: 20deg;
+        transform: var(--motion);
+        scale: 2;
+        scale: var(--zoom);
+        transform: translateX(2px);
+      }
+      "#},
+    );
+
+    test(
+      r#"
+      .box {
+        -webkit-transform: scale(2);
+        translate: 10px;
+        transform: scale(3);
+        rotate: 30deg;
+      }
+      "#,
+      indoc! {r#"
+      .box {
+        -webkit-transform: scale(2);
+        translate: 10px;
+        transform: scale(3);
+        rotate: 30deg;
+      }
+      "#},
+    );
+
+    prefix_test(
+      r#"
+      .box {
+        translate: 10px;
+        transform: scale(2);
+        rotate: none;
+        scale: 1;
+      }
+      "#,
+      indoc! {r#"
+      .box {
+        -webkit-transform: scale(2);
+        -moz-transform: scale(2);
+        transform: scale(2);
+        translate: 10px;
+        rotate: none;
+        scale: 1;
+      }
+      "#},
+      Browsers {
+        firefox: Some(6 << 16),
+        safari: Some(6 << 16),
+        ..Browsers::default()
+      },
+    );
+  }
+
+  #[test]
   pub fn test_gradients() {
+    property_range_test(&["clip-path"], &[("circle(-1px)", None), ("ellipse(1px -2%)", None)]);
+    property_range_test(
+      &["background-image"],
+      &[
+        ("radial-gradient(-1px, red, blue)", None),
+        ("radial-gradient(1px -2%, red, blue)", None),
+      ],
+    );
     minify_test(
       ".foo { background: linear-gradient(yellow, blue) }",
       ".foo{background:linear-gradient(#ff0,#00f)}",
@@ -15838,6 +16555,17 @@ mod tests {
 
   #[test]
   fn test_tab_size() {
+    property_range_test(
+      &["tab-size"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1", None),
+        ("calc(1 - 2)", Some("0")),
+        ("calc(-1 + 2)", Some("1")),
+      ],
+    );
     minify_test(".foo { tab-size: 8 }", ".foo{tab-size:8}");
     minify_test(".foo { tab-size: 4px }", ".foo{tab-size:4px}");
     minify_test(".foo { -moz-tab-size: 4px }", ".foo{-moz-tab-size:4px}");
@@ -16192,6 +16920,7 @@ mod tests {
 
   #[test]
   fn test_text_size_adjust() {
+    property_range_test(&["text-size-adjust"], &[("-1%", None), ("calc(-1%)", Some("0%"))]);
     minify_test(".foo { text-size-adjust: none }", ".foo{text-size-adjust:none}");
     minify_test(".foo { text-size-adjust: auto }", ".foo{text-size-adjust:auto}");
     minify_test(".foo { text-size-adjust: 80% }", ".foo{text-size-adjust:80%}");
@@ -17073,6 +17802,15 @@ mod tests {
 
   #[test]
   fn test_text_shadow() {
+    property_range_test(
+      &["text-shadow"],
+      &[
+        ("1px 2px -3px", None),
+        ("1px 2px 0 -4px", None),
+        ("-1px -2px", Some("-1px -2px")),
+        ("1px 2px calc(-3px)", Some("1px 2px")),
+      ],
+    );
     minify_test(
       ".foo { text-shadow: 1px 1px 2px yellow; }",
       ".foo{text-shadow:1px 1px 2px #ff0}",
@@ -19231,17 +19969,26 @@ mod tests {
 
   #[test]
   fn test_relative_color() {
+    #[track_caller]
     fn test(input: &str, output: &str) {
-      let output = CssColor::parse_string(output)
-        .unwrap()
-        .to_css_string(PrinterOptions {
-          minify: true,
-          ..PrinterOptions::default()
-        })
-        .unwrap();
+      let parsed = match CssColor::parse_string(output) {
+        Ok(c) => c,
+        Err(e) => panic!(
+          "test_relative_color: parse expected output failed\nerror: {e:?}\ninput: {input}\noutput: {output}",
+        ),
+      };
+      let output_css = match parsed.to_css_string(PrinterOptions {
+        minify: true,
+        ..PrinterOptions::default()
+      }) {
+        Ok(s) => s,
+        Err(e) => panic!(
+          "test_relative_color: stringify expected output failed\nerror: {e}\nerror(debug): {e:?}\ninput: {input}\noutput: {output}",
+        ),
+      };
       minify_test(
         &format!(".foo {{ color: {} }}", input),
-        &format!(".foo{{color:{}}}", output),
+        &format!(".foo{{color:{}}}", output_css),
       );
     }
 
@@ -19284,6 +20031,175 @@ mod tests {
       ".foo{color:lch(from currentColor l c sin(h))}",
     );
 
+    // The following tests were converted from WPT:
+    // https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/alpha-color-parsing-valid.html
+
+    // Basic usage with literal alpha.
+    test("alpha(from red / 0.5)", "rgba(255, 0, 0, 0.5)");
+    test("alpha(from blue / 1)", "rgb(0, 0, 255)");
+    test("alpha(from green / 0)", "rgba(0, 128, 0, 0)");
+
+    // Percentage alpha.
+    test("alpha(from red / 50%)", "rgba(255, 0, 0, 0.5)");
+    test("alpha(from red / 0%)", "rgba(255, 0, 0, 0)");
+    test("alpha(from red / 100%)", "rgb(255, 0, 0)");
+
+    // None alpha.
+    test("alpha(from red / none)", "rgba(255, 0, 0, 0)");
+
+    // Omitted alpha (defaults to origin's alpha).
+    test("alpha(from red)", "rgb(255, 0, 0)");
+    // test() does not support keywords such as currentcolor; change it to minify_test()
+    minify_test(
+      ".foo{color:alpha(from currentcolor)}",
+      ".foo{color:alpha(from currentcolor)}",
+    );
+
+    // Alpha keyword referencing origin's alpha.
+    minify_test(
+      ".foo{color:alpha(from currentcolor / alpha)}",
+      ".foo{color:alpha(from currentcolor / alpha)}",
+    );
+    test("alpha(from rgba(255, 0, 0, 0.8) / alpha)", "rgba(255, 0, 0, 0.8)");
+
+    // Calc with alpha keyword.
+    test(
+      "alpha(from rgba(255, 0, 0, 0.8) / calc(alpha * 0.5))",
+      "rgba(255, 0, 0, 0.4)",
+    );
+    test(
+      "alpha(from rgba(255, 0, 0, 0.8) / calc(alpha + 0.1))",
+      "rgba(255, 0, 0, 0.9)",
+    );
+
+    // Supplementary testing
+    // TODO: calc does not support division by zero yet, so `alpha / 0` fails while `alpha / 1` works.
+    // Depends on: https://github.com/parcel-bundler/lightningcss/pull/1122
+    // test(
+    //   "alpha(from green / calc(alpha / 0))",
+    //   "rgb(0, 128, 0)",
+    // );
+    test("alpha(from green / calc(alpha / 1))", "rgb(0, 128, 0)");
+
+    // Test sibling-index() and sibling-count()
+    minify_test(
+      ".foo{color:alpha(from green / sibling-index())}",
+      ".foo{color:alpha(from green / sibling-index())}",
+    );
+    minify_test(
+      ".foo{color:alpha(from green / calc(sibling-index() * 0.2))}",
+      ".foo{color:alpha(from green / calc(sibling-index() * .2))}",
+    );
+    minify_test(
+      ".foo{color:alpha(from green / sibling-count())}",
+      ".foo{color:alpha(from green / sibling-count())}",
+    );
+
+    // Nested in other color functions.
+    minify_test(
+      ".foo{color:color-mix(in srgb, alpha(from red / 0.5), blue)}",
+      ".foo{color:#5500aabf}",
+    );
+    test("rgb(from alpha(from red / 0.5) r g b / alpha)", "rgba(255, 0, 0, 0.5)");
+
+    // Other color functions as origin.
+    test("alpha(from color-mix(in srgb, red, blue) / 0.5)", "#80008080");
+    test("alpha(from rgb(from red r g b) / 0.8)", "rgba(255, 0, 0, 0.8)");
+
+    // Non-sRGB color spaces preserved.
+    test(
+      "alpha(from color(display-p3 1 0 0) / 0.5)",
+      "color(display-p3 1 0 0 / 0.5)",
+    );
+    test("alpha(from lab(50 20 -30) / 0.5)", "lab(50% 20 -30 / 0.5)");
+    test("alpha(from oklch(0.5 0.2 120) / 0.5)", "oklch(50% 0.2 120 / 0.5)");
+
+    // System and named colors.
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/system-color#syntax
+    minify_test(
+      ".foo{color:alpha(from ActiveText / 0.5)}",
+      ".foo{color:alpha(from ActiveText / .5)}",
+    );
+
+    // Out-of-range alpha values.
+    test("alpha(from red / 2)", "rgb(255, 0, 0)");
+    test("alpha(from red / -1)", "rgba(255, 0, 0, 0)");
+
+    // Supplementary testing
+    // nested alpha() precision.
+    test("alpha(from alpha(from red / 0.5) / calc(alpha + 0.25))", "#ff0000bf");
+    test("alpha(from alpha(from red / -0.5) / calc(alpha + 0.6))", "#f009");
+    test("alpha(from alpha(from green / 0%) / 100%)", "green");
+
+    // Unresolved relative colors keep their tokens.
+    minify_test(
+      ".foo{color:rgb(from alpha(from currentColor / 0.5) r g b)}",
+      ".foo{color:rgb(from alpha(from currentColor / .5) r g b)}",
+    );
+    minify_test(
+      ".foo{color:alpha(from red / var(--alpha))}",
+      ".foo{color:alpha(from red / var(--alpha))}",
+    );
+
+    // RGBA origin alpha preserve/replace.
+    test("alpha(from rgba(255, 0, 0, 0.3))", "rgba(255, 0, 0, 0.3)");
+    test("alpha(from rgba(255, 0, 0, 0.3) / 0.8)", "rgba(255, 0, 0, 0.8)");
+
+    // color(srgb) preserves its color space.
+    test("alpha(from color(srgb 1 0 0) / 50%)", "color(srgb 1 0 0 / 0.5)");
+
+    // alpha() nested in more relative color functions.
+    test("hsl(from alpha(from red / 0.5) h s l / alpha)", "rgba(255, 0, 0, 0.5)");
+    test("hwb(from alpha(from red / 0.5) h w b / alpha)", "rgba(255, 0, 0, 0.5)");
+    test(
+      "lab(from alpha(from lab(50% 20 -30) / 0.5) l a b / alpha)",
+      "lab(50% 20 -30 / 0.5)",
+    );
+    test(
+      "lch(from alpha(from lch(50% 20 30) / 0.5) l c h / alpha)",
+      "lch(50% 20 30 / 0.5)",
+    );
+    test(
+      "oklab(from alpha(from oklab(50% 0.2 -0.3) / 0.5) l a b / alpha)",
+      "oklab(50% 0.2 -0.3 / 0.5)",
+    );
+    test(
+      "oklch(from alpha(from oklch(50% 0.2 120) / 0.5) l c h / alpha)",
+      "oklch(50% 0.2 120 / 0.5)",
+    );
+    test(
+      "color(from alpha(from color(display-p3 1 0 0) / 0.5) display-p3 r g b / alpha)",
+      "color(display-p3 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from alpha(from red / 1.5) srgb r g b / calc(alpha - 0.2))",
+      "color(srgb 1 0 0 / 0.8)", // alpha = 1 - 0.2
+    );
+
+    // Test in image()
+    minify_test(".foo { mask: image(alpha(from red / 1))}", ".foo{mask:image(red)}");
+
+    // Test in linear-gradient()
+    minify_test(
+      ".foo { mask: linear-gradient(90deg, alpha(from red / 0%), red) }",
+      ".foo{mask:linear-gradient(90deg,#f000,red)}",
+    );
+    // Compare relative color
+    // TODO: Support <color-interpolation-method>
+    minify_test(
+      ".foo { mask: linear-gradient(90deg in hsl longer hue, rgb(from red r g b / 0), red) }",
+      ".foo{mask:linear-gradient(90deg in hsl longer hue, #f000, red)}",
+    );
+    minify_test(
+      ".foo { mask: linear-gradient(90deg in hsl longer hue, alpha(from red / 0%), red) }",
+      ".foo{mask:linear-gradient(90deg in hsl longer hue, #f000, red)}",
+    );
+
+    minify_test(
+      ".foo { color: alpha(from color(display-p3 1 0 0) / 0.5) }",
+      ".foo{color:color(display-p3 1 0 0/.5)}",
+    );
+
     // The following tests were converted from WPT: https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/relative-color-valid.html
     // Find: test_valid_value\(`color`, `(.*?)`,\s*`(.*?)`\)
     // Replace: test("$1", "$2")
@@ -19292,10 +20208,36 @@ mod tests {
     test("rgb(from rebeccapurple r g b)", "#639");
     test("rgb(from rebeccapurple r g b / alpha)", "#639");
     test("rgb(from rgb(20%, 40%, 60%, 80%) r g b / alpha)", "#369c");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r g b)", "#369c");
     test("rgb(from hsl(120deg 20% 50% / .5) r g b / alpha)", "#66996680");
+    test("rgb(from rgb(255 0 0 / 50%) r g b)", "rgba(255, 0, 0, 0.5)");
+    test("rgb(from rgb(255, 0, 0, 0) r g b)", "#f000");
+    test("rgb(from color(srgb 1 0 0 / 50%) r g b)", "rgba(255, 0, 0, 0.5)");
+    test("rgb(from color(srgb 1 0 0 / 50%) r g b / alpha)", "rgba(255, 0, 0, 0.5)");
+    test("color(from color(srgb 1 0 0 / 50%) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
+    test("color(from color(srgb 1 0 0 / 50%) srgb r g b / alpha)", "color(srgb 1 0 0 / 0.5)");
+
+    // Test with alpha()
+    test("color(from alpha(from red / 0.5) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
+    test("color(from alpha(from red / 0.5) srgb r g b / alpha)", "color(srgb 1 0 0 / 0.5)");
+    test("color(from alpha(from red / 0.5) srgb r g b / 0.8)", "color(srgb 1 0 0 / 0.8)");
+    test("color(from alpha(from rgba(255, 0, 0, 1) / 0.5) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
+    // TODO: Floating-point precision issue; the current result is: .501961
+    // test("color(from alpha(from rgb(255 0 0 / 50%) / alpha) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
+
+    // Explicit alpha overrides the inherited value. 
+    test("rgb(from rgb(255 0 0 / 0.8) r g b / 1)", "red");
+    test("rgb(from rgb(255 0 0 / 0) r g b / 1)", "red");
+    test("rgb(from rgb(255 0 0 / 50%) r g b / none)", "rgba(255, 0, 0, 0)");
+    test("rgb(from color(srgb 1 0 0) r g b / 80%)", "rgba(255, 0, 0, 0.8)");
+    test("rgb(from color(srgb 1 0 0 / 0.5) r g b / calc(alpha - 0.3))", "rgba(255, 0, 0, 0.2)");
+    test("color(from color(display-p3 0.7 0.5 0.3 / 0.4) display-p3 r g b / .6)", "color(display-p3 0.7 0.5 0.3 / 0.6)");
+    test("color(from color(srgb 1 0 0) srgb r g b / 0.5)", "color(srgb 1 0 0 / 0.5)");
+    test("color(from color(srgb 1 0 0 / 100%) srgb r g b / 50%)", "color(srgb 1 0 0 / 0.5)");
 
     // Test nesting relative colors.
     test("rgb(from rgb(from rebeccapurple r g b) r g b)", "#639");
+    test("rgb(from rgb(from rgb(255 0 0 / 0.8) g b r) r g b)", "#00fc");
 
     // Testing non-sRGB origin colors to see gamut mapping.
     test("rgb(from color(display-p3 0 1 0) r g b / alpha)", "#00f942"); // Naive clip based mapping would give rgb(0, 255, 0).
@@ -19395,7 +20337,7 @@ mod tests {
     test("rgb(from rebeccapurple b alpha r / g)", "rgba(153, 1, 102, 1)");
     test("rgb(from rebeccapurple r r r / r)", "rgba(102, 102, 102, 1)");
     test("rgb(from rebeccapurple alpha alpha alpha / alpha)", "rgb(1, 1, 1)");
-    test("rgb(from rgb(20%, 40%, 60%, 80%) g b r)", "rgb(102, 153, 51)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) g b r)", "rgba(102, 153, 51, 0.8)");
     test("rgb(from rgb(20%, 40%, 60%, 80%) b alpha r / g)", "rgba(153, 1, 51, 1)");
     test("rgb(from rgb(20%, 40%, 60%, 80%) r r r / r)", "rgba(51, 51, 51, 1)");
     test(
@@ -19407,9 +20349,9 @@ mod tests {
     test("rgb(from rebeccapurple r 20% 10)", "rgb(102, 51, 10)");
     test("rgb(from rebeccapurple r 10 20%)", "rgb(102, 10, 51)");
     test("rgb(from rebeccapurple 0% 10 10)", "rgb(0, 10, 10)");
-    test("rgb(from rgb(20%, 40%, 60%, 80%) r 20% 10)", "rgb(51, 51, 10)");
-    test("rgb(from rgb(20%, 40%, 60%, 80%) r 10 20%)", "rgb(51, 10, 51)");
-    test("rgb(from rgb(20%, 40%, 60%, 80%) 0% 10 10)", "rgb(0, 10, 10)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r 20% 10)", "rgba(51, 51, 10, 0.8)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r 10 20%)", "rgba(51, 10, 51, 0.8)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) 0% 10 10)", "rgba(0, 10, 10, 0.8)");
 
     // Testing with calc().
     test("rgb(from rebeccapurple calc(r) calc(g) calc(b))", "rgb(102, 51, 153)");
@@ -19536,7 +20478,7 @@ mod tests {
       "hsl(from rebeccapurple h calc(alpha * 100) calc(alpha * 100) / calc(alpha * 100))",
       "rgb(255, 255, 255)",
     );
-    test("hsl(from rgb(20%, 40%, 60%, 80%) h l s)", "rgb(77, 128, 179)");
+    test("hsl(from rgb(20%, 40%, 60%, 80%) h l s)", "rgba(77, 128, 179, 0.8)");
     test(
       "hsl(from rgb(20%, 40%, 60%, 80%) h calc(alpha * 100) l / calc(s / 100))",
       "rgba(20, 102, 184, 0.5)",
@@ -19579,7 +20521,7 @@ mod tests {
     // FIXME: Clarify with spec editors if 'none' should pass through to the constants.
     test("hsl(from hsl(none none none) h s l)", "rgb(0, 0, 0)");
     test("hsl(from hsl(none none none / none) h s l / alpha)", "rgba(0, 0, 0, 0)");
-    test("hsl(from hsl(120deg none 50% / .5) h s l)", "rgb(128, 128, 128)");
+    test("hsl(from hsl(120deg none 50% / .5) h s l)", "rgba(128, 128, 128, 0.5)");
     test(
       "hsl(from hsl(120deg 20% 50% / none) h s l / alpha)",
       "rgba(102, 153, 102, 0)",
@@ -19686,7 +20628,7 @@ mod tests {
       "hwb(from rebeccapurple h calc(alpha * 100) calc(alpha * 100) / alpha)",
       "rgb(128, 128, 128)",
     );
-    test("hwb(from rgb(20%, 40%, 60%, 80%) h b w)", "rgb(102, 153, 204)");
+    test("hwb(from rgb(20%, 40%, 60%, 80%) h b w)", "rgba(102, 153, 204, 0.8)");
     test(
       "hwb(from rgb(20%, 40%, 60%, 80%) h calc(alpha * 100) w / calc(b / 100))",
       "rgba(204, 204, 204, 0.4)",
@@ -19732,7 +20674,7 @@ mod tests {
       "hwb(from hwb(none none none / none) h w b / alpha)",
       "rgba(255, 0, 0, 0)",
     );
-    test("hwb(from hwb(120deg none 50% / .5) h w b)", "rgb(0, 128, 0)");
+    test("hwb(from hwb(120deg none 50% / .5) h w b)", "rgba(0, 128, 0, 0.5)");
     test(
       "hwb(from hwb(120deg 20% 50% / none) h w b / alpha)",
       "rgba(51, 128, 51, 0)",
@@ -19887,7 +20829,7 @@ mod tests {
       );
       test(
         &format!("{}(from {}(25% 20 50 / 40%) l b a)", color_space, color_space),
-        &format!("{}(25% 50 20)", color_space),
+        &format!("{}(25% 50 20 / 0.4)", color_space),
       );
       test(
         &format!("{}(from {}(25% 20 50 / 40%) l a a / a)", color_space, color_space),
@@ -19968,6 +20910,15 @@ mod tests {
     // test(&format!("{}(from {}($1", color_space, color_space), &format!("{}$2", color_space))
 
     for color_space in &["lch", "oklch"] {
+      // Cover omitted alpha in LCH and OKLCH.
+      test(
+        &format!(
+          "{}(from {}(50% 0.2 120 / 0.4) l c h)",
+          color_space, color_space
+        ),
+        &format!("{}(50% 0.2 120 / 0.4)", color_space),
+      );
+
       // Testing no modifications.
       test(
         &format!("{}(from {}(70% 45 30) l c h)", color_space, color_space),
@@ -20285,7 +21236,7 @@ mod tests {
           "color(from color({} 0.7 0.5 0.3 / 40%) {} r g b)",
           color_space, color_space
         ),
-        &format!("color({} 0.7 0.5 0.3)", color_space),
+        &format!("color({} 0.7 0.5 0.3 / 0.4)", color_space),
       );
       test(
         &format!(
@@ -20571,7 +21522,7 @@ mod tests {
           "color(from color({} 0.7 0.5 0.3 / 40%) {} g b r)",
           color_space, color_space
         ),
-        &format!("color({} 0.5 0.3 0.7)", color_space),
+        &format!("color({} 0.5 0.3 0.7 / 0.4)", color_space),
       );
       test(
         &format!(
@@ -20640,7 +21591,7 @@ mod tests {
           "color(from color({} -0.7 -0.5 -0.3 / -40%) {} r g b)",
           color_space, color_space
         ),
-        &format!("color({} -0.7 -0.5 -0.3)", color_space),
+        &format!("color({} -0.7 -0.5 -0.3 / 0)", color_space),
       );
       test(
         &format!(
@@ -20767,7 +21718,7 @@ mod tests {
           "color(from color({} 7 -20.5 100 / 40%) {} x y z)",
           color_space, color_space
         ),
-        &format!("color({} 7 -20.5 100)", result_color_space),
+        &format!("color({} 7 -20.5 100 / 0.4)", result_color_space),
       );
       test(
         &format!(
@@ -20937,7 +21888,7 @@ mod tests {
           "color(from color({} 7 -20.5 100 / 40%) {} y z x)",
           color_space, color_space
         ),
-        &format!("color({} -20.5 100 7)", result_color_space),
+        &format!("color({} -20.5 100 7 / 0.4)", result_color_space),
       );
       test(
         &format!(
@@ -21059,6 +22010,36 @@ mod tests {
         ".foo{color:#fff}",
       );
     }
+  }
+
+  #[test]
+  fn test_relative_alpha_color_fallbacks() {
+    prefix_test(
+      ".foo { color: alpha(from color(srgb 1 0 0) / 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #ff000080;
+          color: color(srgb 1 0 0 / .5);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { color: alpha(from color(display-p3 1 0 0) / 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #ff0f0e80;
+          color: color(display-p3 1 0 0 / .5);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -22541,6 +23522,32 @@ mod tests {
 
   #[test]
   fn test_grid() {
+    property_range_test(
+      &["gap", "row-gap", "column-gap"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+      ],
+    );
+    property_range_test(
+      &["grid-template-columns", "grid-auto-rows"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+        ("-1fr", None),
+        ("-0fr", Some("-0fr")),
+        ("minmax(-1px, 1fr)", None),
+        ("fit-content(-1px)", None),
+      ],
+    );
     minify_test(
       ".foo { grid-template-columns: [first nav-start]  150px [main-start] 1fr [last]; }",
       ".foo{grid-template-columns:[first nav-start]150px[main-start]1fr[last]}",
@@ -26908,6 +27915,16 @@ mod tests {
       Default::default(),
       true,
     );
+    css_modules_test(
+      ".foo { view-transition-name: match-element }",
+      ".EgL3uq_foo{view-transition-name:match-element}",
+      map! {
+        "foo" => "EgL3uq_foo"
+      },
+      HashMap::new(),
+      Default::default(),
+      true,
+    );
 
     css_modules_test(
       ".foo { view-transition-class: bar baz qux }",
@@ -27402,6 +28419,29 @@ mod tests {
 
   #[test]
   fn test_svg() {
+    property_range_test(
+      &["stroke-dasharray"],
+      &[
+        ("-1px", None),
+        ("-1%", None),
+        ("calc(-1px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1")),
+        ("calc(-1%)", Some("calc(-1%)")),
+      ],
+    );
+    property_range_test(&["stroke-dashoffset"], &[("-1px", Some("-1px"))]);
+    property_range_test(&["stroke-dasharray"], &[("1px -2px", None)]);
+    property_range_test(
+      &["stroke-width"],
+      &[
+        ("-1px", None),
+        ("calc(1px - 2px)", Some("0")),
+        ("calc(-1px + 2px)", Some("1px")),
+        ("-1%", None),
+        ("calc(1em - 2px)", Some("calc(1em - 2px)")),
+        ("calc(-1%)", Some("calc(-1%)")),
+      ],
+    );
     use crate::properties::svg;
 
     minify_test(".foo { fill: yellow; }", ".foo{fill:#ff0}");
@@ -28251,6 +29291,22 @@ mod tests {
 
   #[test]
   fn test_filter() {
+    property_range_test(
+      &["filter", "backdrop-filter"],
+      &[
+        ("brightness(-1)", None),
+        ("contrast(-1)", None),
+        ("grayscale(-1)", None),
+        ("invert(-1)", None),
+        ("opacity(-1)", None),
+        ("saturate(-1)", None),
+        ("sepia(-1)", None),
+        ("blur(-1px)", None),
+        ("blur(calc(-1px))", Some("blur()")),
+        ("drop-shadow(1px 2px -3px)", None),
+        ("hue-rotate(-1deg)", Some("hue-rotate(-1deg)")),
+      ],
+    );
     minify_test(
       ".foo { filter: url('filters.svg#filter-id'); }",
       ".foo{filter:url(filters.svg#filter-id)}",
@@ -30719,6 +31775,15 @@ mod tests {
 
   #[test]
   fn test_resolution() {
+    use crate::values::resolution::Resolution;
+
+    for source in ["-1dpi", "-1dpcm", "-1dppx", "-1x"] {
+      non_negative_test::<Resolution>(source, None);
+      assert!(Resolution::parse_string(source).is_ok());
+    }
+    non_negative_test::<Resolution>("0dpi", Some("0dpi"));
+    non_negative_test::<Resolution>("10dpcm", Some("10dpcm"));
+
     prefix_test(
       r#"
       @media (resolution: 1dppx) {
@@ -31140,6 +32205,18 @@ mod tests {
     );
     prefix_test(
       ".foo { color: rgb(from light-dark(yellow, red) r g b / 10%); }",
+      indoc! { r#"
+      .foo {
+        color: var(--lightningcss-light, #ffff001a) var(--lightningcss-dark, #ff00001a);
+      }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { color: alpha(from light-dark(yellow, red) / 10%); }",
       indoc! { r#"
       .foo {
         color: var(--lightningcss-light, #ffff001a) var(--lightningcss-dark, #ff00001a);
