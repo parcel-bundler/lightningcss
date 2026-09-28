@@ -109,6 +109,9 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             strip: llvm-strip
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+          - target: armv7-linux-androideabi
+            image: ghcr.io/codebysushil/linux-android-armv7/linux-android-armv7:latest
+            strip: llvm-strip
           - target: aarch64-linux-android
             strip: llvm-strip
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
