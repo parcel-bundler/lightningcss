@@ -541,11 +541,68 @@ pub(crate) struct MinifyContext<'a, 'i> {
 }
 
 impl<'i, T: Clone> CssRuleList<'i, T> {
+  fn coalesce_adjacent_conditional_rules(&mut self) {
+    // Merge adjacent conditional rules before minifying their contents. Otherwise,
+    // long runs of identical @media/@supports/@container rules repeatedly re-minify
+    // the accumulated rule list as each block is appended.
+    if self.0.len() < 2
+      || !self.0.windows(2).any(|rules| match (&rules[0], &rules[1]) {
+        (CssRule::Media(a), CssRule::Media(b)) => a.query == b.query,
+        (CssRule::Supports(a), CssRule::Supports(b)) => a.condition == b.condition,
+        (CssRule::Container(a), CssRule::Container(b)) => a.name == b.name && a.condition == b.condition,
+        _ => false,
+      })
+    {
+      return;
+    }
+
+    let mut rules = Vec::with_capacity(self.0.len());
+    for rule in std::mem::take(&mut self.0) {
+      match rule {
+        CssRule::Media(mut media) => {
+          if let Some(CssRule::Media(last_rule)) = rules.last_mut() {
+            if last_rule.query == media.query {
+              last_rule.rules.0.append(&mut media.rules.0);
+              continue;
+            }
+          }
+
+          rules.push(CssRule::Media(media));
+        }
+        CssRule::Supports(mut supports) => {
+          if let Some(CssRule::Supports(last_rule)) = rules.last_mut() {
+            if last_rule.condition == supports.condition {
+              last_rule.rules.0.append(&mut supports.rules.0);
+              continue;
+            }
+          }
+
+          rules.push(CssRule::Supports(supports));
+        }
+        CssRule::Container(mut container) => {
+          if let Some(CssRule::Container(last_rule)) = rules.last_mut() {
+            if last_rule.name == container.name && last_rule.condition == container.condition {
+              last_rule.rules.0.append(&mut container.rules.0);
+              continue;
+            }
+          }
+
+          rules.push(CssRule::Container(container));
+        }
+        rule => rules.push(rule),
+      }
+    }
+
+    self.0 = rules;
+  }
+
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
     parent_is_unused: bool,
   ) -> Result<(), MinifyError> {
+    self.coalesce_adjacent_conditional_rules();
+
     let mut keyframe_rules = HashMap::new();
     let mut layer_rules = HashMap::new();
     let mut has_layers = false;
