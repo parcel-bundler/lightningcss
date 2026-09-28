@@ -601,6 +601,8 @@ define_list_shorthand! {
     delay: AnimationDelay(Time, VendorPrefix),
     /// The animation fill mode.
     fill_mode: AnimationFillMode(AnimationFillMode, VendorPrefix),
+    /// The animation timeline.
+    timeline: AnimationTimeline(AnimationTimeline<'i>),
   }
 }
 
@@ -614,6 +616,7 @@ impl<'i> Parse<'i> for Animation<'i> {
     let mut play_state = None;
     let mut delay = None;
     let mut fill_mode = None;
+    let mut timeline = None;
 
     macro_rules! parse_prop {
       ($var: ident, $type: ty) => {
@@ -638,6 +641,7 @@ impl<'i> Parse<'i> for Animation<'i> {
       parse_prop!(fill_mode, AnimationFillMode);
       parse_prop!(play_state, AnimationPlayState);
       parse_prop!(name, AnimationName);
+      parse_prop!(timeline, AnimationTimeline);
       break;
     }
 
@@ -650,6 +654,7 @@ impl<'i> Parse<'i> for Animation<'i> {
       play_state: play_state.unwrap_or(AnimationPlayState::Running),
       delay: delay.unwrap_or(Time::Seconds(0.0)),
       fill_mode: fill_mode.unwrap_or(AnimationFillMode::None),
+      timeline: timeline.unwrap_or(AnimationTimeline::Auto),
     })
   }
 }
@@ -704,6 +709,11 @@ impl<'i> ToCss for Animation<'i> {
     // Eventually we could output a string here to avoid duplicating some properties above.
     // Chrome does not yet support strings, however.
     self.name.to_css(dest)?;
+
+    if self.name != AnimationName::None && self.timeline != AnimationTimeline::default() {
+      dest.write_char(' ')?;
+      self.timeline.to_css(dest)?;
+    }
 
     Ok(())
   }
@@ -813,6 +823,8 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         let fill_modes = val.iter().map(|b| b.fill_mode.clone()).collect();
         maybe_flush!(fill_modes, &fill_modes, vp);
 
+        self.timelines = Some(val.iter().map(|b| b.timeline.clone()).collect());
+
         property!(names, &names, vp);
         property!(durations, &durations, vp);
         property!(timing_functions, &timing_functions, vp);
@@ -822,10 +834,8 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         property!(delays, &delays, vp);
         property!(fill_modes, &fill_modes, vp);
 
-        // The animation shorthand resets animation-timeline and animation-range,
-        // but cannot set them. They are reset-only components of the shorthand.
+        // The animation shorthand resets animation-range
         // https://drafts.csswg.org/scroll-animations/#named-range-animation-declaration
-        self.timelines = None;
         self.range_starts = None;
         self.range_ends = None;
       }
@@ -856,7 +866,6 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
             }
           }
 
-          self.timelines = None;
           self.range_starts = None;
           self.range_ends = None;
         }
@@ -893,10 +902,9 @@ impl<'i> AnimationHandler<'i> {
     let mut play_states = std::mem::take(&mut self.play_states);
     let mut delays = std::mem::take(&mut self.delays);
     let mut fill_modes = std::mem::take(&mut self.fill_modes);
-    let timelines = std::mem::take(&mut self.timelines);
+    let mut timelines_value = std::mem::take(&mut self.timelines);
     let range_starts = std::mem::take(&mut self.range_starts);
     let range_ends = std::mem::take(&mut self.range_ends);
-    let mut pushed_shorthand = false;
 
     if let (
       Some((names, names_vp)),
@@ -927,6 +935,15 @@ impl<'i> AnimationHandler<'i> {
         & *play_states_vp
         & *delays_vp
         & *fill_modes_vp;
+      let mut timelines = if let Some(timelines) = &mut timelines_value {
+        Cow::Borrowed(timelines)
+      } else if !intersection.contains(VendorPrefix::None) {
+        // Prefixed animation shorthand does not support animation-timeline
+        Cow::Owned(std::iter::repeat(AnimationTimeline::Auto).take(len).collect())
+      } else {
+        Cow::Owned(SmallVec::new())
+      };
+
       if !intersection.is_empty()
         && durations.len() == len
         && timing_functions.len() == len
@@ -935,7 +952,21 @@ impl<'i> AnimationHandler<'i> {
         && play_states.len() == len
         && delays.len() == len
         && fill_modes.len() == len
+        && timelines.len() == len
       {
+        let timeline_property = if timelines.iter().any(|t| *t != AnimationTimeline::Auto)
+          && (intersection != VendorPrefix::None
+            // No browser can set animation-timeline via the shorthand yet, so only
+            // fold it in when targets are known to support it.
+            || context.targets.browsers.map_or(true, |browsers| {
+              !crate::compat::Feature::AnimationTimelineShorthand.is_compatible(browsers)
+            }))
+        {
+          Some(Property::AnimationTimeline(timelines.clone().into_owned()))
+        } else {
+          None
+        };
+
         let animations = izip!(
           names.drain(..),
           durations.drain(..),
@@ -944,10 +975,21 @@ impl<'i> AnimationHandler<'i> {
           directions.drain(..),
           play_states.drain(..),
           delays.drain(..),
-          fill_modes.drain(..)
+          fill_modes.drain(..),
+          timelines.to_mut().drain(..)
         )
         .map(
-          |(name, duration, timing_function, iteration_count, direction, play_state, delay, fill_mode)| {
+          |(
+            name,
+            duration,
+            timing_function,
+            iteration_count,
+            direction,
+            play_state,
+            delay,
+            fill_mode,
+            timeline,
+          )| {
             Animation {
               name,
               duration,
@@ -957,13 +999,17 @@ impl<'i> AnimationHandler<'i> {
               play_state,
               delay,
               fill_mode,
+              timeline: if timeline_property.is_some() {
+                AnimationTimeline::Auto
+              } else {
+                timeline
+              },
             }
           },
         )
         .collect();
         let prefix = context.targets.prefixes(intersection, Feature::Animation);
         dest.push(Property::Animation(animations, prefix));
-        pushed_shorthand = true;
         names_vp.remove(intersection);
         durations_vp.remove(intersection);
         timing_functions_vp.remove(intersection);
@@ -972,6 +1018,11 @@ impl<'i> AnimationHandler<'i> {
         play_states_vp.remove(intersection);
         delays_vp.remove(intersection);
         fill_modes_vp.remove(intersection);
+
+        if let Some(p) = timeline_property {
+          dest.push(p);
+        }
+        timelines_value = None;
       }
     }
 
@@ -995,11 +1046,8 @@ impl<'i> AnimationHandler<'i> {
     prop!(delays, AnimationDelay);
     prop!(fill_modes, AnimationFillMode);
 
-    if let Some(val) = timelines {
-      // A preceding animation shorthand already reset the timeline to auto.
-      if !(pushed_shorthand && val.iter().all(|t| *t == AnimationTimeline::Auto)) {
-        dest.push(Property::AnimationTimeline(val));
-      }
+    if let Some(val) = timelines_value {
+      dest.push(Property::AnimationTimeline(val));
     }
 
     match (range_starts, range_ends) {
