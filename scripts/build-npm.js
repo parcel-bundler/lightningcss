@@ -41,6 +41,14 @@ const triples = [
   },
   {
     name: 'aarch64-linux-android'
+  },
+  {
+    name: 'powerpc64le-unknown-linux-gnu',
+    libc: 'glibc',
+  },
+  {
+    name: 's390x-unknown-linux-gnu',
+    libc: 'glibc',
   }
 ];
 const cpuToNodeArch = {
@@ -48,6 +56,7 @@ const cpuToNodeArch = {
   aarch64: 'arm64',
   i686: 'ia32',
   armv7: 'arm',
+  powerpc64le: 'ppc64',
 };
 const sysToNodePlatform = {
   linux: 'linux',
