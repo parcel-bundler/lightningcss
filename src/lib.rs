@@ -27987,7 +27987,7 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
