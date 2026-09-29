@@ -236,8 +236,15 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
 
         if let SupportsCondition::Declaration { property_id, value } = condition {
           // Merge multiple declarations with the same property id (minus prefix) and value together.
-          let property_id = property_id.with_prefix(VendorPrefix::None);
-          let key = (property_id.clone(), value.clone());
+          //
+          // The prefix is dropped for the lookup key only. It is what makes two
+          // conditions equivalent for merging, and it is also load-bearing in the
+          // output: `@supports (-webkit-box-orient: vertical)` asks a different
+          // question than the unprefixed property, which no browser implements.
+          // Shadowing `property_id` here dropped the prefix from the condition that
+          // got pushed, and made `add_prefix` below add `None` rather than the
+          // prefix actually seen. See #710.
+          let key = (property_id.with_prefix(VendorPrefix::None), value.clone());
           if let Some(index) = seen_declarations.get(&key) {
             if let SupportsCondition::Declaration {
               property_id: cur_property,
