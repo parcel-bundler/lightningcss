@@ -180,6 +180,9 @@ pub enum Feature {
   RicUnit,
   RlhUnit,
   RoundFunction,
+  ScrollButton,
+  ScrollMarker,
+  ScrollMarkerGroup,
   SearchText,
   Selection,
   Selectors2,
@@ -3786,6 +3789,40 @@ impl Feature {
           }
         }
         if browsers.firefox.is_some() || browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::ScrollMarker | Feature::ScrollMarkerGroup | Feature::ScrollButton => {
+        if let Some(version) = browsers.chrome {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 5832704 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 1900544 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 8847360 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.safari.is_some()
+        {
           return false;
         }
       }
