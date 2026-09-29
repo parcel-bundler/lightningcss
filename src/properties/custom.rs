@@ -1007,6 +1007,46 @@ fn integer_decode(v: f32) -> (u32, i16, i8) {
 }
 
 impl<'i> TokenList<'i> {
+  pub(crate) fn is_calc_with_variables(&self) -> bool {
+    fn check_math(tokens: &TokenList) -> Option<bool> {
+      let mut has_variables = false;
+      for token in &tokens.0 {
+        match token {
+          TokenOrValue::Var(var) => {
+            // The reserved name `--` is not a valid custom property reference.
+            if var.name.ident.0.len() <= 2 {
+              return None;
+            }
+            if let Some(fallback) = &var.fallback {
+              check_math(fallback)?;
+            }
+            has_variables = true;
+          }
+          TokenOrValue::Function(function) if function.name.0.eq_ignore_ascii_case("calc") => {
+            has_variables |= check_math(&function.arguments)?;
+          }
+          TokenOrValue::Length(_)
+          | TokenOrValue::Token(
+            Token::Number { .. }
+            | Token::Percentage { .. }
+            | Token::WhiteSpace(_)
+            | Token::Delim('+' | '-' | '*' | '/')
+            | Token::ParenthesisBlock
+            | Token::CloseParenthesis,
+          ) => {}
+          _ => return None,
+        }
+      }
+      Some(has_variables)
+    }
+
+    matches!(
+      self.0.as_slice(),
+      [TokenOrValue::Function(function)]
+        if function.name.0.eq_ignore_ascii_case("calc") && check_math(&function.arguments) == Some(true)
+    )
+  }
+
   pub(crate) fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     let mut fallbacks = ColorFallbackKind::empty();
     for token in &self.0 {

@@ -243,7 +243,21 @@ impl<'i> DeclarationBlock<'i> {
   ) {
     macro_rules! handle {
       ($decls: expr, $handler: expr, $important: literal) => {
-        for decl in $decls.iter() {
+        let mut declarations = $decls.iter().peekable();
+        while let Some(decl) = declarations.next() {
+          if let (Property::Unparsed(previous), Some(Property::Unparsed(next))) = (decl, declarations.peek()) {
+            // Both values require variable substitution, so an invalid computed value
+            // in the later declaration cannot fall back to the earlier declaration.
+            // Limit this to calc() arithmetic to avoid changing compatibility fallbacks
+            // involving other functions or syntax.
+            if previous.property_id == next.property_id
+              && previous.value.is_calc_with_variables()
+              && next.value.is_calc_with_variables()
+            {
+              continue;
+            }
+          }
+
           context.is_important = $important;
           let handled = $handler.handle_property(decl, context);
 
