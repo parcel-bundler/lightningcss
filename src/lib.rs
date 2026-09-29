@@ -67,6 +67,7 @@ mod tests {
   use crate::values::color::CssColor;
   use crate::vendor_prefix::VendorPrefix;
   use cssparser::SourceLocation;
+  use indexmap::IndexMap;
   use indoc::indoc;
   use pretty_assertions::assert_eq;
   use std::collections::HashMap;
@@ -307,6 +308,41 @@ mod tests {
     assert_eq!(res.code, expected);
   }
 
+  #[test]
+  fn test_css_module_order() {
+    // Exports and references are in source order, which determines e.g. dependency order.
+    let mut stylesheet = StyleSheet::parse(
+      r#"
+      .zebra { color: var(--z from "./z.css"); }
+      .apple { color: var(--a from "./a.css"); }
+      .mango { composes: m from "./m.css"; }
+    "#,
+      ParserOptions {
+        filename: "test.css".into(),
+        css_modules: Some(crate::css_modules::Config {
+          dashed_idents: true,
+          ..Default::default()
+        }),
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    let exports: Vec<String> = res.exports.unwrap().into_keys().collect();
+    assert_eq!(exports, ["zebra", "apple", "mango"]);
+    let references: Vec<String> = res
+      .references
+      .unwrap()
+      .into_values()
+      .map(|reference| match reference {
+        CssModuleReference::Dependency { specifier, .. } => specifier,
+        _ => unreachable!(),
+      })
+      .collect();
+    assert_eq!(references, ["./z.css", "./a.css"]);
+  }
+
   #[track_caller]
   fn css_modules_test<'i>(
     source: &'i str,
@@ -437,7 +473,7 @@ mod tests {
     { $($key:expr => $name:literal $(referenced: $referenced: literal)? $($value:literal $(global: $global: literal)? $(from $from:literal)?)*),* } => {
       {
         #[allow(unused_mut)]
-        let mut m = HashMap::new();
+        let mut m = IndexMap::new();
         $(
           #[allow(unused_mut)]
           let mut v = Vec::new();
@@ -19989,27 +20025,60 @@ mod tests {
     test("rgb(from rgb(255 0 0 / 50%) r g b)", "rgba(255, 0, 0, 0.5)");
     test("rgb(from rgb(255, 0, 0, 0) r g b)", "#f000");
     test("rgb(from color(srgb 1 0 0 / 50%) r g b)", "rgba(255, 0, 0, 0.5)");
-    test("rgb(from color(srgb 1 0 0 / 50%) r g b / alpha)", "rgba(255, 0, 0, 0.5)");
-    test("color(from color(srgb 1 0 0 / 50%) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
-    test("color(from color(srgb 1 0 0 / 50%) srgb r g b / alpha)", "color(srgb 1 0 0 / 0.5)");
+    test(
+      "rgb(from color(srgb 1 0 0 / 50%) r g b / alpha)",
+      "rgba(255, 0, 0, 0.5)",
+    );
+    test(
+      "color(from color(srgb 1 0 0 / 50%) srgb r g b)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from color(srgb 1 0 0 / 50%) srgb r g b / alpha)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
 
     // Test with alpha()
-    test("color(from alpha(from red / 0.5) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
-    test("color(from alpha(from red / 0.5) srgb r g b / alpha)", "color(srgb 1 0 0 / 0.5)");
-    test("color(from alpha(from red / 0.5) srgb r g b / 0.8)", "color(srgb 1 0 0 / 0.8)");
-    test("color(from alpha(from rgba(255, 0, 0, 1) / 0.5) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
+    test(
+      "color(from alpha(from red / 0.5) srgb r g b)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from alpha(from red / 0.5) srgb r g b / alpha)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from alpha(from red / 0.5) srgb r g b / 0.8)",
+      "color(srgb 1 0 0 / 0.8)",
+    );
+    test(
+      "color(from alpha(from rgba(255, 0, 0, 1) / 0.5) srgb r g b)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
     // TODO: Floating-point precision issue; the current result is: .501961
     // test("color(from alpha(from rgb(255 0 0 / 50%) / alpha) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
 
-    // Explicit alpha overrides the inherited value. 
+    // Explicit alpha overrides the inherited value.
     test("rgb(from rgb(255 0 0 / 0.8) r g b / 1)", "red");
     test("rgb(from rgb(255 0 0 / 0) r g b / 1)", "red");
     test("rgb(from rgb(255 0 0 / 50%) r g b / none)", "rgba(255, 0, 0, 0)");
     test("rgb(from color(srgb 1 0 0) r g b / 80%)", "rgba(255, 0, 0, 0.8)");
-    test("rgb(from color(srgb 1 0 0 / 0.5) r g b / calc(alpha - 0.3))", "rgba(255, 0, 0, 0.2)");
-    test("color(from color(display-p3 0.7 0.5 0.3 / 0.4) display-p3 r g b / .6)", "color(display-p3 0.7 0.5 0.3 / 0.6)");
-    test("color(from color(srgb 1 0 0) srgb r g b / 0.5)", "color(srgb 1 0 0 / 0.5)");
-    test("color(from color(srgb 1 0 0 / 100%) srgb r g b / 50%)", "color(srgb 1 0 0 / 0.5)");
+    test(
+      "rgb(from color(srgb 1 0 0 / 0.5) r g b / calc(alpha - 0.3))",
+      "rgba(255, 0, 0, 0.2)",
+    );
+    test(
+      "color(from color(display-p3 0.7 0.5 0.3 / 0.4) display-p3 r g b / .6)",
+      "color(display-p3 0.7 0.5 0.3 / 0.6)",
+    );
+    test(
+      "color(from color(srgb 1 0 0) srgb r g b / 0.5)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from color(srgb 1 0 0 / 100%) srgb r g b / 50%)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
 
     // Test nesting relative colors.
     test("rgb(from rgb(from rebeccapurple r g b) r g b)", "#639");
@@ -20688,10 +20757,7 @@ mod tests {
     for color_space in &["lch", "oklch"] {
       // Cover omitted alpha in LCH and OKLCH.
       test(
-        &format!(
-          "{}(from {}(50% 0.2 120 / 0.4) l c h)",
-          color_space, color_space
-        ),
+        &format!("{}(from {}(50% 0.2 120 / 0.4) l c h)", color_space, color_space),
         &format!("{}(50% 0.2 120 / 0.4)", color_space),
       );
 
@@ -26853,7 +26919,7 @@ mod tests {
         "circles" => "EgL3uq_circles" referenced: true,
         "fade" => "EgL3uq_fade"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -26896,7 +26962,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "id" => "EgL3uq_id"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         animation: false,
         // custom_idents: false,
@@ -26943,7 +27009,7 @@ mod tests {
       map! {
         "circles" => "EgL3uq_circles" referenced: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         custom_idents: false,
         ..Default::default()
@@ -26990,7 +27056,7 @@ mod tests {
         "a" => "EgL3uq_a",
         "b" => "EgL3uq_b"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27028,7 +27094,7 @@ mod tests {
         "grid" => "EgL3uq_grid",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27065,7 +27131,7 @@ mod tests {
         "grid" => "EgL3uq_grid",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         grid: false,
         ..Default::default()
@@ -27085,7 +27151,7 @@ mod tests {
       }
     "#},
       map! {},
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27120,7 +27186,7 @@ mod tests {
       map! {
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27153,7 +27219,7 @@ mod tests {
         "test" => "EgL3uq_test" "EgL3uq_foo",
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27183,7 +27249,7 @@ mod tests {
         "b" => "EgL3uq_b" "EgL3uq_foo",
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27221,7 +27287,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27241,7 +27307,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" global: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27261,7 +27327,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" global: true "bar" global: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27281,7 +27347,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" from "foo.css"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27301,7 +27367,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" from "foo.css" "bar" from "foo.css"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27332,7 +27398,7 @@ mod tests {
         "test" => "EgL3uq_test" "EgL3uq_foo" "foo" from "foo.css" "bar" from "bar.css",
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27351,7 +27417,7 @@ mod tests {
       map! {
         "foo" => "test-EgL3uq-foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         pattern: crate::css_modules::Pattern::parse("test-[hash]-[local]").unwrap(),
         ..Default::default()
@@ -27416,7 +27482,7 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27477,7 +27543,7 @@ mod tests {
         "bar" => "EgL3uq_bar",
         "--Cooler" => "--EgL3uq_Cooler" referenced: true
       },
-      HashMap::from([(
+      IndexMap::from([(
         "--ma1CsG".into(),
         CssModuleReference::Dependency {
           name: "--color".into(),
@@ -27506,7 +27572,7 @@ mod tests {
         "test" => "EgL3uq_test",
         "rotate" => "EgL3uq_rotate" referenced: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27524,7 +27590,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27542,7 +27608,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27560,7 +27626,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         animation: false,
         ..Default::default()
@@ -27582,7 +27648,7 @@ mod tests {
         "test" => "EgL3uq_test",
         "rotate" => "EgL3uq_rotate" referenced: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config { ..Default::default() },
       false,
     );
@@ -27602,7 +27668,7 @@ mod tests {
       map! {
         "test" => "_5h2kwG-test" "foo" from "foo.css" "bar" from "foo.css"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         pattern: crate::css_modules::Pattern::parse("[content-hash]-[local]").unwrap(),
         ..Default::default()
@@ -27629,7 +27695,7 @@ mod tests {
         "main" => "EgL3uq_main",
         "box2" => "EgL3uq_box2"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config { ..Default::default() },
       false,
     );
@@ -27652,7 +27718,7 @@ mod tests {
       map! {
         "box2" => "EgL3uq_box2"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         container: false,
         ..Default::default()
@@ -27667,7 +27733,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27677,7 +27743,7 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27687,7 +27753,7 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27701,7 +27767,7 @@ mod tests {
         "baz" => "EgL3uq_baz",
         "qux" => "EgL3uq_qux"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27712,7 +27778,7 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27723,7 +27789,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27736,7 +27802,7 @@ mod tests {
         "bar" => "EgL3uq_bar",
         "baz" => "EgL3uq_baz"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27748,7 +27814,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27765,7 +27831,7 @@ mod tests {
         map! {
           "foo" => "EgL3uq_foo"
         },
-        HashMap::new(),
+        IndexMap::new(),
         Default::default(),
         true,
       );
@@ -27775,7 +27841,7 @@ mod tests {
         map! {
           "bar" => "EgL3uq_bar"
         },
-        HashMap::new(),
+        IndexMap::new(),
         Default::default(),
         true,
       );
@@ -27787,7 +27853,7 @@ mod tests {
           "bar" => "EgL3uq_bar",
           "baz" => "EgL3uq_baz"
         },
-        HashMap::new(),
+        IndexMap::new(),
         Default::default(),
         true,
       );
@@ -27798,7 +27864,7 @@ mod tests {
         map! {
           "foo" => "EgL3uq_foo"
         },
-        HashMap::new(),
+        IndexMap::new(),
         Default::default(),
         true,
       );
@@ -27808,7 +27874,7 @@ mod tests {
         map! {
           "foo" => "EgL3uq_foo"
         },
-        HashMap::new(),
+        IndexMap::new(),
         Default::default(),
         true,
       );
@@ -31716,7 +31782,7 @@ mod tests {
         "--brand-color" => "--EgL3uq_brand-color" referenced: true,
         "--branding-small" => "--EgL3uq_branding-small" referenced: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         dashed_idents: true,
         ..Default::default()

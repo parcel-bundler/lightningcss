@@ -12,6 +12,7 @@ use crate::error::PrinterErrorKind;
 use crate::properties::css_modules::{Composes, Specifier};
 use crate::selector::SelectorList;
 use data_encoding::{Encoding, Specification};
+use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use pathdiff::diff_paths;
 #[cfg(any(feature = "serde", feature = "nodejs"))]
@@ -19,7 +20,6 @@ use serde::Serialize;
 use smallvec::{smallvec, SmallVec};
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
@@ -252,11 +252,11 @@ pub struct CssModuleExport {
   pub is_referenced: bool,
 }
 
-/// A map of exported names to values.
-pub type CssModuleExports = HashMap<String, CssModuleExport>;
+/// A map of exported names to values, in the order they appear in the source.
+pub type CssModuleExports = IndexMap<String, CssModuleExport>;
 
-/// A map of placeholders to references.
-pub type CssModuleReferences = HashMap<String, CssModuleReference>;
+/// A map of placeholders to references, in the order they appear in the source.
+pub type CssModuleReferences = IndexMap<String, CssModuleReference>;
 
 lazy_static! {
   static ref ENCODER: Encoding = {
@@ -274,7 +274,7 @@ pub(crate) struct CssModule<'a, 'c> {
   pub hashes: Vec<String>,
   pub content_hashes: &'a Option<Vec<String>>,
   pub exports_by_source_index: Vec<CssModuleExports>,
-  pub references: &'a mut HashMap<String, CssModuleReference>,
+  pub references: &'a mut CssModuleReferences,
 }
 
 impl<'a, 'c> CssModule<'a, 'c> {
@@ -282,7 +282,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
     config: &'a Config,
     sources: &'c Vec<String>,
     project_root: Option<&'c str>,
-    references: &'a mut HashMap<String, CssModuleReference>,
+    references: &'a mut CssModuleReferences,
     content_hashes: &'a Option<Vec<String>>,
   ) -> Self {
     let project_root = project_root.map(|p| Path::new(p));
@@ -305,7 +305,7 @@ impl<'a, 'c> CssModule<'a, 'c> {
       .collect();
     Self {
       config,
-      exports_by_source_index: sources.iter().map(|_| HashMap::new()).collect(),
+      exports_by_source_index: sources.iter().map(|_| IndexMap::new()).collect(),
       sources,
       hashes,
       content_hashes,
@@ -363,10 +363,10 @@ impl<'a, 'c> CssModule<'a, 'c> {
 
   pub fn reference(&mut self, name: &str, source_index: u32) {
     match self.exports_by_source_index[source_index as usize].entry(name.into()) {
-      std::collections::hash_map::Entry::Occupied(mut entry) => {
+      indexmap::map::Entry::Occupied(mut entry) => {
         entry.get_mut().is_referenced = true;
       }
-      std::collections::hash_map::Entry::Vacant(entry) => {
+      indexmap::map::Entry::Vacant(entry) => {
         entry.insert(CssModuleExport {
           name: self
             .config
@@ -422,10 +422,10 @@ impl<'a, 'c> CssModule<'a, 'c> {
       None => {
         // Local export. Mark as used.
         match self.exports_by_source_index[source_index as usize].entry(name.into()) {
-          std::collections::hash_map::Entry::Occupied(mut entry) => {
+          indexmap::map::Entry::Occupied(mut entry) => {
             entry.get_mut().is_referenced = true;
           }
-          std::collections::hash_map::Entry::Vacant(entry) => {
+          indexmap::map::Entry::Vacant(entry) => {
             entry.insert(CssModuleExport {
               name: self
                 .config
