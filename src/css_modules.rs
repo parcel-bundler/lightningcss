@@ -292,15 +292,14 @@ impl<'a, 'c> CssModule<'a, 'c> {
       .map(|path| {
         // Make paths relative to project root so hashes are stable.
         let source = match project_root {
-          Some(project_root) if path.is_absolute() => {
-            diff_paths(path, project_root).map_or(Cow::Borrowed(*path), Cow::Owned)
-          }
+          Some(project_root) => diff_paths(path, project_root).map_or(Cow::Borrowed(*path), Cow::Owned),
           _ => Cow::Borrowed(*path),
         };
-        hash(
-          &source.to_string_lossy(),
-          matches!(config.pattern.segments[0], Segment::Hash),
-        )
+
+        // normalize path on Windows
+        let normalized = source.to_string_lossy().replace("\\", "/");
+
+        hash(&normalized, matches!(config.pattern.segments[0], Segment::Hash))
       })
       .collect();
     Self {
