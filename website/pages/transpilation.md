@@ -657,3 +657,20 @@ let { code, map } = transform({
 Currently the following features are supported:
 
 * `deepSelectorCombinator` – enables parsing the Vue/Angular `>>>` and `/deep/` selector combinators.
+
+## Known pseudo classes
+
+When Lightning CSS encounters a pseudo-class it doesn't recognize, it treats the selector as incompatible with your browser targets. During minification, this can cause selectors to be wrapped in `:is()`, which may lead to unintended style invalidations depending on your setup.
+
+This commonly happens with pseudo-classes like `:global()` and `:local()` from CSS modules tooling, but it applies to any custom pseudo-class that Lightning CSS doesn't have built-in support for.
+
+The `knownPseudoClasses` option lets you tell Lightning CSS about these pseudo-classes so it leaves them alone. Names should be provided without the leading `:`.
+
+```js
+let { code, map } = transform({
+  // ...
+  knownPseudoClasses: ['global', 'local']
+});
+```
+
+This prevents the `:is()` wrapping and also suppresses the "unsupported pseudo-class" warnings that would otherwise be emitted during parsing.

@@ -188,6 +188,7 @@ impl Into<MinifyOptions> for TransformOptions {
         Default::default()
       },
       unused_symbols,
+      known_pseudo_classes: HashSet::new(),
     }
   }
 }
@@ -294,6 +295,7 @@ pub extern "C" fn lightningcss_stylesheet_parse(
     error_recovery: options.error_recovery,
     source_index: 0,
     warnings: Some(warnings.clone()),
+    known_pseudo_classes: HashSet::new(),
   };
 
   let stylesheet = unwrap!(StyleSheet::parse(code, opts), error, std::ptr::null_mut());

@@ -1,5 +1,6 @@
 //! Style rules.
 
+use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
 
@@ -113,8 +114,8 @@ impl<'i, T> StyleRule<'i, T> {
 
   /// Returns whether the selectors in the rule are compatible
   /// with all of the given browser targets.
-  pub fn is_compatible(&self, targets: Targets) -> bool {
-    is_compatible(&self.selectors.0, targets)
+  pub fn is_compatible(&self, targets: Targets, known_pseudo_classes: &HashSet<String>) -> bool {
+    is_compatible(&self.selectors.0, targets, known_pseudo_classes)
   }
 
   /// Returns the line and column range of the property key and value at the given index in this style rule.
