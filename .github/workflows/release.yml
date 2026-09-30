@@ -174,6 +174,64 @@ jobs:
             *.node
             lightningcss
 
+  build-ohos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-unknown-linux-ohos
+            strip: llvm-strip
+
+    name: build-${{ matrix.target }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Node.JS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Setup OpenHarmony SDK
+        uses: Boshen/setup-ohos-sdk@edb865a89a712f1f15dbad932dfa9cfce849d95c # v1.0.0
+
+      - name: Configure OHOS linker
+        run: |
+          echo "${OHOS_SDK_NATIVE}/llvm/bin" >> $GITHUB_PATH
+          cat > /tmp/aarch64-linux-ohos-clang <<'WRAPPER'
+          #!/bin/sh
+          exec ${OHOS_SDK_NATIVE}/llvm/bin/clang --target=aarch64-linux-ohos "$@"
+          WRAPPER
+          chmod +x /tmp/aarch64-linux-ohos-clang
+
+      - uses: bahmutov/npm-install@v1.8.32
+      - name: Build release
+        run: yarn build-release
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_LINKER: /tmp/aarch64-linux-ohos-clang
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_RUSTFLAGS: -C link-arg=-fuse-ld=lld -C link-arg=-lm
+      - name: Build CLI
+        run: |
+          yarn napi build --bin lightningcss --release --features cli --target ${{ matrix.target }}
+          mv target/${{ matrix.target }}/release/lightningcss lightningcss
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_LINKER: /tmp/aarch64-linux-ohos-clang
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_RUSTFLAGS: -C link-arg=-fuse-ld=lld -C link-arg=-lm
+      - name: Strip debug symbols
+        run: llvm-strip *.node lightningcss
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-${{ matrix.target }}
+          path: |
+            *.node
+            lightningcss
+
   build-freebsd:
     runs-on: ubuntu-latest
     steps:
@@ -257,6 +315,7 @@ jobs:
     needs:
       - build
       - build-linux
+      - build-ohos
       - build-apple-silicon
       - build-freebsd
       - build-wasm
