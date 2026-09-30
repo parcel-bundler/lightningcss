@@ -11030,6 +11030,46 @@ mod tests {
       },
     );
 
+    minify_test(
+      ".foo:-ms-input-placeholder {color: red}",
+      ".foo:-ms-input-placeholder{color:red}",
+    );
+    minify_test(".foo:-moz-placeholder {color: red}", ".foo:-moz-placeholder{color:red}");
+
+    prefix_test(
+      r#"
+      .foo:-ms-input-placeholder, .bar:-ms-input-placeholder {
+        color: red;
+      }
+    "#,
+      indoc! {r#"
+      :is(.foo:-ms-input-placeholder, .bar:-ms-input-placeholder) {
+        color: red;
+      }
+    "#},
+      Browsers {
+        chrome: Some(111 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo:-moz-placeholder, .bar:-moz-placeholder {
+        color: red;
+      }
+    "#,
+      indoc! {r#"
+      :is(.foo:-moz-placeholder, .bar:-moz-placeholder) {
+        color: red;
+      }
+    "#},
+      Browsers {
+        chrome: Some(111 << 16),
+        ..Browsers::default()
+      },
+    );
+
     prefix_test(
       r#"
       .foo::file-selector-button {
