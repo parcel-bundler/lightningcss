@@ -1049,6 +1049,53 @@ impl<'i> TokenList<'i> {
     TokenList(tokens)
   }
 
+  pub(crate) fn light_dark_supports_condition() -> SupportsCondition<'i> {
+    SupportsCondition::Declaration {
+      property_id: PropertyId::Color,
+      value: "light-dark(#000, #fff)".into(),
+    }
+  }
+
+  pub(crate) fn light_dark_supports_conditions() -> [SupportsCondition<'i>; 3] {
+    let light_dark = Self::light_dark_supports_condition();
+    let mut p3 = light_dark.clone();
+    p3.and(&ColorFallbackKind::P3.supports_condition());
+    let mut lab = light_dark.clone();
+    lab.and(&ColorFallbackKind::LAB.supports_condition());
+    [light_dark, p3, lab]
+  }
+
+  pub(crate) fn get_light_dark_fallbacks(&self, targets: Targets) -> Vec<(SupportsCondition<'i>, Self)> {
+    if !should_compile!(targets, LightDark) || !self.get_features().contains(Features::LightDark) {
+      return Vec::new();
+    }
+
+    let mut fallbacks = self.get_necessary_fallbacks(targets);
+    let lowest_fallback = fallbacks.lowest();
+    fallbacks.remove(lowest_fallback);
+
+    let mut res = vec![(
+      Self::light_dark_supports_condition(),
+      if lowest_fallback.is_empty() {
+        self.clone()
+      } else {
+        self.get_fallback(lowest_fallback)
+      },
+    )];
+
+    if fallbacks.contains(ColorFallbackKind::P3) {
+      let [_, condition, _] = Self::light_dark_supports_conditions();
+      res.push((condition, self.get_fallback(ColorFallbackKind::P3)));
+    }
+
+    if fallbacks.contains(ColorFallbackKind::LAB) {
+      let [_, _, condition] = Self::light_dark_supports_conditions();
+      res.push((condition, self.get_fallback(ColorFallbackKind::LAB)));
+    }
+
+    res
+  }
+
   pub(crate) fn get_fallbacks(&mut self, targets: Targets) -> Vec<(SupportsCondition<'i>, Self)> {
     // Get the full list of possible fallbacks, and remove the lowest one, which will replace
     // the original declaration. The remaining fallbacks need to be added as @supports rules.
@@ -1089,6 +1136,14 @@ impl<'i> TokenList<'i> {
   }
 
   pub(crate) fn get_features(&self) -> Features {
+    self.get_features_internal(true)
+  }
+
+  pub(crate) fn get_features_for_supports(&self) -> Features {
+    self.get_features_internal(false)
+  }
+
+  fn get_features_internal(&self, include_variable_fallbacks: bool) -> Features {
     let mut features = Features::empty();
     for token in &self.0 {
       match token {
@@ -1100,21 +1155,23 @@ impl<'i> TokenList<'i> {
           match unresolved_color {
             UnresolvedColor::LightDark { light, dark } => {
               features |= Features::LightDark;
-              features |= light.get_features();
-              features |= dark.get_features();
+              features |= light.get_features_internal(include_variable_fallbacks);
+              features |= dark.get_features_internal(include_variable_fallbacks);
             }
             _ => {}
           }
         }
         TokenOrValue::Function(f) => {
-          features |= f.arguments.get_features();
+          if include_variable_fallbacks || !f.name.0.eq_ignore_ascii_case("attr") {
+            features |= f.arguments.get_features_internal(include_variable_fallbacks);
+          }
         }
-        TokenOrValue::Var(v) => {
+        TokenOrValue::Var(v) if include_variable_fallbacks => {
           if let Some(fallback) = &v.fallback {
             features |= fallback.get_features();
           }
         }
-        TokenOrValue::Env(v) => {
+        TokenOrValue::Env(v) if include_variable_fallbacks => {
           if let Some(fallback) = &v.fallback {
             features |= fallback.get_features();
           }

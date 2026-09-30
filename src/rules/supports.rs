@@ -172,11 +172,17 @@ impl<'i> SupportsCondition<'i> {
     fn get_supported_features_internal(value: &SupportsCondition) -> Option<Features> {
       match value {
         SupportsCondition::And(list) => list.iter().map(|c| get_supported_features_internal(c)).try_union_all(),
-        SupportsCondition::Declaration { value, .. } => {
+        SupportsCondition::Declaration { property_id, value } => {
+          // Custom properties accept arbitrary token streams, and unknown properties
+          // make the condition false. Neither case proves support for features in the value.
+          if matches!(property_id, PropertyId::Custom(_)) {
+            return Some(Features::empty());
+          }
+
           let mut input = ParserInput::new(&value);
           let mut parser = Parser::new(&mut input);
           if let Ok(tokens) = TokenList::parse(&mut parser, &Default::default(), 0) {
-            Some(tokens.get_features())
+            Some(tokens.get_features_for_supports())
           } else {
             Some(Features::empty())
           }

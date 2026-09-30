@@ -182,6 +182,21 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     }
   }
 
+  pub fn remove_conditional_property(&mut self, property_id: &crate::properties::PropertyId) {
+    for entry in &mut self.supports {
+      let declarations = if self.is_important {
+        &mut entry.important_declarations
+      } else {
+        &mut entry.declarations
+      };
+      declarations.retain(|property| property.property_id() != *property_id);
+    }
+
+    self
+      .supports
+      .retain(|entry| !entry.declarations.is_empty() || !entry.important_declarations.is_empty());
+  }
+
   pub fn add_unparsed_fallbacks(&mut self, unparsed: &mut UnparsedProperty<'i>) {
     if self.context != DeclarationContext::StyleRule && self.context != DeclarationContext::StyleAttribute {
       return;

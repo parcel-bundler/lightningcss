@@ -489,10 +489,7 @@ impl<'a, 'i, T: ToCss> ToCss for ContainerRule<'i, T> {
 
     if let Some(condition) = &self.condition {
       // Don't downlevel range syntax in container queries.
-      let exclude = dest.targets.current.exclude;
-      dest.targets.current.exclude.insert(Features::MediaQueries);
-      condition.to_css(dest)?;
-      dest.targets.current.exclude = exclude;
+      dest.with_feature_disabled(Features::MediaQueries, |dest| condition.to_css(dest))?;
     }
 
     dest.whitespace()?;
