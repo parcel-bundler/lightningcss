@@ -43,6 +43,10 @@ struct CliArgs {
   /// https://drafts.csswg.org/css-overflow-5/#scroll-navigation
   #[clap(long, value_parser)]
   scroll_navigation_controls: bool,
+  /// Enable parsing custom functions and evaluating calls to them.
+  /// https://drafts.csswg.org/css-mixins-1/#function-rule
+  #[clap(long, value_parser)]
+  custom_functions: bool,
   /// Enable CSS modules in output.
   /// If no filename is provided, <output_file>.json will be used.
   /// If no --output-file is specified, code and exports will be printed to stdout as JSON.
@@ -175,6 +179,7 @@ pub fn main() -> Result<(), std::io::Error> {
         ParserFlags::SCROLL_NAVIGATION_CONTROLS,
         cli_args.scroll_navigation_controls,
       );
+      flags.set(ParserFlags::CUSTOM_FUNCTIONS, cli_args.custom_functions);
 
       let mut options = ParserOptions {
         flags,
