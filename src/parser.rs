@@ -6,6 +6,7 @@ use crate::properties::custom::TokenList;
 use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
 use crate::rules::font_feature_values::FontFeatureValuesRule;
 use crate::rules::font_palette_values::FontPaletteValuesRule;
+use crate::rules::function::{FunctionParameter, FunctionRule};
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::nesting::NestedDeclarationsRule;
 use crate::rules::position_try::PositionTryRule;
@@ -37,6 +38,7 @@ use crate::selector::{SelectorList, SelectorParser};
 use crate::traits::{Parse, ParseWithOptions};
 use crate::values::ident::{CustomIdent, DashedIdent};
 use crate::values::string::CowArcStr;
+use crate::values::syntax::SyntaxString;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
@@ -58,6 +60,8 @@ bitflags! {
     const DEEP_SELECTOR_COMBINATOR = 1 << 2;
     /// Whether to enable the [scroll navigation controls](https://drafts.csswg.org/css-overflow-5/#scroll-navigation-controls) draft syntax.
     const SCROLL_NAVIGATION_CONTROLS = 1 << 3;
+    /// Whether to enable the [custom functions](https://drafts.csswg.org/css-mixins-1/#function-rule) draft syntax.
+    const CUSTOM_FUNCTIONS = 1 << 4;
   }
 }
 
@@ -236,6 +240,8 @@ pub enum AtRulePrelude<'i, T> {
   Layer(Vec<LayerName<'i>>),
   /// An @property prelude.
   Property(DashedIdent<'i>),
+  /// A @function prelude.
+  Function(DashedIdent<'i>, Vec<FunctionParameter<'i>>, Option<SyntaxString>),
   /// An @position-try prelude.
   PositionTry(DashedIdent<'i>),
   /// A @container prelude.
@@ -280,6 +286,7 @@ impl<'i, T> AtRulePrelude<'i, T> {
       | Self::Keyframes(..)
       | Self::Page(..)
       | Self::Property(..)
+      | Self::Function(..)
       | Self::PositionTry(..)
       | Self::Import(..)
       | Self::CustomMedia(..)
@@ -733,6 +740,11 @@ impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Nested
         return Ok(AtRulePrelude::Property(name))
       },
 
+      "function" if self.options.flags.contains(ParserFlags::CUSTOM_FUNCTIONS) => {
+        let (name, parameters, returns) = FunctionRule::parse_prelude(input)?;
+        return Ok(AtRulePrelude::Function(name, parameters, returns))
+      },
+
       "position-try" => {
         let name = DashedIdent::parse(input)?;
         return Ok(AtRulePrelude::PositionTry(name))
@@ -912,6 +924,17 @@ impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Nested
       }
       AtRulePrelude::Property(name) => {
         self.rules.0.push(CssRule::Property(PropertyRule::parse(name, input, loc)?));
+        Ok(())
+      }
+      AtRulePrelude::Function(name, parameters, returns) => {
+        self.rules.0.push(CssRule::Function(FunctionRule::parse_body(
+          name,
+          parameters,
+          returns,
+          input,
+          self.options,
+          loc,
+        )?));
         Ok(())
       }
       AtRulePrelude::PositionTry(name) => {
