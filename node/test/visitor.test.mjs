@@ -1170,6 +1170,35 @@ test('visit stylesheet', () => {
   assert.equal(res.code.toString(), '.bar{width:80px}.foo{width:32px}');
 });
 
+test('returns var() from visitors', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        color: var(--color);
+        background: unwrap(var(--background, red));
+
+        & .bar {
+          color: var(--accent);
+        }
+      }
+    `),
+    visitor: {
+      FunctionExit: {
+        unwrap(fn) {
+          return fn.arguments[0];
+        }
+      },
+      StyleSheetExit(stylesheet) {
+        return stylesheet;
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.foo{color:var(--color);background:var(--background,red);& .bar{color:var(--accent)}}');
+});
+
 test('visitor function', () => {
   let res = transform({
     filename: 'test.css',
