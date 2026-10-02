@@ -3326,12 +3326,13 @@ where
 {
   const JND: f32 = 0.02;
   const EPSILON: f32 = 0.0001;
+  const LIGHTNESS_EPSILON: f32 = 0.00001;
 
   // https://www.w3.org/TR/css-color-4/#pseudo-binsearch
   let mut current: OKLCH = color.into();
 
   // If lightness is >= 100%, return pure white.
-  if (current.l - 1.0).abs() < EPSILON || current.l > 1.0 {
+  if (current.l - 1.0).abs() < LIGHTNESS_EPSILON || current.l > 1.0 {
     return OKLCH {
       l: 1.0,
       c: 0.0,
@@ -3342,7 +3343,7 @@ where
   }
 
   // If lightness <= 0%, return pure black.
-  if current.l < EPSILON {
+  if current.l < LIGHTNESS_EPSILON {
     return OKLCH {
       l: 0.0,
       c: 0.0,

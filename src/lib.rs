@@ -18948,6 +18948,20 @@ mod tests {
     );
 
     prefix_test(
+      ".foo { color: oklch(99.995% .01 0) }",
+      indoc! { r#"
+        .foo {
+          color: #fffcff;
+          color: lab(99.8686% 3.37896 .0330329);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
       ".foo { background: var(--image) lch(40% 68.735435 34.568626) }",
       indoc! { r#"
         .foo {
