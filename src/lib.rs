@@ -29444,6 +29444,24 @@ mod tests {
         ..Browsers::default()
       },
     );
+    minify_test(
+      r#"
+        .foo {
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+      "#,
+      ".foo{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}",
+    );
+    minify_test(
+      r#"
+        .foo {
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(20px);
+        }
+      "#,
+      ".foo{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(20px)}",
+    );
     prefix_test(
       r#"
       .foo {
