@@ -16992,6 +16992,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
+        -webkit-text-size-adjust: none;
         text-size-adjust: none;
       }
     "#},
