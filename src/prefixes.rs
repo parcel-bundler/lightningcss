@@ -547,17 +547,17 @@ impl Feature {
       }
       Feature::BackdropFilter => {
         if let Some(version) = browsers.edge {
-          if version >= 1114112 && version <= 1179648 {
+          if version >= 17 << 16 && version <= 18 << 16 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 589824 && version <= 1115648 {
+          if version >= 9 << 16 && version < 18 << 16 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 589824 && version <= 1115648 {
+          if version >= 9 << 16 && version < 18 << 16 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
