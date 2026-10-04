@@ -157,7 +157,11 @@ where
       if config.pattern.has_content_hash() {
         content_hashes = Some(vec![hash(
           &code,
-          matches!(config.pattern.segments[0], crate::css_modules::Segment::ContentHash),
+          if let crate::css_modules::Pattern::Simple { ref segments } = config.pattern {
+            matches!(segments[0], crate::css_modules::Segment::ContentHash)
+          } else {
+            false
+          },
         )]);
       }
     }
