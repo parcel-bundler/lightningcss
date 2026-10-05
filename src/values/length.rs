@@ -2,14 +2,14 @@
 
 use super::angle::impl_try_from_angle;
 use super::calc::{Calc, MathFunction};
-use super::number::CSSNumber;
+use super::number::{CSSNumber, NumericRange};
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{
   private::{AddInternal, TryAdd},
-  Map, Parse, Sign, ToCss, TryMap, TryOp, Zero,
+  Map, Parse, ParseNumeric, Sign, ToCss, TryMap, TryOp, Zero,
 };
 use crate::traits::{IsCompatible, TrySign};
 #[cfg(feature = "visitor")]
@@ -49,7 +49,7 @@ impl IsCompatible for LengthPercentage {
 }
 
 /// Either a [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage), or the `auto` keyword.
-#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
+#[derive(Debug, Clone, PartialEq, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -63,6 +63,26 @@ pub enum LengthPercentageOrAuto {
   Auto,
   /// A [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage).
   LengthPercentage(LengthPercentage),
+}
+
+impl<'i> Parse<'i> for LengthPercentageOrAuto {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_with_range(input, NumericRange::All)
+  }
+}
+
+impl<'i> ParseNumeric<'i> for LengthPercentageOrAuto {
+  fn parse_with_range<'t>(
+    input: &mut Parser<'i, 't>,
+    range: NumericRange,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
+      return Ok(Self::Auto);
+    }
+    Ok(Self::LengthPercentage(LengthPercentage::parse_with_range(
+      input, range,
+    )?))
+  }
 }
 
 impl IsCompatible for LengthPercentageOrAuto {
@@ -104,10 +124,17 @@ macro_rules! define_length_units {
 
     impl<'i> Parse<'i> for LengthValue {
       fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        Self::parse_with_range(input, NumericRange::All)
+      }
+    }
+
+    impl<'i> ParseNumeric<'i> for LengthValue {
+      fn parse_with_range<'t>(input: &mut Parser<'i, 't>, range: NumericRange) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let location = input.current_source_location();
         let token = input.next()?;
         match *token {
           Token::Dimension { value, ref unit, .. } => {
+            let value = range.check(value, location)?;
             Ok(match unit {
               $(
                 s if s.eq_ignore_ascii_case(stringify!($name)) => LengthValue::$name(value),
@@ -117,7 +144,7 @@ macro_rules! define_length_units {
           },
           Token::Number { value, .. } => {
             // TODO: quirks mode only?
-            Ok(LengthValue::Px(value))
+            Ok(LengthValue::Px(range.check(value, location)?))
           }
           ref token => return Err(location.new_unexpected_token_error(token.clone())),
         }
@@ -552,13 +579,33 @@ pub enum Length {
 
 impl<'i> Parse<'i> for Length {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_with_range(input, NumericRange::All)
+  }
+}
+
+impl<'i> ParseNumeric<'i> for Length {
+  fn parse_with_range<'t>(
+    input: &mut Parser<'i, 't>,
+    range: NumericRange,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
-      Ok(Calc::Value(v)) => return Ok(*v),
+      Ok(Calc::Value(v)) => {
+        if range == NumericRange::All {
+          return Ok(*v);
+        }
+        if let Some(value) = v.try_map(|value| range.clamp(value)) {
+          return Ok(value);
+        }
+        return Ok(Length::Calc(Box::new(Calc::Function(Box::new(MathFunction::Calc(
+          Calc::Value(v),
+        ))))));
+      }
+      Ok(Calc::Number(_)) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       Ok(calc) => return Ok(Length::Calc(Box::new(calc))),
       _ => {}
     }
 
-    let len = LengthValue::parse(input)?;
+    let len = LengthValue::parse_with_range(input, range)?;
     Ok(Length::Value(len))
   }
 }
@@ -807,7 +854,7 @@ impl TrySign for Length {
 impl_try_from_angle!(Length);
 
 /// Either a [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) or a [`<number>`](https://www.w3.org/TR/css-values-4/#numbers).
-#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
+#[derive(Debug, Clone, PartialEq, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -821,6 +868,24 @@ pub enum LengthOrNumber {
   Number(CSSNumber),
   /// A length.
   Length(Length),
+}
+
+impl<'i> Parse<'i> for LengthOrNumber {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_with_range(input, NumericRange::All)
+  }
+}
+
+impl<'i> ParseNumeric<'i> for LengthOrNumber {
+  fn parse_with_range<'t>(
+    input: &mut Parser<'i, 't>,
+    range: NumericRange,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(value) = input.try_parse(|input| CSSNumber::parse_with_range(input, range)) {
+      return Ok(Self::Number(value));
+    }
+    Ok(Self::Length(Length::parse_with_range(input, range)?))
+  }
 }
 
 impl Default for LengthOrNumber {

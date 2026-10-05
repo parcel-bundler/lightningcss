@@ -855,7 +855,7 @@ impl<'i> ColorParser<'i> for RelativeComponentParser {
     }
 
     if let Ok(value) = input.try_parse(|input| -> Result<AngleOrNumber, ParseError<'i, ParserError<'i>>> {
-      match Calc::parse_with(input, |ident| {
+      match Calc::parse_with(input, &|ident| {
         self
           .get_ident(ident, ChannelType::Angle | ChannelType::Number)
           .map(|(value, ty)| match ty {
@@ -882,7 +882,7 @@ impl<'i> ColorParser<'i> for RelativeComponentParser {
       return Ok(value);
     }
 
-    match Calc::parse_with(input, |ident| {
+    match Calc::parse_with(input, &|ident| {
       self.get_ident(ident, ChannelType::Number).map(|(v, _)| Calc::Number(v))
     }) {
       Ok(Calc::Value(v)) => Ok(*v),
@@ -897,7 +897,7 @@ impl<'i> ColorParser<'i> for RelativeComponentParser {
     }
 
     if let Ok(value) = input.try_parse(|input| -> Result<Percentage, ParseError<'i, ParserError<'i>>> {
-      match Calc::parse_with(input, |ident| {
+      match Calc::parse_with(input, &|ident| {
         self
           .get_ident(ident, ChannelType::Percentage)
           .map(|(v, _)| Calc::Value(Box::new(Percentage(v))))
@@ -927,7 +927,7 @@ impl<'i> ColorParser<'i> for RelativeComponentParser {
     }
 
     if let Ok(value) = input.try_parse(|input| -> Result<NumberOrPercentage, ParseError<'i, ParserError<'i>>> {
-      match Calc::parse_with(input, |ident| {
+      match Calc::parse_with(input, &|ident| {
         self
           .get_ident(ident, ChannelType::Percentage | ChannelType::Number)
           .map(|(value, ty)| match ty {
@@ -1518,6 +1518,8 @@ fn parse_alpha<'i, 't>(
 ) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   let res = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
     parse_number_or_percentage(input, parser, 1.0)?.clamp(0.0, 1.0)
+  } else if let Some(from) = &parser.from {
+    from.components.3
   } else {
     1.0
   };
