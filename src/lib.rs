@@ -5043,7 +5043,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: #af5cae linear-gradient(#c65d07, #00807c);
+        background: #af5cae linear-gradient(#c65d07, #00817d);
         background: lab(51.5117% 43.3777 -29.0443) linear-gradient(lab(52.2319% 40.1449 59.9171), lab(47.7776% -34.2947 -7.65904));
       }
     "#
@@ -19396,6 +19396,22 @@ mod tests {
         .foo {
           background-color: #7e250f;
           background-color: lab(29.2661% 38.2437 35.3889);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Out of the sRGB gamut, but clipping it lands within the JND (deltaEOK 0.0156),
+    // so gamut mapping returns the clipped color without a chroma search.
+    prefix_test(
+      ".foo { background-color: oklch(50% 0.1 200) }",
+      indoc! { r#"
+        .foo {
+          background-color: #00747a;
+          background-color: lab(42.9598% -31.1952 -12.7726);
         }
       "#},
       Browsers {

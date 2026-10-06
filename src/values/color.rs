@@ -3354,6 +3354,13 @@ where
     .into();
   }
 
+  // If clipping the origin color is already within the JND, return the clipped color
+  // without searching for a lower chroma.
+  let clipped = T::from(current).clip();
+  if delta_eok(clipped, current) < JND {
+    return clipped;
+  }
+
   let mut min = 0.0;
   let mut max = current.c;
 
