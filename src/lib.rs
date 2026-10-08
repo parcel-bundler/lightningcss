@@ -18463,6 +18463,23 @@ mod tests {
     minify_test(".foo { caret: auto }", ".foo{caret:auto}");
     minify_test(".foo { caret: yellow auto }", ".foo{caret:#ff0}");
     minify_test(".foo { caret: auto block }", ".foo{caret:block}");
+    // `caret` sets `caret-color` and `caret-shape`, so interleaved declarations keep their order.
+    minify_test(
+      ".foo { caret-color: red; caret: auto; caret-color: blue }",
+      ".foo{caret-color:red;caret:auto;caret-color:#00f}",
+    );
+    minify_test(
+      ".foo { caret: red; caret-color: blue; caret: green }",
+      ".foo{caret:red;caret-color:#00f;caret:green}",
+    );
+    minify_test(
+      ".foo { caret: red; caret-shape: bar; caret: green }",
+      ".foo{caret:red;caret-shape:bar;caret:green}",
+    );
+    minify_test(
+      ".foo { caret-color: red; caret: var(--c); caret-color: blue }",
+      ".foo{caret-color:red;caret:var(--c);caret-color:#00f}",
+    );
     minify_test(".foo { user-select: none }", ".foo{user-select:none}");
     minify_test(".foo { -webkit-user-select: none }", ".foo{-webkit-user-select:none}");
     minify_test(".foo { accent-color: auto }", ".foo{accent-color:auto}");
