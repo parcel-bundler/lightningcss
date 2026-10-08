@@ -3327,13 +3327,14 @@ where
   T: Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy,
 {
   const JND: f32 = 0.02;
-  const EPSILON: f32 = 0.00001;
+  const EPSILON: f32 = 0.0001;
+  const LIGHTNESS_EPSILON: f32 = 0.00001;
 
-  // https://www.w3.org/TR/css-color-4/#binsearch
+  // https://www.w3.org/TR/css-color-4/#pseudo-binsearch
   let mut current: OKLCH = color.into();
 
   // If lightness is >= 100%, return pure white.
-  if (current.l - 1.0).abs() < EPSILON || current.l > 1.0 {
+  if (current.l - 1.0).abs() < LIGHTNESS_EPSILON || current.l > 1.0 {
     return OKLCH {
       l: 1.0,
       c: 0.0,
@@ -3344,7 +3345,7 @@ where
   }
 
   // If lightness <= 0%, return pure black.
-  if current.l < EPSILON {
+  if current.l < LIGHTNESS_EPSILON {
     return OKLCH {
       l: 0.0,
       c: 0.0,
@@ -3356,27 +3357,37 @@ where
 
   let mut min = 0.0;
   let mut max = current.c;
+  let mut min_in_gamut = true;
+  let mut clipped = color.clip();
+  let mut delta_e = delta_eok(clipped, current);
+  if delta_e < JND {
+    return clipped;
+  }
 
   while (max - min) > EPSILON {
     let chroma = (min + max) / 2.0;
     current.c = chroma;
 
     let converted = T::from(current);
-    if converted.in_gamut() {
+    if min_in_gamut && converted.in_gamut() {
       min = chroma;
       continue;
     }
 
-    let clipped = converted.clip();
-    let delta_e = delta_eok(clipped, current);
+    clipped = converted.clip();
+    delta_e = delta_eok(clipped, current);
     if delta_e < JND {
-      return clipped;
+      if JND - delta_e < EPSILON {
+        break;
+      }
+      min_in_gamut = false;
+      min = chroma;
+    } else {
+      max = chroma;
     }
-
-    max = chroma;
   }
 
-  current.into()
+  clipped
 }
 
 fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
