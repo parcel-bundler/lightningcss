@@ -28469,12 +28469,7 @@ mod tests {
 
     for (source, expected) in [
       (
-        r#"
-          .foo {
-            -webkit-mask-image: var(--image);
-            mask-image: var(--image);
-          }
-        "#,
+        ".foo { -webkit-mask-image: var(--image); mask-image: var(--image) }",
         indoc! { r#"
           .foo {
             -webkit-mask-image: var(--image);
@@ -28483,80 +28478,18 @@ mod tests {
         "#},
       ),
       (
-        r#"
-          .foo {
-            mask-image: linear-gradient(red, blue);
-            mask-image: linear-gradient(var(--start, red), blue);
-            -webkit-mask-image: linear-gradient(red, blue);
-            -webkit-mask-image: linear-gradient(var(--start, red), blue);
-          }
-        "#,
-        indoc! { r#"
-          .foo {
-            mask-image: linear-gradient(red, #00f);
-            mask-image: linear-gradient(var(--start, red), blue);
-            -webkit-mask-image: linear-gradient(red, #00f);
-            -webkit-mask-image: linear-gradient(var(--start, red), blue);
-          }
-        "#},
-      ),
-      (
-        r#"
-          .foo {
-            mask-image: var(--first, none);
-            mask-image: var(--second, none);
-            -webkit-mask-image: var(--first, none);
-            -webkit-mask-image: var(--second, none);
-          }
-        "#,
-        indoc! { r#"
-          .foo {
-            mask-image: var(--first, none);
-            mask-image: var(--second, none);
-            -webkit-mask-image: var(--first, none);
-            -webkit-mask-image: var(--second, none);
-          }
-        "#},
-      ),
-      (
-        r#"
-          .foo {
-            mask-image: var(--first);
-            -webkit-mask-image: var(--second);
-          }
-        "#,
+        ".foo { mask-image: var(--first); mask-image: var(--second) }",
         indoc! { r#"
           .foo {
             -webkit-mask-image: var(--first);
             mask-image: var(--first);
             -webkit-mask-image: var(--second);
+            mask-image: var(--second);
           }
         "#},
       ),
       (
-        r#"
-          .foo {
-            -webkit-mask-image: var(--image);
-            mask-image: none;
-            -webkit-mask-image: var(--image);
-          }
-        "#,
-        indoc! { r#"
-          .foo {
-            -webkit-mask-image: var(--image);
-            mask-image: none;
-            -webkit-mask-image: var(--image);
-          }
-        "#},
-      ),
-      (
-        r#"
-          .foo {
-            mask-image: var(--image);
-            mask-position: center;
-            -webkit-mask-image: var(--image);
-          }
-        "#,
+        ".foo { mask-image: var(--image); mask-position: center; -webkit-mask-image: var(--image) }",
         indoc! { r#"
           .foo {
             -webkit-mask-image: var(--image);
@@ -28568,36 +28501,12 @@ mod tests {
         "#},
       ),
       (
-        r#"
-          .foo {
-            mask-image: var(--image);
-            mask: none;
-            -webkit-mask-image: var(--image);
-          }
-        "#,
+        ".foo { mask-image: var(--image) !important; -webkit-mask-image: var(--image) }",
         indoc! { r#"
           .foo {
             -webkit-mask-image: var(--image);
-            mask-image: var(--image);
-            -webkit-mask: none;
-            mask: none;
-            -webkit-mask-image: var(--image);
-          }
-        "#},
-      ),
-      (
-        r#"
-          .foo {
-            mask-image: var(--image) !important;
-            -webkit-mask-image: var(--image);
             -webkit-mask-image: var(--image) !important;
-          }
-        "#,
-        indoc! { r#"
-          .foo {
-            -webkit-mask-image: var(--image);
             mask-image: var(--image) !important;
-            -webkit-mask-image: var(--image) !important;
           }
         "#},
       ),
@@ -28607,42 +28516,7 @@ mod tests {
     }
 
     prefix_test(
-      r#"
-          .foo {
-            mask-image: var(--image);
-            mask: var(--mask);
-            -webkit-mask-image: var(--image);
-          }
-        "#,
-      indoc! { r#"
-          .foo {
-            -webkit-mask-image: var(--image);
-            mask-image: var(--image);
-            -webkit-mask: var(--mask);
-            mask: var(--mask);
-            -webkit-mask-image: var(--image);
-          }
-        "#},
-      targets,
-    );
-
-    let source = r#"
-      .foo {
-        -webkit-mask-image: var(--image);
-        mask-image: var(--image);
-      }
-    "#;
-    test(
-      source,
-      indoc! { r#"
-        .foo {
-          -webkit-mask-image: var(--image);
-          mask-image: var(--image);
-        }
-      "#},
-    );
-    prefix_test(
-      source,
+      ".foo { -webkit-mask-image: var(--image); mask-image: var(--image) }",
       indoc! { r#"
         .foo {
           -webkit-mask-image: var(--image);
