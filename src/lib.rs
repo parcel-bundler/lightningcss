@@ -29594,6 +29594,19 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    // A later filter whose color the targets lack keeps the earlier one as its fallback,
+    // as `color` and `text-shadow` do.
+    for property in ["filter", "backdrop-filter"] {
+      prefix_test(
+        &format!(".foo {{ {property}: blur(1px); {property}: drop-shadow(0 0 2px oklch(25% .05 30)) }}"),
+        &format!(".foo {{\n  {property}: blur(1px);\n  {property}: drop-shadow(0 0 2px oklch(25% .05 30));\n}}\n"),
+        Browsers {
+          chrome: Some(90 << 16),
+          ..Browsers::default()
+        },
+      );
+    }
   }
 
   #[test]
