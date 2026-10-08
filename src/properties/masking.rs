@@ -704,7 +704,20 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         self
           .flushed_properties
           .insert(MaskProperty::try_from(&val.property_id).unwrap());
-        dest.push(Property::Unparsed(unparsed));
+        let mut merged = false;
+        if let (PropertyId::MaskImage(prefix), Some(Property::Unparsed(previous))) =
+          (&unparsed.property_id, dest.last_mut())
+        {
+          if let PropertyId::MaskImage(previous_prefix) = &mut previous.property_id {
+            if previous.value == unparsed.value {
+              *previous_prefix |= *prefix;
+              merged = true;
+            }
+          }
+        }
+        if !merged {
+          dest.push(Property::Unparsed(unparsed));
+        }
       }
       Property::MaskBorderSource(val) => property!(border_source, val, &VendorPrefix::None),
       Property::WebKitMaskBoxImageSource(val, _) => property!(border_source, val, &VendorPrefix::WebKit),

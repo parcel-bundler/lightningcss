@@ -29356,6 +29356,76 @@ mod tests {
   }
 
   #[test]
+  fn test_mask_image_prefix_duplicates() {
+    let targets = Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    };
+
+    for (source, expected) in [
+      (
+        ".foo { -webkit-mask-image: var(--image); mask-image: var(--image) }",
+        indoc! { r#"
+          .foo {
+            -webkit-mask-image: var(--image);
+            mask-image: var(--image);
+          }
+        "#},
+      ),
+      (
+        ".foo { mask-image: var(--first); mask-image: var(--second) }",
+        indoc! { r#"
+          .foo {
+            -webkit-mask-image: var(--first);
+            mask-image: var(--first);
+            -webkit-mask-image: var(--second);
+            mask-image: var(--second);
+          }
+        "#},
+      ),
+      (
+        ".foo { mask-image: var(--image); mask-position: center; -webkit-mask-image: var(--image) }",
+        indoc! { r#"
+          .foo {
+            -webkit-mask-image: var(--image);
+            mask-image: var(--image);
+            -webkit-mask-position: center;
+            mask-position: center;
+            -webkit-mask-image: var(--image);
+          }
+        "#},
+      ),
+      (
+        ".foo { mask-image: var(--image) !important; -webkit-mask-image: var(--image) }",
+        indoc! { r#"
+          .foo {
+            -webkit-mask-image: var(--image);
+            -webkit-mask-image: var(--image) !important;
+            mask-image: var(--image) !important;
+          }
+        "#},
+      ),
+    ] {
+      prefix_test(source, expected, targets);
+      prefix_test(expected, expected, targets);
+    }
+
+    prefix_test(
+      ".foo { -webkit-mask-image: var(--image); mask-image: var(--image) }",
+      indoc! { r#"
+        .foo {
+          -webkit-mask-image: var(--image);
+          mask-image: var(--image);
+        }
+      "#},
+      Browsers {
+        chrome: Some(130 << 16),
+        ..Browsers::default()
+      },
+    );
+  }
+
+  #[test]
   fn test_filter() {
     property_range_test(
       &["filter", "backdrop-filter"],
