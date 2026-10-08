@@ -43,6 +43,7 @@ pub mod document;
 pub mod font_face;
 pub mod font_feature_values;
 pub mod font_palette_values;
+pub mod function;
 pub mod import;
 pub mod keyframes;
 pub mod layer;
@@ -62,6 +63,7 @@ pub mod viewport;
 
 use self::font_feature_values::FontFeatureValuesRule;
 use self::font_palette_values::FontPaletteValuesRule;
+use self::function::FunctionRule;
 use self::layer::{LayerBlockRule, LayerStatementRule};
 use self::property::PropertyRule;
 use crate::context::PropertyHandlerContext;
@@ -178,6 +180,8 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   LayerBlock(LayerBlockRule<'i, R>),
   /// A `@property` rule.
   Property(PropertyRule<'i>),
+  /// A `@function` rule.
+  Function(FunctionRule<'i>),
   /// A `@container` rule.
   Container(ContainerRule<'i, R>),
   /// A `@scope` rule.
@@ -338,6 +342,10 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         let rule = PropertyRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::Property(rule))
       }
+      "function" => {
+        let rule = FunctionRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
+        Ok(CssRule::Function(rule))
+      }
       "container" => {
         let rule =
           ContainerRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
@@ -402,6 +410,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
       CssRule::LayerStatement(layer) => layer.to_css(dest),
       CssRule::LayerBlock(layer) => layer.to_css(dest),
       CssRule::Property(property) => property.to_css(dest),
+      CssRule::Function(function) => function.to_css(dest),
       CssRule::StartingStyle(rule) => rule.to_css(dest),
       CssRule::Container(container) => container.to_css(dest),
       CssRule::Scope(scope) => scope.to_css(dest),
