@@ -11,6 +11,7 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::length::*;
+use crate::values::number::NonNegative;
 use crate::values::rect::Rect;
 use crate::values::size::Size2D;
 #[cfg(feature = "visitor")]
@@ -21,19 +22,22 @@ define_shorthand! {
   /// A value for the [border-radius](https://www.w3.org/TR/css-backgrounds-3/#border-radius) property.
   pub struct BorderRadius(VendorPrefix) {
     /// The x and y radius values for the top left corner.
-    top_left: BorderTopLeftRadius(Size2D<LengthPercentage>, VendorPrefix),
+    top_left: BorderTopLeftRadius(Size2D<NonNegative<LengthPercentage>>, VendorPrefix),
     /// The x and y radius values for the top right corner.
-    top_right: BorderTopRightRadius(Size2D<LengthPercentage>, VendorPrefix),
+    top_right: BorderTopRightRadius(Size2D<NonNegative<LengthPercentage>>, VendorPrefix),
     /// The x and y radius values for the bottom right corner.
-    bottom_right: BorderBottomRightRadius(Size2D<LengthPercentage>, VendorPrefix),
+    bottom_right: BorderBottomRightRadius(Size2D<NonNegative<LengthPercentage>>, VendorPrefix),
     /// The x and y radius values for the bottom left corner.
-    bottom_left: BorderBottomLeftRadius(Size2D<LengthPercentage>, VendorPrefix),
+    bottom_left: BorderBottomLeftRadius(Size2D<NonNegative<LengthPercentage>>, VendorPrefix),
   }
 }
 
 impl Default for BorderRadius {
   fn default() -> BorderRadius {
-    let zero = Size2D(LengthPercentage::zero(), LengthPercentage::zero());
+    let zero = Size2D(
+      NonNegative::<LengthPercentage>::zero(),
+      NonNegative::<LengthPercentage>::zero(),
+    );
     BorderRadius {
       top_left: zero.clone(),
       top_right: zero.clone(),
@@ -45,7 +49,7 @@ impl Default for BorderRadius {
 
 impl<'i> Parse<'i> for BorderRadius {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let widths: Rect<LengthPercentage> = Rect::parse(input)?;
+    let widths: Rect<NonNegative<LengthPercentage>> = Rect::parse(input)?;
     let heights = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       Rect::parse(input)?
     } else {
@@ -91,10 +95,10 @@ impl ToCss for BorderRadius {
 
 #[derive(Default, Debug)]
 pub(crate) struct BorderRadiusHandler<'i> {
-  top_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
-  top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
-  bottom_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
-  bottom_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
+  top_left: Option<(Size2D<NonNegative<LengthPercentage>>, VendorPrefix)>,
+  top_right: Option<(Size2D<NonNegative<LengthPercentage>>, VendorPrefix)>,
+  bottom_right: Option<(Size2D<NonNegative<LengthPercentage>>, VendorPrefix)>,
+  bottom_left: Option<(Size2D<NonNegative<LengthPercentage>>, VendorPrefix)>,
   start_start: Option<Property<'i>>,
   start_end: Option<Property<'i>>,
   end_end: Option<Property<'i>>,
