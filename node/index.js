@@ -42,13 +42,17 @@ function wrap(call) {
       if (result instanceof Promise) {
         result = result.then(res => {
           if (deps.length) {
-            res.dependencies ??= [];
+            if (res.dependencies == null) {
+              res.dependencies = [];
+            }
             res.dependencies.push(...deps);
           }
           return res;
         });
       } else if (deps.length) {
-        result.dependencies ??= [];
+        if (result.dependencies == null) {
+          result.dependencies = [];
+        }
         result.dependencies.push(...deps);
       }
       return result;

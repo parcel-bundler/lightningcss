@@ -80,18 +80,18 @@ function ruleVisitor(f, item) {
       if (typeof v === 'object') {
         v = v[item.value.name];
       }
-      return v?.(item.value);
+      return v == null ? undefined : v(item.value);
     }
     if (item.type === 'custom') {
       let v = f.custom;
       if (typeof v === 'object') {
         v = v[item.value.name];
       }
-      return v?.(item.value);
+      return v == null ? undefined : v(item.value);
     }
-    return f[item.type]?.(item);
+    return f[item.type] == null ? undefined : f[item.type](item);
   }
-  return f?.(item);
+  return f == null ? undefined : f(item);
 }
 
 /**
@@ -109,11 +109,11 @@ function declarationVisitor(f, item) {
       if (typeof v === 'object') {
         v = v[item.value.name];
       }
-      return v?.(item.value);
+      return v == null ? undefined : v(item.value);
     }
-    return f[name]?.(item);
+    return f[name] == null ? undefined : f[name](item);
   }
-  return f?.(item);
+  return f == null ? undefined : f(item);
 }
 
 /**
