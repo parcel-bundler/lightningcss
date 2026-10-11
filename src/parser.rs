@@ -43,6 +43,7 @@ use crate::visitor::{Visit, VisitTypes, Visitor};
 use bitflags::bitflags;
 use cssparser::*;
 use parcel_selectors::parser::{NestingRequirement, ParseErrorRecovery};
+use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 
 bitflags! {
@@ -77,6 +78,9 @@ pub struct ParserOptions<'i> {
   pub warnings: Option<Arc<RwLock<Vec<Error<ParserError<'i>>>>>>,
   /// Feature flags to enable.
   pub flags: ParserFlags,
+  /// A set of pseudo-class names (without the leading `:`) that are known to the caller.
+  /// These will not emit `UnsupportedPseudoClass` warnings during parsing.
+  pub known_pseudo_classes: HashSet<String>,
 }
 
 #[cfg(feature = "into_owned")]
