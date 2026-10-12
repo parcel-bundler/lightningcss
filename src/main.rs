@@ -254,7 +254,16 @@ pub fn main() -> Result<(), std::io::Error> {
       if cli_args.sourcemap {
         if let Some(map_buf) = map {
           let map_filename = output_file.to_string_lossy() + ".map";
-          code += &format!("\n/*# sourceMappingURL={} */\n", map_filename);
+          // The source map is always written next to the output file, so the
+          // sourceMappingURL must reference it by file name only. Including the
+          // output file's directory prefix (e.g. `dist/`) breaks resolution
+          // because the URL is interpreted relative to the CSS file's own
+          // location. See https://github.com/parcel-bundler/lightningcss/issues/794
+          let source_mapping_url = match output_file.file_name() {
+            Some(file_name) => file_name.to_string_lossy().into_owned() + ".map",
+            None => map_filename.to_string(),
+          };
+          code += &format!("\n/*# sourceMappingURL={} */\n", source_mapping_url);
           fs::write(map_filename.as_ref(), map_buf)?;
         }
       }
