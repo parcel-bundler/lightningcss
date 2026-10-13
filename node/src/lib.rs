@@ -43,7 +43,7 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 #[no_mangle]
 pub fn register_module() {
   unsafe fn register(raw_env: napi::sys::napi_env, raw_exports: napi::sys::napi_value) -> napi::Result<()> {
-    use napi::{Env, JsObject, NapiValue};
+    use napi::{JsObject, NapiValue};
 
     let exports = JsObject::from_raw_unchecked(raw_env, raw_exports);
     init(exports)
