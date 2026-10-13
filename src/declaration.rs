@@ -626,6 +626,7 @@ impl<'i> DeclarationHandler<'i> {
           if self.decls[*index] == *property {
             return true;
           }
+          context.remove_conditional_property(&PropertyId::Custom(custom.name.clone()));
           let mut custom = custom.clone();
           self.add_conditional_fallbacks(&mut custom, context);
           self.decls[*index] = Property::Custom(custom);
@@ -679,8 +680,19 @@ impl<'i> DeclarationHandler<'i> {
     context: &mut PropertyHandlerContext<'i, '_>,
   ) {
     if context.context != DeclarationContext::Keyframes {
+      let light_dark_fallbacks = custom.value.get_light_dark_fallbacks(context.targets);
       let fallbacks = custom.value.get_fallbacks(context.targets);
       for (condition, fallback) in fallbacks {
+        context.add_conditional_property(
+          condition,
+          Property::Custom(CustomProperty {
+            name: custom.name.clone(),
+            value: fallback,
+          }),
+        );
+      }
+
+      for (condition, fallback) in light_dark_fallbacks {
         context.add_conditional_property(
           condition,
           Property::Custom(CustomProperty {
