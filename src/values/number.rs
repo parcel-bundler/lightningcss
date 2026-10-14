@@ -60,7 +60,7 @@ impl<'i, T: ParseNumeric<'i>> Parse<'i> for NonNegative<T> {
 }
 
 impl<T: ToCss> ToCss for NonNegative<T> {
-  fn to_css<W: std::fmt::Write>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.0.to_css(dest)
   }
 }

@@ -1,11 +1,11 @@
 use cssparser::*;
 use lightningcss::{
-    declaration::DeclarationBlock,
-    error::{ParserError, PrinterError},
-    printer::PrinterTrait,
-    stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
-    traits::{AtRuleParser, Parse, ToCss},
-    values::ident::Ident,
+  declaration::DeclarationBlock,
+  error::{ParserError, PrinterError},
+  printer::PrinterTrait,
+  stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
+  traits::{AtRuleParser, Parse, ToCss},
+  values::ident::Ident,
 };
 
 fn minify_test(source: &str, expected: &str) {

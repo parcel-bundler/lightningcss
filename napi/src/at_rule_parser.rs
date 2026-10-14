@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use cssparser::*;
 use lightningcss::{
-    declaration::DeclarationBlock,
-    error::ParserError,
-    printer::PrinterTrait,
-    rules::{CssRuleList, Location},
-    stylesheet::ParserOptions,
-    traits::{AtRuleParser, ToCss},
-    values::{
+  declaration::DeclarationBlock,
+  error::ParserError,
+  printer::PrinterTrait,
+  rules::{CssRuleList, Location},
+  stylesheet::ParserOptions,
+  traits::{AtRuleParser, ToCss},
+  values::{
     string::CowArcStr,
     syntax::{ParsedComponent, SyntaxString},
   },

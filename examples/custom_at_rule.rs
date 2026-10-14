@@ -2,22 +2,22 @@ use std::{collections::HashMap, convert::Infallible};
 
 use cssparser::*;
 use lightningcss::{
-    declaration::DeclarationBlock,
-    error::PrinterError,
-    printer::PrinterTrait,
-    properties::custom::{Token, TokenOrValue},
-    rules::{style::StyleRule, CssRule, CssRuleList, Location},
-    selector::{Component, Selector},
-    stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
-    targets::Browsers,
-    traits::{AtRuleParser, ToCss},
-    values::{
+  declaration::DeclarationBlock,
+  error::PrinterError,
+  printer::PrinterTrait,
+  properties::custom::{Token, TokenOrValue},
+  rules::{style::StyleRule, CssRule, CssRuleList, Location},
+  selector::{Component, Selector},
+  stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
+  targets::Browsers,
+  traits::{AtRuleParser, ToCss},
+  values::{
     color::{CssColor, RGBA},
     length::LengthValue,
   },
-    vendor_prefix::VendorPrefix,
-    visit_types,
-    visitor::{Visit, VisitTypes, Visitor},
+  vendor_prefix::VendorPrefix,
+  visit_types,
+  visitor::{Visit, VisitTypes, Visitor},
 };
 
 fn main() {

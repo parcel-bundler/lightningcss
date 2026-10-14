@@ -338,7 +338,7 @@ mod tests {
     )
     .unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    let res = stylesheet.to_css(PrinterOptions::default(), None::<&mut ()>).unwrap();
     let exports: Vec<String> = res.exports.unwrap().into_keys().collect();
     assert_eq!(exports, ["zebra", "apple", "mango"]);
     let references: Vec<String> = res
