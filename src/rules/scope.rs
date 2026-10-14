@@ -1,10 +1,9 @@
 //! The `@scope` rule.
 
-use super::Location;
+use super::{detach_style_context, style_context_ptr, Location, StyleContext};
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
-use crate::printer::Printer;
 use crate::selector::{is_pure_css_modules_selector, SelectorList};
 use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
@@ -64,11 +63,7 @@ impl<'i, T: Clone> ScopeRule<'i, T> {
 }
 
 impl<'i, T: ToCss> ToCss for ScopeRule<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_str("@scope")?;
     dest.whitespace()?;
@@ -79,14 +74,23 @@ impl<'i, T: ToCss> ToCss for ScopeRule<'i, T> {
       dest.whitespace()?;
     }
     if let Some(scope_end) = &self.scope_end {
-      if dest.minify {
+      if dest.options().minify {
         dest.write_char(' ')?;
       }
       dest.write_str("to (")?;
       // <scope-start> is treated as an ancestor of scope end.
       // https://drafts.csswg.org/css-nesting/#nesting-at-scope
       if let Some(scope_start) = &self.scope_start {
-        dest.with_context(scope_start, |dest| scope_end.to_css(dest))?;
+        let parent = dest.state().context;
+        dest.state_mut().context = None;
+        let ctx = StyleContext {
+          selectors: unsafe { std::mem::transmute(scope_start) },
+          parent: detach_style_context(parent),
+        };
+        dest.state_mut().context = Some(style_context_ptr(&ctx));
+        let res = scope_end.to_css(dest);
+        dest.state_mut().context = parent;
+        res?;
       } else {
         scope_end.to_css(dest)?;
       }
@@ -99,9 +103,14 @@ impl<'i, T: ToCss> ToCss for ScopeRule<'i, T> {
     // Nested style rules within @scope are implicitly relative to the <scope-start>
     // so clear our style context while printing them to avoid replacing & ourselves.
     // https://drafts.csswg.org/css-cascade-6/#scoped-rules
-    dest.with_cleared_context(|dest| self.rules.to_css(dest))?;
+    let parent = dest.state().context;
+    dest.state_mut().context = None;
+    let res = self.rules.to_css(dest);
+    dest.state_mut().context = parent;
+    res?;
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}')?;
+    Ok(())
   }
 }

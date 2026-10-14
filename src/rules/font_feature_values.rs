@@ -3,7 +3,6 @@
 use super::Location;
 use crate::error::{ParserError, PrinterError};
 use crate::parser::ParserOptions;
-use crate::printer::Printer;
 use crate::properties::font::FamilyName;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::Ident;
@@ -13,7 +12,6 @@ use crate::visitor::Visit;
 use cssparser::*;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
-use std::fmt::Write;
 
 /// A [@font-feature-values](https://drafts.csswg.org/css-fonts/#font-feature-values) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -152,11 +150,7 @@ impl<'a, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for FontFeatureValuesRu
 }
 
 impl<'i> ToCss for FontFeatureValuesRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_str("@font-feature-values ")?;
     self.name.to_css(dest)?;
@@ -169,7 +163,8 @@ impl<'i> ToCss for FontFeatureValuesRule<'i> {
         dest.newline()?;
       }
     }
-    dest.write_char('}')
+    dest.write_char('}')?;
+    Ok(())
   }
 }
 
@@ -240,11 +235,7 @@ pub struct FontFeatureSubrule<'i> {
 }
 
 impl<'i> ToCss for FontFeatureSubrule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_char('@')?;
     self.name.to_css(dest)?;
@@ -266,13 +257,14 @@ impl<'i> ToCss for FontFeatureSubrule<'i> {
         index.to_css(dest)?;
       }
 
-      if i != len - 1 || !dest.minify {
+      if i != len - 1 || !dest.options().minify {
         dest.write_char(';')?;
       }
     }
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}')?;
+    Ok(())
   }
 }
 

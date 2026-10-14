@@ -4,7 +4,6 @@ use super::angle::{impl_try_from_angle, Angle};
 use super::calc::{Calc, MathFunction};
 use super::number::{CSSNumber, NumericRange};
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::traits::private::AddInternal;
 use crate::traits::{
   impl_op, private::TryAdd, Op, Parse, ParseNumeric, Sign, ToCss, TryMap, TryOp, TrySign, Zero,
@@ -49,10 +48,7 @@ impl<'i> ParseNumeric<'i> for Percentage {
 }
 
 impl ToCss for Percentage {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use cssparser::ToCss;
     let v = self.0 * 100.0;
     let int_value = if (v).fract() == 0.0 { Some(v as i32) } else { None };
@@ -66,9 +62,11 @@ impl ToCss for Percentage {
       percent.to_css(&mut s)?;
       if self.0 < 0.0 {
         dest.write_char('-')?;
-        dest.write_str(s.trim_start_matches("-0"))
+        dest.write_str(s.trim_start_matches("-0"))?;
+        Ok(())
       } else {
-        dest.write_str(s.trim_start_matches('0'))
+        dest.write_str(s.trim_start_matches('0'))?;
+        Ok(())
       }
     } else {
       percent.to_css(dest)?;
@@ -542,10 +540,7 @@ impl<D: TrySign> TrySign for DimensionPercentage<D> {
 impl<D: ToCss + std::ops::Mul<CSSNumber, Output = D> + TrySign + Clone + std::fmt::Debug> ToCss
   for DimensionPercentage<D>
 {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       DimensionPercentage::Dimension(length) => length.to_css(dest),
       DimensionPercentage::Percentage(percent) => percent.to_css(dest),

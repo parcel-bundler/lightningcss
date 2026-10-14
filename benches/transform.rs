@@ -27,10 +27,17 @@ fn bench_stylesheet_transform(c: &mut Criterion) {
   for fixture in &fixtures {
     group.throughput(Throughput::Bytes(fixture.css.len() as u64));
     group.bench_with_input(
-      BenchmarkId::from_parameter(fixture.name),
+      BenchmarkId::new("no-source-map", fixture.name),
       fixture.css.as_str(),
       |b, css| {
         b.iter(|| common::transform_stylesheet(black_box(css)));
+      },
+    );
+    group.bench_with_input(
+      BenchmarkId::new("source-map", fixture.name),
+      fixture.css.as_str(),
+      |b, css| {
+        b.iter(|| common::transform_stylesheet_with_source_map(black_box(css)));
       },
     );
   }

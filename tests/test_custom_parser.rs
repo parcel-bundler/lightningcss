@@ -2,7 +2,7 @@ use cssparser::*;
 use lightningcss::{
   declaration::DeclarationBlock,
   error::{ParserError, PrinterError},
-  printer::Printer,
+  printer::PrinterTrait,
   stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
   traits::{AtRuleParser, Parse, ToCss},
   values::ident::Ident,
@@ -12,10 +12,13 @@ fn minify_test(source: &str, expected: &str) {
   let mut stylesheet = StyleSheet::parse_with(&source, ParserOptions::default(), &mut TestAtRuleParser).unwrap();
   stylesheet.minify(Default::default()).unwrap();
   let res = stylesheet
-    .to_css(PrinterOptions {
-      minify: true,
-      ..PrinterOptions::default()
-    })
+    .to_css(
+      PrinterOptions {
+        minify: true,
+        ..PrinterOptions::default()
+      },
+      None::<&mut ()>,
+    )
     .unwrap();
   assert_eq!(res.code, expected);
 }
@@ -128,7 +131,7 @@ impl<'i> AtRuleParser<'i> for TestAtRuleParser {
 }
 
 impl<'i> ToCss for AtRule<'i> {
-  fn to_css<W: std::fmt::Write>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> {
+  fn to_css<PrinterT: PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       AtRule::Block(rule) => {
         dest.write_str("@block ")?;
@@ -138,7 +141,8 @@ impl<'i> ToCss for AtRule<'i> {
       AtRule::Inline(rule) => {
         dest.write_str("@inline ")?;
         rule.name.to_css(dest)?;
-        dest.write_char(';')
+        dest.write_char(';')?;
+        Ok(())
       }
     }
   }
