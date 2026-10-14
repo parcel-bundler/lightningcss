@@ -618,6 +618,10 @@ impl<'a, 'c, W: std::fmt::Write + Sized, S: SourceMap> std::fmt::Write for Print
     self.state.generated_col += s.len() as u32;
     self.dest.write_str(s)
   }
+
+  fn write_char(&mut self, c: char) -> std::fmt::Result {
+    Printer::write_char(self, c).map_err(|_| std::fmt::Error)
+  }
 }
 
 mod private {
