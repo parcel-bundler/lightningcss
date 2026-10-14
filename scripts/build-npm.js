@@ -133,7 +133,7 @@ function buildNode(triple, cpu, os, libc, t) {
   } catch (err) { }
   fs.writeFileSync(`${dir}/npm/node-${t}/package.json`, JSON.stringify(pkg2, false, 2) + '\n');
   fs.copyFileSync(`${dir}/artifacts/bindings-${triple}/${name}`, `${dir}/npm/node-${t}/${name}`);
-  fs.writeFileSync(`${dir}/npm/node-${t}/README.md`, `This is the ${triple} build of lightningcss. See https://github.com/parcel-bundler/lightningcss for details.`);
+  fs.writeFileSync(`${dir}/npm/node-${t}/README.md`, `This is the ${triple} build of ${pkg.name}. See ${pkg.repository.url} for details.`);
   fs.copyFileSync(`${dir}/LICENSE`, `${dir}/npm/node-${t}/LICENSE`);
 }
 
@@ -165,6 +165,6 @@ function buildCLI(triple, cpu, os, libc, t) {
   fs.writeFileSync(`${dir}/npm/cli-${t}/package.json`, JSON.stringify(pkg2, false, 2) + '\n');
   fs.copyFileSync(`${dir}/artifacts/bindings-${triple}/${binary}`, `${dir}/npm/cli-${t}/${binary}`);
   fs.chmodSync(`${dir}/npm/cli-${t}/${binary}`, 0o755); // Ensure execute bit is set.
-  fs.writeFileSync(`${dir}/npm/cli-${t}/README.md`, `This is the ${triple} build of lightningcss-cli. See https://github.com/parcel-bundler/lightningcss for details.`);
+  fs.writeFileSync(`${dir}/npm/cli-${t}/README.md`, `This is the ${triple} build of ${pkg.name}-cli. See ${pkg.repository.url} for details.`);
   fs.copyFileSync(`${dir}/LICENSE`, `${dir}/npm/cli-${t}/LICENSE`);
 }

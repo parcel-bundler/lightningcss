@@ -13,7 +13,7 @@ CSS modules treat the classes defined in each file as unique. Each class name or
 To enable CSS modules, provide the `cssModules` option when calling the Lightning CSS API. When using the CLI, enable the `--css-modules` flag.
 
 ```js
-import {transform} from 'lightningcss';
+import {transform} from 'rspack_lightningcss';
 
 let {code, map, exports} = transform({
   // ...

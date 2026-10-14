@@ -17,7 +17,7 @@ Custom transforms are implemented by passing a `visitor` object to the Lightning
 Visitors can return a new value to update it. Each visitor accepts a different type of value, and usually expects the same type in return. This example multiplies all lengths by 2:
 
 ```js
-import { transform } from 'lightningcss';
+import { transform } from 'rspack_lightningcss';
 
 let res = transform({
   filename: 'test.css',
@@ -215,7 +215,7 @@ assert.equal(res.code.toString(), '.foo{padding:40px}');
 Multiple visitors can be combined into one using the `composeVisitors` function. This lets you reuse visitors between projects by publishing them as plugins. The AST is visited in a single pass, running the functions from each visitor object as if they were written together.
 
 ```js
-import { transform, composeVisitors } from 'lightningcss';
+import { transform, composeVisitors } from 'rspack_lightningcss';
 
 let environmentVisitor = {
   EnvironmentVariable: {
@@ -453,7 +453,7 @@ Plugin package names should start with `lightningcss-plugin-` and be descriptive
 To use a published visitor plugin, install the package from npm, import it, and use the `composeVisitors` function as described above.
 
 ```js
-import { transform, composeVisitors } from 'lightningcss';
+import { transform, composeVisitors } from 'rspack_lightningcss';
 import environmentVisitor from 'lightningcss-plugin-environment';
 import doubleFunctionVisitor from 'lightningcss-plugin-double-function';
 

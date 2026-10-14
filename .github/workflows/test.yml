@@ -2,9 +2,9 @@ name: test
 
 on:
   push:
-    branches: [master]
+    branches: [master, rspack]
   pull_request:
-    branches: [master]
+    branches: [master, rspack]
 
 permissions:
   contents: read
@@ -17,22 +17,22 @@ jobs:
       RUST_BACKTRACE: full
       RUSTFLAGS: -D warnings
     steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo fmt
       - run: cargo test --all-features
 
   test-js:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 18
-      - uses: bahmutov/npm-install@v1.8.32
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+          node-version: 24
+      - uses: bahmutov/npm-install@c5482d70ec8706408996e31ac94075030694993f # v1.8.32
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: yarn build
       - run: yarn test
       - run: yarn tsc
@@ -40,24 +40,24 @@ jobs:
   test-wasm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 18
-      - uses: bahmutov/npm-install@v1.8.32
-      - uses: dtolnay/rust-toolchain@stable
+          node-version: 24
+      - uses: bahmutov/npm-install@c5482d70ec8706408996e31ac94075030694993f # v1.8.32
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           targets: wasm32-unknown-unknown
       - name: Setup rust target
         run: rustup target add wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install wasm-opt
         run: |
-          curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz
-          tar -xf binaryen-version_111-x86_64-linux.tar.gz
+          curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz
+          tar -xf binaryen-version_133-x86_64-linux.tar.gz
       - name: Build wasm
         run: |
-          export PATH="$PATH:./binaryen-version_111/bin"
+          export PATH="$PATH:./binaryen-version_133/bin"
           yarn wasm:build-release
       - run: TEST_WASM=node yarn test
       - run: TEST_WASM=browser yarn test

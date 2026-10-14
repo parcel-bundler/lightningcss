@@ -1,5 +1,5 @@
 use cssparser::*;
-use lightningcss::{
+use rspack_lightningcss::{
   declaration::DeclarationBlock,
   error::{ParserError, PrinterError},
   printer::Printer,

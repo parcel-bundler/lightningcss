@@ -29,7 +29,7 @@ fs.copyFileSync(`${dir}/node/ast.d.ts`, `${dir}/wasm/ast.d.ts`);
 fs.cpSync(`${dir}/node_modules/napi-wasm`, `${dir}/wasm/node_modules/napi-wasm`, {recursive: true});
 
 let readme = fs.readFileSync(`${dir}/README.md`, 'utf8');
-readme = readme.replace('# ⚡️ Lightning CSS', '# ⚡️ lightningcss-wasm');
+readme = readme.replace('# ⚡️ Lightning CSS', `# ⚡️ ${pkg.name}-wasm`);
 fs.writeFileSync(`${dir}/wasm/README.md`, readme);
 
 const cjsBuild = {
@@ -46,10 +46,13 @@ const cjsBuild = {
   inject: [`${dir}/wasm/import.meta.url-polyfill.js`],
   define: { 'import.meta.url': 'import_meta_url' },
 };
-esbuild.build(cjsBuild).catch(console.error);
+esbuild.build(cjsBuild).catch(err => {
+  console.error(err);
+  process.exitCode = 1;
+});
 
 let wasmPkg = { ...pkg };
-wasmPkg.name = 'lightningcss-wasm';
+wasmPkg.name += '-wasm';
 wasmPkg.type = 'module';
 wasmPkg.main = 'index.mjs';
 wasmPkg.module = 'index.mjs';

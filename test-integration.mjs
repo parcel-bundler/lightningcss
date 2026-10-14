@@ -2,7 +2,7 @@ import puppeteer from 'puppeteer';
 import fetch from 'node-fetch';
 import assert from 'assert';
 import {diff} from 'jest-diff';
-import * as css from 'lightningcss';
+import * as css from 'rspack_lightningcss';
 
 let urls = [
   'https://getbootstrap.com/docs/5.1/examples/headers/',

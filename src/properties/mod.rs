@@ -25,7 +25,7 @@
 //!
 //! ```
 //! use smallvec::smallvec;
-//! use lightningcss::{
+//! use rspack_lightningcss::{
 //!   properties::{Property, PropertyId, background::*},
 //!   values::{number::NonNegative, url::Url, image::Image, color::{CssColor, RGBA}, position::*, length::*},
 //!   stylesheet::{ParserOptions, PrinterOptions},

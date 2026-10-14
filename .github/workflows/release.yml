@@ -1,6 +1,18 @@
 name: release
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Validate publishing without uploading
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-rspack-lightningcss-npm
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -24,18 +36,18 @@ jobs:
     name: build-${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Node.JS
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 18
+          node-version: 24
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
 
       - name: Setup rust target
         run: rustup target add ${{ matrix.target }}
 
-      - uses: bahmutov/npm-install@v1.8.32
+      - uses: bahmutov/npm-install@c5482d70ec8706408996e31ac94075030694993f # v1.8.32
       - name: Build release
         run: yarn build-release
         env:
@@ -48,7 +60,7 @@ jobs:
         if: ${{ matrix.strip }}
         run: ${{ matrix.strip }} *.node ${{ matrix.binary }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: bindings-${{ matrix.target }}
           path: |
@@ -59,18 +71,18 @@ jobs:
     name: build-apple-silicon
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Node.JS
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 18
+          node-version: 24
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
 
       - name: Setup rust target
         run: rustup target add aarch64-apple-darwin
 
-      - uses: bahmutov/npm-install@v1.8.32
+      - uses: bahmutov/npm-install@c5482d70ec8706408996e31ac94075030694993f # v1.8.32
       - name: Build release
         run: yarn build-release
         env:
@@ -90,7 +102,7 @@ jobs:
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: strip -x *.node lightningcss
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: bindings-aarch64-apple-darwin
           path: |
@@ -128,13 +140,13 @@ jobs:
       image: ${{ matrix.image }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Node.JS
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 18
+          node-version: 24
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
 
       - name: Setup Android NDK
         if: ${{ matrix.target == 'aarch64-linux-android' }}
@@ -151,7 +163,7 @@ jobs:
       - name: Setup rust target
         run: rustup target add ${{ matrix.target }}
 
-      - uses: bahmutov/npm-install@v1.8.32
+      - uses: bahmutov/npm-install@c5482d70ec8706408996e31ac94075030694993f # v1.8.32
       - name: Build release
         run: yarn build-release
         env:
@@ -167,7 +179,7 @@ jobs:
         if: ${{ matrix.strip }}
         run: ${{ matrix.strip }} *.node lightningcss
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: bindings-${{ matrix.target }}
           path: |
@@ -177,9 +189,9 @@ jobs:
   build-freebsd:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build FreeBSD
-        uses: cross-platform-actions/action@v0.25.0
+        uses: cross-platform-actions/action@cdc9ee69ef84a5f2e59c9058335d9c57bcb4ac86 # v0.25.0
         env:
           DEBUG: napi:*
           RUSTUP_HOME: /usr/local/rustup
@@ -215,7 +227,7 @@ jobs:
             rm -rf .yarn/cache
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: bindings-x86_64-unknown-freebsd
           path: |
@@ -225,28 +237,28 @@ jobs:
   build-wasm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Node.JS
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 18
-      - uses: bahmutov/npm-install@v1.8.32
+          node-version: 24
+      - uses: bahmutov/npm-install@c5482d70ec8706408996e31ac94075030694993f # v1.8.32
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           targets: wasm32-unknown-unknown
       - name: Setup rust target
         run: rustup target add wasm32-unknown-unknown
       - name: Install wasm-opt
         run: |
-          curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz
-          tar -xf binaryen-version_111-x86_64-linux.tar.gz
+          curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz
+          tar -xf binaryen-version_133-x86_64-linux.tar.gz
       - name: Build wasm
         run: |
-          export PATH="$PATH:./binaryen-version_111/bin"
+          export PATH="$PATH:./binaryen-version_133/bin"
           yarn wasm:build-release
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wasm
           path: wasm/lightningcss_node.wasm
@@ -261,10 +273,15 @@ jobs:
       - build-freebsd
       - build-wasm
     steps:
-      - uses: actions/checkout@v3
-      - uses: bahmutov/npm-install@v1.8.32
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Node.JS
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: bahmutov/npm-install@c5482d70ec8706408996e31ac94075030694993f # v1.8.32
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts
       - name: Show artifacts
@@ -274,10 +291,37 @@ jobs:
           node scripts/build-npm.js
           cp artifacts/wasm/* wasm/.
           node scripts/build-wasm.js
-      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Validate npm packages
+        run: |
+          for pkg in npm/* wasm cli .; do
+            npm publish "./$pkg" --dry-run
+          done
+      - name: Test installed npm packages
+        run: |
+          package_dir=$(mktemp -d)
+          npm pack . ./npm/node-linux-x64-gnu ./cli ./npm/cli-linux-x64-gnu ./wasm --pack-destination "$package_dir"
+          cd "$package_dir"
+          npm install --omit=optional --no-audit --no-fund ./*.tgz
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { createRequire } from 'node:module';
+          const require = createRequire(import.meta.url);
+          for (const name of ['rspack_lightningcss', 'rspack_lightningcss-wasm']) {
+            for (const pkg of [require(name), await import(name)]) {
+              const result = pkg.transform({
+                filename: 'input.css',
+                code: Buffer.from('a { color: red; }'),
+                minify: true
+              });
+              assert.equal(Buffer.from(result.code).toString(), 'a{color:red}');
+            }
+          }
+          NODE
+          ./node_modules/.bin/lightningcss --help
       - name: Publish to npm
+        if: ${{ !inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for pkg in npm/*; do
             echo "Publishing $pkg..."
@@ -286,27 +330,19 @@ jobs:
             cd ../..;
           done
           cd wasm
-          echo "Publishing lightningcss-wasm...";
+          echo "Publishing rspack_lightningcss-wasm...";
           npm publish
           cd ..
           cd cli
-          echo "Publishing lightningcss-cli...";
+          echo "Publishing rspack_lightningcss-cli...";
           npm publish
           cd ..
-          echo "Publishing lightningcss...";
+          echo "Publishing rspack_lightningcss...";
           npm publish
 
   release-crates:
-    runs-on: ubuntu-latest
-    name: Release Rust crate
-    steps:
-      - uses: actions/checkout@v3
-      - uses: bahmutov/npm-install@v1.8.32
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      - run: cargo login ${CRATES_IO_TOKEN}
-        env:
-          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-      - run: |
-          cargo install cargo-workspaces
-          cargo workspaces publish --no-remove-dev-deps --from-git -y
+    uses: ./.github/workflows/release-crates.yml
+    with:
+      dry_run: ${{ inputs.dry_run }}
+    secrets:
+      CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}

@@ -1,6 +1,8 @@
 let fs = require('fs');
 let path = require('path');
 
+const { name } = require('./package.json');
+
 let parts = [process.platform, process.arch];
 if (process.platform === 'linux') {
   const {MUSL, familySync} = require('detect-libc');
@@ -20,7 +22,7 @@ let binary = process.platform === 'win32' ? 'lightningcss.exe' : 'lightningcss';
 
 let pkgPath;
 try {
-  pkgPath = path.dirname(require.resolve(`lightningcss-cli-${parts.join('-')}/package.json`));
+  pkgPath = path.dirname(require.resolve(`${name}-${parts.join('-')}/package.json`));
 } catch (err) {
   pkgPath = path.join(__dirname, '..', 'target', 'release');
   if (!fs.existsSync(path.join(pkgPath, binary))) {
@@ -34,7 +36,7 @@ try {
   try {
     fs.copyFileSync(path.join(pkgPath, binary), path.join(__dirname, binary));
   } catch (err) {
-    console.error('Failed to move lightningcss-cli binary into place.');
+    console.error('Failed to move CLI binary into place.');
     process.exit(1);
   }
 }

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, convert::Infallible};
 
 use cssparser::*;
-use lightningcss::{
+use rspack_lightningcss::{
   declaration::DeclarationBlock,
   error::PrinterError,
   printer::Printer,
@@ -160,7 +160,7 @@ impl<'i, 'a> Visitor<'i, AtRule> for StyleRuleCollector<'i, 'a> {
     VisitTypes::RULES
   }
 
-  fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i, AtRule>) -> Result<(), Self::Error> {
+  fn visit_rule(&mut self, rule: &mut rspack_lightningcss::rules::CssRule<'i, AtRule>) -> Result<(), Self::Error> {
     match rule {
       CssRule::Style(rule) => {
         for selector in rule.selectors.0.iter() {
@@ -224,17 +224,20 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
     rule.visit_children(self)
   }
 
-  fn visit_url(&mut self, url: &mut lightningcss::values::url::Url<'i>) -> Result<(), Self::Error> {
+  fn visit_url(&mut self, url: &mut rspack_lightningcss::values::url::Url<'i>) -> Result<(), Self::Error> {
     url.url = format!("https://mywebsite.com/{}", url.url).into();
     Ok(())
   }
 
-  fn visit_color(&mut self, color: &mut lightningcss::values::color::CssColor) -> Result<(), Self::Error> {
+  fn visit_color(&mut self, color: &mut rspack_lightningcss::values::color::CssColor) -> Result<(), Self::Error> {
     *color = color.to_lab().unwrap();
     Ok(())
   }
 
-  fn visit_length(&mut self, length: &mut lightningcss::values::length::LengthValue) -> Result<(), Self::Error> {
+  fn visit_length(
+    &mut self,
+    length: &mut rspack_lightningcss::values::length::LengthValue,
+  ) -> Result<(), Self::Error> {
     match length {
       LengthValue::Px(px) => *length = LengthValue::Rem(*px / 16.0),
       _ => {}
@@ -245,7 +248,7 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
 
   fn visit_dashed_ident(
     &mut self,
-    ident: &mut lightningcss::values::ident::DashedIdent,
+    ident: &mut rspack_lightningcss::values::ident::DashedIdent,
   ) -> Result<(), Self::Error> {
     ident.0 = format!("--tw-{}", &ident.0[2..]).into();
     Ok(())
