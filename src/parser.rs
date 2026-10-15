@@ -494,8 +494,6 @@ impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> NestedRuleParser<'a, 'i, T>
         Ok(()) => {}
         Err((e, _)) => {
           if parse_declarations {
-            iter.parser.declarations.clear();
-            iter.parser.important_declarations.clear();
             errors.push(e);
           } else {
             if iter.parser.options.error_recovery {
