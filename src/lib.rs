@@ -4220,6 +4220,36 @@ mod tests {
   #[test]
   fn test_size() {
     minify_test(".foo { width: 10px; width: -1px }", ".foo{width:10px;width:-1px}");
+    // `include: VendorPrefixes` asks for every prefix, but stretch only has
+    // -webkit- and -moz- forms (#1371).
+    for prop in ["height", "max-height"] {
+      let source = format!(".foo {{ {}: stretch }}", prop);
+      let targets = Targets {
+        browsers: None,
+        include: Features::VendorPrefixes,
+        exclude: Features::empty(),
+      };
+      let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
+      stylesheet
+        .minify(MinifyOptions {
+          targets,
+          ..MinifyOptions::default()
+        })
+        .unwrap();
+      let res = stylesheet
+        .to_css(PrinterOptions {
+          targets,
+          ..PrinterOptions::default()
+        })
+        .unwrap();
+      assert_eq!(
+        res.code,
+        format!(
+          ".foo {{\n  {0}: -webkit-fill-available;\n  {0}: -moz-available;\n  {0}: stretch;\n}}\n",
+          prop
+        )
+      );
+    }
     property_range_test(
       &["aspect-ratio"],
       &[
