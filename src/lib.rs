@@ -67,6 +67,7 @@ mod tests {
   use crate::values::color::CssColor;
   use crate::vendor_prefix::VendorPrefix;
   use cssparser::SourceLocation;
+  use indexmap::IndexMap;
   use indoc::indoc;
   use pretty_assertions::assert_eq;
   use std::collections::HashMap;
@@ -307,6 +308,41 @@ mod tests {
     assert_eq!(res.code, expected);
   }
 
+  #[test]
+  fn test_css_module_order() {
+    // Exports and references are in source order, which determines e.g. dependency order.
+    let mut stylesheet = StyleSheet::parse(
+      r#"
+      .zebra { color: var(--z from "./z.css"); }
+      .apple { color: var(--a from "./a.css"); }
+      .mango { composes: m from "./m.css"; }
+    "#,
+      ParserOptions {
+        filename: "test.css".into(),
+        css_modules: Some(crate::css_modules::Config {
+          dashed_idents: true,
+          ..Default::default()
+        }),
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    let exports: Vec<String> = res.exports.unwrap().into_keys().collect();
+    assert_eq!(exports, ["zebra", "apple", "mango"]);
+    let references: Vec<String> = res
+      .references
+      .unwrap()
+      .into_values()
+      .map(|reference| match reference {
+        CssModuleReference::Dependency { specifier, .. } => specifier,
+        _ => unreachable!(),
+      })
+      .collect();
+    assert_eq!(references, ["./z.css", "./a.css"]);
+  }
+
   #[track_caller]
   fn css_modules_test<'i>(
     source: &'i str,
@@ -437,7 +473,7 @@ mod tests {
     { $($key:expr => $name:literal $(referenced: $referenced: literal)? $($value:literal $(global: $global: literal)? $(from $from:literal)?)*),* } => {
       {
         #[allow(unused_mut)]
-        let mut m = HashMap::new();
+        let mut m = IndexMap::new();
         $(
           #[allow(unused_mut)]
           let mut v = Vec::new();
@@ -1957,26 +1993,26 @@ mod tests {
       .foo:not(:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi))) {
         border-left-color: #b32323;
         border-left-color: lab(40% 56.6 39);
-        border-right-color: #ee00be;
+        border-right-color: #f000c0;
         border-right-color: lch(50.998% 135.363 338);
       }
 
       .foo:not(:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi))) {
         border-left-color: #b32323;
         border-left-color: lab(40% 56.6 39);
-        border-right-color: #ee00be;
+        border-right-color: #f000c0;
         border-right-color: lch(50.998% 135.363 338);
       }
 
       .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
-        border-left-color: #ee00be;
+        border-left-color: #f000c0;
         border-left-color: lch(50.998% 135.363 338);
         border-right-color: #b32323;
         border-right-color: lab(40% 56.6 39);
       }
 
       .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
-        border-left-color: #ee00be;
+        border-left-color: #f000c0;
         border-left-color: lch(50.998% 135.363 338);
         border-right-color: #b32323;
         border-right-color: lab(40% 56.6 39);
@@ -2000,13 +2036,13 @@ mod tests {
         border-left-color: #b32323;
         border-left-color: color(display-p3 .643308 .192455 .167712);
         border-left-color: lab(40% 56.6 39);
-        border-right-color: #ee00be;
+        border-right-color: #f000c0;
         border-right-color: color(display-p3 .972962 -.362078 .804206);
         border-right-color: lch(50.998% 135.363 338);
       }
 
       .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
-        border-left-color: #ee00be;
+        border-left-color: #f000c0;
         border-left-color: color(display-p3 .972962 -.362078 .804206);
         border-left-color: lch(50.998% 135.363 338);
         border-right-color: #b32323;
@@ -2591,9 +2627,9 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
-        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
+        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff)) 60;
+        -webkit-border-image: -webkit-linear-gradient(top, #ff0b0c, #766eff) 60;
+        border-image: linear-gradient(#ff0b0c, #766eff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -2612,10 +2648,10 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
-        -moz-border-image: -moz-linear-gradient(top, #ff0f0e, #7773ff) 60;
-        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
+        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff)) 60;
+        -webkit-border-image: -webkit-linear-gradient(top, #ff0b0c, #766eff) 60;
+        -moz-border-image: -moz-linear-gradient(top, #ff0b0c, #766eff) 60;
+        border-image: linear-gradient(#ff0b0c, #766eff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -2635,9 +2671,9 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
-        border-image: -moz-linear-gradient(top, #ff0f0e, #7773ff) 60;
-        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: -webkit-linear-gradient(top, #ff0b0c, #766eff) 60;
+        border-image: -moz-linear-gradient(top, #ff0b0c, #766eff) 60;
+        border-image: linear-gradient(#ff0b0c, #766eff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -2657,8 +2693,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image-source: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-        border-image-source: linear-gradient(#ff0f0e, #7773ff);
+        border-image-source: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+        border-image-source: linear-gradient(#ff0b0c, #766eff);
         border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
       }
     "#
@@ -2677,7 +2713,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: linear-gradient(#ff0f0e, #7773ff) var(--foo);
+        border-image: linear-gradient(#ff0b0c, #766eff) var(--foo);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -5007,7 +5043,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: #af5cae linear-gradient(#c65d07, #00807c);
+        background: #af5cae linear-gradient(#c65d07, #00817d);
         background: lab(51.5117% 43.3777 -29.0443) linear-gradient(lab(52.2319% 40.1449 59.9171), lab(47.7776% -34.2947 -7.65904));
       }
     "#
@@ -14794,7 +14830,7 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: linear-gradient(#ff0f0e, #7773ff);
+          background: linear-gradient(#ff0b0c, #766eff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -14808,7 +14844,7 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: linear-gradient(#ff0f0e, #7773ff);
+          background: linear-gradient(#ff0b0c, #766eff);
           background: linear-gradient(color(display-p3 1 .0000153435 -.00000303562), color(display-p3 .440289 .28452 1.23485));
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -14824,8 +14860,8 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          background: linear-gradient(#ff0f0e, #7773ff);
+          background: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          background: linear-gradient(#ff0b0c, #766eff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -14839,9 +14875,9 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          background: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          background: linear-gradient(#ff0f0e, #7773ff);
+          background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff));
+          background: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          background: linear-gradient(#ff0b0c, #766eff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -14881,7 +14917,7 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: linear-gradient(#ff0f0e, #7773ff);
+          background-image: linear-gradient(#ff0b0c, #766eff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -14895,7 +14931,7 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: linear-gradient(#ff0f0e, #7773ff);
+          background-image: linear-gradient(#ff0b0c, #766eff);
           background-image: linear-gradient(color(display-p3 1 .0000153435 -.00000303562), color(display-p3 .440289 .28452 1.23485));
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -14911,8 +14947,8 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          background-image: linear-gradient(#ff0f0e, #7773ff);
+          background-image: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          background-image: linear-gradient(#ff0b0c, #766eff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -14926,9 +14962,9 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          background-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          background-image: linear-gradient(#ff0f0e, #7773ff);
+          background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff));
+          background-image: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          background-image: linear-gradient(#ff0b0c, #766eff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -15514,7 +15550,7 @@ mod tests {
       indoc! {r#"@font-palette-values --Cooler {
       font-family: Handover Sans;
       base-palette: 3;
-      override-colors: 1 #2b0c09, 3 #ee00be;
+      override-colors: 1 #2b0c09, 3 #f000c0;
       override-colors: 1 #2b0c09, 3 lch(50.998% 135.363 338);
     }
     "#},
@@ -15532,7 +15568,7 @@ mod tests {
       indoc! {r#"@font-palette-values --Cooler {
       font-family: Handover Sans;
       base-palette: 3;
-      override-colors: 1 var(--foo), 3 #ee00be;
+      override-colors: 1 var(--foo), 3 #f000c0;
     }
 
     @supports (color: lab(0% 0 0)) {
@@ -17366,8 +17402,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-text-decoration: underline #ee00be;
-        text-decoration: underline #ee00be;
+        -webkit-text-decoration: underline #f000c0;
+        text-decoration: underline #f000c0;
         -webkit-text-decoration: underline lch(50.998% 135.363 338);
         text-decoration: underline lch(50.998% 135.363 338);
       }
@@ -17387,9 +17423,9 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-text-decoration-color: #ee00be;
-        -moz-text-decoration-color: #ee00be;
-        text-decoration-color: #ee00be;
+        -webkit-text-decoration-color: #f000c0;
+        -moz-text-decoration-color: #f000c0;
+        text-decoration-color: #f000c0;
         -webkit-text-decoration-color: lch(50.998% 135.363 338);
         -moz-text-decoration-color: lch(50.998% 135.363 338);
         text-decoration-color: lch(50.998% 135.363 338);
@@ -17410,7 +17446,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        text-decoration: #ee00be var(--style);
+        text-decoration: #f000c0 var(--style);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -17757,8 +17793,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-text-emphasis: filled #ee00be;
-        text-emphasis: filled #ee00be;
+        -webkit-text-emphasis: filled #f000c0;
+        text-emphasis: filled #f000c0;
         -webkit-text-emphasis: filled lch(50.998% 135.363 338);
         text-emphasis: filled lch(50.998% 135.363 338);
       }
@@ -17778,8 +17814,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-text-emphasis-color: #ee00be;
-        text-emphasis-color: #ee00be;
+        -webkit-text-emphasis-color: #f000c0;
+        text-emphasis-color: #f000c0;
         -webkit-text-emphasis-color: lch(50.998% 135.363 338);
         text-emphasis-color: lch(50.998% 135.363 338);
       }
@@ -17799,7 +17835,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        text-emphasis: #ee00be var(--style);
+        text-emphasis: #f000c0 var(--style);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -18615,7 +18651,7 @@ mod tests {
       ".foo { caret-color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          caret-color: #ee00be;
+          caret-color: #f000c0;
           caret-color: color(display-p3 .972962 -.362078 .804206);
           caret-color: lch(50.998% 135.363 338);
         }
@@ -18631,7 +18667,7 @@ mod tests {
       ".foo { caret: lch(50.998% 135.363 338) block }",
       indoc! { r#"
         .foo {
-          caret: #ee00be block;
+          caret: #f000c0 block;
           caret: color(display-p3 .972962 -.362078 .804206) block;
           caret: lch(50.998% 135.363 338) block;
         }
@@ -18647,7 +18683,7 @@ mod tests {
       ".foo { caret: lch(50.998% 135.363 338) var(--foo) }",
       indoc! { r#"
         .foo {
-          caret: #ee00be var(--foo);
+          caret: #f000c0 var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -18776,9 +18812,9 @@ mod tests {
       ".foo { list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          list-style-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          list-style-image: linear-gradient(#ff0f0e, #7773ff);
+          list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff));
+          list-style-image: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          list-style-image: linear-gradient(#ff0b0c, #766eff);
           list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -18792,7 +18828,7 @@ mod tests {
       ".foo { list-style: \"★\" linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style: linear-gradient(#ff0f0e, #7773ff) "★";
+          list-style: linear-gradient(#ff0b0c, #766eff) "★";
           list-style: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) "★";
         }
       "#},
@@ -18806,7 +18842,7 @@ mod tests {
       ".foo { list-style: var(--foo) linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style: var(--foo) linear-gradient(#ff0f0e, #7773ff);
+          list-style: var(--foo) linear-gradient(#ff0b0c, #766eff);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -19651,7 +19687,7 @@ mod tests {
       ".foo { background-color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          background-color: #ee00be;
+          background-color: #f000c0;
           background-color: color(display-p3 .972962 -.362078 .804206);
           background-color: lch(50.998% 135.363 338);
         }
@@ -19667,7 +19703,7 @@ mod tests {
       ".foo { color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          color: #ee00be;
+          color: #f000c0;
           color: color(display-p3 .972962 -.362078 .804206);
           color: lch(50.998% 135.363 338);
         }
@@ -19675,6 +19711,62 @@ mod tests {
       Browsers {
         chrome: Some(90 << 16),
         safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { color: lab(98.2504% -7.697 88.7581) }",
+      indoc! { r#"
+        .foo {
+          color: #fffc44;
+          color: lab(98.2504% -7.697 88.7581);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { color: color(prophoto-rgb 0.9784 0.9925 0.3037) }",
+      indoc! { r#"
+        .foo {
+          color: #ffff6d;
+          color: color(prophoto-rgb .9784 .9925 .3037);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { color: lch(94.4698% 111.9227 117.6737deg) }",
+      indoc! { r#"
+        .foo {
+          color: #b0ff00;
+          color: lch(94.4698% 111.923 117.674);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { color: oklch(99.995% .01 0) }",
+      indoc! { r#"
+        .foo {
+          color: #fffcff;
+          color: lab(99.8686% 3.37896 .0330329);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
         ..Browsers::default()
       },
     );
@@ -20249,34 +20341,67 @@ mod tests {
     test("rgb(from rgb(255 0 0 / 50%) r g b)", "rgba(255, 0, 0, 0.5)");
     test("rgb(from rgb(255, 0, 0, 0) r g b)", "#f000");
     test("rgb(from color(srgb 1 0 0 / 50%) r g b)", "rgba(255, 0, 0, 0.5)");
-    test("rgb(from color(srgb 1 0 0 / 50%) r g b / alpha)", "rgba(255, 0, 0, 0.5)");
-    test("color(from color(srgb 1 0 0 / 50%) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
-    test("color(from color(srgb 1 0 0 / 50%) srgb r g b / alpha)", "color(srgb 1 0 0 / 0.5)");
+    test(
+      "rgb(from color(srgb 1 0 0 / 50%) r g b / alpha)",
+      "rgba(255, 0, 0, 0.5)",
+    );
+    test(
+      "color(from color(srgb 1 0 0 / 50%) srgb r g b)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from color(srgb 1 0 0 / 50%) srgb r g b / alpha)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
 
     // Test with alpha()
-    test("color(from alpha(from red / 0.5) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
-    test("color(from alpha(from red / 0.5) srgb r g b / alpha)", "color(srgb 1 0 0 / 0.5)");
-    test("color(from alpha(from red / 0.5) srgb r g b / 0.8)", "color(srgb 1 0 0 / 0.8)");
-    test("color(from alpha(from rgba(255, 0, 0, 1) / 0.5) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
+    test(
+      "color(from alpha(from red / 0.5) srgb r g b)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from alpha(from red / 0.5) srgb r g b / alpha)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from alpha(from red / 0.5) srgb r g b / 0.8)",
+      "color(srgb 1 0 0 / 0.8)",
+    );
+    test(
+      "color(from alpha(from rgba(255, 0, 0, 1) / 0.5) srgb r g b)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
     // TODO: Floating-point precision issue; the current result is: .501961
     // test("color(from alpha(from rgb(255 0 0 / 50%) / alpha) srgb r g b)", "color(srgb 1 0 0 / 0.5)");
 
-    // Explicit alpha overrides the inherited value. 
+    // Explicit alpha overrides the inherited value.
     test("rgb(from rgb(255 0 0 / 0.8) r g b / 1)", "red");
     test("rgb(from rgb(255 0 0 / 0) r g b / 1)", "red");
     test("rgb(from rgb(255 0 0 / 50%) r g b / none)", "rgba(255, 0, 0, 0)");
     test("rgb(from color(srgb 1 0 0) r g b / 80%)", "rgba(255, 0, 0, 0.8)");
-    test("rgb(from color(srgb 1 0 0 / 0.5) r g b / calc(alpha - 0.3))", "rgba(255, 0, 0, 0.2)");
-    test("color(from color(display-p3 0.7 0.5 0.3 / 0.4) display-p3 r g b / .6)", "color(display-p3 0.7 0.5 0.3 / 0.6)");
-    test("color(from color(srgb 1 0 0) srgb r g b / 0.5)", "color(srgb 1 0 0 / 0.5)");
-    test("color(from color(srgb 1 0 0 / 100%) srgb r g b / 50%)", "color(srgb 1 0 0 / 0.5)");
+    test(
+      "rgb(from color(srgb 1 0 0 / 0.5) r g b / calc(alpha - 0.3))",
+      "rgba(255, 0, 0, 0.2)",
+    );
+    test(
+      "color(from color(display-p3 0.7 0.5 0.3 / 0.4) display-p3 r g b / .6)",
+      "color(display-p3 0.7 0.5 0.3 / 0.6)",
+    );
+    test(
+      "color(from color(srgb 1 0 0) srgb r g b / 0.5)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
+    test(
+      "color(from color(srgb 1 0 0 / 100%) srgb r g b / 50%)",
+      "color(srgb 1 0 0 / 0.5)",
+    );
 
     // Test nesting relative colors.
     test("rgb(from rgb(from rebeccapurple r g b) r g b)", "#639");
     test("rgb(from rgb(from rgb(255 0 0 / 0.8) g b r) r g b)", "#00fc");
 
     // Testing non-sRGB origin colors to see gamut mapping.
-    test("rgb(from color(display-p3 0 1 0) r g b / alpha)", "#00f942"); // Naive clip based mapping would give rgb(0, 255, 0).
+    test("rgb(from color(display-p3 0 1 0) r g b / alpha)", "#00fb29"); // Naive clip based mapping would give rgb(0, 255, 0).
     test("rgb(from lab(100% 104.3 -50.9) r g b)", "#fff"); // Naive clip based mapping would give rgb(255, 150, 255).
     test("rgb(from lab(0% 104.3 -50.9) r g b)", "#2a0022"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black.
     test("rgb(from lch(100% 116 334) r g b)", "#fff"); // Naive clip based mapping would give rgb(255, 150, 255).
@@ -20438,7 +20563,7 @@ mod tests {
     test("hsl(from hsl(from rebeccapurple h s l) h s l)", "rgb(102, 51, 153)");
 
     // Testing non-sRGB origin colors to see gamut mapping.
-    test("hsl(from color(display-p3 0 1 0) h s l / alpha)", "rgb(0, 249, 66)"); // Naive clip based mapping would give rgb(0, 255, 0).
+    test("hsl(from color(display-p3 0 1 0) h s l / alpha)", "rgb(0, 251, 41)"); // Naive clip based mapping would give rgb(0, 255, 0).
     test("hsl(from lab(100% 104.3 -50.9) h s l)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
     test("hsl(from lab(0% 104.3 -50.9) h s l)", "rgb(42, 0, 34)"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
     test("hsl(from lch(100% 116 334) h s l)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
@@ -20585,7 +20710,7 @@ mod tests {
     test("hwb(from hwb(from rebeccapurple h w b) h w b)", "rgb(102, 51, 153)");
 
     // Testing non-sRGB origin colors to see gamut mapping.
-    test("hwb(from color(display-p3 0 1 0) h w b / alpha)", "rgb(0, 249, 66)"); // Naive clip based mapping would give rgb(0, 255, 0).
+    test("hwb(from color(display-p3 0 1 0) h w b / alpha)", "rgb(0, 251, 41)"); // Naive clip based mapping would give rgb(0, 255, 0).
     test("hwb(from lab(100% 104.3 -50.9) h w b)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
     test("hwb(from lab(0% 104.3 -50.9) h w b)", "rgb(42, 0, 34)"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
     test("hwb(from lch(100% 116 334) h w b)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
@@ -20948,10 +21073,7 @@ mod tests {
     for color_space in &["lch", "oklch"] {
       // Cover omitted alpha in LCH and OKLCH.
       test(
-        &format!(
-          "{}(from {}(50% 0.2 120 / 0.4) l c h)",
-          color_space, color_space
-        ),
+        &format!("{}(from {}(50% 0.2 120 / 0.4) l c h)", color_space, color_space),
         &format!("{}(50% 0.2 120 / 0.4)", color_space),
       );
 
@@ -22067,7 +22189,7 @@ mod tests {
       ".foo { color: alpha(from color(display-p3 1 0 0) / 0.5) }",
       indoc! { r#"
         .foo {
-          color: #ff0f0e80;
+          color: #ff0b0c80;
           color: color(display-p3 1 0 0 / .5);
         }
       "#},
@@ -22441,7 +22563,7 @@ mod tests {
 
     minify_test(
       ".foo { color: color-mix(in hsl, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%) }",
-      &canonicalize("rgb(0, 249, 66)"),
+      &canonicalize("rgb(0, 251, 41)"),
     ); // Naive clip based mapping would give rgb(0, 255, 0).
     minify_test(
       ".foo { color: color-mix(in hsl, lab(100% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }",
@@ -22642,7 +22764,7 @@ mod tests {
 
     minify_test(
       ".foo { color: color-mix(in hwb, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%) }",
-      &canonicalize("rgb(0, 249, 66)"),
+      &canonicalize("rgb(0, 251, 41)"),
     ); // Naive clip based mapping would give rgb(0, 255, 0).
     minify_test(
       ".foo { color: color-mix(in hwb, lab(100% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }",
@@ -25007,7 +25129,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        --foo: #00f942;
+        --foo: #00fb29;
       }
 
       @supports (color: color(display-p3 0 0 0)) {
@@ -25070,7 +25192,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        --foo: #00f942;
+        --foo: #00fb29;
       }
 
       @supports (color: color(display-p3 0 0 0)) {
@@ -25094,7 +25216,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        --foo: #00f942;
+        --foo: #00fb29;
       }
 
       @supports (color: color(display-p3 0 0 0)) {
@@ -25187,7 +25309,7 @@ mod tests {
         }
 
         to {
-          --custom: #ee00be;
+          --custom: #f000c0;
         }
       }
 
@@ -25261,7 +25383,7 @@ mod tests {
         }
 
         to {
-          --custom: #ee00be;
+          --custom: #f000c0;
         }
       }
 
@@ -25376,7 +25498,7 @@ mod tests {
         }
 
         to {
-          --custom: #ee00be;
+          --custom: #f000c0;
           opacity: 1;
         }
       }
@@ -27113,7 +27235,7 @@ mod tests {
         "circles" => "EgL3uq_circles" referenced: true,
         "fade" => "EgL3uq_fade"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27156,7 +27278,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "id" => "EgL3uq_id"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         animation: false,
         // custom_idents: false,
@@ -27203,7 +27325,7 @@ mod tests {
       map! {
         "circles" => "EgL3uq_circles" referenced: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         custom_idents: false,
         ..Default::default()
@@ -27250,7 +27372,7 @@ mod tests {
         "a" => "EgL3uq_a",
         "b" => "EgL3uq_b"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27288,7 +27410,7 @@ mod tests {
         "grid" => "EgL3uq_grid",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27325,7 +27447,7 @@ mod tests {
         "grid" => "EgL3uq_grid",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         grid: false,
         ..Default::default()
@@ -27345,7 +27467,7 @@ mod tests {
       }
     "#},
       map! {},
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27380,7 +27502,7 @@ mod tests {
       map! {
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27413,7 +27535,7 @@ mod tests {
         "test" => "EgL3uq_test" "EgL3uq_foo",
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27443,7 +27565,7 @@ mod tests {
         "b" => "EgL3uq_b" "EgL3uq_foo",
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27481,7 +27603,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27501,7 +27623,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" global: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27521,7 +27643,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" global: true "bar" global: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27541,7 +27663,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" from "foo.css"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27561,7 +27683,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" from "foo.css" "bar" from "foo.css"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27592,7 +27714,7 @@ mod tests {
         "test" => "EgL3uq_test" "EgL3uq_foo" "foo" from "foo.css" "bar" from "bar.css",
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27611,7 +27733,7 @@ mod tests {
       map! {
         "foo" => "test-EgL3uq-foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         pattern: crate::css_modules::Pattern::parse("test-[hash]-[local]").unwrap(),
         ..Default::default()
@@ -27676,7 +27798,7 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27737,7 +27859,7 @@ mod tests {
         "bar" => "EgL3uq_bar",
         "--Cooler" => "--EgL3uq_Cooler" referenced: true
       },
-      HashMap::from([(
+      IndexMap::from([(
         "--ma1CsG".into(),
         CssModuleReference::Dependency {
           name: "--color".into(),
@@ -27766,7 +27888,7 @@ mod tests {
         "test" => "EgL3uq_test",
         "rotate" => "EgL3uq_rotate" referenced: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27784,7 +27906,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27802,7 +27924,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       false,
     );
@@ -27820,7 +27942,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         animation: false,
         ..Default::default()
@@ -27842,7 +27964,7 @@ mod tests {
         "test" => "EgL3uq_test",
         "rotate" => "EgL3uq_rotate" referenced: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config { ..Default::default() },
       false,
     );
@@ -27862,7 +27984,7 @@ mod tests {
       map! {
         "test" => "_5h2kwG-test" "foo" from "foo.css" "bar" from "foo.css"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         pattern: crate::css_modules::Pattern::parse("[content-hash]-[local]").unwrap(),
         ..Default::default()
@@ -27889,7 +28011,7 @@ mod tests {
         "main" => "EgL3uq_main",
         "box2" => "EgL3uq_box2"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config { ..Default::default() },
       false,
     );
@@ -27912,7 +28034,7 @@ mod tests {
       map! {
         "box2" => "EgL3uq_box2"
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         container: false,
         ..Default::default()
@@ -27927,7 +28049,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27937,7 +28059,7 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27947,7 +28069,7 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27957,7 +28079,7 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27971,7 +28093,7 @@ mod tests {
         "baz" => "EgL3uq_baz",
         "qux" => "EgL3uq_qux"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27982,7 +28104,7 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -27993,7 +28115,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -28006,7 +28128,7 @@ mod tests {
         "bar" => "EgL3uq_bar",
         "baz" => "EgL3uq_baz"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -28018,7 +28140,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "bar" => "EgL3uq_bar"
       },
-      HashMap::new(),
+      IndexMap::new(),
       Default::default(),
       true,
     );
@@ -28035,7 +28157,7 @@ mod tests {
         map! {
           "foo" => "EgL3uq_foo"
         },
-        HashMap::new(),
+        IndexMap::new(),
         Default::default(),
         true,
       );
@@ -28045,7 +28167,7 @@ mod tests {
         map! {
           "bar" => "EgL3uq_bar"
         },
-        HashMap::new(),
+        IndexMap::new(),
         Default::default(),
         true,
       );
@@ -28057,7 +28179,7 @@ mod tests {
           "bar" => "EgL3uq_bar",
           "baz" => "EgL3uq_baz"
         },
-        HashMap::new(),
+        IndexMap::new(),
         Default::default(),
         true,
       );
@@ -28068,7 +28190,7 @@ mod tests {
         map! {
           "foo" => "EgL3uq_foo"
         },
-        HashMap::new(),
+        IndexMap::new(),
         Default::default(),
         true,
       );
@@ -28078,7 +28200,7 @@ mod tests {
         map! {
           "foo" => "EgL3uq_foo"
         },
-        HashMap::new(),
+        IndexMap::new(),
         Default::default(),
         true,
       );
@@ -28702,7 +28824,7 @@ mod tests {
       ".foo { fill: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          fill: #ee00be;
+          fill: #f000c0;
           fill: color(display-p3 .972962 -.362078 .804206);
           fill: lch(50.998% 135.363 338);
         }
@@ -28718,7 +28840,7 @@ mod tests {
       ".foo { stroke: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          stroke: #ee00be;
+          stroke: #f000c0;
           stroke: color(display-p3 .972962 -.362078 .804206);
           stroke: lch(50.998% 135.363 338);
         }
@@ -28734,7 +28856,7 @@ mod tests {
       ".foo { fill: url(#foo) lch(50.998% 135.363 338) }",
       indoc! { r##"
         .foo {
-          fill: url("#foo") #ee00be;
+          fill: url("#foo") #f000c0;
           fill: url("#foo") color(display-p3 .972962 -.362078 .804206);
           fill: url("#foo") lch(50.998% 135.363 338);
         }
@@ -28750,7 +28872,7 @@ mod tests {
       ".foo { fill: var(--url) lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          fill: var(--url) #ee00be;
+          fill: var(--url) #f000c0;
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -28790,10 +28912,10 @@ mod tests {
       ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          -webkit-mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          -webkit-mask-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          -webkit-mask-image: linear-gradient(#ff0f0e, #7773ff);
-          mask-image: linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff));
+          -webkit-mask-image: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          -webkit-mask-image: linear-gradient(#ff0b0c, #766eff);
+          mask-image: linear-gradient(#ff0b0c, #766eff);
           -webkit-mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
           mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -28808,8 +28930,8 @@ mod tests {
       ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          -webkit-mask-image: linear-gradient(#ff0f0e, #7773ff);
-          mask-image: linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: linear-gradient(#ff0b0c, #766eff);
+          mask-image: linear-gradient(#ff0b0c, #766eff);
           -webkit-mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
           mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -28852,10 +28974,10 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
-          -webkit-mask: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 40px 20px;
-          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
-          mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff)) 40px 20px;
+          -webkit-mask: -webkit-linear-gradient(top, #ff0b0c, #766eff) 40px 20px;
+          -webkit-mask: linear-gradient(#ff0b0c, #766eff) 40px 20px;
+          mask: linear-gradient(#ff0b0c, #766eff) 40px 20px;
           -webkit-mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
           mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
         }
@@ -28870,8 +28992,8 @@ mod tests {
       ".foo { mask: -webkit-linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
-          -webkit-mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff)) 40px 20px;
+          -webkit-mask: -webkit-linear-gradient(#ff0b0c, #766eff) 40px 20px;
         }
       "#},
       Browsers {
@@ -28884,8 +29006,8 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px var(--foo) }",
       indoc! { r#"
         .foo {
-          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
-          mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
+          -webkit-mask: linear-gradient(#ff0b0c, #766eff) 40px var(--foo);
+          mask: linear-gradient(#ff0b0c, #766eff) 40px var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -28994,10 +29116,10 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 25% 75% / cover no-repeat content-box padding-box;
+          -webkit-mask: linear-gradient(#ff0b0c, #766eff) 25% 75% / cover no-repeat content-box padding-box;
           -webkit-mask-composite: source-out;
           -webkit-mask-source-type: luminance;
-          mask: linear-gradient(#ff0f0e, #7773ff) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
+          mask: linear-gradient(#ff0b0c, #766eff) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
           -webkit-mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25% 75% / cover no-repeat content-box padding-box;
           -webkit-mask-composite: source-out;
           -webkit-mask-source-type: luminance;
@@ -29087,8 +29209,8 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask-box-image: linear-gradient(#ff0f0e, #7773ff) 25 / 35px / 12px space;
-          mask-border: linear-gradient(#ff0f0e, #7773ff) 25 / 35px / 12px space luminance;
+          -webkit-mask-box-image: linear-gradient(#ff0b0c, #766eff) 25 / 35px / 12px space;
+          mask-border: linear-gradient(#ff0b0c, #766eff) 25 / 35px / 12px space luminance;
           -webkit-mask-box-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25 / 35px / 12px space;
           mask-border: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25 / 35px / 12px space luminance;
         }
@@ -29107,8 +29229,8 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask-box-image-source: linear-gradient(#ff0f0e, #7773ff);
-          mask-border-source: linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-box-image-source: linear-gradient(#ff0b0c, #766eff);
+          mask-border-source: linear-gradient(#ff0b0c, #766eff);
           -webkit-mask-box-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
           mask-border-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -29207,8 +29329,8 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask-box-image: linear-gradient(#ff0f0e, #7773ff) var(--foo);
-          mask-border: linear-gradient(#ff0f0e, #7773ff) var(--foo);
+          -webkit-mask-box-image: linear-gradient(#ff0b0c, #766eff) var(--foo);
+          mask-border: linear-gradient(#ff0b0c, #766eff) var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -31928,7 +32050,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        color: env(--brand-color, #00f942);
+        color: env(--brand-color, #00fb29);
       }
 
       @supports (color: color(display-p3 0 0 0)) {
@@ -31986,7 +32108,7 @@ mod tests {
         "--brand-color" => "--EgL3uq_brand-color" referenced: true,
         "--branding-small" => "--EgL3uq_branding-small" referenced: true
       },
-      HashMap::new(),
+      IndexMap::new(),
       crate::css_modules::Config {
         dashed_idents: true,
         ..Default::default()
