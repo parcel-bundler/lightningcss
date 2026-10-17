@@ -22239,6 +22239,41 @@ mod tests {
       ".foo { color: color-mix(in srgb, rgb(none 50% none), rgb(50% none 50%)); }",
       ".foo{color:gray}",
     );
+    // Missing components are carried forward to analogous components of the interpolation space.
+    // https://drafts.csswg.org/css-color-4/#interpolation-missing
+    minify_test(
+      ".foo { color: color-mix(in hsl, lch(none none 180), hsl(11 33 44)); }",
+      ".foo{color:#95594b}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in srgb, color(display-p3 none none none), color(srgb 0.11 0.33 0.44)); }",
+      ".foo{color:#1c5470}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in hsl, hwb(none 25% 25%), hsl(11 33 44)); }",
+      ".foo{color:#a95946}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in xyz, rgb(none 0 0), color(xyz 0.5 0.2 0.1)); }",
+      ".foo{color:color(xyz .5 .1 .05)}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in srgb, hsl(120 50% 50% / none), rgb(255 0 0 / 0.5)); }",
+      ".foo{color:#9f602080}",
+    );
+    // The remaining components form an analogous set, carried forward when all of them are missing.
+    minify_test(
+      ".foo { color: color-mix(in hsl, hwb(180 none none), hsl(11 33 44)); }",
+      ".foo{color:#69954b}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in lch, lab(50% none none), lch(70% 20 120)); }",
+      ".foo{color:lch(60% 20 120)}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in oklab, rgb(none none none / 50%), oklab(0.5 0.1 0.1)); }",
+      ".foo{color:oklab(50% .1 .1/.75)}",
+    );
     minify_test(
       ".foo { --color: color-mix(in lch, teal 65%, olive); }",
       ".foo{--color:lch(49.4431% 40.4806 162.546)}",
