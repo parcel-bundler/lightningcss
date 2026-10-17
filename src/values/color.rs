@@ -3502,6 +3502,7 @@ impl CssColor {
     for<'a> T: 'static
       + TryFrom<&'a CssColor>
       + Interpolate
+      + ColorSpace
       + Into<CssColor>
       + Into<OKLCH>
       + ColorGamut
@@ -3552,6 +3553,16 @@ impl CssColor {
     }
 
     // https://drafts.csswg.org/css-color-4/#interpolation-missing
+    // Conversion resolved missing components to zero, so re-insert the ones
+    // that are carried forward to an analogous component in the interpolation space.
+    if converted_first {
+      first_color.set_missing_components(self.carried_forward_components(first_color.channels()));
+    }
+
+    if converted_second {
+      second_color.set_missing_components(other.carried_forward_components(second_color.channels()));
+    }
+
     first_color.fill_missing_components(&second_color);
     second_color.fill_missing_components(&first_color);
 
@@ -3577,12 +3588,105 @@ impl CssColor {
 
     Ok(result_color.into())
   }
+
+  /// Returns which components (in channel order, followed by alpha) of a color space with the given
+  /// channels are missing after this color is converted to it, by carrying forward missing components.
+  /// https://drafts.csswg.org/css-color-4/#interpolation-missing
+  fn carried_forward_components(&self, channels: (&str, &str, &str)) -> [bool; 4] {
+    match self {
+      CssColor::LAB(lab) => match &**lab {
+        LABColor::LAB(c) => carried_forward_components(c, channels),
+        LABColor::LCH(c) => carried_forward_components(c, channels),
+        LABColor::OKLAB(c) => carried_forward_components(c, channels),
+        LABColor::OKLCH(c) => carried_forward_components(c, channels),
+      },
+      CssColor::Predefined(predefined) => match &**predefined {
+        PredefinedColor::SRGB(c) => carried_forward_components(c, channels),
+        PredefinedColor::SRGBLinear(c) => carried_forward_components(c, channels),
+        PredefinedColor::DisplayP3(c) => carried_forward_components(c, channels),
+        PredefinedColor::A98(c) => carried_forward_components(c, channels),
+        PredefinedColor::ProPhoto(c) => carried_forward_components(c, channels),
+        PredefinedColor::Rec2020(c) => carried_forward_components(c, channels),
+        PredefinedColor::XYZd50(c) => carried_forward_components(c, channels),
+        PredefinedColor::XYZd65(c) => carried_forward_components(c, channels),
+      },
+      CssColor::Float(float) => match &**float {
+        FloatColor::RGB(c) => carried_forward_components(c, channels),
+        FloatColor::HSL(c) => carried_forward_components(c, channels),
+        FloatColor::HWB(c) => carried_forward_components(c, channels),
+      },
+      _ => [false; 4],
+    }
+  }
+}
+
+/// Categories of analogous color components.
+/// https://drafts.csswg.org/css-color-4/#interpolation-missing
+#[derive(Clone, Copy, PartialEq)]
+enum AnalogousComponent {
+  Red,
+  Green,
+  Blue,
+  Lightness,
+  Colorfulness,
+  Hue,
+  OpponentA,
+  OpponentB,
+}
+
+fn analogous_components(channels: (&str, &str, &str)) -> [Option<AnalogousComponent>; 3] {
+  use AnalogousComponent::*;
+  match channels {
+    // The XYZ spaces are considered super-saturated RGB spaces.
+    ("r", "g", "b") | ("x", "y", "z") => [Some(Red), Some(Green), Some(Blue)],
+    ("l", "a", "b") => [Some(Lightness), Some(OpponentA), Some(OpponentB)],
+    ("l", "c", "h") => [Some(Lightness), Some(Colorfulness), Some(Hue)],
+    ("h", "s", "l") => [Some(Hue), Some(Colorfulness), Some(Lightness)],
+    // Whiteness and blackness have no analogs in other color spaces.
+    ("h", "w", "b") => [Some(Hue), None, None],
+    _ => [None, None, None],
+  }
+}
+
+fn carried_forward_components<T: ColorSpace>(color: &T, channels: (&str, &str, &str)) -> [bool; 4] {
+  let (a, b, c, alpha) = color.components();
+  let missing = [a.is_nan(), b.is_nan(), c.is_nan()];
+  let from = analogous_components(color.channels());
+  let to = analogous_components(channels);
+  // Returns the index of the analogous component in the other color space, if any.
+  let analog = |component: Option<AnalogousComponent>, other: &[Option<AnalogousComponent>; 3]| {
+    component.and_then(|component| other.iter().position(|c| *c == Some(component)))
+  };
+
+  let mut result = [false, false, false, alpha.is_nan()];
+  for i in 0..3 {
+    if missing[i] {
+      if let Some(j) = analog(from[i], &to) {
+        result[j] = true;
+      }
+    }
+  }
+
+  // The components that remain after removing all analogous components form an analogous set,
+  // which is carried forward if all of its components are missing.
+  let mut remaining = (0..3).filter(|i| analog(from[*i], &to).is_none()).peekable();
+  if remaining.peek().is_some() && remaining.all(|i| missing[i]) {
+    for j in 0..3 {
+      if analog(to[j], &from).is_none() {
+        result[j] = true;
+      }
+    }
+  }
+
+  result
 }
 
 /// A trait that colors implement to support interpolation.
 pub trait Interpolate {
   /// Adjusts components that are powerless to be NaN.
   fn adjust_powerless_components(&mut self) {}
+  /// Sets the given components (in channel order, followed by alpha) to missing (represented as NaN).
+  fn set_missing_components(&mut self, missing: [bool; 4]);
   /// Fills missing components (represented as NaN) to match the other color to interpolate with.
   fn fill_missing_components(&mut self, other: &Self);
   /// Adjusts the color hue according to the given hue interpolation method.
@@ -3597,6 +3701,24 @@ pub trait Interpolate {
 
 macro_rules! interpolate {
   ($a: ident, $b: ident, $c: ident) => {
+    fn set_missing_components(&mut self, missing: [bool; 4]) {
+      if missing[0] {
+        self.$a = f32::NAN;
+      }
+
+      if missing[1] {
+        self.$b = f32::NAN;
+      }
+
+      if missing[2] {
+        self.$c = f32::NAN;
+      }
+
+      if missing[3] {
+        self.alpha = f32::NAN;
+      }
+    }
+
     fn fill_missing_components(&mut self, other: &Self) {
       if self.$a.is_nan() {
         self.$a = other.$a;
