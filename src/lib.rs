@@ -31375,6 +31375,62 @@ mod tests {
   }
 
   #[test]
+  fn test_container_name_only_error_recovery() {
+    for source in [
+      "@container scroll-content { .foo { max-width: 100cqw; } }",
+      "@container scroll-content /* comment */ { .foo { max-width: 100cqw; } }",
+      "@supports (container-type: inline-size) { @container scroll-content { .foo { max-width: 100cqw; } } }",
+      ".outer { @container scroll-content { .foo { max-width: 100cqw; } } }",
+    ] {
+      let expected = StyleSheet::parse(source, ParserOptions::default()).unwrap();
+      let warnings = Arc::new(RwLock::new(Vec::new()));
+      let recovered = StyleSheet::parse(
+        source,
+        ParserOptions {
+          error_recovery: true,
+          warnings: Some(warnings.clone()),
+          ..Default::default()
+        },
+      )
+      .unwrap();
+
+      assert!(warnings.read().unwrap().is_empty(), "unexpected warning for {source}");
+      for minify in [false, true] {
+        assert_eq!(
+          recovered
+            .to_css(PrinterOptions {
+              minify,
+              ..Default::default()
+            })
+            .unwrap()
+            .code,
+          expected
+            .to_css(PrinterOptions {
+              minify,
+              ..Default::default()
+            })
+            .unwrap()
+            .code,
+        );
+      }
+    }
+  }
+
+  #[test]
+  fn test_container_invalid_prelude_error_recovery() {
+    for source in [
+      "@container {}",
+      "@container none {}",
+      "@container foo () {}",
+      "@container foo not {}",
+      "@container foo bar {}",
+    ] {
+      assert!(StyleSheet::parse(source, ParserOptions::default()).is_err());
+      assert!(!error_recovery_test(source).is_empty(), "missing warning for {source}");
+    }
+  }
+
+  #[test]
   fn test_container_queries() {
     // name only (no condition) - new syntax
     minify_test(
