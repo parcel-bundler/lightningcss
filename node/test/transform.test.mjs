@@ -43,6 +43,37 @@ test('can enable scroll navigation controls draft syntax', () => {
   assert.equal(res.warnings, []);
 });
 
+test('name-only container queries do not warn with error recovery', () => {
+  for (let source of [
+    '@container scroll-content { .foo { max-width: 100cqw; } }',
+    '@container scroll-content /* comment */ { .foo { max-width: 100cqw; } }',
+    '@supports (container-type: inline-size) { @container scroll-content { .foo { max-width: 100cqw; } } }',
+    '.outer { @container scroll-content { .foo { max-width: 100cqw; } } }'
+  ]) {
+    for (let minify of [false, true]) {
+      let options = {code: Buffer.from(source), minify};
+      let strict = transform({...options, errorRecovery: false});
+      let recovered = transform({...options, errorRecovery: true});
+      assert.equal(recovered.warnings, []);
+      assert.equal(recovered.code.toString(), strict.code.toString());
+    }
+  }
+});
+
+test('invalid container preludes still warn with error recovery', () => {
+  for (let source of [
+    '@container {}',
+    '@container none {}',
+    '@container foo () {}',
+    '@container foo not {}',
+    '@container foo bar {}'
+  ]) {
+    let options = {code: Buffer.from(source)};
+    assert.throws(() => transform({...options, errorRecovery: false}));
+    assert.ok(transform({...options, errorRecovery: true}).warnings.length > 0);
+  }
+});
+
 test('can enable features without targets', () => {
   let res = transform({
     filename: 'test.css',
