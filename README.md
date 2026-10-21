@@ -5,34 +5,25 @@ An extremely fast CSS parser, transformer, and minifier written in Rust. Use it 
 <img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022599-28246659-f94a-46a4-9de0-b6d17adb0e22.png#gh-light-mode-only">
 <img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022693-6956b044-422b-4f56-9628-d59c6f791095.png#gh-dark-mode-only">
 
-## Rspack packages
+## Rspack crate
 
-This fork is published as `rspack_lightningcss` on npm and crates.io.
+This fork is published on crates.io as `rspack_lightningcss`.
 
 ```sh
-npm install rspack_lightningcss
-cargo add rspack_lightningcss --version 1.0.0-alpha.72
-```
-
-```js
-import { transform } from 'rspack_lightningcss';
+cargo add rspack_lightningcss --version 0.1.0
 ```
 
 ```rust
 use rspack_lightningcss::stylesheet::{ParserOptions, StyleSheet};
 ```
 
-The companion npm packages are `rspack_lightningcss-cli` and
-`rspack_lightningcss-wasm`. The CLI command is `lightningcss`.
+The `release-crates` GitHub Actions workflow publishes the Rust crate and
+supports a `dry_run` input to validate publishing without uploading. Publishing
+requires the `CRATES_IO_TOKEN` repository secret with write access to the crate.
+The workflow publishes only `rspack_lightningcss`; its helper crates use their
+existing crates.io releases.
 
-The `release` GitHub Actions workflow builds and publishes npm packages and
-calls `release-crates` for the Rust crate. Both workflows support a `dry_run`
-input to validate publishing without uploading. Publishing requires the
-`NPM_TOKEN` and `CRATES_IO_TOKEN` repository secrets respectively, with write
-access to these packages. The Rust workflow publishes only `rspack_lightningcss`;
-its helper crates use their existing crates.io releases.
-Before publishing, the npm workflow installs the packed Linux native, CLI, and
-WASM packages and checks their CommonJS and ESM entry points.
+Publishing npm packages, including the CLI and WASM packages, is disabled.
 
 ## Features
 

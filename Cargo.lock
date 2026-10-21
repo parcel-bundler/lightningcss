@@ -1567,7 +1567,7 @@ dependencies = [
 
 [[package]]
 name = "rspack_lightningcss"
-version = "1.0.0-alpha.72"
+version = "0.1.0"
 dependencies = [
  "ahash 0.8.12",
  "assert_cmd",
