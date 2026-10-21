@@ -2,7 +2,7 @@ name: codspeed
 
 on:
   push:
-    branches: [master, rspack]
+    branches: [master]
   pull_request:
   workflow_dispatch:
 
