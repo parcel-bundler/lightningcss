@@ -23,7 +23,10 @@ requires the `CRATES_IO_TOKEN` repository secret with write access to the crate.
 The workflow publishes only `rspack_lightningcss`; its helper crates use their
 existing crates.io releases.
 
-Publishing npm packages, including the CLI and WASM packages, is disabled.
+The `release` workflow is also manually triggered. It builds and publishes the
+npm packages, including the CLI and WASM packages, and calls `release-crates`
+to publish the Rust crate. It requires `NPM_TOKEN` and `CRATES_IO_TOKEN` and
+supports `dry_run` to validate both publishing paths without uploading.
 
 ## Features
 
