@@ -1,8 +1,8 @@
 use clap::{ArgGroup, Parser};
-use lightningcss::bundler::{Bundler, FileProvider};
-use lightningcss::stylesheet::{MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, StyleSheet};
-use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
+use rspack_lightningcss::bundler::{Bundler, FileProvider};
+use rspack_lightningcss::stylesheet::{MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, StyleSheet};
+use rspack_lightningcss::targets::Browsers;
 use serde::Serialize;
 use std::borrow::Cow;
 use std::io::IsTerminal;
@@ -123,7 +123,7 @@ pub fn main() -> Result<(), std::io::Error> {
 
   let css_modules = if let Some(_) = cli_args.css_modules {
     let pattern = if let Some(pattern) = cli_args.css_modules_pattern.as_ref() {
-      match lightningcss::css_modules::Pattern::parse(pattern) {
+      match rspack_lightningcss::css_modules::Pattern::parse(pattern) {
         Ok(p) => p,
         Err(e) => {
           eprintln!("{}", e);
@@ -134,7 +134,7 @@ pub fn main() -> Result<(), std::io::Error> {
       Default::default()
     };
 
-    Some(lightningcss::css_modules::Config {
+    Some(rspack_lightningcss::css_modules::Config {
       pattern,
       dashed_idents: cli_args.css_modules_dashed_idents,
       ..Default::default()

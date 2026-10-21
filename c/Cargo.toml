@@ -9,7 +9,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-lightningcss = { path = "../", features = ["browserslist"] }
+lightningcss = { package = "rspack_lightningcss", path = "../", features = ["browserslist"] }
 parcel_sourcemap = { version = "2.1.1", features = ["json"] }
 browserslist-rs = { version = "0.21.0" }
 

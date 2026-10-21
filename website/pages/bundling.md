@@ -11,7 +11,7 @@ Lightning CSS supports bundling dependencies referenced by CSS `@import` rules i
 This API requires filesystem access, so it does not accept `code` directly via the API. Instead, the `filename` option is used to read the entry file directly.
 
 ```js
-import { bundle } from 'lightningcss';
+import { bundle } from 'rspack_lightningcss';
 
 let { code, map } = bundle({
   filename: 'style.css',
@@ -162,7 +162,7 @@ The `bundleAsync` API is an asynchronous version of `bundle`, which also accepts
 Note that using a custom resolver can slow down bundling significantly, especially when reading files asynchronously. Use `readFileSync` rather than `readFile` if possible for better performance, or omit either of the methods if you don't need to override the default behavior.
 
 ```js
-import { bundleAsync } from 'lightningcss';
+import { bundleAsync } from 'rspack_lightningcss';
 
 let { code, map } = await bundleAsync({
   filename: 'style.css',

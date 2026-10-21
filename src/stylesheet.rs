@@ -34,7 +34,7 @@ pub use crate::printer::PseudoClasses;
 /// # Example
 ///
 /// ```
-/// use lightningcss::stylesheet::{
+/// use rspack_lightningcss::stylesheet::{
 ///   StyleSheet, ParserOptions, MinifyOptions, PrinterOptions
 /// };
 ///
@@ -349,7 +349,7 @@ where
 /// # Example
 ///
 /// ```
-/// use lightningcss::stylesheet::{
+/// use rspack_lightningcss::stylesheet::{
 ///   StyleAttribute, ParserOptions, MinifyOptions, PrinterOptions
 /// };
 ///

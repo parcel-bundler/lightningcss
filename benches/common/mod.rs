@@ -1,5 +1,5 @@
 use criterion::black_box;
-use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
+use rspack_lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use std::fmt::Write;
 
 pub struct Fixture {

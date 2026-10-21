@@ -28,7 +28,13 @@ async function build() {
     });
 
     yarn.on('error', reject);
-    yarn.on('close', resolve);
+    yarn.on('close', code => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Native build failed with exit code ${code}`));
+      }
+    });
   });
 }
 

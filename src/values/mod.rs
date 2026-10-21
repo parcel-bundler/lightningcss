@@ -11,7 +11,7 @@
 //! Similar patterns for parsing and serializing are possible across all value types.
 //!
 //! ```
-//! use lightningcss::{
+//! use rspack_lightningcss::{
 //!   traits::{Parse, ToCss},
 //!   values::color::CssColor,
 //!   printer::PrinterOptions

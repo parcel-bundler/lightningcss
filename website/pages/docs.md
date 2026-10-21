@@ -13,13 +13,13 @@ Lightning CSS can be used as a library from JavaScript or Rust, or from a standa
 First, install Lightning CSS using a package manager such as npm or Yarn.
 
 ```shell
-npm install --save-dev lightningcss
+npm install --save-dev rspack_lightningcss
 ```
 
 Once installed, import the module and call one of the Lightning CSS APIs. The `transform` function compiles a CSS stylesheet from a [Node Buffer](https://nodejs.org/api/buffer.html). This example minifies the input CSS, and outputs the compiled code and a source map.
 
 ```js
-import { transform } from 'lightningcss';
+import { transform } from 'rspack_lightningcss';
 
 let { code, map } = transform({
   filename: 'style.css',
@@ -35,7 +35,7 @@ The [TypeScript definitions](https://github.com/parcel-bundler/lightningcss/blob
 
 ## From Rust
 
-Lightning CSS can also be used as a Rust library to parse, transform, and minify CSS. See the Rust API docs on [docs.rs](https://docs.rs/lightningcss).
+Lightning CSS can also be used as a Rust library to parse, transform, and minify CSS. See the Rust API docs on [docs.rs](https://docs.rs/rspack_lightningcss).
 
 ## With Parcel
 
@@ -64,10 +64,10 @@ See the [Parcel docs](https://parceljs.org/languages/css) for more details.
 
 ## From Deno or in browser
 
-The `lightningcss-wasm` package can be used in Deno or directly in browsers. This uses a WebAssembly build of Lightning CSS. Use `TextEncoder` and `TextDecoder` convert code from a string to a typed array and back.
+The `rspack_lightningcss-wasm` package can be used in Deno or directly in browsers. This uses a WebAssembly build of Lightning CSS. Use `TextEncoder` and `TextDecoder` convert code from a string to a typed array and back.
 
 ```js
-import init, { transform } from 'https://esm.run/lightningcss-wasm';
+import init, { transform } from 'https://esm.run/rspack_lightningcss-wasm';
 
 await init();
 
@@ -87,8 +87,10 @@ The `bundle` and `bundleAsync` APIs are also available in the WASM build. In bro
 [css-minimizer-webpack-plugin](https://webpack.js.org/plugins/css-minimizer-webpack-plugin/) has built in support for Lightning CSS. To use it, first install Lightning CSS in your project with a package manager like npm or Yarn:
 
 ```shell
-npm install --save-dev lightningcss css-minimizer-webpack-plugin browserslist
+npm install --save-dev lightningcss@npm:rspack_lightningcss css-minimizer-webpack-plugin browserslist
 ```
+
+The npm alias preserves the module name expected by the plugin.
 
 Next, configure `css-minifier-webpack-plugin` to use Lightning CSS as the minifier. You can provide options using the `minimizerOptions` object. See [Transpilation](transpilation.html) for details.
 
@@ -118,8 +120,10 @@ module.exports = {
 Vite supports Lightning CSS out of the box. First, install Lightning CSS into your project:
 
 ```shell
-npm install --save-dev lightningcss
+npm install --save-dev lightningcss@npm:rspack_lightningcss
 ```
+
+The npm alias preserves the module name expected by Vite.
 
 Then, set `'lightningcss'` as CSS [transformer](https://vitejs.dev/config/shared-options.html#css-transformer) and [minifier](https://vitejs.dev/config/build-options.html#build-cssminify) in your Vite config. You can also configure Lightning CSS options such as targets and css modules via the [css.lightningcss](https://vitejs.dev/config/shared-options.html#css-lightningcss) option in your Vite config.
 
@@ -145,10 +149,10 @@ export default {
 
 Lightning CSS includes a standalone CLI that can be used to compile, minify, and bundle CSS files. It can be used when you only need to compile CSS, and don't need more advanced functionality from a larger build tool such as code splitting and support for other languages.
 
-To use the CLI, install the `lightningcss-cli` package with an npm compatible package manager:
+To use the CLI, install the `rspack_lightningcss-cli` package with an npm compatible package manager:
 
 ```shell
-npm install --save-dev lightningcss-cli
+npm install --save-dev rspack_lightningcss-cli
 ```
 
 Then, you can run the `lightningcss` command via `npx`, `yarn`, or by setting up a script in your package.json.
@@ -164,7 +168,7 @@ Then, you can run the `lightningcss` command via `npx`, `yarn`, or by setting up
 To see all of the available options, use the `--help` argument:
 
 ```shell
-npx lightningcss-cli --help
+npx rspack_lightningcss-cli --help
 ```
 
 ## Error recovery

@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 /// This example represents a target of Safari 13.2.0.
 ///
 /// ```
-/// use lightningcss::targets::Browsers;
+/// use rspack_lightningcss::targets::Browsers;
 ///
 /// let targets = Browsers {
 ///   safari: Some((13 << 16) | (2 << 8)),

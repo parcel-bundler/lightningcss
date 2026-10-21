@@ -16,7 +16,7 @@ Targets are defined using an object that specifies the minimum version of each b
 
 ```js
 import browserslist from 'browserslist';
-import { transform, browserslistToTargets } from 'lightningcss';
+import { transform, browserslistToTargets } from 'rspack_lightningcss';
 
 // Call this once per build.
 let targets = browserslistToTargets(browserslist('>= 0.25%'));
@@ -76,7 +76,7 @@ The `include` and `exclude` options allow you to explicitly turn on or off certa
 The `include` and `exclude` options are configured using the `Features` enum, which can be imported from `lightningcss`. You can bitwise OR multiple flags together to turn them on or off.
 
 ```js
-import { transform, Features } from 'lightningcss';
+import { transform, Features } from 'rspack_lightningcss';
 
 let { code, map } = transform({
   // ...

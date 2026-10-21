@@ -11,7 +11,7 @@
 //!
 //! ```
 //! use std::convert::Infallible;
-//! use lightningcss::{
+//! use rspack_lightningcss::{
 //!   stylesheet::{StyleSheet, ParserOptions, PrinterOptions},
 //!   visitor::{Visitor, Visit, VisitTypes},
 //!   visit_types,

@@ -18,14 +18,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - package: lightningcss
+          - package: rspack_lightningcss
             bench: transform
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: Install cargo-codspeed
         run: cargo install cargo-codspeed --locked
@@ -34,7 +34,7 @@ jobs:
         run: cargo codspeed build -p ${{ matrix.package }} --bench ${{ matrix.bench }}
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@f22792bfac16f3e14eb9fbea76f4a48e9cc22b93 # v4.19.1
         with:
           mode: simulation
           run: cargo codspeed run -p ${{ matrix.package }} --bench ${{ matrix.bench }}

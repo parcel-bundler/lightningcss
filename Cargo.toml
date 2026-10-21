@@ -11,13 +11,13 @@ members = [
 
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
-name = "lightningcss"
-version = "1.0.0-alpha.72"
+name = "rspack_lightningcss"
+version = "0.1.0"
 description = "A CSS parser, transformer, and minifier"
 license = "MPL-2.0"
 edition = "2021"
 keywords = ["CSS", "minifier", "Parcel"]
-repository = "https://github.com/parcel-bundler/lightningcss"
+repository = "https://github.com/rstackjs/lightningcss"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -29,7 +29,7 @@ path = "src/main.rs"
 required-features = ["cli"]
 
 [lib]
-name = "lightningcss"
+name = "rspack_lightningcss"
 path = "src/lib.rs"
 crate-type = ["rlib"]
 

@@ -13,7 +13,7 @@
 //!
 //! ```no_run
 //! use std::path::Path;
-//! use lightningcss::{
+//! use rspack_lightningcss::{
 //!   bundler::{Bundler, FileProvider},
 //!   stylesheet::ParserOptions
 //! };

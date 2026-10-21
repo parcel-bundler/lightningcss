@@ -949,44 +949,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lightningcss"
-version = "1.0.0-alpha.72"
-dependencies = [
- "ahash 0.8.12",
- "assert_cmd",
- "assert_fs",
- "bitflags 2.6.0",
- "browserslist-rs",
- "clap 3.2.25",
- "codspeed-criterion-compat",
- "const-str",
- "cssparser",
- "cssparser-color",
- "dashmap",
- "data-encoding",
- "getrandom 0.3.3",
- "indexmap 2.7.0",
- "indoc",
- "itertools 0.10.5",
- "jemallocator",
- "lazy_static",
- "lightningcss-derive",
- "parcel_selectors",
- "parcel_sourcemap",
- "pastey",
- "pathdiff",
- "predicates 2.1.5",
- "pretty_assertions",
- "rayon",
- "schemars",
- "serde",
- "serde-content",
- "serde_json",
- "smallvec",
- "static-self",
-]
-
-[[package]]
 name = "lightningcss-derive"
 version = "1.0.0-alpha.43"
 dependencies = [
@@ -1002,10 +964,10 @@ version = "0.4.9"
 dependencies = [
  "crossbeam-channel",
  "cssparser",
- "lightningcss",
  "napi",
  "parcel_sourcemap",
  "rayon",
+ "rspack_lightningcss",
  "serde",
  "serde-content",
  "serde-detach",
@@ -1019,8 +981,8 @@ version = "0.1.0"
 dependencies = [
  "browserslist-rs",
  "cbindgen",
- "lightningcss",
  "parcel_sourcemap",
+ "rspack_lightningcss",
 ]
 
 [[package]]
@@ -1601,6 +1563,44 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "rspack_lightningcss"
+version = "0.1.0"
+dependencies = [
+ "ahash 0.8.12",
+ "assert_cmd",
+ "assert_fs",
+ "bitflags 2.6.0",
+ "browserslist-rs",
+ "clap 3.2.25",
+ "codspeed-criterion-compat",
+ "const-str",
+ "cssparser",
+ "cssparser-color",
+ "dashmap",
+ "data-encoding",
+ "getrandom 0.3.3",
+ "indexmap 2.7.0",
+ "indoc",
+ "itertools 0.10.5",
+ "jemallocator",
+ "lazy_static",
+ "lightningcss-derive",
+ "parcel_selectors",
+ "parcel_sourcemap",
+ "pastey",
+ "pathdiff",
+ "predicates 2.1.5",
+ "pretty_assertions",
+ "rayon",
+ "schemars",
+ "serde",
+ "serde-content",
+ "serde_json",
+ "smallvec",
+ "static-self",
 ]
 
 [[package]]

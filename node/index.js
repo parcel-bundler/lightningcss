@@ -1,3 +1,5 @@
+const { name } = require('../package.json');
+
 let parts = [process.platform, process.arch];
 if (process.platform === 'linux') {
   const { MUSL, familySync } = require('detect-libc');
@@ -15,7 +17,7 @@ if (process.platform === 'linux') {
 
 let native;
 try {
-  native = require(`lightningcss-${parts.join('-')}`);
+  native = require(`${name}-${parts.join('-')}`);
 } catch (err) {
   native = require(`../lightningcss.${parts.join('-')}.node`);
 }

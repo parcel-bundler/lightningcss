@@ -17,7 +17,7 @@ let dec = new TextDecoder();
 let inputs = document.querySelectorAll('input[type=number]');
 
 async function loadVersions() {
-  const { versions } = await fetch('https://data.jsdelivr.com/v1/package/npm/lightningcss-wasm').then(r => r.json());
+  const { versions } = await fetch('https://data.jsdelivr.com/v1/package/npm/rspack_lightningcss-wasm').then(r => r.json());
   versions
     .map(v => {
       const option = document.createElement('option');
@@ -34,7 +34,7 @@ async function loadWasm() {
   if (version.value === 'local') {
     wasm = localWasm;
   } else {
-    wasm = await new Function('version', 'return import(`https://esm.sh/lightningcss-wasm@${version}?bundle`)')(version.value);
+    wasm = await new Function('version', 'return import(`https://esm.sh/rspack_lightningcss-wasm@${version}?bundle`)')(version.value);
   }
   await wasm.default();
 }

@@ -9,7 +9,7 @@
 Lightning CSS can optimize your CSS to make it smaller, which can help improve the loading performance of your website. When using the Lightning CSS API, enable the `minify` option, or when using the CLI, use the `--minify` flag.
 
 ```js
-import { transform } from 'lightningcss';
+import { transform } from 'rspack_lightningcss';
 
 let { code, map } = transform({
   // ...

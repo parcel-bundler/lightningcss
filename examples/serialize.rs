@@ -4,7 +4,7 @@ fn main() {
 
 #[cfg(feature = "serde")]
 fn parse() {
-  use lightningcss::stylesheet::{ParserOptions, StyleSheet};
+  use rspack_lightningcss::stylesheet::{ParserOptions, StyleSheet};
   use std::{env, fs};
 
   let args: Vec<String> = env::args().collect();

@@ -7742,7 +7742,7 @@ export type DefaultAtRule = null;
  *
  * # Example
  *
- * ``` use lightningcss::stylesheet::{ StyleSheet, ParserOptions, MinifyOptions, PrinterOptions };
+ * ``` use rspack_lightningcss::stylesheet::{ StyleSheet, ParserOptions, MinifyOptions, PrinterOptions };
  *
  * // Parse a style sheet from a string. let mut stylesheet = StyleSheet::parse( r#" .foo { color: red; }
  *

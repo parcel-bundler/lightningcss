@@ -1,5 +1,5 @@
 #[cfg(feature = "serde")]
-use lightningcss::stylesheet::{ParserOptions, StyleSheet};
+use rspack_lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 #[cfg(feature = "serde")]
 #[test]

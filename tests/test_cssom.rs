@@ -1,4 +1,4 @@
-use lightningcss::{
+use rspack_lightningcss::{
   declaration::DeclarationBlock,
   properties::{Property, PropertyId},
   stylesheet::{ParserOptions, PrinterOptions},
