@@ -10316,6 +10316,18 @@ mod tests {
   fn test_merge_rules() {
     test(
       r#"
+      .foo, .bar, .foo {
+        color: red;
+      }
+    "#,
+      indoc! {r#"
+      .foo, .bar {
+        color: red;
+      }
+      "#},
+    );
+    test(
+      r#"
       .foo {
         color: red;
       }
