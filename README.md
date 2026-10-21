@@ -1,32 +1,18 @@
+> [!NOTE]
+> **Rspack fork:** This repository maintains Lightning CSS for Rspack integration and independent releases. The upstream project is [parcel-bundler/lightningcss](https://github.com/parcel-bundler/lightningcss).
+>
+> - **Rust:** Use `rspack_lightningcss`. Its version starts at `0.1.0` and is independent of upstream Lightning CSS versions.
+> - **npm:** The package names are `rspack_lightningcss`, `rspack_lightningcss-cli`, and `rspack_lightningcss-wasm`. The CLI command remains `lightningcss`.
+> - **Publishing:** Manually run `release-crates` for Rust, or `release` for npm/CLI/WASM and Rust. Both support `dry_run` to validate without publishing; pushes and tags do not automatically publish packages.
+>
+> The original upstream README is preserved below. Its package names and links refer to upstream Lightning CSS; use the fork's package names when integrating this repository.
+
 # ⚡️ Lightning CSS
 
 An extremely fast CSS parser, transformer, and minifier written in Rust. Use it with [Parcel](https://parceljs.org), as a standalone library or CLI, or via a plugin with any other tool.
 
 <img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022599-28246659-f94a-46a4-9de0-b6d17adb0e22.png#gh-light-mode-only">
 <img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022693-6956b044-422b-4f56-9628-d59c6f791095.png#gh-dark-mode-only">
-
-## Rspack crate
-
-This fork is published on crates.io as `rspack_lightningcss`.
-
-```sh
-cargo add rspack_lightningcss --version 0.1.0
-```
-
-```rust
-use rspack_lightningcss::stylesheet::{ParserOptions, StyleSheet};
-```
-
-The `release-crates` GitHub Actions workflow publishes the Rust crate and
-supports a `dry_run` input to validate publishing without uploading. Publishing
-requires the `CRATES_IO_TOKEN` repository secret with write access to the crate.
-The workflow publishes only `rspack_lightningcss`; its helper crates use their
-existing crates.io releases.
-
-The `release` workflow is also manually triggered. It builds and publishes the
-npm packages, including the CLI and WASM packages, and calls `release-crates`
-to publish the Rust crate. It requires `NPM_TOKEN` and `CRATES_IO_TOKEN` and
-supports `dry_run` to validate both publishing paths without uploading.
 
 ## Features
 
