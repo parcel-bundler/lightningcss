@@ -32412,6 +32412,39 @@ mod tests {
   }
 
   #[test]
+  fn test_light_dark_custom_property() {
+    minify_test(
+      ".foo { --x: light-dark(var(--light), var(--dark)) }",
+      ".foo{--x:light-dark(var(--light),var(--dark))}",
+    );
+    minify_test(
+      ".foo { --x: light-dark(var(--light)) }",
+      ".foo{--x:light-dark(var(--light))}",
+    );
+    minify_test(
+      ".foo { --x: light-dark(light-dark(var(--a))) }",
+      ".foo{--x:light-dark(light-dark(var(--a)))}",
+    );
+
+    // Each nested light-dark() without a comma must not parse its arguments again.
+    let depth = 40;
+    let source = format!(
+      ".foo {{ --x: {}var(--a){} }}",
+      "light-dark(".repeat(depth),
+      ")".repeat(depth)
+    );
+    let expected = format!(
+      ".foo{{--x:{}var(--a){}}}",
+      "light-dark(".repeat(depth),
+      ")".repeat(depth)
+    );
+    minify_test(&source, &expected);
+
+    let source = format!(".foo{{--x:{};}}", "((((light-dark(".repeat(depth));
+    assert!(StyleSheet::parse(&source, ParserOptions::default()).is_err());
+  }
+
+  #[test]
   fn test_print_color_adjust() {
     prefix_test(
       ".foo { print-color-adjust: exact; }",
