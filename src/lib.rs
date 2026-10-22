@@ -10003,6 +10003,20 @@ mod tests {
       "@media (min-scan: interlace) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
     );
+    // min-/max- prefixed features are invalid in a boolean context.
+    // https://drafts.csswg.org/mediaqueries/#mq-min-max
+    error_test(
+      "@media (min-width) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (max-height) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (-webkit-min-device-pixel-ratio) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
     error_test(
       "@media (1px <= width <= bar) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
@@ -31807,6 +31821,7 @@ mod tests {
 
     error_test("@container (inline-size <= foo) {}", ParserError::InvalidMediaQuery);
     error_test("@container (orientation <= 10px) {}", ParserError::InvalidMediaQuery);
+    error_test("@container (min-width) {}", ParserError::InvalidMediaQuery);
 
     error_test(
       "@container style(style(--foo: bar)) {}",
