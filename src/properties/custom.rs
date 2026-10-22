@@ -378,6 +378,8 @@ impl<'i> TokenList<'i> {
           let f = f.into();
           if let Some(color) = try_parse_color_token(&f, &state, input) {
             tokens.push(TokenOrValue::Color(color));
+          } else if f.eq_ignore_ascii_case("light-dark") {
+            tokens.push(parse_light_dark(f, input, options, depth)?);
           } else if let Ok(color) = input.try_parse(|input| UnresolvedColor::parse(&f, input, options)) {
             tokens.push(TokenOrValue::UnresolvedColor(color));
           } else if f == "url" {
@@ -461,6 +463,34 @@ impl<'i> TokenList<'i> {
 
     Ok(())
   }
+}
+
+/// Parses the arguments of a `light-dark()` function that is not a plain color.
+///
+/// The arguments are parsed only once. A parse error in the arguments is also an
+/// error for a generic function, so there is no fallback that parses them again.
+/// Without this, each nested `light-dark(` doubles the parse time.
+fn parse_light_dark<'i, 't>(
+  name: CowArcStr<'i>,
+  input: &mut Parser<'i, 't>,
+  options: &ParserOptions<'i>,
+  depth: usize,
+) -> Result<TokenOrValue<'i>, ParseError<'i, ParserError<'i>>> {
+  input.parse_nested_block(|input| {
+    let light = input.parse_until_before(Delimiter::Comma, |input| TokenList::parse(input, options, depth + 1))?;
+    if input.try_parse(|input| input.expect_comma()).is_err() {
+      // Without a comma, the light value holds all of the arguments.
+      return Ok(TokenOrValue::Function(Function {
+        name: Ident(name),
+        arguments: light,
+      }));
+    }
+    let dark = TokenList::parse(input, options, depth + 1)?;
+    Ok(TokenOrValue::UnresolvedColor(UnresolvedColor::LightDark {
+      light,
+      dark,
+    }))
+  })
 }
 
 #[inline]
@@ -1534,16 +1564,6 @@ impl<'i> UnresolvedColor<'i> {
             let alpha = TokenList::parse(input, options, 0)?;
             Ok(UnresolvedColor::HSL { h, s, l, alpha })
           })
-        })
-      },
-      "light-dark" => {
-        input.parse_nested_block(|input| {
-          let light = input.parse_until_before(Delimiter::Comma, |input|
-            TokenList::parse(input, options, 0)
-          )?;
-          input.expect_comma()?;
-          let dark = TokenList::parse(input, options, 0)?;
-          Ok(UnresolvedColor::LightDark { light, dark })
         })
       },
       _ => Err(input.new_custom_error(ParserError::InvalidValue))
