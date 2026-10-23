@@ -16431,6 +16431,7 @@ mod tests {
       ".foo{ display: flex; display: -webkit-box; }",
       indoc! {r#"
       .foo {
+        display: flex;
         display: -webkit-box;
       }
       "#},
@@ -16491,6 +16492,7 @@ mod tests {
       "#,
       indoc! {r#"
       .foo {
+        display: flex;
         display: -moz-box;
         display: -webkit-flex;
         display: -ms-flexbox;
@@ -16498,6 +16500,21 @@ mod tests {
       "#},
       Browsers {
         safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo{ display: flex; display: -webkit-box; display: -moz-box; display: -ms-flexbox; }",
+      indoc! {r#"
+      .foo {
+        display: flex;
+        display: -webkit-box;
+        display: -moz-box;
+        display: -ms-flexbox;
+      }
+      "#},
+      Browsers {
+        chrome: Some(95 << 16),
         ..Browsers::default()
       },
     );
