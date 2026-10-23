@@ -1432,7 +1432,16 @@ impl<'i> Function<'i> {
   {
     self.name.to_css(dest)?;
     dest.write_char('(')?;
-    self.arguments.to_css(dest, is_custom_property)?;
+    if self.name.eq_ignore_ascii_case("image-set") || self.name.eq_ignore_ascii_case("-webkit-image-set") {
+      // Safari only supports the x resolution unit in image-set().
+      // Temporarily ignore the targets while printing here.
+      let targets = std::mem::take(&mut dest.targets.current);
+      let res = self.arguments.to_css(dest, is_custom_property);
+      dest.targets.current = targets;
+      res?;
+    } else {
+      self.arguments.to_css(dest, is_custom_property)?;
+    }
     dest.write_char(')')
   }
 
