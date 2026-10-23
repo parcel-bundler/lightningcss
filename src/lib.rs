@@ -18988,6 +18988,40 @@ mod tests {
       },
     );
 
+    prefix_test(
+      r#"
+      .foo {
+        background: image-set(url("foo.png") 1x, url(bar.png) 2x), var(--c);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: image-set(url("foo.png") 1x, url("bar.png") 2x), var(--c);
+      }
+    "#},
+      Browsers {
+        chrome: Some(60 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        background: -webkit-image-set(url("foo.png") 1x, url(bar.png) 2x), var(--c);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: -webkit-image-set(url("foo.png") 1x, url("bar.png") 2x), var(--c);
+      }
+    "#},
+      Browsers {
+        chrome: Some(60 << 16),
+        ..Browsers::default()
+      },
+    );
+
     for property in &[
       "background",
       "background-image",
