@@ -387,7 +387,7 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
             // are no targets, or there is a vendor prefix, add a new declaration.
             if context.targets.browsers.is_some() && new.inside == DisplayInside::Flex(VendorPrefix::None) {
               self.decls.clear();
-            } else if context.targets.browsers.is_none() || cur.inside != DisplayInside::Flex(VendorPrefix::None) {
+            } else {
               self.decls.push(Property::Display(self.display.clone().unwrap()));
             }
           }
