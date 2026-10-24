@@ -18058,6 +18058,34 @@ mod tests {
       },
     );
 
+    minify_test(
+      ".foo { position: static; position: var(--x, static) }",
+      ".foo{position:static;position:var(--x,static)}",
+    );
+    minify_test(
+      ".foo { position: var(--x, static); position: static }",
+      ".foo{position:var(--x,static);position:static}",
+    );
+    prefix_test(
+      r#"
+      .foo {
+        position: sticky;
+        position: var(--x, sticky);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        position: -webkit-sticky;
+        position: sticky;
+        position: var(--x, sticky);
+      }
+    "#},
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
     test(
       r#"
       .foo {
@@ -32464,6 +32492,30 @@ mod tests {
     minify_test(
       ".foo { direction: rtl; all: revert-layer; direction: ltr }",
       ".foo{all:revert-layer;direction:ltr}",
+    );
+    minify_test(
+      ".foo { direction: ltr; direction: var(--x, ltr) }",
+      ".foo{direction:ltr;direction:var(--x,ltr)}",
+    );
+    minify_test(
+      ".foo { unicode-bidi: normal; unicode-bidi: var(--x, normal) }",
+      ".foo{unicode-bidi:normal;unicode-bidi:var(--x,normal)}",
+    );
+    minify_test(
+      ".foo { direction: var(--x); direction: rtl }",
+      ".foo{direction:var(--x);direction:rtl}",
+    );
+    minify_test(
+      ".foo { direction: rtl; direction: var(--x); direction: ltr }",
+      ".foo{direction:var(--x);direction:ltr}",
+    );
+    minify_test(
+      ".foo { direction: rtl; direction: var(--x); all: revert-layer }",
+      ".foo{all:revert-layer;direction:rtl;direction:var(--x)}",
+    );
+    minify_test(
+      ".foo { unicode-bidi: var(--x); all: revert-layer }",
+      ".foo{all:revert-layer;unicode-bidi:var(--x)}",
     );
     minify_test(".foo { background: var(--foo); all: unset; }", ".foo{all:unset}");
     minify_test(
