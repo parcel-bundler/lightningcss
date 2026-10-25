@@ -730,12 +730,12 @@ impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Nested
 
       "property" => {
         let name = DashedIdent::parse(input)?;
-        return Ok(AtRulePrelude::Property(name))
+        AtRulePrelude::Property(name)
       },
 
       "position-try" => {
         let name = DashedIdent::parse(input)?;
-        return Ok(AtRulePrelude::PositionTry(name))
+        AtRulePrelude::PositionTry(name)
       },
 
       _ => parse_custom_at_rule_prelude(&name, input, self.options, self.at_rule_parser)?
