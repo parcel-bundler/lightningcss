@@ -8829,6 +8829,29 @@ mod tests {
   }
 
   #[test]
+  fn test_calc_nested_var_parse_time() {
+    // Each nesting level used to be parsed twice when a var() made the math
+    // function fail to parse, so parsing time doubled with every level.
+    let depth = 40;
+    let mut value = "var(--x)".to_string();
+    for _ in 0..depth {
+      value = format!("calc({} - 1px)", value);
+    }
+    let mut expected = "var(--x)".to_string();
+    for _ in 0..depth {
+      expected = format!("calc({} - 1px)", expected);
+    }
+    minify_test(
+      &format!(".foo {{ width: {} }}", value),
+      &format!(".foo{{width:{}}}", expected),
+    );
+    minify_test(
+      ".foo { width: max(calc(min(var(--x), 1px) * 2), 1px) }",
+      ".foo{width:max(calc(min(var(--x), 1px) * 2), 1px)}",
+    );
+  }
+
+  #[test]
   fn test_trig() {
     minify_test(".foo { width: calc(2px * pi); }", ".foo{width:6.28319px}");
     minify_test(".foo { width: calc(2px / pi); }", ".foo{width:.63662px}");
