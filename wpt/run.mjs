@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { directory, revision, hash } from "./extract.mjs";
 import { Adapter } from "./adapter.mjs";
 import { startBrowser } from "./browser.mjs";
+import { compareBaseline, validateBaseline, exitCode } from "./baseline.mjs";
 
 export function classify(test, result) {
   if (["panic", "crash", "timeout", "protocol-error"].includes(result.recognition))
@@ -25,20 +26,6 @@ export function classify(test, result) {
     }[result.recognition] ?? "harness-error"
   );
 }
-export const failureStatuses = new Set([
-  "robustness-failure",
-  "invalid-typed",
-  "valid-rejected",
-  "harness-error",
-]);
-export const browserFailures = new Set([
-  "invalid-became-valid",
-  "valid-became-invalid",
-  "fallback-changed",
-  "shorthand-reset-changed",
-  "computed-difference",
-]);
-
 async function main() {
   const args = process.argv.slice(2);
   const option = (name, fallback) =>
@@ -46,7 +33,7 @@ async function main() {
   for (let i = 0; i < args.length; i++) {
     if (["--browser"].includes(args[i])) continue;
     if (
-      ["--fixtures", "--output", "--chrome", "--modes", "--filter"].includes(args[i]) &&
+      ["--fixtures", "--output", "--chrome", "--modes", "--filter", "--baseline"].includes(args[i]) &&
       args[i + 1] &&
       !args[i + 1].startsWith("--")
     ) {
@@ -71,6 +58,15 @@ async function main() {
   const modes = option("--modes", "print,minify,lower,lower-minify").split(",");
   if (modes.some((m) => !["print", "minify", "lower", "lower-minify"].includes(m)))
     throw Error("Unknown transform mode");
+  if (new Set(modes).size !== modes.length) throw Error("Duplicate transform mode");
+  const baselinePath = option("--baseline");
+  const baseline = baselinePath && JSON.parse(fs.readFileSync(baselinePath, "utf8"));
+  const context = {
+    wptRevision: corpus.wptRevision,
+    corpusHash: hash(corpusText),
+    loweringTargets: { chrome: 80 << 16 },
+  };
+  if (baseline) validateBaseline(baseline, context);
   // Always compile this checkout. Never load a possibly stale installed Node binary.
   execFileSync("cargo", ["build", "--locked", "--example", "wpt_adapter"], {
     cwd: root,
@@ -94,8 +90,7 @@ async function main() {
   const results = [];
   const report = {
     schemaVersion: 1,
-    wptRevision: corpus.wptRevision,
-    corpusHash: hash(corpusText),
+    ...context,
     lightningcssRevision: execFileSync("git", ["rev-parse", "HEAD"], {
       cwd: root,
       encoding: "utf8",
@@ -110,7 +105,6 @@ async function main() {
     platform: `${process.platform}-${process.arch}`,
     filter,
     modes,
-    loweringTargets: { chrome: 80 << 16 },
     pages: corpus.pages,
     results,
   };
@@ -139,26 +133,34 @@ async function main() {
       [...new Set(values)].sort().map((v) => [v, values.filter((x) => x === v).length]),
     );
   report.complete = !report.harnessError && results.length === selectedCases.length * modes.length;
+  if (baseline && report.complete) {
+    try {
+      report.baseline = { path: baselinePath, ...compareBaseline(baseline, report, selectedCases) };
+    } catch (error) {
+      report.harnessError = error.stack;
+      report.complete = false;
+    }
+  }
   report.summary = {
     cases: selectedCases.length,
     executions: results.length,
     parser: count(results.map((r) => r.status)),
     browser: count(results.map((r) => r.browser?.status ?? "not-run")),
     unadaptedPages: corpus.pages.filter((p) => p.status !== "extracted").length,
+    ...(report.baseline && { baseline: {
+      expectedFailures: report.baseline.expectedFailures,
+      expectedPages: report.baseline.expectedPages,
+      unexpected: report.baseline.issues.length,
+    } }),
   };
   const outputPath = option("--output", path.join(directory, "results.json"));
   fs.writeFileSync(outputPath, JSON.stringify(report, null, 2) + "\n");
   console.log(JSON.stringify(report.summary, null, 2));
   console.log(`Full report: ${outputPath}`);
-  // Until failures have been reviewed, do not silently baseline them away.
-  if (report.harnessError) {
-    console.error(report.harnessError);
-    process.exitCode = 2;
-  } else if (
-    results.some((r) => failureStatuses.has(r.status) || browserFailures.has(r.browser?.status)) ||
-    report.summary.unadaptedPages
-  )
-    process.exitCode = 1;
+  if (report.harnessError) console.error(report.harnessError);
+  if (report.baseline?.issues.length)
+    console.error("Unexpected WPT outcomes (first 20):", JSON.stringify(report.baseline.issues.slice(0, 20), null, 2));
+  process.exitCode = exitCode(report);
 }
 if (process.argv[1] === fileURLToPath(import.meta.url))
   main().catch((error) => {

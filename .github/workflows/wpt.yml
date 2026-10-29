@@ -1,4 +1,4 @@
-name: WPT diagnostics
+name: WPT tests
 
 on:
   push:
@@ -34,9 +34,8 @@ jobs:
       - run: yarn test:wpt:harness
 
   wpt:
-    name: WPT diagnostics (non-blocking)
+    name: WPT regression tests
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 30
     env:
       CARGO_TERM_COLOR: always
@@ -71,10 +70,9 @@ jobs:
         run: node wpt/extract.mjs "$WPT_CHECKOUT" --discovery --output wpt/fixtures.json
 
       - name: Run WPT tests
-        run: yarn test:wpt
+        run: yarn test:wpt:baseline
 
-      # The harness deliberately exits nonzero for existing findings. Retain
-      # that outcome, but still produce artifacts from any results it wrote.
+      # Retain reports for new failures, changed outcomes and obsolete expectations.
       - name: Generate HTML report
         if: ${{ always() && hashFiles('wpt/results.json') != '' }}
         run: yarn report:wpt

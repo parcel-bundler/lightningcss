@@ -1,6 +1,6 @@
 # WPT diagnostic harness
 
-This harness adapts a subset of the Web Platform Tests to Lightning CSS. It is a diagnostic tool, not a claim of browser conformance. It runs locally on demand and in GitHub Actions. Corpus diagnostics are **non-blocking**; the harness's own tests run in a separate job that fails on test errors. There is no accepted-failure baseline yet.
+This harness adapts a subset of the Web Platform Tests to Lightning CSS. It is a diagnostic tool, not a claim of browser conformance. It runs locally on demand and in GitHub Actions. CI checks the corpus against reviewed existing failures in `baseline.json` and fails on new or changed failures. The harness's own tests run in a separate job.
 
 The initial milestone implements property-value extraction, parser recognition, and browser checks for context-free parsing/shorthand helpers. It uses the pinned revision in `revision.json`; `fixtures.json` is generated locally or in CI and is not committed. The full current extraction contains 24,344 cases from 902 pages, plus records for 150 unsupported and 9 empty pages. `selection.json` retains the optional eight-file starter selection. Derived fixtures retain their upstream paths and source hashes; see `LICENSE-WPT.md`.
 
@@ -11,6 +11,9 @@ Use the repository's normal Rust/Node development setup, including Node 24+ as r
 ```sh
 # After generating fixtures (see below): parser/serializer/optimizer diagnostics.
 yarn test:wpt
+
+# Compare with reviewed existing failures (the CI regression check).
+yarn test:wpt:baseline
 
 # Include browser checks. Set this to a Chrome executable available on your OS.
 WPT_CHROME='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' yarn test:wpt:browser
@@ -29,11 +32,11 @@ The runner always builds `examples/wpt_adapter.rs` from this checkout with Cargo
 
 Output defaults to ignored `wpt/results.json`; change it with `--output PATH`. Exit codes:
 
-- `0`: no parser candidates, confirmed browser differences, or unadapted pages in the run. This does **not** mean all cases have typed support or full behavioral validation.
-- `1`: findings needing review: typed acceptance of invalid input, rejection of valid input, robustness failures, browser differences, or unadapted/empty pages.
-- `2`: harness/setup failure. A failure during execution also leaves a partial report with `complete: false` and `harnessError`.
+- `0`: no findings, or all findings match the selected baseline exactly. This does **not** mean all cases have typed support or full behavioral validation.
+- `1`: without a baseline, findings needing review; with a baseline, new or changed findings or obsolete expectations.
+- `2`: harness/setup failure, crash, timeout, protocol error, or invalid/mismatched baseline. Caught execution errors leave a partial report with `complete: false` and `harnessError`. Isolated crashes/timeouts can leave a complete diagnostic matrix and still exit `2`.
 
-Browser baseline failures, coverage gaps, contextual matches, and cases needing a richer fixture remain explicit diagnostic statuses. They are not silently counted as passes. The full corpus currently exits `1` because it finds existing issues and includes unadapted pages.
+Browser baseline failures, coverage gaps, contextual matches, and cases needing a richer fixture remain explicit diagnostic statuses. They are not silently counted as passes. Raw corpus diagnostics exit `1` for existing issues and unadapted pages. The reviewed baseline permits those exact findings while preserving their original statuses in JSON and HTML reports.
 
 The four modes are `print`, `minify`, `lower`, and `lower-minify`. `print` only parses/prints. The other modes run declaration optimization; the `lower` modes additionally target Chrome 80. `lower` prints readable output and `lower-minify` prints compact output. This target is an initial stress configuration, not a browser support claim. The browser oracle runs original and emitted CSS in the same current browser, and records that browser's version/executable. `--modes print,minify` selects a smaller matrix.
 
@@ -41,9 +44,31 @@ The four modes are `print`, `minify`, `lower`, and `lower-minify`. `print` only 
 
 `.github/workflows/wpt.yml` runs on pull requests to `master`, pushes to `master`, and manual dispatch. The **WPT harness tests** job runs the Rust adapter and Node tests, including the browser oracle and HTML report tests, using Chrome installed on the Ubuntu runner.
 
-The separate **WPT diagnostics (non-blocking)** job clones the revision from `wpt/revision.json` into the runner's temporary directory, extracts the full corpus with `--discovery`, and runs all four parser/transform modes. Browser checks are not enabled for this corpus run.
+The separate **WPT regression tests** job clones the revision from `wpt/revision.json` into the runner's temporary directory, extracts the full corpus with `--discovery`, and runs all four parser/transform modes against `baseline.json`. Browser checks are not enabled for this corpus run.
 
-The diagnostics job uses `continue-on-error` so findings do not fail the overall workflow. Report generation and artifact upload run after test failures whenever results are available. Download and unzip the **wpt-report** artifact from the Actions run to get `results.html` and the underlying `results.json`; artifacts are retained for 14 days. Setup failures that produce no results remain visible in the job logs.
+Both jobs fail the workflow on errors. Report generation and artifact upload run after test failures whenever results are available. Download and unzip the **wpt-report** artifact from the Actions run to get `results.html` and the underlying `results.json`; artifacts are retained for 14 days. Setup failures that produce no results remain visible in the job logs.
+
+## Reviewed failure baseline
+
+`baseline.json` registers exact existing parser failures, browser differences, and unadapted/empty pages. Every entry references a review reason. The initial parser review covers 301 invalid typed-acceptance candidates, 40 valid-input rejections, and four infinite-hue panic inputs in all four modes. It also records 159 extraction gaps and the three starter cases with confirmed browser differences. These are reviewed diagnostic findings, not a claim that every parser candidate changes browser behavior.
+
+The baseline pins the WPT revision, lowering targets, and the hashes of the full and starter corpora. Each parser/browser expectation identifies its registered corpora, one case and explicit transform modes, with its exact status, emitted CSS, and error or browser comparison. Extraction expectations identify their corpora, one file and its exact status/reason. Wildcard modes, duplicate entries, missing review reasons, and infrastructure-error expectations are rejected.
+
+New findings fail the check even if the total failure count stays the same. Changed outputs/errors also fail. When a failure stops occurring or a page becomes adapted, the now-obsolete expectation fails the check so it can be removed. `--filter` and `--modes` compare only the selected executions; extraction checks still cover all pages in the supplied corpus. JSON reports include the baseline comparison in `baseline` and counts in `summary.baseline`; the HTML report retains original classifications and includes the comparison under run metadata.
+
+```sh
+# Check one property using the full generated corpus.
+yarn test:wpt:baseline --filter column-gap --modes print
+
+# Check the starter selection with a browser and the same baseline.
+node wpt/extract.mjs /tmp/lightningcss-wpt --output /tmp/wpt-starter.json
+WPT_CHROME='/path/to/chrome' node wpt/run.mjs --fixtures /tmp/wpt-starter.json \
+  --browser --baseline wpt/baseline.json
+```
+
+Before adding an expectation, inspect the pinned upstream case and the report's original input, expectation, emitted CSS/error, and browser baseline where applicable. Add only the reviewed case/modes and a specific review reason. Do not regenerate the baseline from all current failures. For a fix, remove only the obsolete entries or modes and rerun the affected checks. Changes to extraction, WPT revision, or lowering targets require a separate review of the corpus/configuration metadata and affected outcomes. Browser checks use the installed Chrome; a browser-version change can require review of its comparisons.
+
+Coverage gaps and unresolved browser checks remain diagnostic statuses outside this failure gate. A reviewed panic is accepted only with its exact panic outcome. Process crashes, timeouts, protocol errors, incomplete runs, and harness/setup failures always exit `2` and cannot be baselined.
 
 ## Readable HTML reports
 
@@ -117,13 +142,13 @@ The 122-case browser run found:
 - One invalid color case fails in the original browser baseline; it is not attributed to Lightning CSS.
 - Equivalent color spellings pass the contextual check. Lowered `light-dark()` output needs the surrounding fallback context and remains deferred.
 
-After merging master at `cbeaf83`, the broader parser-only run caught panics for four infinite-hue inputs. It also reported 40 valid-input errors and substantial property/value coverage gaps. These are diagnostic findings; no expected-failure baseline was added.
+After merging master at `cbeaf83`, the broader parser-only run caught panics for four infinite-hue inputs. It also reported 40 valid-input errors and substantial property/value coverage gaps. The exact reviewed failures are recorded in `baseline.json`.
 
 ## Next phases
 
 1. **Implemented:** pinned property/shorthand corpus, extraction accounting, Rust recognition/printing/optimization, and crash isolation.
 2. **Initial browser lane implemented:** context-free CSSOM checks, invalid fallback checks, shorthand reset probes, and derived computed comparisons. Extend this with original WPT fixtures, custom comparators, configurable targets, and more cascade sequences.
 3. **Next:** selector/rule/media/recovery adapters and contextual computed-value tests under WPT's server.
-4. **Later:** selected reftests with untransformed references, then a separately reviewed CI baseline and scheduled discovery.
+4. **Later:** selected reftests with untransformed references and scheduled discovery.
 
-Keep corpus diagnostics non-blocking until findings and assertion policy have been reviewed. The harness's own tests must continue to pass.
+The harness's own tests and the reviewed-failure regression check must continue to pass. Raw diagnostics remain available through `yarn test:wpt`.

@@ -94,6 +94,7 @@
     "tsc": "tsc -p node/tsconfig.json",
     "test": "uvu node/test",
     "test:wpt": "node wpt/run.mjs",
+    "test:wpt:baseline": "node wpt/run.mjs --baseline wpt/baseline.json",
     "report:wpt": "node wpt/report.mjs",
     "test:wpt:browser": "node wpt/run.mjs --browser",
     "test:wpt:harness": "cargo test --locked --example wpt_adapter && node --test wpt/test/*.test.mjs"
