@@ -100,10 +100,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
     name: CowRcStr<'i>,
   ) -> Result<PseudoClass<'i>, ParseError<'i, Self::Error>> {
     use PseudoClass::*;
-    let scroll_navigation_controls = self
-      .options
-      .flags
-      .contains(ParserFlags::SCROLL_NAVIGATION_CONTROLS);
+    let scroll_navigation_controls = self.options.flags.contains(ParserFlags::SCROLL_NAVIGATION_CONTROLS);
     let pseudo_class = match_ignore_ascii_case! { &name,
       // https://drafts.csswg.org/selectors-4/#useraction-pseudos
       "hover" => Hover,
@@ -501,7 +498,6 @@ pub enum PseudoClass<'i> {
   /// The [:target-after](https://drafts.csswg.org/css-overflow-5/#selectordef-target-after) pseudo class.
   TargetAfter,
   /// The [:target-within](https://drafts.csswg.org/selectors-4/#the-target-within-pseudo) pseudo class.
-
   TargetWithin,
   /// The [:visited](https://drafts.csswg.org/selectors-4/#visited-pseudo) pseudo class.
   Visited,

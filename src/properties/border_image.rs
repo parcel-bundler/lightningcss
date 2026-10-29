@@ -10,6 +10,7 @@ use crate::targets::{Browsers, Targets};
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::image::Image;
 use crate::values::number::CSSNumber;
+use crate::values::number::NonNegative;
 use crate::values::rect::Rect;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -113,16 +114,16 @@ impl IsCompatible for BorderImageRepeat {
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum BorderImageSideWidth {
   /// A number representing a multiple of the border width.
-  Number(CSSNumber),
+  Number(NonNegative<CSSNumber>),
   /// An explicit length or percentage.
-  LengthPercentage(LengthPercentage),
+  LengthPercentage(NonNegative<LengthPercentage>),
   /// The `auto` keyword, representing the natural width of the image slice.
   Auto,
 }
 
 impl Default for BorderImageSideWidth {
   fn default() -> BorderImageSideWidth {
-    BorderImageSideWidth::Number(1.0)
+    BorderImageSideWidth::Number(NonNegative(1.0))
   }
 }
 
@@ -143,7 +144,7 @@ impl IsCompatible for BorderImageSideWidth {
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct BorderImageSlice {
   /// The offsets from the edges of the image.
-  pub offsets: Rect<NumberOrPercentage>,
+  pub offsets: Rect<NonNegative<NumberOrPercentage>>,
   /// Whether the middle of the border image should be preserved.
   pub fill: bool,
 }
@@ -151,7 +152,7 @@ pub struct BorderImageSlice {
 impl Default for BorderImageSlice {
   fn default() -> BorderImageSlice {
     BorderImageSlice {
-      offsets: Rect::all(NumberOrPercentage::Percentage(Percentage(1.0))),
+      offsets: Rect::all(NonNegative(NumberOrPercentage::Percentage(Percentage(1.0)))),
       fill: false,
     }
   }
@@ -199,7 +200,7 @@ define_shorthand! {
     /// The width of the border image.
     width: BorderImageWidth(Rect<BorderImageSideWidth>),
     /// The amount that the image extends beyond the border box.
-    outset: BorderImageOutset(Rect<LengthOrNumber>),
+    outset: BorderImageOutset(Rect<NonNegative<LengthOrNumber>>),
     /// How the border image is scaled and tiled.
     repeat: BorderImageRepeat(BorderImageRepeat),
   }
@@ -222,7 +223,7 @@ impl<'i> BorderImage<'i> {
     let mut source: Option<Image> = None;
     let mut slice: Option<BorderImageSlice> = None;
     let mut width: Option<Rect<BorderImageSideWidth>> = None;
-    let mut outset: Option<Rect<LengthOrNumber>> = None;
+    let mut outset: Option<Rect<NonNegative<LengthOrNumber>>> = None;
     let mut repeat: Option<BorderImageRepeat> = None;
     loop {
       if slice.is_none() {
@@ -283,7 +284,7 @@ impl<'i> BorderImage<'i> {
         source: source.unwrap_or_default(),
         slice: slice.unwrap_or_default(),
         width: width.unwrap_or(Rect::all(BorderImageSideWidth::default())),
-        outset: outset.unwrap_or(Rect::all(LengthOrNumber::default())),
+        outset: outset.unwrap_or(Rect::all(NonNegative(LengthOrNumber::default()))),
         repeat: repeat.unwrap_or_default(),
       })
     } else {
@@ -295,7 +296,7 @@ impl<'i> BorderImage<'i> {
     source: &Image<'i>,
     slice: &BorderImageSlice,
     width: &Rect<BorderImageSideWidth>,
-    outset: &Rect<LengthOrNumber>,
+    outset: &Rect<NonNegative<LengthOrNumber>>,
     repeat: &BorderImageRepeat,
     dest: &mut Printer<W>,
   ) -> Result<(), PrinterError>
@@ -307,7 +308,7 @@ impl<'i> BorderImage<'i> {
     }
     let has_slice = *slice != BorderImageSlice::default();
     let has_width = *width != Rect::all(BorderImageSideWidth::default());
-    let has_outset = *outset != Rect::all(LengthOrNumber::Number(0.0));
+    let has_outset = *outset != Rect::all(NonNegative(LengthOrNumber::Number(0.0)));
     if has_slice || has_width || has_outset {
       dest.write_str(" ")?;
       slice.to_css(dest)?;
@@ -370,7 +371,7 @@ pub(crate) struct BorderImageHandler<'i> {
   source: Option<Image<'i>>,
   slice: Option<BorderImageSlice>,
   width: Option<Rect<BorderImageSideWidth>>,
-  outset: Option<Rect<LengthOrNumber>>,
+  outset: Option<Rect<NonNegative<LengthOrNumber>>>,
   repeat: Option<BorderImageRepeat>,
   vendor_prefix: VendorPrefix,
   flushed_properties: BorderImageProperty,

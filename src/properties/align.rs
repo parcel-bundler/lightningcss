@@ -11,6 +11,7 @@ use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
 use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthPercentage;
+use crate::values::number::NonNegative;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -810,7 +811,7 @@ pub enum GapValue {
   /// Equal to `1em` for multi-column containers, and zero otherwise.
   Normal,
   /// An explicit length.
-  LengthPercentage(LengthPercentage),
+  LengthPercentage(NonNegative<LengthPercentage>),
 }
 
 define_shorthand! {
