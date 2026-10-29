@@ -254,3 +254,45 @@ test("valid surrogate pairs and literal CSS escapes are preserved", () => {
     values,
   );
 });
+
+test("HTML text elements do not expose inert script calls", () => {
+  const tags = ["textarea", "title", "xmp", "iframe", "noembed", "noframes"];
+  const source = `<script src="/css/support/parsing-testcommon.js"></script>` +
+    tags.map(tag => `<${tag}><script>test_valid_value('color', 'blue')</script></${tag}>`).join("\n") +
+    `<script>test_valid_value('color', 'red')</script>`;
+  const result = spawnSync("python3", [fileURLToPath(new URL("../read-html.py", import.meta.url))], {
+    input: JSON.stringify(source) + "\n", encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const captured = capture("css/example.html", JSON.parse(result.stdout));
+  assert.equal(captured.status, "extracted");
+  assert.deepEqual(captured.cases.map(c => c.value), ["red"]);
+});
+
+test("duplicate HTML attributes keep their first value for dependency checks", () => {
+  const source = `<script src="/unexpected.js" src="/css/support/parsing-testcommon.js"></script>
+    <script>test_valid_value('color', 'red')</script>`;
+  const result = spawnSync("python3", [fileURLToPath(new URL("../read-html.py", import.meta.url))], {
+    input: JSON.stringify(source) + "\n", encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const captured = capture("css/example.html", JSON.parse(result.stdout));
+  assert.equal(captured.status, "unsupported");
+  assert.match(captured.reason, /unsupported dependency: \/unexpected.js/);
+  assert.deepEqual(captured.cases, []);
+});
+
+test("unsupported HTML text modes cannot silently expose subsequent scripts", () => {
+  for (const prefix of ["<plaintext></plaintext>", "<template/>", "<script/>", "<iframe/>"]) {
+    const source = `<script src="/css/support/parsing-testcommon.js"></script>${prefix}
+      <script>test_valid_value('color', 'red')</script>`;
+    const result = spawnSync("python3", [fileURLToPath(new URL("../read-html.py", import.meta.url))], {
+      input: JSON.stringify(source) + "\n", encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const captured = capture("css/example.html", JSON.parse(result.stdout));
+    assert.equal(captured.status, "unsupported", prefix);
+    assert.match(captured.reason, /requires? a browser adapter/);
+    assert.deepEqual(captured.cases, []);
+  }
+});
