@@ -28,7 +28,7 @@ yarn test:wpt:harness
 WPT_BROWSER_TESTS=1 WPT_CHROME='/path/to/chrome' yarn test:wpt:harness
 ```
 
-The runner always builds `examples/wpt_adapter.rs` from this checkout with Cargo, rather than loading the installed Node binding. It uses a persistent JSONL child process, catches Rust unwinds, and restarts after process crashes/timeouts. It records case identity before attributing the response, so a failing case does not terminate the rest of the corpus.
+The runner always builds `examples/wpt_adapter.rs` from this checkout with Cargo, rather than loading the installed Node binding. It uses a persistent JSONL child process, catches Rust unwinds, and restarts after process crashes/timeouts. Requests carry sequence IDs that the adapter echoes; stale IDs and malformed responses are protocol errors. Adapter requests and browser evaluations each have a five-second deadline. A browser error or timeout stops the run with the active case and parser output retained; cleanup failures also preserve the report.
 
 Output defaults to ignored `wpt/results.json`; change it with `--output PATH`. Exit codes:
 
@@ -44,7 +44,7 @@ The four modes are `print`, `minify`, `lower`, and `lower-minify`. `print` only 
 
 `.github/workflows/wpt.yml` runs on pull requests to `master`, pushes to `master`, and manual dispatch. The **WPT harness tests** job runs the Rust adapter and Node tests, including the browser oracle and HTML report tests, using Chrome installed on the Ubuntu runner.
 
-The separate **WPT regression tests** job clones the revision from `wpt/revision.json` into the runner's temporary directory, extracts the full corpus with `--discovery`, and runs all four parser/transform modes against `baseline.json`. Browser checks are not enabled for this corpus run.
+The separate **WPT regression tests** job clones the revision from `wpt/revision.json` into the runner's temporary directory, extracts the full corpus with `--discovery`, and runs all four parser/transform modes against `baseline.json`. It requires `--baseline-corpus discovery` so the starter selection cannot accidentally replace the full corpus. Browser checks are not enabled for this corpus run.
 
 Both jobs fail the workflow on errors. Report generation and artifact upload run after test failures whenever results are available. Download and unzip the **wpt-report** artifact from the Actions run to get `results.html` and the underlying `results.json`; artifacts are retained for 14 days. Setup failures that produce no results remain visible in the job logs.
 
@@ -53,6 +53,8 @@ Both jobs fail the workflow on errors. Report generation and artifact upload run
 `baseline.json` registers exact existing parser failures, browser differences, and unadapted/empty pages. Every entry references a review reason. The initial parser review covers 301 invalid typed-acceptance candidates, 40 valid-input rejections, and four infinite-hue panic inputs in all four modes. It also records 159 extraction gaps and the three starter cases with confirmed browser differences. These are reviewed diagnostic findings, not a claim that every parser candidate changes browser behavior.
 
 The baseline pins the WPT revision, lowering targets, and the hashes of the full and starter corpora. Each parser/browser expectation identifies its registered corpora, one case and explicit transform modes, with its exact status, emitted CSS, and error or browser comparison. Extraction expectations identify their corpora, one file and its exact status/reason. Wildcard modes, duplicate entries, missing review reasons, and infrastructure-error expectations are rejected.
+
+Use `--baseline-corpus NAME` to require a particular registered corpus in an automated check. This option requires `--baseline`; omitting it permits either registered corpus for local diagnostics. Report output cannot overwrite the fixture or baseline input file.
 
 New findings fail the check even if the total failure count stays the same. Changed outputs/errors also fail. When a failure stops occurring or a page becomes adapted, the now-obsolete expectation fails the check so it can be removed. `--filter` and `--modes` compare only the selected executions; extraction checks still cover all pages in the supplied corpus. JSON reports include the baseline comparison in `baseline` and counts in `summary.baseline`; the HTML report retains original classifications and includes the comparison under run metadata.
 
@@ -106,7 +108,7 @@ node wpt/extract.mjs /tmp/lightningcss-wpt --output /tmp/wpt-starter.json
 
 Extraction requires the pinned HEAD and an unmodified CSS checkout. It parses HTML with Python's HTMLParser, then evaluates inline generators with collector helpers. Loops, template literals, shared variables, and relative URLs for the standard helpers work. Stable IDs use file, helper kind, property/value hash, and a duplicate occurrence suffix. `scriptLine` identifies the containing script's starting line, not the exact helper-call line.
 
-Each page is atomic: an unsupported dependency, DOM access, callback comparator, selector/rule helper, variant, script type, unpaired surrogate, or evaluation error discards all its partial cases and records the reason. Empty pages are also explicit. Only the known helper scripts are replaced; arbitrary external scripts are never fetched or evaluated. Node's VM is an evaluation convenience with a time limit, **not a security boundary**; use trusted pinned upstream source.
+Each page is atomic: an unsupported dependency, DOM access, callback comparator, selector/rule helper, variant, script type, asynchronous external helper, declarative shadow root, unpaired surrogate, or evaluation error discards all its partial cases and records the reason. Empty pages are also explicit. Only the known helper scripts are replaced, in source order; arbitrary external scripts are never fetched or evaluated. Classic `nomodule` scripts and scripts inside inert templates or `noscript` are not executed. Node's VM is an evaluation convenience with a time limit, **not a security boundary**; use trusted pinned upstream source.
 
 Discovery currently extracts 24,344 calls from 902 pages, with 150 unsupported and 9 empty pages. These totals are helper calls, not browser assertions or passes. Unsupported helper families and options remain explicit extraction gaps. No source-file modifications or regex rewrites of CSS/JS are used to extract cases.
 
@@ -127,9 +129,9 @@ The Rust adapter uses `Property::parse` and requires the complete value to be co
 
 Deferred classification is based on recognized token structure and is not a strict validation oracle for every substitution-containing grammar. Unknown standard properties remain visible even if their value is a CSS-wide keyword.
 
-Browser checks first establish WPT's original specified-value expectation, including acceptable serialization arrays, shorthand longhands, unrelated-longhand checks, and valid-value round trips. Shorthand baselines also check `CSS.supports` and each expected longhand's serialization round trip. They then apply emitted declarations to a fresh style and compare longhands. Invalid input must remain invalid and leave a preceding valid fallback unchanged. Shorthands also receive a derived test with longhands preseeded to `inherit` to expose missing resets.
+Browser checks first establish WPT's original specified-value expectation, including acceptable serialization arrays, shorthand longhands, unrelated-longhand checks, and valid-value round trips. Shorthand baselines also check `CSS.supports` and each expected longhand's serialization round trip. They then apply emitted declarations to a fresh style and compare longhands and priorities. Missing longhands and added declarations are checked for all valid-value helpers, including shorthand inputs, so computed defaults cannot hide changed cascade resets. Invalid input must remain invalid and leave a preceding valid fallback unchanged.
 
-When CSSOM spelling differs, a derived fixed-size fixture compares the affected computed values. A `contextual-match` is evidence only for that fixture; `computed-difference` is a concrete observable difference. This prevents harmless color spelling changes from becoming failures while keeping longhand changes visible. URL/substitution-dependent output and source fixtures with styles or `#target` are deferred explicitly. The harness does not load arbitrary WPT pages in the browser at this stage.
+When CSSOM spelling differs, a derived fixed-size fixture compares the affected computed values. Step easing aliases are normalized for this comparison, while their raw strings remain in the report. A `contextual-match` is evidence only for that fixture; `computed-difference` identifies differing computed values after this normalization and still needs review. This prevents harmless color spelling changes from becoming failures while keeping longhand changes visible. URL/substitution-dependent values, added compatibility helper variables or prefixed fallbacks, and source fixtures with styles, event handlers, or `#target` are deferred explicitly. The harness does not load arbitrary WPT pages in the browser at this stage.
 
 Reports contain WPT and Lightning CSS revisions, dirty-tree metadata, adapter and corpus hashes, browser version, options, source inputs, emitted declarations, recognition, and comparison details. Browser versions are recorded, not downloaded/pinned automatically. Use the same executable version when comparing runs.
 

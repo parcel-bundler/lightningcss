@@ -26,6 +26,39 @@ export function classify(test, result) {
     }[result.recognition] ?? "harness-error"
   );
 }
+
+export async function runCases(report, selectedCases, adapter, browserFactory) {
+  let browser;
+  const errorText = (error) => error?.stack || String(error) || "Unknown execution error";
+  const recordError = (error) => { report.harnessError ??= errorText(error); };
+  try {
+    browser = await browserFactory?.();
+    if (browser) report.browser = { version: browser.version, executable: browser.executable };
+    for (const test of selectedCases) {
+      for (const mode of report.modes) {
+        report.activeCase = { id: test.id, mode };
+        const output = await adapter.request({ ...test, mode });
+        const result = { ...test, mode, ...output, status: classify(test, output) };
+        report.results.push(result);
+        if (browser && output.code !== undefined) {
+          try {
+            result.browser = await browser.check(test, output.code);
+          } catch (error) {
+            result.browser = { status: "harness-error", error: errorText(error) };
+            throw error;
+          }
+        }
+        delete report.activeCase;
+      }
+    }
+  } catch (error) {
+    recordError(error);
+  } finally {
+    try { adapter.close(); } catch (error) { recordError(error); }
+    try { await browser?.close(); } catch (error) { recordError(error); }
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const option = (name, fallback) =>
@@ -33,7 +66,7 @@ async function main() {
   for (let i = 0; i < args.length; i++) {
     if (["--browser"].includes(args[i])) continue;
     if (
-      ["--fixtures", "--output", "--chrome", "--modes", "--filter", "--baseline"].includes(args[i]) &&
+      ["--fixtures", "--output", "--chrome", "--modes", "--filter", "--baseline", "--baseline-corpus"].includes(args[i]) &&
       args[i + 1] &&
       !args[i + 1].startsWith("--")
     ) {
@@ -43,10 +76,15 @@ async function main() {
     throw Error(`Unknown or incomplete option: ${args[i]}`);
   }
   const root = path.dirname(directory);
-  const corpusText = fs.readFileSync(
-    option("--fixtures", path.join(directory, "fixtures.json")),
-    "utf8",
-  );
+  const fixturesPath = option("--fixtures", path.join(directory, "fixtures.json"));
+  const baselinePath = option("--baseline");
+  const baselineCorpus = option("--baseline-corpus");
+  const outputPath = option("--output", path.join(directory, "results.json"));
+  if (baselineCorpus !== undefined && baselinePath === undefined)
+    throw Error("--baseline-corpus requires --baseline");
+  if ([fixturesPath, baselinePath].some((file) => file !== undefined && path.resolve(file) === path.resolve(outputPath)))
+    throw Error("Output must not overwrite fixtures or baseline");
+  const corpusText = fs.readFileSync(fixturesPath, "utf8");
   const corpus = JSON.parse(corpusText);
   if (corpus.schemaVersion !== revision.schemaVersion || corpus.wptRevision !== revision.commit)
     throw Error("Fixture schema/revision mismatch");
@@ -59,14 +97,14 @@ async function main() {
   if (modes.some((m) => !["print", "minify", "lower", "lower-minify"].includes(m)))
     throw Error("Unknown transform mode");
   if (new Set(modes).size !== modes.length) throw Error("Duplicate transform mode");
-  const baselinePath = option("--baseline");
   const baseline = baselinePath && JSON.parse(fs.readFileSync(baselinePath, "utf8"));
   const context = {
     wptRevision: corpus.wptRevision,
     corpusHash: hash(corpusText),
     loweringTargets: { chrome: 80 << 16 },
+    ...(baselineCorpus !== undefined && { baselineCorpus }),
   };
-  if (baseline) validateBaseline(baseline, context);
+  if (baselinePath !== undefined) validateBaseline(baseline, context);
   // Always compile this checkout. Never load a possibly stale installed Node binary.
   execFileSync("cargo", ["build", "--locked", "--example", "wpt_adapter"], {
     cwd: root,
@@ -86,7 +124,6 @@ async function main() {
       `wpt_adapter${process.platform === "win32" ? ".exe" : ""}`,
     ),
   );
-  let browser;
   const results = [];
   const report = {
     schemaVersion: 1,
@@ -108,26 +145,8 @@ async function main() {
     pages: corpus.pages,
     results,
   };
-  try {
-    if (args.includes("--browser")) {
-      browser = await startBrowser(option("--chrome", process.env.WPT_CHROME));
-      report.browser = { version: browser.version, executable: browser.executable };
-    }
-    for (const test of selectedCases) {
-      for (const mode of modes) {
-        const output = await adapter.request({ ...test, mode });
-        const result = { ...test, mode, ...output, status: classify(test, output) };
-        if (browser && output.code !== undefined)
-          result.browser = await browser.check(test, output.code);
-        results.push(result);
-      }
-    }
-  } catch (error) {
-    report.harnessError = error.stack;
-  } finally {
-    adapter.close();
-    await browser?.close();
-  }
+  await runCases(report, selectedCases, adapter, args.includes("--browser")
+    ? () => startBrowser(option("--chrome", process.env.WPT_CHROME)) : undefined);
   const count = (values) =>
     Object.fromEntries(
       [...new Set(values)].sort().map((v) => [v, values.filter((x) => x === v).length]),
@@ -153,7 +172,6 @@ async function main() {
       unexpected: report.baseline.issues.length,
     } }),
   };
-  const outputPath = option("--output", path.join(directory, "results.json"));
   fs.writeFileSync(outputPath, JSON.stringify(report, null, 2) + "\n");
   console.log(JSON.stringify(report.summary, null, 2));
   console.log(`Full report: ${outputPath}`);

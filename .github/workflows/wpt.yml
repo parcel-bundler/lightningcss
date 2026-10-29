@@ -70,7 +70,7 @@ jobs:
         run: node wpt/extract.mjs "$WPT_CHECKOUT" --discovery --output wpt/fixtures.json
 
       - name: Run WPT tests
-        run: yarn test:wpt:baseline
+        run: yarn test:wpt:baseline --baseline-corpus discovery
 
       # Retain reports for new failures, changed outcomes and obsolete expectations.
       - name: Generate HTML report

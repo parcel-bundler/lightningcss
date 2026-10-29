@@ -7,9 +7,24 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const document = (code) => ({
-  scripts: [{ attrs: {}, code, line: 12 }],
+  scripts: [
+    { attrs: { src: "/css/support/parsing-testcommon.js" } },
+    { attrs: { src: "/css/support/shorthand-testcommon.js" } },
+    { attrs: {}, code, line: 12 },
+  ],
   variants: [],
   contextFree: true,
+});
+
+test("extractor option typos fail before opening the checkout", () => {
+  for (const options of [["--discovry"], ["--output"], ["--output", "--discovery"]]) {
+    const result = spawnSync(process.execPath,
+      [fileURLToPath(new URL("../extract.mjs", import.meta.url)), "nonexistent-wpt-checkout", ...options],
+      { encoding: "utf8" });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Unknown or incomplete option/);
+    assert.ok(!result.stderr.includes("fatal:"));
+  }
 });
 
 test("captures generated cases, omitted expectations, alternatives, and stable IDs", () => {
@@ -76,7 +91,7 @@ test("adapter restarts after an abort and attributes timeout to the request", as
   const script = `require('readline').createInterface({input: process.stdin}).on('line', line => {
     const v = JSON.parse(line);
     if (v.crash) process.exit(7);
-    else if (!v.hang) console.log(JSON.stringify({recognition: 'typed'}));
+    else if (!v.hang) console.log(JSON.stringify({requestId:v.requestId, recognition: 'typed', code:'color:red'}));
   });`;
   const adapter = new Adapter(process.execPath, 1000, ["-e", script]);
   try {
@@ -87,6 +102,57 @@ test("adapter restarts after an abort and attributes timeout to the request", as
   } finally {
     adapter.close();
   }
+});
+
+test("helper availability follows script loading order and execution attributes", () => {
+  const code = "test_valid_value('color', 'red')";
+  const inline = { attrs: {}, code, line: 1 };
+  const helper = { attrs: { src: "/css/support/parsing-testcommon.js" } };
+  for (const scripts of [
+    [inline, helper],
+    [{ attrs: { ...helper.attrs, type: "module" } }, inline],
+    [{ attrs: { ...helper.attrs, async: null } }, inline],
+    [{ attrs: { ...helper.attrs, defer: null } }, inline],
+    [{ attrs: { src: "" }, code }, inline],
+  ]) {
+    const result = capture("css/example.html", { ...document(""), scripts });
+    assert.equal(result.status, "unsupported");
+    assert.equal(result.cases.length, 0);
+  }
+  const skipped = capture("css/example.html", {
+    ...document(""), scripts: [helper, { ...inline, attrs: { nomodule: null } }],
+  });
+  assert.equal(skipped.status, "empty");
+});
+
+test("HTML reader ignores inert scripts and identifies fixture setup", () => {
+  const source = `<template><script>inert()</script></template>
+    <noscript><script>alsoInert()</script></noscript>
+    <link rel="alternate STYLESHEET" href="test.css"><link rel>
+    <body onload="setup()"><script>executed()</script>`;
+  const result = spawnSync("python3", [fileURLToPath(new URL("../read-html.py", import.meta.url))], {
+    input: JSON.stringify(source) + "\n", encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const parsed = JSON.parse(result.stdout);
+  assert.equal(parsed.scripts.length, 1);
+  assert.equal(parsed.scripts[0].code, "executed()");
+  assert.equal(parsed.contextFree, false);
+});
+
+test("declarative shadow-root scripts are deferred rather than treated as inert", () => {
+  const source = `<script src="/css/support/parsing-testcommon.js"></script>
+    <script>test_valid_value('color', 'red')</script>
+    <div><template shadowrootmode="open"><script>test_valid_value('color', 'blue')</script></template></div>`;
+  const result = spawnSync("python3", [fileURLToPath(new URL("../read-html.py", import.meta.url))], {
+    input: JSON.stringify(source) + "\n", encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const parsed = JSON.parse(result.stdout);
+  const captured = capture("css/example.html", parsed);
+  assert.equal(captured.status, "unsupported");
+  assert.match(captured.reason, /declarative shadow roots/);
+  assert.equal(captured.cases.length, 0);
 });
 
 test("HTML reader preserves raw script text and detects fixture dependencies", () => {

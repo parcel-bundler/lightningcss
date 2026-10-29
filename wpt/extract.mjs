@@ -24,8 +24,9 @@ export function capture(file, document) {
   const cases = [];
   let scriptLine;
   try {
+    if (document.unsupportedReason) throw Error(document.unsupportedReason);
     if (document.variants.length) throw Error("variants require a browser adapter");
-    const sandbox = Object.fromEntries(
+    const collectors = Object.fromEntries(
       [...helpers].map(([helper, kind]) => [
         helper,
         (...args) => {
@@ -83,20 +84,29 @@ export function capture(file, document) {
         },
       ]),
     );
+    const sandbox = {};
     const context = vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false } });
     for (const script of document.scripts) {
-      if (script.attrs.src) {
+      if (script.attrs.type &&
+          !["text/javascript", "application/javascript"].includes(script.attrs.type.trim().toLowerCase()))
+        throw Error(`unsupported script type: ${script.attrs.type}`);
+      // Classic nomodule scripts do not execute in the browser used by this harness.
+      if ("nomodule" in script.attrs) continue;
+      if ("src" in script.attrs) {
+        if ("async" in script.attrs || "defer" in script.attrs)
+          throw Error("asynchronous helper scripts require a browser adapter");
+        if (!script.attrs.src) throw Error("empty external script URL");
         const url = new URL(script.attrs.src, `https://wpt.invalid/${file}`);
         if (url.origin !== "https://wpt.invalid" || url.search || !scripts.has(url.pathname)) {
           throw Error(`unsupported dependency: ${script.attrs.src}`);
         }
-      } else {
-        if (
-          script.attrs.type &&
-          !["text/javascript", "application/javascript"].includes(script.attrs.type)
-        ) {
-          throw Error(`unsupported script type: ${script.attrs.type}`);
+        if (url.pathname === "/css/support/parsing-testcommon.js") {
+          sandbox.test_valid_value = collectors.test_valid_value;
+          sandbox.test_invalid_value = collectors.test_invalid_value;
+        } else if (url.pathname === "/css/support/shorthand-testcommon.js") {
+          sandbox.test_shorthand_value = collectors.test_shorthand_value;
         }
+      } else {
         scriptLine = script.line;
         vm.runInContext(script.code, context, {
           filename: file,
@@ -164,8 +174,16 @@ export function extract(root, discovery = false) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
-  if (!args[0])
+  if (!args[0] || args[0].startsWith("--"))
     throw Error("Usage: node wpt/extract.mjs WPT_CHECKOUT [--discovery] [--output FILE]");
+  for (let i = 1; i < args.length; i++) {
+    if (args[i] === "--discovery") continue;
+    if (args[i] === "--output" && args[i + 1] && !args[i + 1].startsWith("--")) {
+      i++;
+      continue;
+    }
+    throw Error(`Unknown or incomplete option: ${args[i]}`);
+  }
   const corpus = extract(path.resolve(args[0]), args.includes("--discovery"));
   const outputIndex = args.indexOf("--output");
   const output = outputIndex < 0 ? path.join(directory, "fixtures.json") : args[outputIndex + 1];

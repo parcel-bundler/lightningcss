@@ -2,7 +2,7 @@
 use cssparser::{Parser, ParserInput};
 use lightningcss::{
   properties::{
-    custom::{CustomPropertyName, TokenList, TokenOrValue},
+    custom::{CustomPropertyName, TokenList, TokenOrValue, UnresolvedColor},
     Property, PropertyId,
   },
   stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleAttribute},
@@ -15,6 +15,10 @@ fn deferred(tokens: &TokenList) -> bool {
   tokens.0.iter().any(|token| match token {
     TokenOrValue::Var(_) | TokenOrValue::Env(_) => true,
     TokenOrValue::Function(f) => deferred(&f.arguments),
+    TokenOrValue::UnresolvedColor(color) => match color {
+      UnresolvedColor::RGB { alpha, .. } | UnresolvedColor::HSL { alpha, .. } => deferred(alpha),
+      UnresolvedColor::LightDark { light, dark } => deferred(light) || deferred(dark),
+    },
     _ => false,
   })
 }
@@ -87,11 +91,13 @@ fn main() {
   let mut out = stdout.lock();
   for line in io::stdin().lock().lines() {
     let line = line.expect("read JSONL request");
+    let request: Result<Value, String> = serde_json::from_str(&line).map_err(|error| error.to_string());
+    let request_id = request.as_ref().ok().and_then(|value| value.get("requestId")).cloned();
     let result = std::panic::catch_unwind(|| {
-      let request: Value = serde_json::from_str(&line).map_err(|e| e.to_string())?;
-      run(&request)
+      let request = request.as_ref().map_err(|e| e.to_string())?;
+      run(request)
     });
-    let response = match result {
+    let mut response = match result {
       Ok(Ok(value)) => value,
       Ok(Err(error)) => json!({"recognition": "error", "error": error}),
       Err(payload) => {
@@ -103,6 +109,9 @@ fn main() {
         json!({"recognition": "panic", "error": message})
       }
     };
+    if let Some(request_id) = request_id {
+      response["requestId"] = request_id;
+    }
     writeln!(out, "{response}").unwrap();
     out.flush().unwrap();
   }
@@ -121,6 +130,9 @@ mod tests {
       ("--custom", "anything", "custom-property"),
       ("color", "inherit", "css-wide"),
       ("width", "calc(var(--width) * 2)", "deferred"),
+      ("color", "rgb(1 2 3 / var(--alpha))", "deferred"),
+      ("color", "light-dark(var(--light), red)", "deferred"),
+      ("color", "light-dark(red, rgb(1 2 3 / env(--alpha)))", "deferred"),
     ] {
       let result = run(&json!({"property": name, "value": value})).unwrap();
       assert_eq!(result["recognition"], expected, "{name}: {value}");

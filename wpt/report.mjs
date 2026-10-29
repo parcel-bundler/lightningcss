@@ -13,6 +13,8 @@ const browserFailures = new Set([
   "valid-became-invalid",
   "fallback-changed",
   "shorthand-reset-changed",
+  "cascade-changed",
+  "priority-changed",
   "computed-difference",
 ]);
 const coverage = new Set(["property-coverage-gap", "value-coverage-gap"]);

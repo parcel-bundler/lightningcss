@@ -33,6 +33,14 @@ test("exact reviewed failures pass while raw diagnostics still fail", () => {
   assert.equal(report.results[0].status, "invalid-typed");
 });
 
+test("a registered smaller corpus cannot satisfy a check requiring the full corpus", () => {
+  const { report, check } = fixture();
+  report.baselineCorpus = "discovery";
+  assert.throws(check, /Baseline corpus mismatch/);
+  report.baselineCorpus = "test";
+  assert.equal(check().issues.length, 0);
+});
+
 test("a new failure cannot replace a fixed one just because counts match", () => {
   const { report, check } = fixture();
   report.results[0].status = "rejected";
@@ -112,6 +120,19 @@ test("browser failures require their own exact expectations", () => {
   assert.equal(check().issues[0].type, "obsolete-expectation");
   delete report.browser;
   assert.equal(check().issues.length, 0);
+});
+
+test("cascade and priority changes are failures in raw and baselined runs", () => {
+  for (const status of ["cascade-changed", "priority-changed"]) {
+    const { report, check } = fixture();
+    report.browser = { version: "test" };
+    report.results[1].browser = { status, properties: ["color"] };
+    assert.equal(exitCode(report), 1);
+    report.baseline = check();
+    assert.equal(report.baseline.issues[0].lane, "browser");
+    assert.equal(report.baseline.issues[0].actual.status, status);
+    assert.equal(exitCode(report), 1);
+  }
 });
 
 test("baseline mismatches, wildcard modes, missing reviews and duplicate entries fail closed", () => {

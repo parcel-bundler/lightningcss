@@ -5,7 +5,7 @@ export const failureStatuses = new Set([
 ]);
 export const browserFailures = new Set([
   "invalid-became-valid", "valid-became-invalid", "fallback-changed",
-  "shorthand-reset-changed", "computed-difference",
+  "shorthand-reset-changed", "cascade-changed", "priority-changed", "computed-difference",
 ]);
 
 export function infrastructureFailure(result) {
@@ -36,7 +36,7 @@ function isFailure(value, lane) {
 }
 
 export function validateBaseline(baseline, report) {
-  if (baseline.schemaVersion !== 1 || !Array.isArray(baseline.corpora) ||
+  if (!baseline || typeof baseline !== "object" || baseline.schemaVersion !== 1 || !Array.isArray(baseline.corpora) ||
       !Array.isArray(baseline.failures) || !Array.isArray(baseline.pages) ||
       !baseline.reviews || typeof baseline.reviews !== "object")
     throw Error("Invalid WPT baseline schema");
@@ -54,6 +54,8 @@ export function validateBaseline(baseline, report) {
   const corpus = baseline.corpora.find((corpus) => corpus.hash === report.corpusHash);
   if (!corpus)
     throw Error("Baseline corpus hash mismatch; review extraction changes before updating it");
+  if (report.baselineCorpus !== undefined && corpus.name !== report.baselineCorpus)
+    throw Error(`Baseline corpus mismatch: expected ${report.baselineCorpus}, got ${corpus.name}`);
   if (!same(baseline.loweringTargets, report.loweringTargets))
     throw Error("Baseline lowering targets mismatch");
 

@@ -2,26 +2,37 @@ import puppeteer from "puppeteer";
 
 // Phase 2 adapts only context-free parsing helpers. Fixture-dependent computed
 // tests will need the WPT server and are explicitly skipped here.
-export async function startBrowser(executablePath) {
+export async function startBrowser(executablePath, timeout = 5000) {
   const browser = await puppeteer.launch({
     headless: true,
     ...(executablePath ? { executablePath } : {}),
   });
-  const page = await browser.newPage();
-  await page.setContent('<!doctype html><meta charset="utf-8"><body>');
+  let page, version, executable;
+  try {
+    page = await browser.newPage();
+    await page.setContent('<!doctype html><meta charset="utf-8"><body>');
+    version = await browser.version();
+    executable = browser.process()?.spawnfile;
+  } catch (error) {
+    await browser.close().catch(() => {});
+    throw error;
+  }
   return {
-    version: await browser.version(),
-    executable: browser.process()?.spawnfile,
+    version,
+    executable,
     async check(test, output) {
       if (!test.contextFree) return { status: "fixture-required" };
       if (/(?:url\(|var\(|env\()/i.test(test.value)) return { status: "context-required" };
-      return page.evaluate(
+      const evaluation = page.evaluate(
         ({ test, output }) => {
           const original = document.createElement("div").style;
           const transformed = document.createElement("div").style;
           const property = test.property;
           original.setProperty(property, test.value);
           const read = original.getPropertyValue(property);
+          // CSS escapes and image-set() strings can introduce URLs even when
+          // the source text contains no literal url() function.
+          if (/(?:url\(|var\(|env\()/i.test(read)) return { status: "context-required" };
           const matches = (actual, expected) =>
             Array.isArray(expected) ? expected.includes(actual) : actual === expected;
           if (test.kind === "invalid") {
@@ -83,7 +94,8 @@ export async function startBrowser(executablePath) {
             original.setProperty(property, "initial");
             if (!original.length) return { status: "baseline-unsupported-property" };
             const fallback = original.cssText;
-            original.setProperty(property, test.value);
+            // An invalid CSS declaration leaves the fallback intact. Calling
+            // setProperty again would instead remove it for the empty string.
             transformed.cssText = fallback + ";" + output;
             return original.cssText === transformed.cssText
               ? { status: "pass" }
@@ -97,7 +109,7 @@ export async function startBrowser(executablePath) {
           const names = new Set([
             ...Array.from(original),
             ...Array.from(transformed),
-            ...(test.kind === "shorthand" ? Object.keys(test.expected) : [property]),
+            ...(test.kind === "shorthand" ? Object.keys(test.expected) : []),
           ]);
           const differences = [...names]
             .map((name) => ({
@@ -106,26 +118,46 @@ export async function startBrowser(executablePath) {
               transformed: transformed.getPropertyValue(name),
             }))
             .filter((x) => x.original !== x.transformed);
-          if (test.kind === "shorthand") {
-            const seededOriginal = document.createElement("div").style;
-            const seededOutput = document.createElement("div").style;
-            for (const name of Object.keys(test.expected))
-              seededOriginal.setProperty(name, "inherit");
-            const before = seededOriginal.cssText;
-            seededOriginal.setProperty(property, test.value);
-            seededOutput.cssText = before + ";" + output;
-            const missingResets = Object.keys(test.expected).filter(
-              (name) =>
-                seededOriginal.getPropertyValue(name) !== "inherit" &&
-                seededOutput.getPropertyValue(name) === "inherit",
+          const priorities = [...names].filter(
+            (name) => original.getPropertyPriority(name) !== transformed.getPropertyPriority(name),
+          );
+          if (priorities.length) return { status: "priority-changed", properties: priorities };
+          // `all` interacts with declaration order beyond this isolated probe.
+          if (names.has("all") && differences.length)
+            return { status: "context-required", differences };
+          // Valid-value helpers also cover shorthands. Check the affected
+          // declaration set before comparing computed defaults: an omitted
+          // longhand can leave a preceding declaration in the cascade intact.
+          {
+            const originalNames = new Set(original);
+            const transformedNames = new Set(transformed);
+            const declaredNames = new Set([...originalNames, ...transformedNames]);
+            const missingResets = [...declaredNames].filter(
+              (name) => originalNames.has(name) && !transformedNames.has(name) &&
+                transformed.getPropertyValue(name) === "",
             );
             if (missingResets.length)
               return { status: "shorthand-reset-changed", properties: missingResets };
+            const extraResets = [...declaredNames].filter(
+              (name) => transformedNames.has(name) && !originalNames.has(name) &&
+                original.getPropertyValue(name) === "",
+            );
+            if (extraResets.length) {
+              // Compatibility lowering can add helper variables or prefixed
+              // fallbacks. Their surrounding cascade is outside this fixture.
+              if (extraResets.every((name) => name.startsWith("--lightningcss-") ||
+                  (/^-(?:webkit|moz|ms|o)-/.test(name) &&
+                    name.replace(/^-(?:webkit|moz|ms|o)-/, "") === property)))
+                return { status: "context-required", properties: extraResets, differences };
+              return { status: "cascade-changed", properties: extraResets };
+            }
           }
           // CSSOM differences may be equivalent at computed/used-value time. Keep
           // these visible for later contextual checks; don't call them passes.
           if (differences.length) {
-            if (/(?:url\(|var\(|env\()/i.test(output))
+            if (/(?:url\(|var\(|env\()/i.test(output) || [...transformed].some(
+              (name) => /(?:url\(|var\(|env\()/i.test(transformed.getPropertyValue(name)),
+            ))
               return { status: "context-required", differences };
             // A derived, fixed-size fixture resolves simple equivalent spellings.
             // Preserve the CSSOM difference in the report; this establishes only
@@ -146,8 +178,18 @@ export async function startBrowser(executablePath) {
                 original: styles[0].getPropertyValue(property),
                 transformed: styles[1].getPropertyValue(property),
               }));
+              // CSS Easing 1 defines start/end as aliases of jump-start/jump-end.
+              // Normalize only parsed timing-function values, retaining raw
+              // strings in the report. https://drafts.csswg.org/css-easing-1/#step-easing-functions
+              const comparable = (property, value) =>
+                /^(?:-(?:webkit|moz|o)-)?(?:animation|transition)-timing-function$/.test(property)
+                  ? value.replace(/\bstep-start\b/g, "steps(1,start)")
+                    .replace(/\bstep-end\b/g, "steps(1,end)")
+                    .replace(/\bsteps\(\s*(\d+)\s*(?:,\s*(jump-start|jump-end|start|end|jump-none|jump-both))?\s*\)/g,
+                      (_match, count, position = "end") => `steps(${count},${position.replace(/^jump-(start|end)$/, "$1")})`)
+                  : value;
               return {
-                status: computed.some((x) => x.original !== x.transformed)
+                status: computed.some((x) => comparable(x.property, x.original) !== comparable(x.property, x.transformed))
                   ? "computed-difference"
                   : "contextual-match",
                 context: "derived-800x600-16px-serif",
@@ -162,6 +204,15 @@ export async function startBrowser(executablePath) {
         },
         { test, output },
       );
+      let timer;
+      try {
+        return await Promise.race([
+          evaluation,
+          new Promise((_resolve, reject) => {
+            timer = setTimeout(() => reject(Error(`Browser check timed out after ${timeout}ms`)), timeout);
+          }),
+        ]);
+      } finally { clearTimeout(timer); }
     },
     close: () => browser.close(),
   };

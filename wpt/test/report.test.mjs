@@ -61,6 +61,13 @@ test("embedded CSS, errors and titles cannot escape the HTML or JSON script", ()
   assert.equal(JSON.parse(payload).properties[0].cases[0].value, attack);
 });
 
+test("cascade and priority changes remain visible failure signals", () => {
+  const model = summarize({ results: ["cascade-changed", "priority-changed"].map((status, id) => ({
+    id: String(id), property: "color", value: "red", status: "recognized", browser: { status },
+  })) });
+  assert.equal(model.totals.failure, 2);
+});
+
 test(
   "HTML report filters and lazily expands property/case details",
   { skip: !process.env.WPT_BROWSER_TESTS },
