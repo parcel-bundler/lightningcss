@@ -28,11 +28,22 @@ export async function startBrowser(executablePath, timeout = 5000) {
           const original = document.createElement("div").style;
           const transformed = document.createElement("div").style;
           const property = test.property;
+          const contextDependent = (name, value) => {
+            if (/(?:url\(|var\(|env\()/i.test(value)) return true;
+            // CSSOM can preserve escaped function names. Typed OM identifies
+            // pending substitutions without relying on their source spelling.
+            // Custom properties also use CSSUnparsedValue for plain token lists.
+            try {
+              return !name.startsWith("--") &&
+                CSSStyleValue.parse(name, value) instanceof CSSUnparsedValue;
+            } catch { return false; }
+          };
+          if (contextDependent(property, test.value)) return { status: "context-required" };
           original.setProperty(property, test.value);
           const read = original.getPropertyValue(property);
           // CSS escapes and image-set() strings can introduce URLs even when
           // the source text contains no literal url() function.
-          if (/(?:url\(|var\(|env\()/i.test(read)) return { status: "context-required" };
+          if (contextDependent(property, read)) return { status: "context-required" };
           const matches = (actual, expected) =>
             Array.isArray(expected) ? expected.includes(actual) : actual === expected;
           if (test.kind === "invalid") {
@@ -156,7 +167,7 @@ export async function startBrowser(executablePath, timeout = 5000) {
           // these visible for later contextual checks; don't call them passes.
           if (differences.length) {
             if (/(?:url\(|var\(|env\()/i.test(output) || [...transformed].some(
-              (name) => /(?:url\(|var\(|env\()/i.test(transformed.getPropertyValue(name)),
+              (name) => contextDependent(name, transformed.getPropertyValue(name)),
             ))
               return { status: "context-required", differences };
             // A derived, fixed-size fixture resolves simple equivalent spellings.

@@ -107,6 +107,12 @@ export function capture(file, document) {
       codeGeneration: { strings: false, wasm: false },
       microtaskMode: "afterEvaluate",
     });
+    // Promise handlers use the callback's realm to select their microtask queue.
+    // Expose VM functions so direct or bound helpers also drain before returning.
+    for (const name of helpers.keys()) {
+      collectors[name] = vm.compileFunction("return (...args) => collect(...args)", ["collect"],
+        {parsingContext: context})(collectors[name]);
+    }
     for (const script of document.scripts) {
       if (script.attrs.type &&
           !["text/javascript", "application/javascript"].includes(script.attrs.type.trim().toLowerCase()))

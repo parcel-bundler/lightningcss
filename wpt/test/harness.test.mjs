@@ -73,9 +73,11 @@ test("promise callbacks register cases before capture returns", () => {
   const result = capture("css/example.html", document(`
     Promise.resolve().then(() => test_valid_value('color', 'red'));
     (async () => { await 0; test_valid_value('color', 'blue'); })();
+    Promise.resolve().then(test_valid_value.bind(null, 'color', 'green', 'green'));
+    Promise.resolve('yellow').then(test_valid_value.bind(null, 'color'));
   `));
   assert.equal(result.status, "extracted");
-  assert.deepEqual(result.cases.map(c => c.value), ["red", "blue"]);
+  assert.deepEqual(result.cases.map(c => c.value), ["red", "blue", "green", "yellow"]);
 });
 
 test("promise loops remain inside the evaluation deadline", () => {
@@ -98,6 +100,8 @@ test("caught and asynchronous unsupported helper calls discard partial cases", (
      test_valid_value('color', 'blue');`,
     `test_valid_value('color', 'blue');
      Promise.resolve().then(() => test_valid_value('color', 'red', 'red', {comparisonFunction() {}}));`,
+    `test_valid_value('color', 'blue');
+     Promise.resolve().then(test_valid_value.bind(null, 'color', 'red', 'red', {comparisonFunction() {}}));`,
   ]) {
     const result = capture("css/example.html", document(code));
     assert.equal(result.status, "unsupported");

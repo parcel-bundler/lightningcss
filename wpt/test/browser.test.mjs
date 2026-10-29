@@ -225,3 +225,29 @@ test(
     }
   },
 );
+
+test(
+  "escaped substitutions and attribute dependencies require context on either side",
+  {skip: !process.env.WPT_BROWSER_TESTS},
+  async () => {
+    const browser = await startBrowser(process.env.WPT_CHROME);
+    const valid = (property, value) => ({kind: "valid", property, value, expected: value, contextFree: true});
+    try {
+      // The environment inset is zero in this fixture; matching 0px cannot
+      // establish that replacing the environment reference preserves behavior.
+      assert.equal((await browser.check(valid("width", String.raw`e\6ev(safe-area-inset-top)`),
+        "width:0px")).status, "context-required");
+      assert.equal((await browser.check(valid("color", String.raw`v\61 r(--a)`),
+        String.raw`color:v\61 r(--b)`)).status, "context-required");
+      assert.equal((await browser.check(valid("color", "red"),
+        String.raw`color:v\61 r(--b)`)).status, "context-required");
+      assert.equal((await browser.check(valid("width", "0px"),
+        String.raw`width:e\6ev(safe-area-inset-top)`)).status, "context-required");
+      assert.equal((await browser.check(valid("width", "attr(data-width px, 0px)"),
+        "width:0px")).status, "context-required");
+      assert.equal((await browser.check(valid("--plain", "value"), "--plain:value")).status, "pass");
+      assert.equal((await browser.check(valid("width", "10px"), "width:11px")).status,
+        "computed-difference");
+    } finally { await browser.close(); }
+  },
+);
