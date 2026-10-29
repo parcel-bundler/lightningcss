@@ -14,6 +14,7 @@ use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::image::ImageFallback;
 use crate::values::length::LengthOrNumber;
+use crate::values::number::NonNegative;
 use crate::values::rect::Rect;
 use crate::values::{image::Image, position::Position, shape::BasicShape, url::Url};
 use crate::vendor_prefix::VendorPrefix;
@@ -478,7 +479,7 @@ define_shorthand! {
     /// The width of the mask image.
     width: MaskBorderWidth(Rect<BorderImageSideWidth>),
     /// The amount that the image extends beyond the border box.
-    outset: MaskBorderOutset(Rect<LengthOrNumber>),
+    outset: MaskBorderOutset(Rect<NonNegative<LengthOrNumber>>),
     /// How the mask image is scaled and tiled.
     repeat: MaskBorderRepeat(BorderImageRepeat),
     /// How the mask image is interpreted.
@@ -589,7 +590,7 @@ pub(crate) struct MaskHandler<'i> {
   border_mode: Option<MaskBorderMode>,
   border_slice: Option<(BorderImageSlice, VendorPrefix)>,
   border_width: Option<(Rect<BorderImageSideWidth>, VendorPrefix)>,
-  border_outset: Option<(Rect<LengthOrNumber>, VendorPrefix)>,
+  border_outset: Option<(Rect<NonNegative<LengthOrNumber>>, VendorPrefix)>,
   border_repeat: Option<(BorderImageRepeat, VendorPrefix)>,
   flushed_properties: MaskProperty,
   has_any: bool,
