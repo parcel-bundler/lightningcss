@@ -117,7 +117,7 @@ The 122-case browser run found:
 - One invalid color case fails in the original browser baseline; it is not attributed to Lightning CSS.
 - Equivalent color spellings pass the contextual check. Lowered `light-dark()` output needs the surrounding fallback context and remains deferred.
 
-After merging master at `cbeaf83`, the broader parser-only run caught panics for four infinite-hue inputs. It also reported 40 valid-input errors and substantial property/value coverage gaps. See [VALIDATION.md](VALIDATION.md) for reproduction commands, environment details, and the distinction between case counts and mode executions. These are diagnostic findings; no expected-failure baseline was added.
+After merging master at `cbeaf83`, the broader parser-only run caught panics for four infinite-hue inputs. It also reported 40 valid-input errors and substantial property/value coverage gaps. These are diagnostic findings; no expected-failure baseline was added.
 
 ## Next phases
 
