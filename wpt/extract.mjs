@@ -20,6 +20,16 @@ const scripts = new Set([
   "/css/support/shorthand-testcommon.js",
 ]);
 
+// JavaScript can throw any value, including null and objects with failing getters.
+function errorMessage(error) {
+  try {
+    return (typeof error?.message === "string" && error.message) ||
+      String(error) || "Unknown extraction error";
+  } catch {
+    return "Unknown extraction error";
+  }
+}
+
 export function capture(file, document) {
   const cases = [];
   let scriptLine;
@@ -87,7 +97,7 @@ export function capture(file, document) {
           } catch (error) {
             // Do not let source-level catch blocks or rejected promises hide a
             // helper call that this adapter could not represent.
-            collectionError = error;
+            collectionError = errorMessage(error);
           }
         },
       ]),
@@ -124,12 +134,12 @@ export function capture(file, document) {
           lineOffset: script.line - 1,
           timeout: 500,
         });
-        if (collectionError) throw collectionError;
+        if (collectionError) throw Error(collectionError);
       }
     }
     return { file, status: cases.length ? "extracted" : "empty", cases };
   } catch (error) {
-    return { file, status: "unsupported", reason: error.message, cases: [] };
+    return { file, status: "unsupported", reason: errorMessage(error), cases: [] };
   }
 }
 

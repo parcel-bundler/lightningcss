@@ -106,6 +106,33 @@ test("caught and asynchronous unsupported helper calls discard partial cases", (
   }
 });
 
+test("non-Error throws remain atomic page errors with nonempty reasons", () => {
+  for (const value of ["null", "undefined", "false", "0", '""', '"failure"',
+    "{get message() {throw null}, toString() {throw null}}"]) {
+    const result = capture("css/example.html", document(`
+      test_valid_value('color', 'red'); throw ${value};
+    `));
+    assert.equal(result.status, "unsupported", value);
+    assert.deepEqual(result.cases, []);
+    assert.equal(typeof result.reason, "string");
+    assert.ok(result.reason.length > 0);
+  }
+});
+
+test("falsey exceptions during helper validation cannot hide extraction gaps", () => {
+  for (const value of ["null", "undefined", "false", "0", '""']) {
+    const result = capture("css/example.html", document(`
+      test_valid_value('color', 'red');
+      test_shorthand_value('margin', '0px', {get 'margin-top'() {throw ${value};}});
+      test_valid_value('color', 'blue');
+    `));
+    assert.equal(result.status, "unsupported", value);
+    assert.deepEqual(result.cases, []);
+    assert.equal(typeof result.reason, "string");
+    assert.ok(result.reason.length > 0);
+  }
+});
+
 test("empty pages, variants and unsupported dependencies stay visible", () => {
   assert.equal(capture("css/example.html", document("")).status, "empty");
   assert.equal(
