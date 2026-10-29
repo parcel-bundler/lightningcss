@@ -28,7 +28,7 @@ yarn test:wpt:harness
 WPT_BROWSER_TESTS=1 WPT_CHROME='/path/to/chrome' yarn test:wpt:harness
 ```
 
-The runner always builds `examples/wpt_adapter.rs` from this checkout with Cargo, rather than loading the installed Node binding. It uses a persistent JSONL child process, catches Rust unwinds, and restarts after process crashes/timeouts. Requests carry sequence IDs that the adapter echoes; stale IDs and malformed responses are protocol errors. Unsolicited responses between requests or before cleanup also fail the run. Adapter requests and browser evaluations each have a five-second deadline. A browser error or timeout stops the run with the active case and parser output retained; cleanup failures also preserve the report.
+The runner always builds `examples/wpt_adapter.rs` from this checkout with Cargo, rather than loading the installed Node binding. It uses the executable path reported by Cargo, including when a build target or target directory is configured. Missing or ambiguous executable artifacts fail setup. It uses a persistent JSONL child process, catches Rust unwinds, and restarts after process crashes/timeouts. Requests carry sequence IDs that the adapter echoes; stale IDs and malformed responses are protocol errors. Unsolicited responses between requests or before cleanup also fail the run. Adapter requests and browser evaluations each have a five-second deadline. A browser error or timeout stops the run with the active case and parser output retained; cleanup failures also preserve the report.
 
 Output defaults to ignored `wpt/results.json`; change it with `--output PATH`. Exit codes:
 

@@ -106,24 +106,22 @@ async function main() {
   };
   if (baselinePath !== undefined) validateBaseline(baseline, context);
   // Always compile this checkout. Never load a possibly stale installed Node binary.
-  execFileSync("cargo", ["build", "--locked", "--example", "wpt_adapter"], {
+  const build = execFileSync("cargo", ["build", "--locked", "--example", "wpt_adapter",
+    "--message-format=json-render-diagnostics"], {
     cwd: root,
-    stdio: "inherit",
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "inherit"],
+    maxBuffer: 20e6,
   });
-  const metadata = JSON.parse(
-    execFileSync("cargo", ["metadata", "--locked", "--format-version", "1", "--no-deps"], {
-      cwd: root,
-      encoding: "utf8",
-    }),
-  );
-  const adapter = new Adapter(
-    path.join(
-      metadata.target_directory,
-      "debug",
-      "examples",
-      `wpt_adapter${process.platform === "win32" ? ".exe" : ""}`,
-    ),
-  );
+  const executables = new Set(build.trim().split("\n").filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .filter((message) => message.reason === "compiler-artifact" &&
+      message.target?.name === "wpt_adapter" && message.target.kind.includes("example") &&
+      typeof message.executable === "string")
+    .map((message) => message.executable));
+  if (executables.size !== 1)
+    throw Error("Cargo did not report exactly one wpt_adapter executable");
+  const adapter = new Adapter([...executables][0]);
   const results = [];
   const report = {
     schemaVersion: 1,
