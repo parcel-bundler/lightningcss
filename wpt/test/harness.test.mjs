@@ -69,6 +69,43 @@ test("unsupported setup discards all partial cases", () => {
   }
 });
 
+test("promise callbacks register cases before capture returns", () => {
+  const result = capture("css/example.html", document(`
+    Promise.resolve().then(() => test_valid_value('color', 'red'));
+    (async () => { await 0; test_valid_value('color', 'blue'); })();
+  `));
+  assert.equal(result.status, "extracted");
+  assert.deepEqual(result.cases.map(c => c.value), ["red", "blue"]);
+});
+
+test("promise loops remain inside the evaluation deadline", () => {
+  // Keep a process-level deadline so a broken VM timeout cannot hang the suite.
+  const source = document(`Promise.resolve().then(() => { while (true) {} });`);
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import {capture} from ${JSON.stringify(new URL("../extract.mjs", import.meta.url).href)};
+    console.log(JSON.stringify(capture('css/example.html', ${JSON.stringify(source)})));
+  `], {encoding: "utf8", timeout: 5000});
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  const captured = JSON.parse(result.stdout);
+  assert.equal(captured.status, "unsupported");
+  assert.match(captured.reason, /timed out/);
+  assert.deepEqual(captured.cases, []);
+});
+
+test("caught and asynchronous unsupported helper calls discard partial cases", () => {
+  for (const code of [
+    `try { test_valid_value('color', 'red', 'red', {comparisonFunction() {}}); } catch {}
+     test_valid_value('color', 'blue');`,
+    `test_valid_value('color', 'blue');
+     Promise.resolve().then(() => test_valid_value('color', 'red', 'red', {comparisonFunction() {}}));`,
+  ]) {
+    const result = capture("css/example.html", document(code));
+    assert.equal(result.status, "unsupported");
+    assert.match(result.reason, /custom comparison/);
+    assert.deepEqual(result.cases, []);
+  }
+});
+
 test("empty pages, variants and unsupported dependencies stay visible", () => {
   assert.equal(capture("css/example.html", document("")).status, "empty");
   assert.equal(

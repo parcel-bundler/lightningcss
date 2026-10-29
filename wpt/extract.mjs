@@ -23,6 +23,7 @@ const scripts = new Set([
 export function capture(file, document) {
   const cases = [];
   let scriptLine;
+  let collectionError;
   try {
     if (document.unsupportedReason) throw Error(document.unsupportedReason);
     if (document.variants.length) throw Error("variants require a browser adapter");
@@ -30,62 +31,72 @@ export function capture(file, document) {
       [...helpers].map(([helper, kind]) => [
         helper,
         (...args) => {
-          if (cases.length >= 100000) throw Error("too many generated cases");
-          const [property, value, expected, options] = args;
-          if (typeof property !== "string" || typeof value !== "string")
-            throw Error("non-string property/value");
-          if (options && Object.keys(options).length)
-            throw Error("custom comparison/options require a browser adapter");
-          if (args.length > (kind === "invalid" ? 2 : 4))
-            throw Error("unsupported helper arguments");
-          if (
-            kind === "shorthand" &&
-            (!expected ||
-              typeof expected !== "object" ||
-              Array.isArray(expected) ||
-              Object.values(expected).some((v) => typeof v !== "string"))
-          )
-            throw Error("invalid longhand expectations");
-          if (
-            kind === "valid" &&
-            args.length >= 3 &&
-            typeof expected !== "string" &&
-            !(Array.isArray(expected) && expected.every((v) => typeof v === "string"))
-          )
-            throw Error("unsupported expectation");
-          // JSON cannot carry unpaired UTF-16 surrogates into Rust strings losslessly.
-          const data = {
-            kind,
-            property,
-            value,
-            ...(kind === "invalid" ? {} : { expected: args.length >= 3 ? expected : value }),
-          };
-          JSON.stringify(data, (_key, value) => {
+          if (collectionError) return;
+          try {
+            if (cases.length >= 100000) throw Error("too many generated cases");
+            const [property, value, expected, options] = args;
+            if (typeof property !== "string" || typeof value !== "string")
+              throw Error("non-string property/value");
+            if (options && Object.keys(options).length)
+              throw Error("custom comparison/options require a browser adapter");
+            if (args.length > (kind === "invalid" ? 2 : 4))
+              throw Error("unsupported helper arguments");
             if (
-              typeof value === "string" &&
-              [...value].some((ch) => {
-                const code = ch.codePointAt(0);
-                return code >= 0xd800 && code <= 0xdfff;
-              })
+              kind === "shorthand" &&
+              (!expected ||
+                typeof expected !== "object" ||
+                Array.isArray(expected) ||
+                Object.values(expected).some((v) => typeof v !== "string"))
             )
-              throw Error("unpaired surrogate requires an encoding adapter");
-            return value;
-          });
-          const identity = hash(JSON.stringify({ kind, property, value })).slice(0, 16);
-          const duplicate = cases.filter((c) => c.identity === identity).length;
-          cases.push({
-            id: `${file}#${identity}:${duplicate}`,
-            identity,
-            file,
-            ...data,
-            scriptLine,
-            contextFree: document.contextFree,
-          });
+              throw Error("invalid longhand expectations");
+            if (
+              kind === "valid" &&
+              args.length >= 3 &&
+              typeof expected !== "string" &&
+              !(Array.isArray(expected) && expected.every((v) => typeof v === "string"))
+            )
+              throw Error("unsupported expectation");
+            // JSON cannot carry unpaired UTF-16 surrogates into Rust strings losslessly.
+            const data = {
+              kind,
+              property,
+              value,
+              ...(kind === "invalid" ? {} : { expected: args.length >= 3 ? expected : value }),
+            };
+            JSON.stringify(data, (_key, value) => {
+              if (
+                typeof value === "string" &&
+                [...value].some((ch) => {
+                  const code = ch.codePointAt(0);
+                  return code >= 0xd800 && code <= 0xdfff;
+                })
+              )
+                throw Error("unpaired surrogate requires an encoding adapter");
+              return value;
+            });
+            const identity = hash(JSON.stringify({ kind, property, value })).slice(0, 16);
+            const duplicate = cases.filter((c) => c.identity === identity).length;
+            cases.push({
+              id: `${file}#${identity}:${duplicate}`,
+              identity,
+              file,
+              ...data,
+              scriptLine,
+              contextFree: document.contextFree,
+            });
+          } catch (error) {
+            // Do not let source-level catch blocks or rejected promises hide a
+            // helper call that this adapter could not represent.
+            collectionError = error;
+          }
         },
       ]),
     );
     const sandbox = {};
-    const context = vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false } });
+    const context = vm.createContext(sandbox, {
+      codeGeneration: { strings: false, wasm: false },
+      microtaskMode: "afterEvaluate",
+    });
     for (const script of document.scripts) {
       if (script.attrs.type &&
           !["text/javascript", "application/javascript"].includes(script.attrs.type.trim().toLowerCase()))
@@ -113,6 +124,7 @@ export function capture(file, document) {
           lineOffset: script.line - 1,
           timeout: 500,
         });
+        if (collectionError) throw collectionError;
       }
     }
     return { file, status: cases.length ? "extracted" : "empty", cases };
