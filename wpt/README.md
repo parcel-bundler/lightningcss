@@ -1,12 +1,12 @@
 # WPT diagnostic harness
 
-This harness adapts a subset of the Web Platform Tests to Lightning CSS. It is a diagnostic tool, not a claim of browser conformance. It runs locally on demand and in a **non-blocking GitHub Actions workflow**. There is no accepted-failure baseline yet.
+This harness adapts a subset of the Web Platform Tests to Lightning CSS. It is a diagnostic tool, not a claim of browser conformance. It runs locally on demand and in GitHub Actions. Corpus diagnostics are **non-blocking**; the harness's own tests run in a separate job that fails on test errors. There is no accepted-failure baseline yet.
 
 The initial milestone implements property-value extraction, parser recognition, and browser checks for context-free parsing/shorthand helpers. It uses the pinned revision in `revision.json`; `fixtures.json` is generated locally or in CI and is not committed. The full current extraction contains 24,344 cases from 902 pages, plus records for 150 unsupported and 9 empty pages. `selection.json` retains the optional eight-file starter selection. Derived fixtures retain their upstream paths and source hashes; see `LICENSE-WPT.md`.
 
 ## Run
 
-Use the repository's normal Rust/Node development setup. Node 18+ is needed for the harness tests. Python 3 is needed only to regenerate fixtures. Existing Puppeteer is used for browser checks; no new dependencies are installed.
+Use the repository's normal Rust/Node development setup, including Node 24+ as required by `package.json`. Python 3 is needed to regenerate fixtures and run the HTML reader tests. Browser checks use the existing Puppeteer dependency and an available Chrome executable.
 
 ```sh
 # After generating fixtures (see below): parser/serializer/optimizer diagnostics.
@@ -39,9 +39,11 @@ The four modes are `print`, `minify`, `lower`, and `lower-minify`. `print` only 
 
 ## GitHub Actions
 
-`.github/workflows/wpt.yml` runs on pull requests to `master`, pushes to `master`, and manual dispatch. It clones the revision from `wpt/revision.json` into the runner's temporary directory, extracts the full corpus with `--discovery`, and runs all four parser/transform modes. Browser checks are not enabled in this workflow.
+`.github/workflows/wpt.yml` runs on pull requests to `master`, pushes to `master`, and manual dispatch. The **WPT harness tests** job runs the Rust adapter and Node tests, including the browser oracle and HTML report tests, using Chrome installed on the Ubuntu runner.
 
-The job uses `continue-on-error` so findings do not fail the overall workflow. Report generation and artifact upload run after test failures whenever results are available. Download the **wpt-report** artifact from the Actions run to get `results.html` and the underlying `results.json`; artifacts are retained for 14 days. Setup failures that produce no results remain visible in the job logs.
+The separate **WPT diagnostics (non-blocking)** job clones the revision from `wpt/revision.json` into the runner's temporary directory, extracts the full corpus with `--discovery`, and runs all four parser/transform modes. Browser checks are not enabled for this corpus run.
+
+The diagnostics job uses `continue-on-error` so findings do not fail the overall workflow. Report generation and artifact upload run after test failures whenever results are available. Download and unzip the **wpt-report** artifact from the Actions run to get `results.html` and the underlying `results.json`; artifacts are retained for 14 days. Setup failures that produce no results remain visible in the job logs.
 
 ## Readable HTML reports
 
@@ -61,7 +63,7 @@ The HTML summarizes the supplied results file; it does not rerun tests or change
 
 ## Refresh or expand the corpus
 
-Generate `fixtures.json` before the first local run. A checkout is only necessary for extraction. The research checkout may still be available at `/private/tmp/lightningcss-wpt-research`. For a new checkout:
+Generate `fixtures.json` before the first local run. A WPT checkout is only necessary for extraction. For a new checkout:
 
 ```sh
 git clone --depth 1 --filter=blob:none --sparse https://github.com/web-platform-tests/wpt.git /tmp/lightningcss-wpt
@@ -81,7 +83,7 @@ Extraction requires the pinned HEAD and an unmodified CSS checkout. It parses HT
 
 Each page is atomic: an unsupported dependency, DOM access, callback comparator, selector/rule helper, variant, script type, unpaired surrogate, or evaluation error discards all its partial cases and records the reason. Empty pages are also explicit. Only the known helper scripts are replaced; arbitrary external scripts are never fetched or evaluated. Node's VM is an evaluation convenience with a time limit, **not a security boundary**; use trusted pinned upstream source.
 
-Discovery currently extracts 24,344 calls from 902 pages, with 150 unsupported and 9 empty pages. These totals are helper calls, not browser assertions or passes. They differ from the research probe because this implementation supports fewer helper families and rejects unsupported options instead of losing them during JSON serialization. No source-file modifications or regex rewrites of CSS/JS are used to extract cases.
+Discovery currently extracts 24,344 calls from 902 pages, with 150 unsupported and 9 empty pages. These totals are helper calls, not browser assertions or passes. Unsupported helper families and options remain explicit extraction gaps. No source-file modifications or regex rewrites of CSS/JS are used to extract cases.
 
 ## Interpretation
 
@@ -100,7 +102,7 @@ The Rust adapter uses `Property::parse` and requires the complete value to be co
 
 Deferred classification is based on recognized token structure and is not a strict validation oracle for every substitution-containing grammar. Unknown standard properties remain visible even if their value is a CSS-wide keyword.
 
-Browser checks first establish WPT's original specified-value expectation, including acceptable serialization arrays, shorthand longhands, unrelated-longhand checks, and valid-value round trips. They then apply emitted declarations to a fresh style and compare longhands. Invalid input must remain invalid and leave a preceding valid fallback unchanged. Shorthands also receive a derived test with longhands preseeded to `inherit` to expose missing resets.
+Browser checks first establish WPT's original specified-value expectation, including acceptable serialization arrays, shorthand longhands, unrelated-longhand checks, and valid-value round trips. Shorthand baselines also check `CSS.supports` and each expected longhand's serialization round trip. They then apply emitted declarations to a fresh style and compare longhands. Invalid input must remain invalid and leave a preceding valid fallback unchanged. Shorthands also receive a derived test with longhands preseeded to `inherit` to expose missing resets.
 
 When CSSOM spelling differs, a derived fixed-size fixture compares the affected computed values. A `contextual-match` is evidence only for that fixture; `computed-difference` is a concrete observable difference. This prevents harmless color spelling changes from becoming failures while keeping longhand changes visible. URL/substitution-dependent output and source fixtures with styles or `#target` are deferred explicitly. The harness does not load arbitrary WPT pages in the browser at this stage.
 
@@ -111,11 +113,11 @@ Reports contain WPT and Lightning CSS revisions, dirty-tree metadata, adapter an
 The 122-case browser run found:
 
 - `column-gap: 10` is browser-invalid but prints as valid `column-gap: 10px` in all four modes.
-- Two animation shorthand cases lose duration, delay, timing function, and iteration-count values for an animation named `none`; the derived browser check exposes changed computed longhands. These need review in context before changing optimization behavior.
+- Two animation shorthand cases lose duration, delay, timing function, and iteration-count values when an item has no animation name; the derived browser check exposes changed computed longhands. These need review in context before changing optimization behavior.
 - One invalid color case fails in the original browser baseline; it is not attributed to Lightning CSS.
 - Equivalent color spellings pass the contextual check. Lowered `light-dark()` output needs the surrounding fallback context and remains deferred.
 
-The broader parser-only run caught nine panics, including infinite hue values and mixed number/percentage math for `opacity`. It also reported 40 valid-input errors and substantial property/value coverage gaps. These are diagnostic findings; neither production code nor expected-failure baselines were changed to make them pass.
+After merging master at `cbeaf83`, the broader parser-only run caught panics for four infinite-hue inputs. It also reported 40 valid-input errors and substantial property/value coverage gaps. See [VALIDATION.md](VALIDATION.md) for reproduction commands, environment details, and the distinction between case counts and mode executions. These are diagnostic findings; no expected-failure baseline was added.
 
 ## Next phases
 
@@ -124,4 +126,4 @@ The broader parser-only run caught nine panics, including infinite hue values an
 3. **Next:** selector/rule/media/recovery adapters and contextual computed-value tests under WPT's server.
 4. **Later:** selected reftests with untransformed references, then a separately reviewed CI baseline and scheduled discovery.
 
-Keep CI non-blocking until findings and assertion policy have been reviewed. The design rationale and broader scope are in `../WPT-HARNESS-RESEARCH.md`.
+Keep corpus diagnostics non-blocking until findings and assertion policy have been reviewed. The harness's own tests must continue to pass.

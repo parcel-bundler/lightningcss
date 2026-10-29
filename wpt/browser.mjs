@@ -45,6 +45,19 @@ export async function startBrowser(executablePath) {
               };
           }
           if (test.kind === "shorthand") {
+            if (!CSS.supports(property, test.value))
+              return { status: "baseline-failure", reason: "CSS.supports rejected shorthand" };
+            for (const name of Object.keys(test.expected)) {
+              const check = document.createElement("div").style;
+              const value = original.getPropertyValue(name);
+              check.setProperty(name, value);
+              if (check.getPropertyValue(name) !== value)
+                return {
+                  status: "baseline-failure",
+                  reason: "longhand serialization did not round-trip",
+                  property: name,
+                };
+            }
             const check = document.createElement("div").style;
             check.setProperty(property, test.value);
             for (const name of Object.keys(test.expected)) check.removeProperty(name);
