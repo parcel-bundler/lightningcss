@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Adapter } from "../adapter.mjs";
+import { runCases } from "../run.mjs";
+import { exitCode } from "../baseline.mjs";
 
 test("late responses cannot be attributed to the next case, and recovery restarts the child", async () => {
   const script = `let previous;
@@ -52,4 +54,42 @@ test("serialization failures leave no pending request or child process", () => {
   assert.throws(() => adapter.request(circular), /circular/i);
   assert.ok(!adapter.pending);
   assert.ok(!adapter.child);
+});
+
+const duplicateResponseScript = `
+  require('readline').createInterface({input:process.stdin}).on('line',line=>{
+    const v=JSON.parse(line);
+    const response=JSON.stringify({requestId:v.requestId,recognition:'typed',code:'color:red'});
+    process.stdout.write(response+'\\n'+response+'\\n');
+  });`;
+
+test("duplicate responses between requests cannot be silently discarded", async () => {
+  const adapter = new Adapter(process.execPath, 1000, ["-e", duplicateResponseScript]);
+  try {
+    assert.equal((await adapter.request({})).code, "color:red");
+    // Both lines are emitted in one write; readline delivers the idle duplicate
+    // before the promise continuation requests the next case.
+    assert.throws(() => adapter.request({}), /Unsolicited adapter response/);
+    assert.equal(adapter.child, null);
+  } finally { adapter.close(); }
+});
+
+test("cleanup reports an unsolicited response after the final case", async () => {
+  const adapter = new Adapter(process.execPath, 1000, ["-e", duplicateResponseScript]);
+  assert.equal((await adapter.request({})).code, "color:red");
+  assert.throws(() => adapter.close(), /Unsolicited adapter response/);
+  assert.equal(adapter.child, null);
+  // Cleanup remains safe to repeat after reporting the error.
+  adapter.close();
+});
+
+test("a final duplicate response makes the run fail with retained parser results", async () => {
+  const adapter = new Adapter(process.execPath, 1000, ["-e", duplicateResponseScript]);
+  const report = {modes: ["print"], results: [], pages: []};
+  await runCases(report, [{id: "red", kind: "valid", property: "color", value: "red"}], adapter);
+  report.complete = !report.harnessError && report.results.length === 1;
+  assert.equal(report.results[0].code, "color:red");
+  assert.match(report.harnessError, /Unsolicited adapter response/);
+  assert.equal(report.complete, false);
+  assert.equal(exitCode(report), 2);
 });

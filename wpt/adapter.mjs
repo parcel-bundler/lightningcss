@@ -23,7 +23,11 @@ export class Adapter {
     const lines = readline.createInterface({input: child.stdout});
     lines.on('line', (line) => {
       if (child !== this.child) return;
-      if (!this.pending) { this.close(); return; }
+      if (!this.pending) {
+        this.close();
+        this.protocolError = Error(`Unsolicited adapter response: ${line}`);
+        return;
+      }
       try {
         const response = JSON.parse(line);
         const successes = ['typed', 'unparsed', 'css-wide', 'custom-property', 'unknown-property', 'deferred'];
@@ -66,6 +70,7 @@ export class Adapter {
     resolve(value);
   }
   request(input) {
+    this.checkProtocolError();
     if (this.pending)
       throw Error('Concurrent adapter requests are unsupported');
     const requestId = ++this.sequence;
@@ -82,9 +87,15 @@ export class Adapter {
       this.child.stdin.write(line);
     });
   }
+  checkProtocolError() {
+    const error = this.protocolError;
+    this.protocolError = null;
+    if (error) throw error;
+  }
   close() {
     this.finish({recognition: 'protocol-error', error: 'Adapter closed before responding'});
     this.child?.kill('SIGKILL');
     this.child = null;
+    this.checkProtocolError();
   }
 }
