@@ -46,7 +46,7 @@ The four modes are `print`, `minify`, `lower`, and `lower-minify`. `print` only 
 
 The separate **WPT regression tests** job clones the revision from `wpt/revision.json` into the runner's temporary directory, extracts the full corpus with `--discovery`, and runs all four parser/transform modes against `baseline.json`. It requires `--baseline-corpus discovery` so the starter selection cannot accidentally replace the full corpus. Browser checks are not enabled for this corpus run.
 
-Both jobs fail the workflow on errors. Report generation and artifact upload run after test failures whenever results are available. Download and unzip the **wpt-report** artifact from the Actions run to get `results.html`; artifacts are retained for 14 days. The intermediate `results.json` is used to generate the report and is not uploaded. Setup failures that produce no results remain visible in the job logs.
+Both jobs fail the workflow on errors. Report generation and artifact upload run after test failures whenever results are available. Download the **results.html** artifact directly from the Actions run; it is uploaded without a ZIP archive and retained for 14 days. The intermediate `results.json` is used to generate the report and is not uploaded. Setup failures that produce no results remain visible in the job logs.
 
 ## Reviewed failure baseline
 
