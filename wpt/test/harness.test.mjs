@@ -432,3 +432,73 @@ test("page deadlines replace a stalled capture worker and preserve later pages",
     assert.equal(passed.cases[0].value, 'blue');
   } finally { await worker.close(); }
 });
+
+test("HTML execution policies and frameset mode cannot produce phantom cases", () => {
+  for (const prefix of [
+    `<meta http-equiv="Content-Security-Policy" content="script-src 'none'">`,
+    `<meta HTTP-EQUIV="CONTENT-SECURITY-POLICY" content="script-src 'none'">`,
+    `<frameset>`,
+  ]) {
+    const source = `<!doctype html>${prefix}
+      <script src="/css/support/parsing-testcommon.js"></script>
+      <script>test_valid_value('color','red')</script>`;
+    const parsed = spawnSync('python3', [fileURLToPath(new URL('../read-html.py', import.meta.url))], {
+      input:JSON.stringify(source)+'\n', encoding:'utf8',
+    });
+    assert.equal(parsed.status, 0, parsed.stderr);
+    const result = capture('css/example.html', JSON.parse(parsed.stdout));
+    assert.equal(result.status, 'unsupported');
+    assert.match(result.reason, /(?:CSP|frameset)/);
+    assert.deepEqual(result.cases, []);
+  }
+});
+
+test("integrity constraints cannot be bypassed by replacing helper scripts", () => {
+  const input = document("test_valid_value('color','red')");
+  input.scripts[0].attrs.integrity = 'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+  const result = capture('css/example.html', input);
+  assert.equal(result.status, 'unsupported');
+  assert.match(result.reason, /script integrity/);
+  assert.deepEqual(result.cases, []);
+  for (const integrity of ['', ' ', null]) {
+    input.scripts[0].attrs.integrity = integrity;
+    assert.equal(capture('css/example.html', input).status, 'extracted');
+  }
+});
+
+test("HTML double-escaped script text is deferred instead of truncated", () => {
+  for (const script of [
+    `<!-- <script>\n// </script>\ntest_valid_value('color','red');\n// -->\n</script>`,
+    `<!--<SCRIPT>\ntest_valid_value('color','red');\n</script>\n--></script>`,
+  ]) {
+    const source = `<!doctype html><script src="/css/support/parsing-testcommon.js"></script><script>${script}`;
+    const parsed = spawnSync('python3', [fileURLToPath(new URL('../read-html.py', import.meta.url))], {
+      input:JSON.stringify(source)+'\n', encoding:'utf8',
+    });
+    assert.equal(parsed.status, 0, parsed.stderr);
+    const result = capture('css/example.html', JSON.parse(parsed.stdout));
+    assert.equal(result.status, 'unsupported');
+    assert.match(result.reason, /double-escaped scripts/);
+    assert.deepEqual(result.cases, []);
+  }
+});
+
+test("only recognized standards-mode documents use the context-free fixture", () => {
+  const body = `<script src="/css/support/parsing-testcommon.js"></script>
+    <script>test_valid_value('width','10','10px')</script>`;
+  for (const [prefix, expected] of [
+    ['', false], ['<!doctype html>', true], ['<!-- comment -->\n<!DOCTYPE HTML>', true],
+    ['text<!doctype html>', false], ['<html><!doctype html>', false],
+    ['&nbsp;<!doctype html>', false], ['</p><!doctype html>', false],
+  ]) {
+    const parsed = spawnSync('python3', [fileURLToPath(new URL('../read-html.py', import.meta.url))], {
+      input:JSON.stringify(prefix+body)+'\n', encoding:'utf8',
+    });
+    assert.equal(parsed.status, 0, parsed.stderr);
+    const document = JSON.parse(parsed.stdout);
+    assert.equal(document.contextFree, expected, prefix);
+    const result = capture('css/example.html', document);
+    assert.equal(result.status, 'extracted');
+    assert.equal(result.cases[0].contextFree, expected);
+  }
+});

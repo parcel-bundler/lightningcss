@@ -245,9 +245,34 @@ test(
         String.raw`width:e\6ev(safe-area-inset-top)`)).status, "context-required");
       assert.equal((await browser.check(valid("width", "attr(data-width px, 0px)"),
         "width:0px")).status, "context-required");
-      assert.equal((await browser.check(valid("--plain", "value"), "--plain:value")).status, "pass");
+      assert.equal((await browser.check(valid("--plain", "value"), "--plain:value")).status, "baseline-failure");
       assert.equal((await browser.check(valid("width", "10px"), "width:11px")).status,
         "computed-difference");
     } finally { await browser.close(); }
   },
 );
+
+test("original baselines preserve WPT IDL setters and shorthand longhand names", {
+  skip: !process.env.WPT_BROWSER_TESTS,
+}, async () => {
+  const browser = await startBrowser(process.env.WPT_CHROME);
+  try {
+    for (const property of ['--plain','COLOR','getPropertyValue']) {
+      const value = property === '--plain' ? 'value' : 'red';
+      const result = await browser.check({kind:'valid',property,value,expected:value,contextFree:true},
+        `${property}:${value}`);
+      assert.equal(result.status, 'baseline-failure', property);
+    }
+    const shorthand = {kind:'shorthand',property:'margin',value:'1px',contextFree:true,
+      expected:{marginTop:'1px',marginRight:'1px',marginBottom:'1px',marginLeft:'1px'}};
+    assert.equal((await browser.check(shorthand,'margin:1px')).status, 'pass');
+    const changed = await browser.check(shorthand,'margin:2px');
+    assert.equal(changed.status, 'computed-difference');
+    assert.ok(changed.computed.every(item => item.property.includes('-')));
+    assert.equal((await browser.check(shorthand,'margin-top:1px')).status, 'shorthand-reset-changed');
+    assert.equal((await browser.check({...shorthand,expected:{marginTop:'2px'}},'margin:1px')).status,
+      'baseline-failure');
+    assert.equal((await browser.check({kind:'valid',property:'width',value:'10',expected:'10px',contextFree:false},
+      'width:10px')).status, 'fixture-required');
+  } finally { await browser.close(); }
+});

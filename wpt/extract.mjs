@@ -135,6 +135,8 @@ export function capture(file, document) {
       // Classic nomodule scripts do not execute in the browser used by this harness.
       if ("nomodule" in script.attrs) continue;
       if ("src" in script.attrs) {
+        if ((script.attrs.integrity ?? "").trim())
+          throw Error("script integrity requires a browser adapter");
         if ("async" in script.attrs || "defer" in script.attrs)
           throw Error("asynchronous helper scripts require a browser adapter");
         if (!script.attrs.src) throw Error("empty external script URL");

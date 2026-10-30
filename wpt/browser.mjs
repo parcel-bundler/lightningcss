@@ -39,8 +39,13 @@ export async function startBrowser(executablePath, timeout = 5000) {
             } catch { return false; }
           };
           if (contextDependent(property, test.value)) return { status: "context-required" };
-          original.setProperty(property, test.value);
-          const read = original.getPropertyValue(property);
+          let read;
+          try {
+            original[property] = test.value;
+            read = original.getPropertyValue(property);
+          } catch (error) {
+            return {status: "baseline-failure", reason: "original setter threw", error: error.message};
+          }
           // CSS escapes and image-set() strings can introduce URLs even when
           // the source text contains no literal url() function.
           if (contextDependent(property, read)) return { status: "context-required" };
@@ -54,7 +59,7 @@ export async function startBrowser(executablePath, timeout = 5000) {
             return { status: "baseline-failure", actual: read, expected: test.expected };
           } else if (test.kind === "shorthand") {
             const differences = Object.entries(test.expected).filter(
-              ([name, value]) => original.getPropertyValue(name) !== value,
+              ([name, value]) => original[name] !== value,
             );
             if (differences.length)
               return {
@@ -62,7 +67,7 @@ export async function startBrowser(executablePath, timeout = 5000) {
                 differences: differences.map(([name, expected]) => ({
                   property: name,
                   expected,
-                  actual: original.getPropertyValue(name),
+                  actual: original[name],
                 })),
               };
           }
@@ -71,9 +76,9 @@ export async function startBrowser(executablePath, timeout = 5000) {
               return { status: "baseline-failure", reason: "CSS.supports rejected shorthand" };
             for (const name of Object.keys(test.expected)) {
               const check = document.createElement("div").style;
-              const value = original.getPropertyValue(name);
-              check.setProperty(name, value);
-              if (check.getPropertyValue(name) !== value)
+              const value = original[name];
+              check[name] = value;
+              if (check[name] !== value)
                 return {
                   status: "baseline-failure",
                   reason: "longhand serialization did not round-trip",
@@ -81,8 +86,8 @@ export async function startBrowser(executablePath, timeout = 5000) {
                 };
             }
             const check = document.createElement("div").style;
-            check.setProperty(property, test.value);
-            for (const name of Object.keys(test.expected)) check.removeProperty(name);
+            check[property] = test.value;
+            for (const name of Object.keys(test.expected)) check[name] = "";
             if (check.length)
               return {
                 status: "baseline-failure",
@@ -92,7 +97,7 @@ export async function startBrowser(executablePath, timeout = 5000) {
           }
           if (test.kind === "valid") {
             const check = document.createElement("div").style;
-            check.setProperty(property, read);
+            check[property] = read;
             if (check.getPropertyValue(property) !== read)
               return { status: "baseline-failure", reason: "serialization did not round-trip" };
           }
