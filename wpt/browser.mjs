@@ -24,7 +24,9 @@ export async function startBrowser(executablePath, timeout = 5000) {
       if (!test.contextFree) return { status: "fixture-required" };
       if (/(?:url\(|var\(|env\()/i.test(test.value)) return { status: "context-required" };
       const evaluation = page.evaluate(
-        ({ test, output }) => {
+        (input) => {
+          "use strict";
+          const {test, output} = input;
           const original = document.createElement("div").style;
           const transformed = document.createElement("div").style;
           const property = test.property;

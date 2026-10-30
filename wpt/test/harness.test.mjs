@@ -502,3 +502,62 @@ test("only recognized standards-mode documents use the context-free fixture", ()
     assert.equal(result.cases[0].contextFree, expected);
   }
 });
+
+test("event-driven calls cannot be accepted as a partial extracted page", () => {
+  for (const code of [
+    "onload = () => test_valid_value('color','blue'); test_valid_value('color','red');",
+    "globalThis.onload = () => test_valid_value('color','blue'); test_valid_value('color','red');",
+  ]) {
+    const result = capture('css/example.html', document(code));
+    assert.equal(result.status,'unsupported');
+    assert.match(result.reason,/event-handler globals/);
+    assert.deepEqual(result.cases,[]);
+  }
+  const source=`<!doctype html><script src="/css/support/parsing-testcommon.js"></script>
+    <body onload="test_valid_value('color','blue')"><script>test_valid_value('color','red')</script>`;
+  const parsed=spawnSync('python3',[fileURLToPath(new URL('../read-html.py',import.meta.url))],{
+    input:JSON.stringify(source)+'\n',encoding:'utf8',
+  });
+  assert.equal(parsed.status,0,parsed.stderr);
+  const result=capture('css/example.html',JSON.parse(parsed.stdout));
+  assert.equal(result.status,'unsupported');
+  assert.match(result.reason,/event handlers/);
+  assert.deepEqual(result.cases,[]);
+});
+
+test("external charset and credentials cannot alter replaced helper execution", () => {
+  for (const attrs of [
+    {src:'/css/support/parsing-testcommon.js',charset:'utf-16le'},
+    {src:'https://user:pass@wpt.invalid/css/support/parsing-testcommon.js'},
+  ]) {
+    const source=document("test_valid_value('color','red')");
+    source.scripts[0].attrs=attrs;
+    const result=capture('css/example.html',source);
+    assert.equal(result.status,'unsupported');
+    assert.match(result.reason,/(?:charset|unsupported dependency)/);
+    assert.deepEqual(result.cases,[]);
+  }
+});
+
+test("script MIME types trim only HTML ASCII whitespace", () => {
+  for (const [type, status] of [[' \ttext/javascript\r\n','extracted'],['\u00a0text/javascript\u00a0','unsupported']]) {
+    const source=document("test_valid_value('color','red')");
+    source.scripts.at(-1).attrs.type=type;
+    assert.equal(capture('css/example.html',source).status,status);
+  }
+});
+
+test("literal NUL HTML is deferred while JS-generated NUL values remain intact", () => {
+  for (const [value, expectedStatus] of [['"a\0b"','unsupported'],[String.raw`"a\0b"`,'extracted']]) {
+    const source=`<!doctype html><script src="/css/support/parsing-testcommon.js"></script>
+      <script>test_valid_value('content', '${value}')</script>`;
+    const parsed=spawnSync('python3',[fileURLToPath(new URL('../read-html.py',import.meta.url))],{
+      input:JSON.stringify(source)+'\n',encoding:'utf8',
+    });
+    assert.equal(parsed.status,0,parsed.stderr);
+    const result=capture('css/example.html',JSON.parse(parsed.stdout));
+    assert.equal(result.status,expectedStatus);
+    if(expectedStatus==='unsupported') assert.match(result.reason,/literal NUL/);
+    else assert.equal(result.cases[0].value,'"a\0b"');
+  }
+});

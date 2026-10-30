@@ -9,7 +9,7 @@ import { runCases } from "../run.mjs";
 import { exitCode } from "../baseline.mjs";
 import { revision } from "../extract.mjs";
 
-const cases = [{ id: "color-red", property: "color", value: "red", kind: "valid" }];
+const cases = [{ id: "color-red", property: "color", value: "red", expected: "red", kind: "valid" }];
 const report = () => ({ modes: ["print"], results: [], pages: [] });
 
 test("CLI output cannot overwrite its fixture or baseline inputs", () => {
@@ -159,4 +159,32 @@ test("CLI runs Cargo's reported artifact and rejects missing or ambiguous execut
       }
     }
   } finally { fs.rmSync(directory, {recursive: true, force: true}); }
+});
+
+test("malformed fixture cases fail setup before Cargo or browser execution", () => {
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'wpt-fixture-schema-'));
+  try {
+    const input=path.join(directory,'fixtures.json');
+    const output=path.join(directory,'results.json');
+    const mutations=[
+      corpus=>{corpus.cases[0].kind='invalid-typo';},
+      corpus=>{corpus.cases.push({...corpus.cases[0]});},
+      corpus=>{delete corpus.cases[0].expected;},
+      corpus=>{corpus.cases[0].expected=42;},
+      corpus=>{corpus.cases[0].kind='shorthand';corpus.cases[0].expected='red';},
+      corpus=>{corpus.cases[0].code='color:blue';},
+      corpus=>{corpus.cases[0].contextFree='yes';},
+      corpus=>{corpus.pages=[{file:'page.html',status:'unsupported'}];},
+    ];
+    for(const mutate of mutations){
+      const corpus={schemaVersion:revision.schemaVersion,wptRevision:revision.commit,cases:cases.map(c=>({...c})),pages:[]};
+      mutate(corpus);
+      fs.writeFileSync(input,JSON.stringify(corpus));
+      const result=spawnSync(process.execPath,[fileURLToPath(new URL('../run.mjs',import.meta.url)),
+        '--fixtures',input,'--modes','print','--output',output],{encoding:'utf8'});
+      assert.equal(result.status,2,result.stderr);
+      assert.match(result.stderr,/Invalid WPT fixture/);
+      assert.equal(fs.existsSync(output),false);
+    }
+  } finally {fs.rmSync(directory,{recursive:true,force:true});}
 });

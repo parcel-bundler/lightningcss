@@ -15,6 +15,7 @@ const helpers = new Map([
   ["test_invalid_value", "invalid"],
   ["test_shorthand_value", "shorthand"],
 ]);
+const trimASCII = (value) => value.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "");
 const scripts = new Set([
   "/resources/testharness.js",
   "/resources/testharnessreport.js",
@@ -128,20 +129,23 @@ export function capture(file, document) {
     }
     for (const script of document.scripts) {
       if (script.attrs.type &&
-          !["text/javascript", "application/javascript"].includes(script.attrs.type.trim().toLowerCase()))
+          !["text/javascript", "application/javascript"].includes(trimASCII(script.attrs.type).toLowerCase()))
         throw Error(`unsupported script type: ${script.attrs.type}`);
       if (["language", "for", "event"].some((name) => name in script.attrs))
         throw Error("legacy script attributes require a browser adapter");
       // Classic nomodule scripts do not execute in the browser used by this harness.
       if ("nomodule" in script.attrs) continue;
       if ("src" in script.attrs) {
+        if (trimASCII(script.attrs.charset ?? ""))
+          throw Error("script charset requires an encoding adapter");
         if ((script.attrs.integrity ?? "").trim())
           throw Error("script integrity requires a browser adapter");
         if ("async" in script.attrs || "defer" in script.attrs)
           throw Error("asynchronous helper scripts require a browser adapter");
         if (!script.attrs.src) throw Error("empty external script URL");
         const url = new URL(script.attrs.src, `https://wpt.invalid/${file}`);
-        if (url.origin !== "https://wpt.invalid" || url.search || !scripts.has(url.pathname)) {
+        if (url.origin !== "https://wpt.invalid" || url.username || url.password ||
+            url.search || !scripts.has(url.pathname)) {
           throw Error(`unsupported dependency: ${script.attrs.src}`);
         }
         if (url.pathname === "/css/support/parsing-testcommon.js") {
@@ -159,6 +163,10 @@ export function capture(file, document) {
           displayErrors: false,
         });
         if (collectionError) throw Error(collectionError);
+        // These globals can register callbacks that execute after inline scripts.
+        // Do not accept a partial page without running its event lifecycle.
+        if (Object.getOwnPropertyNames(sandbox).some((name) => /^on[a-z]+$/i.test(name)))
+          throw Error("event-handler globals require a browser adapter");
       }
     }
     return { file, status: cases.length ? "extracted" : "empty", cases };

@@ -9,7 +9,7 @@
   "corpora": [
     {
       "name": "discovery",
-      "hash": "5098cdb7a5b517b3ceac6f8686df804f1b751f67a66a001d2c04a6ee0aacd471"
+      "hash": "5e454cfb8c950d63caf52ea94ec50d7add54f34535f49d79ef2a6a8ffd3af69a"
     },
     {
       "name": "starter",
@@ -48,7 +48,7 @@
     "selector-rule-helper": "The listed pages call selector, rule, keyframes or legacy-alias helpers outside the current property/shorthand adapter.",
     "browser-setup": "The listed pages need DOM, CSS, test(), setup(), or a named element from the original browser fixture. Partial extracted cases are discarded atomically.",
     "extra-helper-arguments": "These two upstream pages pass extra arguments to test_invalid_value. The extractor deliberately rejects unsupported helper signatures and discards the page.",
-    "empty-page": "These nine scrollbar pages contain browser/load-driven tests rather than immediately executed property-helper calls. Keep their empty extraction visible."
+    "event-driven-fixtures": "These nine scrollbar pages register DOM/layout test assertions from body onload=performTest(). They previously produced no cases because the event lifecycle was never executed. Reviewed each source page; keep them as explicit unsupported event-driven fixtures. No parser cases or CSS failure expectations changed."
   },
   "failures": [
     {
@@ -15124,56 +15124,63 @@
     },
     {
       "file": "css/css-scrollbars/scrollbar-color-003.html",
-      "status": "empty",
-      "review": "empty-page",
+      "status": "unsupported",
+      "reason": "event handlers require a browser adapter",
+      "review": "event-driven-fixtures",
       "corpora": [
         "discovery"
       ]
     },
     {
       "file": "css/css-scrollbars/scrollbar-color-004.html",
-      "status": "empty",
-      "review": "empty-page",
+      "status": "unsupported",
+      "reason": "event handlers require a browser adapter",
+      "review": "event-driven-fixtures",
       "corpora": [
         "discovery"
       ]
     },
     {
       "file": "css/css-scrollbars/scrollbar-color-005.html",
-      "status": "empty",
-      "review": "empty-page",
+      "status": "unsupported",
+      "reason": "event handlers require a browser adapter",
+      "review": "event-driven-fixtures",
       "corpora": [
         "discovery"
       ]
     },
     {
       "file": "css/css-scrollbars/scrollbar-width-001.html",
-      "status": "empty",
-      "review": "empty-page",
+      "status": "unsupported",
+      "reason": "event handlers require a browser adapter",
+      "review": "event-driven-fixtures",
       "corpora": [
         "discovery"
       ]
     },
     {
       "file": "css/css-scrollbars/scrollbar-width-002.html",
-      "status": "empty",
-      "review": "empty-page",
+      "status": "unsupported",
+      "reason": "event handlers require a browser adapter",
+      "review": "event-driven-fixtures",
       "corpora": [
         "discovery"
       ]
     },
     {
       "file": "css/css-scrollbars/scrollbar-width-003.html",
-      "status": "empty",
-      "review": "empty-page",
+      "status": "unsupported",
+      "reason": "event handlers require a browser adapter",
+      "review": "event-driven-fixtures",
       "corpora": [
         "discovery"
       ]
     },
     {
       "file": "css/css-scrollbars/scrollbar-width-004.html",
-      "status": "empty",
-      "review": "empty-page",
+      "status": "unsupported",
+      "reason": "event handlers require a browser adapter",
+      "review": "event-driven-fixtures",
       "corpora": [
         "discovery"
       ]
@@ -15270,16 +15277,18 @@
     },
     {
       "file": "css/css-scrollbars/scrollbar-width-015.html",
-      "status": "empty",
-      "review": "empty-page",
+      "status": "unsupported",
+      "reason": "event handlers require a browser adapter",
+      "review": "event-driven-fixtures",
       "corpora": [
         "discovery"
       ]
     },
     {
       "file": "css/css-scrollbars/scrollbar-width-016.html",
-      "status": "empty",
-      "review": "empty-page",
+      "status": "unsupported",
+      "reason": "event handlers require a browser adapter",
+      "review": "event-driven-fixtures",
       "corpora": [
         "discovery"
       ]

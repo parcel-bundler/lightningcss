@@ -46,6 +46,7 @@ class Document(HTMLParser):
         if tag == 'link' and 'stylesheet' in (attrs.get('rel') or '').lower().split():
             self.context_free = False
         if any(name.startswith('on') for name in attrs):
+            self.unsupported_reason = 'event handlers require a browser adapter'
             self.context_free = False
         if tag == 'meta' and (attrs.get('http-equiv') or '').strip().lower() == 'content-security-policy':
             self.unsupported_reason = 'meta CSP requires a browser adapter'
@@ -102,6 +103,8 @@ class Document(HTMLParser):
 for line in sys.stdin:
     source = json.loads(line)
     parser = Document()
+    if '\x00' in source:
+        parser.unsupported_reason = 'literal NUL HTML source requires an encoding adapter'
     parser.feed(source)
     result = {'scripts': parser.scripts, 'variants': parser.variants,
               'contextFree': parser.context_free and parser.standard_mode}

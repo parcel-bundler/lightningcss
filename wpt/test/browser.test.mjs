@@ -276,3 +276,14 @@ test("original baselines preserve WPT IDL setters and shorthand longhand names",
       'width:10px')).status, 'fixture-required');
   } finally { await browser.close(); }
 });
+
+test("original helper baselines retain strict-mode assignment failures", {
+  skip:!process.env.WPT_BROWSER_TESTS,
+},async()=>{
+  const browser=await startBrowser(process.env.WPT_CHROME);
+  try {
+    const result=await browser.check({kind:'invalid',property:'length',value:'1',contextFree:true},'width:1px');
+    assert.equal(result.status,'baseline-failure');
+    assert.equal(result.reason,'original setter threw');
+  } finally {await browser.close();}
+});

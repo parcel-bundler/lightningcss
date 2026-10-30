@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { directory, revision, hash } from "./extract.mjs";
 import { Adapter } from "./adapter.mjs";
 import { sameFile } from "./paths.mjs";
+import { validateCorpus } from "./fixtures.mjs";
 import { startBrowser } from "./browser.mjs";
 import { compareBaseline, validateBaseline, exitCode } from "./baseline.mjs";
 
@@ -89,6 +90,7 @@ async function main() {
   const corpus = JSON.parse(corpusText);
   if (corpus.schemaVersion !== revision.schemaVersion || corpus.wptRevision !== revision.commit)
     throw Error("Fixture schema/revision mismatch");
+  validateCorpus(corpus);
   const filter = option("--filter", "");
   const selectedCases = corpus.cases.filter((c) =>
     [c.id, c.property, c.value].some((v) => v.includes(filter)),
