@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { sameFile } from "./paths.mjs";
 
 const parserFailures = new Set([
   "invalid-typed",
@@ -358,7 +359,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const output =
       args[1] ??
       path.join(path.dirname(input), `${path.basename(input, path.extname(input))}.html`);
-    if (path.resolve(input) === path.resolve(output))
+    if (sameFile(input, output))
       throw Error("Output must not overwrite the input JSON");
     const report = JSON.parse(fs.readFileSync(input, "utf8"));
     fs.writeFileSync(output, renderReport(report));

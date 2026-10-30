@@ -25,6 +25,8 @@ class Document(HTMLParser):
         for name, value in attrs:
             first_attrs.setdefault(name, value)
         attrs = first_attrs
+        if not self.template_depth and tag in ('svg', 'math', 'base'):
+            self.unsupported_reason = f'<{tag}> elements require a browser adapter'
         if tag == 'plaintext':
             self.unsupported_reason = 'plaintext elements require a browser adapter'
         if tag == 'template':

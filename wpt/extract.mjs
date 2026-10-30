@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
+import { types } from "node:util";
+import { CaptureWorker } from "./capture.mjs";
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -21,15 +23,19 @@ const scripts = new Set([
 ]);
 
 // JavaScript can throw any value, including null and objects with failing getters.
-function errorMessage(error) {
-  try {
-    return (typeof error?.message === "string" && error.message) ||
-      String(error) || "Unknown extraction error";
-  } catch {
-    return "Unknown extraction error";
+export function errorMessage(error) {
+  if (error === null || !["object", "function"].includes(typeof error))
+    return String(error) || "Unknown extraction error";
+  // isNativeError does not invoke Proxy traps. Only read a native Error's own
+  // data property; source-defined getters and coercions must never run here.
+  if (types.isNativeError(error)) {
+    const message = Object.getOwnPropertyDescriptor(error, "message");
+    if (typeof message?.value === "string" && message.value) return message.value;
   }
+  return "Unknown extraction error";
 }
 
+// Synchronous collection stage. CaptureWorker commits the page after handling rejections.
 export function capture(file, document) {
   const cases = [];
   let scriptLine;
@@ -47,23 +53,30 @@ export function capture(file, document) {
             const [property, value, expected, options] = args;
             if (typeof property !== "string" || typeof value !== "string")
               throw Error("non-string property/value");
-            if (options && Object.keys(options).length)
+            if (options === null || (options &&
+                (Object.keys(options).length || options.comparisonFunction)))
               throw Error("custom comparison/options require a browser adapter");
             if (args.length > (kind === "invalid" ? 2 : 4))
               throw Error("unsupported helper arguments");
+            // WPT's test() runs assertions immediately. Later source mutations
+            // must not alter an earlier helper call's expectation.
+            const snapshot = Array.isArray(expected)
+              ? Array.from({length: expected.length}, (_, i) => expected[i])
+              : kind === "shorthand" && expected && typeof expected === "object"
+                ? Object.fromEntries(Object.entries(expected)) : expected;
             if (
               kind === "shorthand" &&
               (!expected ||
                 typeof expected !== "object" ||
                 Array.isArray(expected) ||
-                Object.values(expected).some((v) => typeof v !== "string"))
+                Object.values(snapshot).some((v) => typeof v !== "string"))
             )
               throw Error("invalid longhand expectations");
             if (
               kind === "valid" &&
               args.length >= 3 &&
               typeof expected !== "string" &&
-              !(Array.isArray(expected) && expected.every((v) => typeof v === "string"))
+              !(Array.isArray(expected) && snapshot.every((v) => typeof v === "string"))
             )
               throw Error("unsupported expectation");
             // JSON cannot carry unpaired UTF-16 surrogates into Rust strings losslessly.
@@ -71,7 +84,7 @@ export function capture(file, document) {
               kind,
               property,
               value,
-              ...(kind === "invalid" ? {} : { expected: args.length >= 3 ? expected : value }),
+              ...(kind === "invalid" ? {} : { expected: args.length >= 3 ? snapshot : value }),
             };
             JSON.stringify(data, (_key, value) => {
               if (
@@ -117,6 +130,8 @@ export function capture(file, document) {
       if (script.attrs.type &&
           !["text/javascript", "application/javascript"].includes(script.attrs.type.trim().toLowerCase()))
         throw Error(`unsupported script type: ${script.attrs.type}`);
+      if (["language", "for", "event"].some((name) => name in script.attrs))
+        throw Error("legacy script attributes require a browser adapter");
       // Classic nomodule scripts do not execute in the browser used by this harness.
       if ("nomodule" in script.attrs) continue;
       if ("src" in script.attrs) {
@@ -139,6 +154,7 @@ export function capture(file, document) {
           filename: file,
           lineOffset: script.line - 1,
           timeout: 500,
+          displayErrors: false,
         });
         if (collectionError) throw Error(collectionError);
       }
@@ -149,7 +165,7 @@ export function capture(file, document) {
   }
 }
 
-export function extract(root, discovery = false) {
+export async function extract(root, discovery = false) {
   const commit = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], {
     encoding: "utf8",
   }).trim();
@@ -188,10 +204,12 @@ export function extract(root, discovery = false) {
     .split("\n")
     .map((s) => JSON.parse(s));
   if (documents.length !== files.length) throw Error("HTML reader returned incomplete results");
-  const pages = files.map((file, i) => ({
-    ...capture(file, documents[i]),
-    sourceHash: hash(sources[i]),
-  }));
+  const worker = new CaptureWorker();
+  const pages = [];
+  try {
+    for (const [i, file] of files.entries())
+      pages.push({...await worker.request(file, documents[i]), sourceHash: hash(sources[i])});
+  } finally { await worker.close(); }
   return {
     schemaVersion: revision.schemaVersion,
     wptRevision: commit,
@@ -212,7 +230,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     }
     throw Error(`Unknown or incomplete option: ${args[i]}`);
   }
-  const corpus = extract(path.resolve(args[0]), args.includes("--discovery"));
+  const corpus = await extract(path.resolve(args[0]), args.includes("--discovery"));
   const outputIndex = args.indexOf("--output");
   const output = outputIndex < 0 ? path.join(directory, "fixtures.json") : args[outputIndex + 1];
   fs.writeFileSync(output, JSON.stringify(corpus, null, 2) + "\n");

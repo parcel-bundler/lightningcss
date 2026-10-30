@@ -296,3 +296,139 @@ test("unsupported HTML text modes cannot silently expose subsequent scripts", ()
     assert.deepEqual(captured.cases, []);
   }
 });
+
+test("expectations are snapshots of each synchronous WPT assertion", () => {
+  const result = capture("css/example.html", document(`
+    const alternatives = ['red'];
+    test_valid_value('color', 'red', alternatives);
+    alternatives[0] = 'blue';
+    test_valid_value('color', 'blue', alternatives);
+    const longhands = {'margin-top':'1px'};
+    test_shorthand_value('margin', '1px', longhands);
+    longhands['margin-top'] = '2px';
+    test_shorthand_value('margin', '2px', longhands);
+  `));
+  assert.equal(result.status, "extracted");
+  assert.deepEqual(result.cases.map(c => c.expected), [
+    ['red'], ['blue'], {'margin-top':'1px'}, {'margin-top':'2px'},
+  ]);
+});
+
+test("effective custom comparators and null options cannot lose their semantics", () => {
+  for (const options of [
+    "Object.create({comparisonFunction() {}})",
+    "Object.defineProperty({}, 'comparisonFunction', {value() {}})",
+    "null",
+  ]) {
+    const result = capture("css/example.html", document(`test_valid_value('color', 'red', 'red', ${options});`));
+    assert.equal(result.status, "unsupported", options);
+    assert.match(result.reason, /custom comparison/);
+    assert.deepEqual(result.cases, []);
+  }
+});
+
+test("legacy execution attributes do not install helpers or collect inert calls", () => {
+  for (const attrs of [{language:'vbscript'}, {for:'other', event:'onclick'}]) {
+    const input = document("test_valid_value('color', 'red')");
+    input.scripts.at(-1).attrs = attrs;
+    const result = capture("css/example.html", input);
+    assert.equal(result.status, "unsupported");
+    assert.match(result.reason, /legacy script attributes/);
+    assert.deepEqual(result.cases, []);
+  }
+});
+
+test("foreign namespaces and base URLs cannot silently change script execution", () => {
+  for (const source of [
+    `<svg><template><script>test_valid_value('color', 'red')</script></template></svg>`,
+    `<svg><title><script>test_valid_value('color', 'red')</script></title></svg>`,
+    `<math><script>test_valid_value('color', 'red')</script></math>`,
+    `<base href="https://different-origin.invalid/">`,
+  ]) {
+    const result = spawnSync("python3", [fileURLToPath(new URL("../read-html.py", import.meta.url))], {
+      input: JSON.stringify(source) + "\n", encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const captured = capture("css/example.html", JSON.parse(result.stdout));
+    assert.equal(captured.status, "unsupported", source);
+    assert.match(captured.reason, /elements require a browser adapter/);
+    assert.deepEqual(captured.cases, []);
+  }
+});
+
+test("source error getters and coercions cannot escape the evaluation deadline", () => {
+  for (const expression of [
+    "{get message() {while(true) {}}}",
+    "{toString() {while(true) {}}}",
+    "Object.defineProperty(Error('x'), 'message', {get() {while(true) {}}})",
+    "new Proxy({}, {getOwnPropertyDescriptor() {while(true) {}}, get() {while(true) {}}})",
+  ]) {
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+      import {capture} from ${JSON.stringify(new URL("../extract.mjs", import.meta.url).href)};
+      console.log(JSON.stringify(capture('css/example.html', ${JSON.stringify(document('throw '+expression))})));
+    `], {encoding:'utf8', timeout:5000});
+    assert.equal(result.status, 0, result.stderr || result.error?.message);
+    const captured = JSON.parse(result.stdout);
+    assert.equal(captured.status, "unsupported");
+    assert.equal(captured.reason, "Unknown extraction error");
+    assert.deepEqual(captured.cases, []);
+  }
+});
+
+test("isolated capture records Promise rejections atomically and continues", async () => {
+  const {CaptureWorker} = await import('../capture.mjs');
+  const worker = new CaptureWorker();
+  try {
+    for (const suffix of [
+      "Promise.resolve().then(() => {throw Error('async setup failed')})",
+      "(async () => {await 0; throw Error('async setup failed')})()",
+    ]) {
+      const result = await worker.request('css/error.html', document(`test_valid_value('color','red'); ${suffix}`));
+      assert.equal(result.status, 'unsupported');
+      assert.equal(result.reason, 'async setup failed');
+      assert.deepEqual(result.cases, []);
+    }
+    const valid = await worker.request('css/valid.html', document("test_valid_value('color','blue')"));
+    assert.equal(valid.status, 'extracted');
+    assert.equal(valid.cases[0].value, 'blue');
+  } finally { await worker.close(); }
+});
+
+test("strict unhandled rejection mode cannot kill the corpus extractor", () => {
+  const bad = document("test_valid_value('color','red'); Promise.reject(Error('strict async failure'))");
+  const good = document("test_valid_value('color','blue')");
+  const result = spawnSync(process.execPath, ['--unhandled-rejections=strict', '--input-type=module', '-e', `
+    import {CaptureWorker} from ${JSON.stringify(new URL('../capture.mjs', import.meta.url).href)};
+    const worker = new CaptureWorker();
+    try {
+      const bad = await worker.request('css/bad.html', ${JSON.stringify(bad)});
+      const good = await worker.request('css/good.html', ${JSON.stringify(good)});
+      console.log(JSON.stringify({bad, good}));
+    } finally { await worker.close(); }
+  `], {encoding:'utf8', timeout:10000});
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  const {bad: failed, good: passed} = JSON.parse(result.stdout);
+  assert.equal(failed.status, 'unsupported');
+  assert.match(failed.reason, /strict async failure/);
+  assert.deepEqual(failed.cases, []);
+  assert.equal(passed.status, 'extracted');
+});
+
+test("page deadlines replace a stalled capture worker and preserve later pages", async () => {
+  const {CaptureWorker} = await import('../capture.mjs');
+  const worker = new CaptureWorker();
+  try {
+    const input = document("test_valid_value('color','red')");
+    input.scripts.splice(2, 0, ...Array.from({length:8}, () => ({
+      attrs:{}, line:1, code:'{const start=Date.now(); while(Date.now()-start<300) {}}',
+    })));
+    const failed = await worker.request('css/slow.html', input);
+    assert.equal(failed.status, 'unsupported');
+    assert.equal(failed.file, 'css/slow.html');
+    assert.match(failed.reason, /Page execution timed out after 1500ms/);
+    assert.deepEqual(failed.cases, []);
+    const passed = await worker.request('css/next.html', document("test_valid_value('color','blue')"));
+    assert.equal(passed.status, 'extracted');
+    assert.equal(passed.cases[0].value, 'blue');
+  } finally { await worker.close(); }
+});

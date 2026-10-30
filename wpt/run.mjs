@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { directory, revision, hash } from "./extract.mjs";
 import { Adapter } from "./adapter.mjs";
+import { sameFile } from "./paths.mjs";
 import { startBrowser } from "./browser.mjs";
 import { compareBaseline, validateBaseline, exitCode } from "./baseline.mjs";
 
@@ -82,7 +83,7 @@ async function main() {
   const outputPath = option("--output", path.join(directory, "results.json"));
   if (baselineCorpus !== undefined && baselinePath === undefined)
     throw Error("--baseline-corpus requires --baseline");
-  if ([fixturesPath, baselinePath].some((file) => file !== undefined && path.resolve(file) === path.resolve(outputPath)))
+  if ([fixturesPath, baselinePath].some((file) => file !== undefined && sameFile(file, outputPath)))
     throw Error("Output must not overwrite fixtures or baseline");
   const corpusText = fs.readFileSync(fixturesPath, "utf8");
   const corpus = JSON.parse(corpusText);

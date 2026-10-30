@@ -21,7 +21,18 @@ test("CLI output cannot overwrite its fixture or baseline inputs", () => {
       wptRevision: revision.commit, cases, pages: [] });
     fs.writeFileSync(fixtures, content);
     fs.writeFileSync(baseline, "{}");
-    for (const output of [fixtures, baseline]) {
+    const outputs = [fixtures, baseline];
+    for (const input of [fixtures, baseline]) {
+      const hardlink = input + '.hardlink';
+      fs.linkSync(input, hardlink);
+      outputs.push(hardlink);
+      if (process.platform !== 'win32') {
+        const symlink = input + '.symlink';
+        fs.symlinkSync(input, symlink);
+        outputs.push(symlink);
+      }
+    }
+    for (const output of outputs) {
       const result = spawnSync(process.execPath, [fileURLToPath(new URL("../run.mjs", import.meta.url)),
         "--fixtures", fixtures, "--baseline", baseline, "--output", output], { encoding: "utf8" });
       assert.equal(result.status, 2);

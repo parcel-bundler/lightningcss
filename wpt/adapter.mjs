@@ -48,17 +48,19 @@ export class Adapter {
     });
     child.on('error', (error) => {
       if (child === this.child) {
-        this.finish({recognition: 'protocol-error', error: error.message});
+        if (this.pending) this.finish({recognition: 'protocol-error', error: error.message});
+        else this.protocolError = error;
         this.child = null;
       }
     });
     child.on('exit', (code, signal) => {
       if (child !== this.child) return;
-      this.finish({
-        recognition: 'crash',
-        error: `exit ${code}, signal ${signal}`,
-        stderr: this.stderr,
-      });
+      const error = `Unexpected adapter exit ${code}, signal ${signal}`;
+      if (this.pending) {
+        this.finish({recognition: 'crash', error, stderr: this.stderr});
+      } else {
+        this.protocolError = Error(error);
+      }
       this.child = null;
     });
   }

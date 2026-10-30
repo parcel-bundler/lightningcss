@@ -93,3 +93,39 @@ test("a final duplicate response makes the run fail with retained parser results
   assert.equal(report.complete, false);
   assert.equal(exitCode(report), 2);
 });
+
+test("idle adapter exits fail both the next request and final cleanup", async () => {
+  const script = `require('readline').createInterface({input:process.stdin}).on('line',line=>{
+    const v=JSON.parse(line);
+    console.log(JSON.stringify({requestId:v.requestId,recognition:'typed',code:'color:red'}));
+    setTimeout(()=>process.exit(17),10);
+  });`;
+  for (const action of ['request', 'close']) {
+    const adapter = new Adapter(process.execPath, 1000, ['-e',script]);
+    try {
+      assert.equal((await adapter.request({})).code, 'color:red');
+      await new Promise(resolve => adapter.child.once('exit', resolve));
+      assert.throws(() => adapter[action]({}), /Unexpected adapter exit 17/);
+    } finally { adapter.close(); }
+  }
+});
+
+test("an idle crash during browser checks retains results and fails the run", async () => {
+  const script = `require('readline').createInterface({input:process.stdin}).on('line',line=>{
+    const v=JSON.parse(line);
+    console.log(JSON.stringify({requestId:v.requestId,recognition:'typed',code:'color:red'}));
+    setTimeout(()=>process.exit(17),10);
+  });`;
+  const adapter = new Adapter(process.execPath, 1000, ['-e',script]);
+  const report = {modes:['print'], results:[], pages:[]};
+  await runCases(report, [{id:'red',kind:'valid',property:'color',value:'red'}], adapter, async () => ({
+    check: async () => {
+      await new Promise(resolve => adapter.child.once('exit', resolve));
+      return {status:'pass'};
+    }, close: async () => {},
+  }));
+  report.complete = !report.harnessError && report.results.length === 1;
+  assert.match(report.harnessError, /Unexpected adapter exit 17/);
+  assert.equal(report.results[0].browser.status, 'pass');
+  assert.equal(exitCode(report), 2);
+});

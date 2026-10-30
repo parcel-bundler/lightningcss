@@ -1,5 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {spawnSync} from "node:child_process";
+import {fileURLToPath} from "node:url";
 import { summarize, renderReport } from "../report.mjs";
 
 const sample = {
@@ -130,3 +135,26 @@ test(
     }
   },
 );
+
+test("HTML report output cannot overwrite its JSON input through file aliases", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wpt-report-alias-'));
+  try {
+    const input = path.join(directory, 'input.json');
+    const original = JSON.stringify(sample);
+    fs.writeFileSync(input, original);
+    const outputs = [input + '.hardlink'];
+    fs.linkSync(input, outputs[0]);
+    if (process.platform !== 'win32') {
+      const symlink = input + '.symlink';
+      fs.symlinkSync(input, symlink);
+      outputs.push(symlink);
+    }
+    for (const output of outputs) {
+      const result = spawnSync(process.execPath, [fileURLToPath(new URL('../report.mjs', import.meta.url)),
+        input, '--output', output], {encoding:'utf8'});
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /must not overwrite/);
+      assert.equal(fs.readFileSync(input, 'utf8'), original);
+    }
+  } finally { fs.rmSync(directory, {recursive:true, force:true}); }
+});
