@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 export const directory = path.dirname(fileURLToPath(import.meta.url));
 export const revision = JSON.parse(fs.readFileSync(path.join(directory, "revision.json")));
 export const hash = (value) => createHash("sha256").update(value).digest("hex");
+const helperExports = JSON.parse(fs.readFileSync(path.join(directory, "helper-exports.json")));
 const helpers = new Map([
   ["test_valid_value", "valid"],
   ["test_invalid_value", "invalid"],
@@ -116,6 +117,16 @@ export function capture(file, document) {
         },
       ]),
     );
+    // Known helper APIs outside this adapter must reject the entire page even
+    // when source code catches their exception. Keep the existing diagnostics.
+    const reject = (name) => {
+      const message = `${name} is not defined`;
+      collectionError ??= message;
+      throw new ReferenceError(message);
+    };
+    for (const name of new Set(Object.values(helperExports).flat())) {
+      if (!Object.hasOwn(collectors, name)) collectors[name] = () => reject(name);
+    }
     const sandbox = {};
     const context = vm.createContext(sandbox, {
       codeGeneration: { strings: false, wasm: false },
@@ -123,9 +134,15 @@ export function capture(file, document) {
     });
     // Promise handlers use the callback's realm to select their microtask queue.
     // Expose VM functions so direct or bound helpers also drain before returning.
-    for (const name of helpers.keys()) {
-      collectors[name] = vm.compileFunction("return (...args) => collect(...args)", ["collect"],
+    for (const name of Object.keys(collectors)) {
+      collectors[name] = vm.compileFunction("return function(...args) { return collect(...args); }", ["collect"],
         {parsingContext: context})(collectors[name]);
+    }
+    // A caught namespace/DOM error must not hide a qualified helper call either.
+    for (const name of ["window", "self", "document", "CSS", "location", "navigator"]) {
+      const get = vm.compileFunction("return function() { return reject(); }", ["reject"],
+        {parsingContext: context})(() => reject(name));
+      Object.defineProperty(sandbox, name, {get});
     }
     for (const script of document.scripts) {
       if (script.attrs.type &&
@@ -148,12 +165,8 @@ export function capture(file, document) {
             url.search || !scripts.has(url.pathname)) {
           throw Error(`unsupported dependency: ${script.attrs.src}`);
         }
-        if (url.pathname === "/css/support/parsing-testcommon.js") {
-          sandbox.test_valid_value = collectors.test_valid_value;
-          sandbox.test_invalid_value = collectors.test_invalid_value;
-        } else if (url.pathname === "/css/support/shorthand-testcommon.js") {
-          sandbox.test_shorthand_value = collectors.test_shorthand_value;
-        }
+        for (const name of helperExports[url.pathname] ?? [])
+          sandbox[name] = collectors[name];
       } else {
         scriptLine = script.line;
         vm.runInContext(script.code, context, {

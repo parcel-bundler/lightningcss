@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { capture } from "../extract.mjs";
 import { classify } from "../run.mjs";
 import { Adapter } from "../adapter.mjs";
@@ -560,4 +561,47 @@ test("literal NUL HTML is deferred while JS-generated NUL values remain intact",
     if(expectedStatus==='unsupported') assert.match(result.reason,/literal NUL/);
     else assert.equal(result.cases[0].value,'"a\0b"');
   }
+});
+
+test("caught unsupported APIs from loaded helper modules reject the whole page", () => {
+  const exports=JSON.parse(fs.readFileSync(new URL('../helper-exports.json',import.meta.url),'utf8'));
+  const supported=new Set(['test_valid_value','test_invalid_value','test_shorthand_value']);
+  for(const [module,names] of Object.entries(exports)) {
+    for(const name of names.filter(name=>!supported.has(name))) {
+      const input=document(`test_valid_value('color','red'); try { ${name}(); } catch {} test_valid_value('color','blue');`);
+      input.scripts.unshift({attrs:{src:module}});
+      const result=capture('css/example.html',input);
+      assert.equal(result.status,'unsupported',name);
+      assert.equal(result.reason,`${name} is not defined`);
+      assert.deepEqual(result.cases,[]);
+    }
+  }
+});
+
+test("unsupported helpers stay atomic through constructors and caught Promise rejection", () => {
+  for(const call of [
+    "try { new test_valid_selector('a'); } catch {}",
+    "try { window.test_valid_selector('a'); } catch {}",
+    "try { self.test_valid_selector('a'); } catch {}",
+    "try { document.createElement('div'); } catch {}",
+    "Promise.resolve().then(() => test_valid_selector('a')).catch(() => {});",
+    "Promise.resolve().then(test_valid_selector.bind(null,'a')).catch(() => {});",
+    "try { test_is_legacy_shorthand('old','new'); } catch {}",
+  ]) {
+    const result=capture('css/example.html',document(`test_valid_value('color','red'); ${call}`));
+    assert.equal(result.status,'unsupported',call);
+    assert.deepEqual(result.cases,[]);
+  }
+  const constructor=capture('css/example.html',document("new test_valid_value('color','red');"));
+  assert.equal(constructor.status,'extracted');
+  assert.equal(constructor.cases[0].value,'red');
+});
+
+test("unsupported API stubs follow module loading rather than preexisting globally", () => {
+  const input=document("try { test_shorthand_value('margin','1px',{}); } catch {} test_valid_value('color','red');");
+  input.scripts.splice(1,1); // The shorthand helper was never loaded in this page.
+  const result=capture('css/example.html',input);
+  assert.equal(result.status,'extracted');
+  assert.equal(result.cases.length,1);
+  assert.equal(result.cases[0].value,'red');
 });
