@@ -165,8 +165,17 @@ export function capture(file, document) {
             url.search || !scripts.has(url.pathname)) {
           throw Error(`unsupported dependency: ${script.attrs.src}`);
         }
-        for (const name of helperExports[url.pathname] ?? [])
-          sandbox[name] = collectors[name];
+        for (const name of helperExports[url.pathname] ?? []) {
+          // Parsing/shorthand helpers use global function declarations, whose
+          // bindings cannot be deleted. Testharness exposes APIs by assignment.
+          if (url.pathname === "/resources/testharness.js") {
+            sandbox[name] = collectors[name];
+          } else {
+            Object.defineProperty(sandbox, name, {
+              value: collectors[name], writable: true, enumerable: true, configurable: false,
+            });
+          }
+        }
       } else {
         scriptLine = script.line;
         vm.runInContext(script.code, context, {

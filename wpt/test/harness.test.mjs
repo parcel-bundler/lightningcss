@@ -605,3 +605,47 @@ test("unsupported API stubs follow module loading rather than preexisting global
   assert.equal(result.cases.length,1);
   assert.equal(result.cases[0].value,'red');
 });
+
+test("global helper declarations cannot be deleted to bypass page rejection", () => {
+  const result=capture('css/example.html',document(`
+    delete test_valid_selector;
+    try { test_valid_selector('a'); } catch {}
+    test_valid_value('color','red');
+  `));
+  assert.equal(result.status,'unsupported');
+  assert.equal(result.reason,'test_valid_selector is not defined');
+  assert.deepEqual(result.cases,[]);
+
+  const declarations=capture('css/example.html',document(`
+    if (delete test_valid_value) throw Error('deleted supported helper');
+    if (delete test_shorthand_value) throw Error('deleted shorthand helper');
+    if (Reflect.deleteProperty(globalThis,'test_valid_rule')) throw Error('deleted rule helper');
+    test_valid_value('color','red');
+  `));
+  assert.equal(declarations.status,'extracted');
+  assert.equal(declarations.cases.length,1);
+});
+
+test("testharness assignment exports remain deletable and helpers remain writable", () => {
+  const source=document(`
+    if (!delete assert_true) throw Error('testharness export was not deletable');
+    if (typeof assert_true !== 'undefined') throw Error('testharness export survived deletion');
+    test_valid_selector = () => {};
+    test_valid_selector('a');
+    test_valid_value('color','red');
+  `);
+  source.scripts.unshift({attrs:{src:'/resources/testharness.js'}});
+  const result=capture('css/example.html',source);
+  assert.equal(result.status,'extracted');
+  assert.equal(result.cases.length,1);
+
+  // Assignment must also preserve an existing global declaration's attributes.
+  const existing=document("try { assert_true(true); } catch {} test_valid_value('color','red');");
+  existing.scripts.unshift(
+    {attrs:{},line:1,code:"Object.defineProperty(globalThis,'assert_true',{value:function(){},writable:true,enumerable:true,configurable:false});"},
+    {attrs:{src:'/resources/testharness.js'}},
+  );
+  const overridden=capture('css/example.html',existing);
+  assert.equal(overridden.status,'unsupported');
+  assert.equal(overridden.reason,'assert_true is not defined');
+});
