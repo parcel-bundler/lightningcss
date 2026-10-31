@@ -25588,6 +25588,79 @@ mod tests {
   }
 
   #[test]
+  fn test_nested_declarations_supports_fallbacks() {
+    nesting_test(
+      r#"
+        :root {
+          --before: lab(95% 4 18);
+          & .foo {
+            color: red;
+          }
+          --after: lab(95% 4 18);
+        }
+      "#,
+      indoc! {r#"
+        :root {
+          --before: #ffedce;
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          :root {
+            --before: lab(95% 4 18);
+          }
+        }
+
+        :root .foo {
+          color: red;
+        }
+
+        :root {
+          --after: #ffedce;
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          :root {
+            --after: lab(95% 4 18);
+          }
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          .bar {
+            color: red;
+          }
+          --after: lab(95% 4 18);
+          .baz {
+            color: blue;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo .bar {
+          color: red;
+        }
+
+        .foo {
+          --after: #ffedce;
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            --after: lab(95% 4 18);
+          }
+        }
+
+        .foo .baz {
+          color: #00f;
+        }
+      "#},
+    );
+  }
+
+  #[test]
   fn test_nesting() {
     nesting_test(
       r#"

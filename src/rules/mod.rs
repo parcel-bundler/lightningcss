@@ -929,6 +929,13 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           if nested.minify(context, parent_is_unused) {
             continue;
           }
+
+          // Emit @supports fallbacks (e.g. for colors in custom properties) right after the
+          // nested declarations, the same way they are emitted after a style rule.
+          let supports = context.handler_context.take_nested_supports_rules(&nested.loc);
+          rules.push(rule);
+          rules.extend(supports);
+          continue;
         }
         CssRule::StartingStyle(rule) => {
           if rule.minify(context, parent_is_unused)? {
