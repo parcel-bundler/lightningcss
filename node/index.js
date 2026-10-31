@@ -1,5 +1,9 @@
 let parts = [process.platform, process.arch];
-if (process.platform === 'linux') {
+// OpenHarmony: process.platform is 'openharmony' (not 'linux').
+// The native addon packages follow the Rust target triple naming scheme.
+if (process.platform === 'openharmony') {
+  parts = ['linux', process.arch, 'ohos'];
+} else if (process.platform === 'linux') {
   const { MUSL, familySync } = require('detect-libc');
   const family = familySync();
   if (family === MUSL) {
