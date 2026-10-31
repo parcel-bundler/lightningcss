@@ -4,7 +4,7 @@ use cssparser::*;
 use lightningcss::{
   declaration::DeclarationBlock,
   error::PrinterError,
-  printer::Printer,
+  printer::PrinterTrait,
   properties::custom::{Token, TokenOrValue},
   rules::{style::StyleRule, CssRule, CssRuleList, Location},
   selector::{Component, Selector},
@@ -42,14 +42,17 @@ fn main() {
   stylesheet.visit(&mut ApplyVisitor { rules: &style_rules }).unwrap();
 
   let result = stylesheet
-    .to_css(PrinterOptions {
-      targets: Browsers {
-        chrome: Some(100 << 16),
-        ..Browsers::default()
-      }
-      .into(),
-      ..PrinterOptions::default()
-    })
+    .to_css(
+      PrinterOptions {
+        targets: Browsers {
+          chrome: Some(100 << 16),
+          ..Browsers::default()
+        }
+        .into(),
+        ..PrinterOptions::default()
+      },
+      None::<&mut ()>,
+    )
     .unwrap();
   println!("{}", result.code);
 }
@@ -291,7 +294,7 @@ impl<'i, V: Visitor<'i, AtRule>> Visit<'i, AtRule, V> for AtRule {
 }
 
 impl ToCss for AtRule {
-  fn to_css<W: std::fmt::Write>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> {
+  fn to_css<PrinterT: PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       AtRule::Tailwind(rule) => {
         let _ = rule.loc; // TODO: source maps
@@ -301,7 +304,8 @@ impl ToCss for AtRule {
           TailwindDirective::Utilities => "TAILWIND UTILITIES HERE",
           TailwindDirective::Variants => "TAILWIND VARIANTS HERE",
         };
-        dest.write_str(directive)
+        dest.write_str(directive)?;
+        Ok(())
       }
       AtRule::Apply(_) => Ok(()),
     }

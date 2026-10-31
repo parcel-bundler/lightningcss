@@ -2,7 +2,6 @@
 
 use super::percentage::NumberOrPercentage;
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -29,10 +28,7 @@ impl<'i> Parse<'i> for AlphaValue {
 }
 
 impl ToCss for AlphaValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.0.to_css(dest)
   }
 }

@@ -12,7 +12,6 @@ use crate::{
   declaration::{DeclarationBlock, DeclarationList},
   error::{ParserError, PrinterError},
   macros::{define_shorthand, enum_property, shorthand_handler},
-  printer::Printer,
   properties::{Property, PropertyId},
   rules::container::ContainerName as ContainerIdent,
   targets::Browsers,
@@ -91,12 +90,12 @@ impl<'i> Parse<'i> for ContainerNameList<'i> {
 }
 
 impl<'i> ToCss for ContainerNameList<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      ContainerNameList::None => dest.write_str("none"),
+      ContainerNameList::None => {
+        dest.write_str("none")?;
+        Ok(())
+      }
       ContainerNameList::Names(names) => {
         let mut first = true;
         for name in names {
@@ -143,10 +142,7 @@ impl<'i> Parse<'i> for Container<'i> {
 }
 
 impl<'i> ToCss for Container<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.name.to_css(dest)?;
     if self.container_type != ContainerType::default() {
       dest.delim('/', true)?;

@@ -7,7 +7,6 @@ use crate::context::DeclarationContext;
 use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
 use crate::parser::ParserOptions;
-use crate::printer::Printer;
 use crate::properties::animation::TimelineRangeName;
 use crate::properties::custom::{CustomProperty, UnparsedProperty};
 use crate::properties::Property;
@@ -89,12 +88,12 @@ impl<'i> Parse<'i> for KeyframesName<'i> {
 }
 
 impl<'i> ToCss for KeyframesName<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    let css_module_animation_enabled =
-      dest.css_module.as_ref().map_or(false, |css_module| css_module.config.animation);
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
+    let css_module_animation_enabled = dest
+      .state()
+      .css_module
+      .as_ref()
+      .map_or(false, |css_module| css_module.config.animation);
 
     match self {
       KeyframesName::Ident(ident) => {
@@ -215,11 +214,7 @@ impl<'i> KeyframesRule<'i> {
 }
 
 impl<'i> ToCss for KeyframesRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     let mut first_rule = true;
     macro_rules! write_prefix {
@@ -229,7 +224,7 @@ impl<'i> ToCss for KeyframesRule<'i> {
           if first_rule {
             first_rule = false;
           } else {
-            if !dest.minify {
+            if !dest.options().minify {
               dest.write_char('\n')?; // no indent
             }
             dest.newline()?;
@@ -245,7 +240,7 @@ impl<'i> ToCss for KeyframesRule<'i> {
           for keyframe in &self.keyframes {
             if first {
               first = false;
-            } else if !dest.minify {
+            } else if !dest.options().minify {
               dest.write_char('\n')?; // no indent
             }
             dest.newline()?;
@@ -314,26 +309,29 @@ pub enum KeyframeSelector {
 }
 
 impl ToCss for KeyframeSelector {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       KeyframeSelector::Percentage(p) => {
-        if dest.minify && *p == Percentage(1.0) {
-          dest.write_str("to")
+        if dest.options().minify && *p == Percentage(1.0) {
+          dest.write_str("to")?;
+          Ok(())
         } else {
           p.to_css(dest)
         }
       }
       KeyframeSelector::From => {
-        if dest.minify {
-          dest.write_str("0%")
+        if dest.options().minify {
+          dest.write_str("0%")?;
+          Ok(())
         } else {
-          dest.write_str("from")
+          dest.write_str("from")?;
+          Ok(())
         }
       }
-      KeyframeSelector::To => dest.write_str("to"),
+      KeyframeSelector::To => {
+        dest.write_str("to")?;
+        Ok(())
+      }
       KeyframeSelector::TimelineRangePercentage(TimelineRangePercentage {
         name: timeline_range_name,
         percentage,
@@ -363,10 +361,7 @@ pub struct Keyframe<'i> {
 }
 
 impl<'i> ToCss for Keyframe<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let mut first = true;
     for selector in &self.selectors {
       if !first {

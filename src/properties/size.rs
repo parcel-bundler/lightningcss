@@ -6,7 +6,6 @@ use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::PropertyCategory;
 use crate::macros::{enum_property, property_bitflags};
-use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::targets::Targets;
 use crate::traits::{IsCompatible, Parse, PropertyHandler, ToCss};
@@ -97,36 +96,52 @@ impl<'i> Parse<'i> for Size {
 }
 
 impl ToCss for Size {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use Size::*;
     match self {
-      Auto => dest.write_str("auto"),
-      Contain => dest.write_str("contain"),
+      Auto => {
+        dest.write_str("auto")?;
+        Ok(())
+      }
+      Contain => {
+        dest.write_str("contain")?;
+        Ok(())
+      }
       MinContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("min-content")
+        dest.write_str("min-content")?;
+        Ok(())
       }
       MaxContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("max-content")
+        dest.write_str("max-content")?;
+        Ok(())
       }
       FitContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("fit-content")
+        dest.write_str("fit-content")?;
+        Ok(())
       }
       Stretch(vp) => match *vp {
-        VendorPrefix::None => dest.write_str("stretch"),
-        VendorPrefix::WebKit => dest.write_str("-webkit-fill-available"),
-        VendorPrefix::Moz => dest.write_str("-moz-available"),
+        VendorPrefix::None => {
+          dest.write_str("stretch")?;
+          Ok(())
+        }
+        VendorPrefix::WebKit => {
+          dest.write_str("-webkit-fill-available")?;
+          Ok(())
+        }
+        VendorPrefix::Moz => {
+          dest.write_str("-moz-available")?;
+          Ok(())
+        }
         _ => unreachable!(),
       },
       FitContentFunction(l) => {
         dest.write_str("fit-content(")?;
         l.to_css(dest)?;
-        dest.write_str(")")
+        dest.write_str(")")?;
+        Ok(())
       }
       LengthPercentage(l) => l.to_css(dest),
     }
@@ -230,36 +245,52 @@ impl<'i> Parse<'i> for MaxSize {
 }
 
 impl ToCss for MaxSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use MaxSize::*;
     match self {
-      None => dest.write_str("none"),
-      Contain => dest.write_str("contain"),
+      None => {
+        dest.write_str("none")?;
+        Ok(())
+      }
+      Contain => {
+        dest.write_str("contain")?;
+        Ok(())
+      }
       MinContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("min-content")
+        dest.write_str("min-content")?;
+        Ok(())
       }
       MaxContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("max-content")
+        dest.write_str("max-content")?;
+        Ok(())
       }
       FitContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("fit-content")
+        dest.write_str("fit-content")?;
+        Ok(())
       }
       Stretch(vp) => match *vp {
-        VendorPrefix::None => dest.write_str("stretch"),
-        VendorPrefix::WebKit => dest.write_str("-webkit-fill-available"),
-        VendorPrefix::Moz => dest.write_str("-moz-available"),
+        VendorPrefix::None => {
+          dest.write_str("stretch")?;
+          Ok(())
+        }
+        VendorPrefix::WebKit => {
+          dest.write_str("-webkit-fill-available")?;
+          Ok(())
+        }
+        VendorPrefix::Moz => {
+          dest.write_str("-moz-available")?;
+          Ok(())
+        }
         _ => unreachable!(),
       },
       FitContentFunction(l) => {
         dest.write_str("fit-content(")?;
         l.to_css(dest)?;
-        dest.write_str(")")
+        dest.write_str(")")?;
+        Ok(())
       }
       LengthPercentage(l) => l.to_css(dest),
     }
@@ -403,10 +434,7 @@ impl<'i> Parse<'i> for AspectRatio {
 }
 
 impl ToCss for AspectRatio {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.auto {
       dest.write_str("auto")?;
     }
