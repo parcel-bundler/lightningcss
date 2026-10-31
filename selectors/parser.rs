@@ -45,6 +45,11 @@ pub trait PseudoElement<'i>: Sized + ToCss {
     false
   }
 
+  /// Whether this is the `::search-text` pseudo-element.
+  fn is_search_text(&self) -> bool {
+    false
+  }
+
   fn is_unknown(&self) -> bool {
     false
   }
@@ -62,6 +67,11 @@ pub trait NonTSPseudoClass<'i>: Sized + ToCss {
   ///
   /// https://drafts.csswg.org/selectors-4/#useraction-pseudos
   fn is_user_action_state(&self) -> bool;
+
+  /// Whether this pseudo-class is valid after `::search-text`.
+  fn is_valid_after_search_text(&self) -> bool {
+    false
+  }
 
   fn is_valid_before_webkit_scrollbar(&self) -> bool {
     true
@@ -137,6 +147,7 @@ bitflags! {
         const AFTER_WEBKIT_SCROLLBAR = 1 << 8;
         const AFTER_VIEW_TRANSITION = 1 << 9;
         const AFTER_UNKNOWN_PSEUDO_ELEMENT = 1 << 10;
+        const AFTER_SEARCH_TEXT = 1 << 11;
     }
 }
 
@@ -2791,6 +2802,9 @@ where
         if p.is_view_transition() {
           state.insert(SelectorParsingState::AFTER_VIEW_TRANSITION);
         }
+        if p.is_search_text() {
+          state.insert(SelectorParsingState::AFTER_SEARCH_TEXT);
+        }
         builder.push_simple_selector(Component::PseudoElement(p));
       }
     }
@@ -3127,7 +3141,12 @@ where
       return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterWebKitScrollbar));
     }
   } else if state.intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT) {
-    if !pseudo_class.is_user_action_state() {
+    let is_valid = if state.intersects(SelectorParsingState::AFTER_SEARCH_TEXT) {
+      pseudo_class.is_valid_after_search_text()
+    } else {
+      pseudo_class.is_user_action_state()
+    };
+    if !is_valid {
       return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterPseudoElement));
     }
   } else if !pseudo_class.is_valid_before_webkit_scrollbar() {
@@ -3932,9 +3951,6 @@ pub mod tests {
 
     assert!(parse("foo::details-content").is_ok());
     assert!(parse("foo::target-text").is_ok());
-    assert!(parse("foo::search-text").is_ok());
-    assert!(parse(":current::search-text").is_ok());
-
     assert!(parse("::highlight").is_err());
     assert!(parse("::highlight()").is_err());
     assert!(parse("::highlight(custom-highlight-name)").is_ok());
