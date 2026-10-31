@@ -1,0 +1,88 @@
+name: Update browser support data
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every Monday at 09:00 in San Francisco, including daylight saving time.
+    - cron: '0 9 * * 1'
+      timezone: America/Los_Angeles
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-browser-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --global yarn@1.22.22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: yarn install --frozen-lockfile
+      - name: Update browser data dependencies
+        # Keep the declared ranges: newer MDN schemas may need script changes.
+        run: yarn upgrade autoprefixer caniuse-lite @mdn/browser-compat-data
+      - name: Generate browser support data
+        run: node scripts/build-prefixes.js
+      # PRs created with GITHUB_TOKEN do not trigger pull_request workflows.
+      - name: Validate generated data
+        run: |
+          cargo test --locked --all-features
+          yarn build
+          yarn test
+          yarn tsc
+      - name: Create or update pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          branch=automation/update-browser-data
+          git add package.json yarn.lock src/compat.rs src/prefixes.rs src/targets.rs node/targets.d.ts node/flags.js
+          if git diff --cached --quiet; then
+            echo "Browser support data is already up to date."
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b "$branch"
+          git commit -m 'chore: update browser support data'
+
+          gh auth setup-git
+          remote_head=$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)
+          git push --force-with-lease="refs/heads/$branch:$remote_head" origin "HEAD:refs/heads/$branch"
+
+          pr_number=$(gh pr list --head "$branch" --base "$BASE_BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$pr_number" ]; then
+            echo "Updated pull request #$pr_number."
+            exit 0
+          fi
+
+          body_file="$RUNNER_TEMP/browser-data-pr.md"
+          cat > "$body_file" <<'EOF'
+          Update Autoprefixer, caniuse-lite, and MDN browser compatibility data within the declared version ranges, then regenerate browser support tables and target definitions with `scripts/build-prefixes.js`.
+
+          Validation: `cargo test --locked --all-features`, `yarn build`, `yarn test`, and `yarn tsc`.
+
+          Refs https://github.com/parcel-bundler/lightningcss/discussions/1241
+          EOF
+          gh pr create --base "$BASE_BRANCH" --head "$branch" --title 'chore: update browser support data' --body-file "$body_file"
