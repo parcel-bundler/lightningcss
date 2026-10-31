@@ -31363,6 +31363,60 @@ mod tests {
   }
 
   #[test]
+  fn test_error_recovery_preserves_declarations() {
+    let cases = [
+      (
+        ".a{color:red;width:1px;@keyframes k{from{opacity:0}}height:2px}",
+        ".a{color:red;width:1px;height:2px}",
+        1,
+      ),
+      (
+        ".a{color:red!important;@font-face{font-family:x}width:1px!important;height:2px}",
+        ".a{height:2px;color:red!important;width:1px!important}",
+        1,
+      ),
+      (".a{@keyframes k{}color:red;width:1px}", ".a{color:red;width:1px}", 1),
+      (".a{color:red;width:1px;@keyframes k{}}", ".a{color:red;width:1px}", 1),
+      (
+        ".a{color:red;@font-face{}width:1px!important;@keyframes k{}height:2px}",
+        ".a{color:red;height:2px;width:1px!important}",
+        2,
+      ),
+      (
+        ".a{color:red;@keyframes k{}width:1px}.b{height:2px}",
+        ".a{color:red;width:1px}.b{height:2px}",
+        1,
+      ),
+      (".a{color:red;*zoom:1;width:1px}", ".a{color:red;width:1px}", 1),
+      (
+        ".a{color:red;@media print{color:red;@font-face{}width:1px}height:2px}",
+        ".a{color:red;@media print{color:red;width:1px}height:2px}",
+        1,
+      ),
+    ];
+
+    for (source, expected, warning_count) in cases {
+      let warnings = Arc::new(RwLock::new(Vec::new()));
+      minify_test_with_options(
+        source,
+        expected,
+        ParserOptions {
+          error_recovery: true,
+          warnings: Some(warnings.clone()),
+          ..ParserOptions::default()
+        },
+      );
+      assert_eq!(warnings.read().unwrap().len(), warning_count, "{source}");
+      assert!(StyleSheet::parse(source, ParserOptions::default()).is_err(), "{source}");
+    }
+
+    minify_test(
+      ".a{color:red;@media print{width:1px}height:2px}",
+      ".a{color:red;@media print{width:1px}height:2px}",
+    );
+  }
+
+  #[test]
   fn test_invalid() {
     error_test(
       ".a{color: hsla(120, 62.32%;}",
