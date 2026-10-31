@@ -12795,43 +12795,43 @@ mod tests {
       ".foo { animation: foo 0s 3s infinite }",
       ".foo{animation:0s 3s infinite foo}",
     );
-    minify_test(".foo { animation: foo 3s --test }", ".foo{animation:3s foo --test}");
-    minify_test(".foo { animation: foo 3s scroll() }", ".foo{animation:3s foo scroll()}");
+    minify_test(".foo { animation: foo 3s --test }", ".foo{animation:3s foo;animation-timeline:--test}");
+    minify_test(".foo { animation: foo 3s scroll() }", ".foo{animation:3s foo;animation-timeline:scroll()}");
     minify_test(
       ".foo { animation: foo 3s scroll(block) }",
-      ".foo{animation:3s foo scroll()}",
+      ".foo{animation:3s foo;animation-timeline:scroll()}",
     );
     minify_test(
       ".foo { animation: foo 3s scroll(root inline) }",
-      ".foo{animation:3s foo scroll(root inline)}",
+      ".foo{animation:3s foo;animation-timeline:scroll(root inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s scroll(inline root) }",
-      ".foo{animation:3s foo scroll(root inline)}",
+      ".foo{animation:3s foo;animation-timeline:scroll(root inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s scroll(inline nearest) }",
-      ".foo{animation:3s foo scroll(inline)}",
+      ".foo{animation:3s foo;animation-timeline:scroll(inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(block) }",
-      ".foo{animation:3s foo view()}",
+      ".foo{animation:3s foo;animation-timeline:view()}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline) }",
-      ".foo{animation:3s foo view(inline)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline 10px 10px) }",
-      ".foo{animation:3s foo view(inline 10px)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline 10px)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline 10px 12px) }",
-      ".foo{animation:3s foo view(inline 10px 12px)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline 10px 12px)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline auto auto) }",
-      ".foo{animation:3s foo view(inline)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline)}",
     );
     minify_test(".foo { animation: foo 3s auto }", ".foo{animation:3s foo}");
     minify_test(".foo { animation-composition: add }", ".foo{animation-composition:add}");
@@ -12946,7 +12946,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: 90ms ease-in-out .1s 2 alternate forwards foo scroll();
+        animation: 90ms ease-in-out .1s 2 alternate forwards foo;
+        animation-timeline: scroll();
       }
     "#},
     );
@@ -13111,13 +13112,48 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: .2s ease-in-out bar scroll();
+        animation: .2s ease-in-out bar;
+        animation-timeline: scroll();
       }
     "#},
       Browsers {
         chrome: Some(120 << 16),
         ..Browsers::default()
       },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        animation: parallax 1ms linear both;
+        animation-timeline: view();
+        animation-range: exit 0% exit 100%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: 1ms linear both parallax;
+        animation-timeline: view();
+        animation-range: exit;
+      }
+    "#},
+      Browsers {
+        chrome: Some(115 << 16),
+        ..Browsers::default()
+      },
+    );
+    test(
+      r#"
+      .foo {
+        animation: parallax 1ms linear both;
+        animation-timeline: view();
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: 1ms linear both parallax;
+        animation-timeline: view();
+      }
+    "#},
     );
     prefix_test(
       r#"
