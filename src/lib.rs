@@ -15605,6 +15605,258 @@ mod tests {
     );
   }
 
+  #[cfg(feature = "into_owned")]
+  fn function_options<'i>() -> ParserOptions<'i> {
+    ParserOptions {
+      flags: ParserFlags::CUSTOM_FUNCTIONS,
+      ..ParserOptions::default()
+    }
+  }
+
+  #[cfg(feature = "into_owned")]
+  #[track_caller]
+  fn function_test(source: &str, expected: &str) {
+    minify_test_with_options(source, expected, function_options());
+  }
+
+  #[cfg(feature = "into_owned")]
+  #[test]
+  fn test_function_rule() {
+    let source = r#"@function --double(--x <length>, --y <number>: 2) returns <length> {
+      --d: calc(var(--x) * 2);
+      result: var(--d);
+    }"#;
+    let stylesheet = StyleSheet::parse(source, function_options()).unwrap();
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    assert_eq!(
+      res.code,
+      indoc! {r#"
+        @function --double(--x <length>, --y <number>: 2) returns <length> {
+          --d: calc(var(--x) * 2);
+          result: var(--d);
+        }
+      "#}
+    );
+    function_test(source, "");
+
+    function_test("@function --a(--x){result:var(--x)}.b{color:--a(red)}", ".b{color:red}");
+    function_test(
+      ".b{width:--f(10px)}@function --f(--x <length>) returns <length>{result:calc(var(--x)*2)}",
+      ".b{width:20px}",
+    );
+    function_test(
+      "@function --pair(--a,--b){result:var(--a) var(--b)}.b{margin:--pair(1px,2px)}",
+      ".b{margin:1px 2px}",
+    );
+    function_test(
+      "@function --sides(){result:10px 10px 10px 10px}.b{margin:--sides()}",
+      ".b{margin:10px}",
+    );
+    function_test(
+      "@function --border(){result:1px solid red}.b{border:--border()}",
+      ".b{border:1px solid red}",
+    );
+    function_test(
+      "@function --a(--x <length>) returns <length>{result:var(--x)}.b{margin:--a(1px) --a(2px) --a(3px) --a(4px)}",
+      ".b{margin:1px 2px 3px 4px}",
+    );
+    function_test(
+      "@function --w() returns <length>{result:5px}.b{width:var(--missing,--w())}",
+      ".b{width:var(--missing,5px)}",
+    );
+    function_test(
+      "@function --d(--x <length>) returns <length>{result:calc(var(--x)*2)}.b{--base:--d(5px);width:var(--base)}",
+      ".b{--base:10px;width:var(--base)}",
+    );
+  }
+
+  #[cfg(feature = "into_owned")]
+  #[test]
+  fn test_function_rule_types() {
+    function_test(
+      "@function --double(--x <length>) returns <length>{result:calc(var(--x)*2)}.b{width:--double(10px)}",
+      ".b{width:20px}",
+    );
+    function_test(
+      "@function --c(--x <color>) returns <color>{result:var(--x)}.b{color:--c(#ff0000)}",
+      ".b{color:red}",
+    );
+    function_test(
+      "@function --turn(--a <angle>) returns <angle>{result:calc(var(--a)*2)}.b{transform:rotate(--turn(45deg))}",
+      ".b{transform:rotate(90deg)}",
+    );
+    function_test(
+      "@function --half(--p <percentage>) returns <percentage>{result:calc(var(--p)/2)}.b{width:--half(50%)}",
+      ".b{width:25%}",
+    );
+    function_test(
+      "@function --m(--x <length>: 5px) returns <length>{result:var(--x)}.b{margin:--m()}",
+      ".b{margin:5px}",
+    );
+    function_test(
+      "@function --m(--x <length>: 5px) returns <length>{result:var(--x)}.b{margin:--m(red)}",
+      ".b{margin:5px}",
+    );
+  }
+
+  #[cfg(feature = "into_owned")]
+  #[test]
+  fn test_function_rule_nested_calls() {
+    function_test(
+      "@function --inc(--x <number>) returns <number>{result:calc(var(--x) + 1)}@function --inc2(--x <number>) returns <number>{result:--inc(--inc(var(--x)))}.b{z-index:--inc2(1)}",
+      ".b{z-index:3}",
+    );
+    function_test(
+      "@function --inc(--x <number>) returns <number>{result:calc(var(--x) + 1)}@function --dbl(--x <number>) returns <number>{result:calc(var(--x)*2)}.b{z-index:--dbl(--inc(3))}",
+      ".b{z-index:8}",
+    );
+    function_test(
+      "@function --leaf(--x <number>) returns <number>{result:calc(var(--x) + 1)}@function --top() returns <number>{result:calc(--leaf(1) + --leaf(2))}.b{z-index:--top()}",
+      ".b{z-index:5}",
+    );
+  }
+
+  #[cfg(feature = "into_owned")]
+  #[test]
+  fn test_function_rule_scopes() {
+    function_test(
+      "@function --area(--r <length>) returns <length>{--d:calc(var(--r)*2);result:var(--d)}.b{width:--area(4px)}",
+      ".b{width:8px}",
+    );
+    function_test(
+      "@function --f(--x <number>) returns <number>{--x:10;result:calc(var(--x) + 1)}.b{z-index:--f(1)}",
+      ".b{z-index:11}",
+    );
+    function_test(
+      "@function --add(--b <number>) returns <number>{result:calc(var(--a) + var(--b))}div{--a:1;z-index:--add(2)}",
+      "div{--a:1;z-index:3}",
+    );
+    function_test(
+      "@function --f(--x <number>) returns <number>{result:calc(var(--x) + var(--c))}div{--c:5;--x:99;z-index:--f(2)}",
+      "div{--c:5;--x:99;z-index:7}",
+    );
+    function_test(
+      "@function --f(--x <number>) returns <number>{--y:100;result:calc(var(--x) + var(--y) + var(--z))}div{--z:7;--x:99;z-index:--f(20)}",
+      "div{--z:7;--x:99;z-index:127}",
+    );
+    function_test(
+      "@property --c{syntax:\"<color>\";inherits:false;initial-value:blue}@function --paint() returns <color>{result:var(--c)}a{--c:green;color:--paint()}",
+      "@property --c{syntax:\"<color>\";inherits:false;initial-value:#00f}a{--c:green;color:green}",
+    );
+    function_test(
+      "@property --c{syntax:\"<color>\";inherits:false;initial-value:blue}@function --paint() returns <color>{result:var(--c)}a{--c:notacolor;color:--paint()}",
+      "@property --c{syntax:\"<color>\";inherits:false;initial-value:#00f}a{--c:notacolor;color:#00f}",
+    );
+  }
+
+  #[cfg(feature = "into_owned")]
+  #[test]
+  fn test_function_rule_call_sites() {
+    let function = "@function --w() returns <length>{result:5px}";
+    function_test(
+      &format!("{function}@media print{{.b{{width:--w()}}}}"),
+      "@media print{.b{width:5px}}",
+    );
+    function_test(
+      &format!("{function}@supports (display:grid){{.b{{width:--w()}}}}"),
+      "@supports (display:grid){.b{width:5px}}",
+    );
+    function_test(
+      &format!("{function}@scope (.a){{.b{{width:--w()}}}}"),
+      "@scope(.a){.b{width:5px}}",
+    );
+    function_test(
+      &format!("{function}@container foo{{.b{{width:--w()}}}}"),
+      "@container foo{.b{width:5px}}",
+    );
+    function_test(
+      &format!("{function}@layer base{{.b{{width:--w()}}}}"),
+      "@layer base{.b{width:5px}}",
+    );
+    function_test(
+      &format!("{function}@media screen{{@supports (top:0){{.b{{width:--w()}}}}}}"),
+      "@media screen{@supports (top:0){.b{width:5px}}}",
+    );
+    function_test(&format!("{function}@page{{margin:--w()}}"), "@page{margin:5px}");
+    function_test(
+      &format!("{function}@keyframes grow{{100%{{width:--w()}}}}"),
+      "@keyframes grow{to{width:5px}}",
+    );
+    function_test(&format!("{function}.a{{.b{{width:--w()}}}}"), ".a{& .b{width:5px}}");
+  }
+
+  #[cfg(feature = "into_owned")]
+  #[test]
+  fn test_function_rule_errors() {
+    let check = |source: &str, kind: MinifyErrorKind| {
+      minify_error_test_with_options(source, kind, function_options());
+    };
+
+    check(
+      "@function --cyc(--x){result:--cyc(1)}.b{color:--cyc(red)}",
+      MinifyErrorKind::CircularFunction { name: "--cyc".into() },
+    );
+    check(
+      "@function --a(--x){result:--b(1)}@function --b(--x){result:--c(1)}@function --c(--x){result:--a(1)}.b{width:--a(2)}",
+      MinifyErrorKind::CircularFunction { name: "--a".into() },
+    );
+    check(
+      "@function --one(--x <number>) returns <number>{result:var(--x)}.b{z-index:--one(1, 2)}",
+      MinifyErrorKind::InvalidFunctionArguments { name: "--one".into() },
+    );
+    check(
+      "@function --need(--x <length>) returns <length>{result:var(--x)}.b{width:--need(notalength)}",
+      MinifyErrorKind::InvalidFunctionArguments { name: "--need".into() },
+    );
+    check(
+      "@function --len() returns <length>{result:red}.b{width:--len()}",
+      MinifyErrorKind::InvalidFunctionResult { name: "--len".into() },
+    );
+  }
+
+  #[cfg(feature = "into_owned")]
+  #[test]
+  fn test_function_rule_nested() {
+    function_test(
+      "@media print{@function --w() returns <length>{result:5px}.b{width:--w()}}",
+      "@media print{@function --w() returns <length>{result:5px}.b{width:--w()}}",
+    );
+    function_test(
+      "@function --w() returns <length>{result:5px}@media print{@function --n() returns <length>{result:1px}.b{width:--w();height:--n()}}",
+      "@media print{@function --n() returns <length>{result:1px}.b{width:5px;height:--n()}}",
+    );
+  }
+
+  #[test]
+  fn test_function_rule_disabled() {
+    minify_test(
+      "@function --f(--x <length>) returns <length>{result:var(--x)}.b{width:--f(10px)}",
+      "@function --f(--x <length>) returns <length>{result:var(--x)}.b{width:--f(10px)}",
+    );
+    minify_test(
+      "@media print{@function --f(--x){result:var(--x)}.b{color:--f(red)}}",
+      "@media print{@function --f(--x){result:var(--x)}.b{color:--f(red)}}",
+    );
+    test(
+      "@function --f(--x) { result: var(--x); }",
+      indoc! {r#"
+        @function --f(--x) {
+          result: var(--x);
+        }
+      "#},
+    );
+    test(
+      "@media print { @function --f(--x) { result: var(--x); } }",
+      indoc! {r#"
+        @media print {
+          @function --f(--x) {
+            result: var(--x);
+          }
+        }
+      "#},
+    );
+  }
+
   #[test]
   fn test_font_feature_values() {
     // https://github.com/clagnut/TODS/blob/e693d52ad411507b960cf01a9734265e3efab102/tods.css#L116-L142

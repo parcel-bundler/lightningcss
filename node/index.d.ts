@@ -277,6 +277,11 @@ export interface Drafts {
    * https://drafts.csswg.org/css-overflow-5/#scroll-navigation
    */
   scrollNavigationControls?: boolean
+  /**
+   * Whether to enable @function rules, and evaluate calls to them.
+   * https://drafts.csswg.org/css-mixins-1/#function-rule
+   */
+  customFunctions?: boolean
 }
 
 export interface NonStandard {

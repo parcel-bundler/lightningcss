@@ -243,6 +243,17 @@ where
       None
     };
 
+    let registries = crate::rules::function::collect_registries(&self.rules);
+    if !registries.is_empty() {
+      crate::rules::function::inline_functions(&mut self.rules, &registries).map_err(|e| Error {
+        kind: e.kind,
+        loc: Some(ErrorLocation::new(
+          e.loc,
+          self.sources.get(e.loc.source_index as usize).cloned().unwrap_or_default(),
+        )),
+      })?;
+    }
+
     let mut ctx = MinifyContext {
       targets: TargetsWithSupportsScope::new(options.targets),
       handler: &mut handler,

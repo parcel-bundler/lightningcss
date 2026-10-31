@@ -617,6 +617,47 @@ let { code, map } = transform({
 });
 ```
 
+### Custom functions
+
+The [CSS Functions and Mixins](https://drafts.csswg.org/css-mixins-1/) draft spec defines the `@function` rule, which lets you declare your own functions with dashed names and call them from any declaration. When this feature is enabled, Lightning CSS evaluates these calls ahead of time and removes the `@function` rules from the output.
+
+A function declares its parameters, each with an optional [syntax](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings) and default value, an optional return type, and a `result` descriptor. Arguments and results that have a declared type are parsed as that type, so `calc()` expressions are reduced and values are normalized.
+
+For example:
+
+```css
+@function --double(--x <length>) returns <length> {
+  result: calc(var(--x) * 2);
+}
+
+.box {
+  width: --double(10px);
+}
+```
+
+is compiled to:
+
+```css
+.box {
+  width: 20px;
+}
+```
+
+Custom properties declared inside the function are local to it. Within the function, `var()` references are resolved first against local custom properties, then against the parameters, and finally against custom properties declared on the same rule as the call. Functions can call other functions, but a function that calls itself, directly or indirectly, is reported as an error, as are calls with arguments that cannot be bound to the parameters and results that do not match the declared return type.
+
+Only `@function` rules at the top level of a stylesheet are evaluated. A rule nested inside another rule, such as `@media`, is left in place and calls to it are not resolved. Mixins (`@mixin`) are not supported yet.
+
+Because custom functions are a draft, and browsers may support them natively, they are not enabled by default. To use them, enable the `customFunctions` option under `drafts` when calling the Lightning CSS API. When using the CLI, enable the `--custom-functions` flag. When the option is disabled, `@function` rules and calls to them are left unchanged.
+
+```js
+let { code, map } = transform({
+  // ...
+  drafts: {
+    customFunctions: true
+  }
+});
+```
+
 ## Pseudo class replacement
 
 Lightning CSS supports replacing CSS pseudo classes such as `:focus-visible` with normal CSS classes that can be applied using JavaScript. This makes it possible to polyfill these pseudo classes for older browsers.
