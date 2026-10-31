@@ -33,6 +33,10 @@ jobs:
       - uses: bahmutov/npm-install@v1.8.32
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Check generated TypeScript types
+        run: |
+          yarn build-ast
+          git diff --exit-code -- node/ast.d.ts
       - run: yarn build
       - run: yarn test
       - run: yarn tsc
