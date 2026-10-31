@@ -304,6 +304,15 @@ impl Into<f32> for Constant {
   }
 }
 
+/// Returns whether `name` is a math function handled by `Calc::parse_with`.
+fn is_math_function_name(name: &str) -> bool {
+  match_ignore_ascii_case! { name,
+    "calc" | "min" | "max" | "clamp" | "round" | "rem" | "mod" | "sin" | "cos" | "tan" | "asin" | "acos"
+      | "atan" | "atan2" | "pow" | "log" | "sqrt" | "exp" | "hypot" | "abs" | "sign" => true,
+    _ => false,
+  }
+}
+
 impl<
     'i,
     V: Parse<'i>
@@ -618,16 +627,22 @@ impl<
     parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Parse nested calc() and other math functions.
-    if let Ok(calc) = input.try_parse(Self::parse) {
-      match calc {
-        Calc::Function(f) => {
-          return Ok(match *f {
-            MathFunction::Calc(c) => c,
-            _ => Calc::Function(f),
-          })
-        }
-        c => return Ok(c),
+    let state = input.state();
+    let is_math_function = matches!(input.next(), Ok(Token::Function(f)) if is_math_function_name(f));
+    input.reset(&state);
+    match input.try_parse(Self::parse) {
+      Ok(Calc::Function(f)) => {
+        return Ok(match *f {
+          MathFunction::Calc(c) => c,
+          _ => Calc::Function(f),
+        })
       }
+      Ok(c) => return Ok(c),
+      // V::parse below would parse the same math function again as a Calc<V>
+      // and fail the same way. Return early so that each nesting level is only
+      // parsed once, otherwise parsing time doubles with every level.
+      Err(e) if is_math_function => return Err(e),
+      Err(_) => {}
     }
 
     if input.try_parse(|input| input.expect_parenthesis_block()).is_ok() {
