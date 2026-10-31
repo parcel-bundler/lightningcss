@@ -1,0 +1,87 @@
+name: WPT tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    name: WPT harness tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+      WPT_BROWSER_TESTS: "1"
+      WPT_CHROME: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: yarn
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: yarn install --frozen-lockfile
+      - run: yarn test:wpt:harness
+
+  wpt:
+    name: WPT regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_TERM_COLOR: always
+      # This workflow runs the parser/transform matrix without a browser.
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: yarn
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Clone pinned WPT revision
+        run: |
+          WPT_CHECKOUT="$RUNNER_TEMP/lightningcss-wpt"
+          echo "WPT_CHECKOUT=$WPT_CHECKOUT" >> "$GITHUB_ENV"
+          wpt_repository=$(node -p 'require("./wpt/revision.json").repository')
+          wpt_revision=$(node -p 'require("./wpt/revision.json").commit')
+          git clone --depth 1 --filter=blob:none --sparse "$wpt_repository" "$WPT_CHECKOUT"
+          git -C "$WPT_CHECKOUT" fetch --depth 1 origin "$wpt_revision"
+          git -C "$WPT_CHECKOUT" checkout --detach "$wpt_revision"
+          git -C "$WPT_CHECKOUT" sparse-checkout set css
+
+      - name: Extract full corpus
+        run: node wpt/extract.mjs "$WPT_CHECKOUT" --discovery --output wpt/fixtures.json
+
+      - name: Run WPT tests
+        run: yarn test:wpt:baseline --baseline-corpus discovery
+
+      # Retain reports for new failures, changed outcomes and obsolete expectations.
+      - name: Generate HTML report
+        if: ${{ always() && hashFiles('wpt/results.json') != '' }}
+        run: yarn report:wpt
+
+      - name: Upload WPT report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: wpt/results.html
+          if-no-files-found: warn
+          archive: false
+          retention-days: 14
