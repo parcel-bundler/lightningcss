@@ -91,6 +91,20 @@ macro_rules! define_fallbacks {
 
     impl<'i> PropertyHandler<'i> for FallbackHandler {
       fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) -> bool {
+        // `caret` sets `caret-color` and `caret-shape`, so they must keep their source order.
+        // Seeing one forgets the slot of the other, so a later declaration of it is appended
+        // instead of written back ahead of the one in between.
+        match property {
+          Property::Caret(..) => self.caret_color = None,
+          Property::CaretColor(..) | Property::CaretShape(..) => self.caret = None,
+          Property::Unparsed(val) => match val.property_id {
+            PropertyId::Caret => self.caret_color = None,
+            PropertyId::CaretColor | PropertyId::CaretShape => self.caret = None,
+            _ => {}
+          },
+          _ => {}
+        }
+
         match property {
           $(
             Property::$name(val $(, mut $p)?) => {
