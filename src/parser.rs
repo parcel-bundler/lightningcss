@@ -668,17 +668,12 @@ impl<'a, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Nested
       },
       "container" => {
         let name = input.try_parse(ContainerName::parse).ok();
-        match input.try_parse(|input| ContainerCondition::parse_with_options(input, &self.options)) {
-          Ok(condition) => AtRulePrelude::Container(name, Some(condition)),
-          Err(e) => {
-            if name.is_some() && input.is_exhausted() {
-              // name only, no condition - allowed by new syntax
-              AtRulePrelude::Container(name, None)
-            } else {
-              // condition parsing failed (e.g., empty brackets or invalid tokens)
-              return Err(e);
-            }
-          }
+        if name.is_some() && input.is_exhausted() {
+          // A name-only query has no condition to parse or recover from.
+          AtRulePrelude::Container(name, None)
+        } else {
+          let condition = input.try_parse(|input| ContainerCondition::parse_with_options(input, &self.options))?;
+          AtRulePrelude::Container(name, Some(condition))
         }
       },
       "starting-style" => {
