@@ -11823,6 +11823,15 @@ mod tests {
 
   #[test]
   fn test_transitions() {
+    // A longhand without a typed property keeps its place relative to the shorthand.
+    minify_test(
+      ".foo { transition: opacity 1s; transition-behavior: allow-discrete }",
+      ".foo{transition:opacity 1s;transition-behavior:allow-discrete}",
+    );
+    minify_test(
+      ".foo { transition-behavior: allow-discrete; transition: opacity 1s }",
+      ".foo{transition-behavior:allow-discrete;transition:opacity 1s}",
+    );
     property_range_test(&["transition-delay"], &[("-1s", Some("-1s"))]);
     property_range_test(
       &["transition"],
@@ -12609,6 +12618,19 @@ mod tests {
 
   #[test]
   fn test_animation() {
+    // A longhand without a typed property keeps its place relative to the shorthand.
+    minify_test(
+      ".foo { animation: fade 1s; animation-composition: add }",
+      ".foo{animation:1s fade;animation-composition:add}",
+    );
+    minify_test(
+      ".foo { animation-composition: add; animation: fade 1s }",
+      ".foo{animation-composition:add;animation:1s fade}",
+    );
+    minify_test(
+      ".foo { animation: fade 1s; animation-trigger: once view() }",
+      ".foo{animation:1s fade;animation-trigger:once view()}",
+    );
     property_range_test(&["animation-delay"], &[("-1s", Some("-1s"))]);
     property_range_test(
       &["animation"],
