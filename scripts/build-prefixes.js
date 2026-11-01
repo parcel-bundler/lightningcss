@@ -334,7 +334,20 @@ let mdnFeatures = {
   fontStretchPercentage: mdn.css.properties['font-stretch'].percentage.__compat.support,
   lightDark: mdn.css.types.color['light-dark'].__compat.support,
   accentSystemColor: mdn.css.types.color['system-color'].accentcolor_accentcolortext.__compat.support,
-  animationTimelineShorthand: mdn.css.properties.animation['animation-timeline_included'].__compat.support,
+  animationTimelineShorthand: Object.fromEntries(
+    Object.entries(mdn.css.properties.animation['animation-timeline_included'].__compat.support)
+      .map(([browser, value]) => {
+        // Chrome/Edge 115+ only support animation-timeline as a reset-only sub-property
+        // of the animation shorthand, so it cannot be set via the shorthand yet.
+        if (Array.isArray(value)) {
+          value = value.filter(v => !v.partial_implementation)
+        } else if (value.partial_implementation) {
+          value = { version_added: false };
+        }
+
+        return [browser, value];
+      })
+  ),
   viewTransition: mdn.css.selectors['view-transition'].__compat.support,
   detailsContent: mdn.css.selectors['details-content'].__compat.support,
   targetText: mdn.css.selectors['target-text'].__compat.support,
