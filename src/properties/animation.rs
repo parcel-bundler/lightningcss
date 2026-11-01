@@ -8,6 +8,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
+use crate::properties::custom::is_unknown_longhand;
 use crate::properties::{Property, PropertyId, TokenOrValue, VendorPrefix};
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::ident::DashedIdent;
@@ -874,6 +875,17 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         dest.push(Property::Unparsed(
           val.get_prefixed(context.targets, Feature::Animation),
         ));
+      }
+      // The `animation` shorthand resets these longhands, but this handler doesn't buffer
+      // them, so they must stay after a buffered shorthand they follow: the typed
+      // `animation-composition`, and any `animation-*` longhand without a typed property.
+      Property::AnimationComposition(..) => {
+        self.flush(dest, context);
+        dest.push(property.clone());
+      }
+      Property::Custom(val) if is_unknown_longhand(&val.name, "animation-") => {
+        self.flush(dest, context);
+        dest.push(property.clone());
       }
       _ => return false,
     }

@@ -59,6 +59,13 @@ impl<'i> CustomProperty<'i> {
   }
 }
 
+/// Whether `name` is a property this crate doesn't type whose name starts with `prefix`,
+/// such as `transition-behavior` for `"transition-"`. Shorthand handlers use it to keep
+/// such a longhand after the shorthand it follows.
+pub(crate) fn is_unknown_longhand(name: &CustomPropertyName, prefix: &str) -> bool {
+  matches!(name, CustomPropertyName::Unknown(name) if name.as_ref().starts_with(prefix))
+}
+
 /// A CSS custom property name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
