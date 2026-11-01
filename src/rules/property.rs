@@ -5,7 +5,6 @@ use super::Location;
 use crate::visitor::Visit;
 use crate::{
   error::{ParserError, PrinterError},
-  printer::Printer,
   properties::custom::TokenList,
   traits::{Parse, ToCss},
   values::{
@@ -110,11 +109,7 @@ impl<'i> PropertyRule<'i> {
 }
 
 impl<'i> ToCss for PropertyRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_str("@property ")?;
     self.name.to_css(dest)?;
@@ -144,14 +139,15 @@ impl<'i> ToCss for PropertyRule<'i> {
       dest.whitespace()?;
       initial_value.to_css(dest)?;
 
-      if !dest.minify {
+      if !dest.options().minify {
         dest.write_char(';')?;
       }
     }
 
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}')?;
+    Ok(())
   }
 }
 

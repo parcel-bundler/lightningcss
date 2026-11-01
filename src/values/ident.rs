@@ -1,7 +1,6 @@
 //! CSS identifiers.
 
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::properties::css_modules::Specifier;
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::string::CowArcStr;
@@ -45,26 +44,21 @@ impl<'i> Parse<'i> for CustomIdent<'i> {
 }
 
 impl<'i> ToCss for CustomIdent<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.to_css_with_options(dest, true)
   }
 }
 
 impl<'i> CustomIdent<'i> {
   /// Write the custom ident to CSS.
-  pub(crate) fn to_css_with_options<W>(
+  pub(crate) fn to_css_with_options<PrinterT: crate::printer::PrinterTrait>(
     &self,
-    dest: &mut Printer<W>,
+    dest: &mut PrinterT,
     enabled_css_modules: bool,
-  ) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  ) -> Result<(), PrinterError> {
     let css_module_custom_idents_enabled = enabled_css_modules
       && dest
+        .state_mut()
         .css_module
         .as_mut()
         .map_or(false, |css_module| css_module.config.custom_idents);
@@ -116,12 +110,12 @@ impl<'i> Parse<'i> for NoneOrCustomIdentList<'i> {
 }
 
 impl<'i> ToCss for NoneOrCustomIdentList<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      NoneOrCustomIdentList::None => dest.write_str("none"),
+      NoneOrCustomIdentList::None => {
+        dest.write_str("none")?;
+        Ok(())
+      }
       NoneOrCustomIdentList::Idents(types) => {
         let mut first = true;
         for ident in types {
@@ -163,10 +157,7 @@ impl<'i> Parse<'i> for DashedIdent<'i> {
 }
 
 impl<'i> ToCss for DashedIdent<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.write_dashed_ident(&self.0, true)
   }
 }
@@ -230,13 +221,11 @@ impl<'i> ParseWithOptions<'i> for DashedIdentReference<'i> {
 }
 
 impl<'i> ToCss for DashedIdentReference<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match &mut dest.css_module {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
+    let source_index = dest.state().loc.source_index;
+    match dest.state_mut().css_module.as_mut() {
       Some(css_module) if css_module.config.dashed_idents => {
-        if let Some(name) = css_module.reference_dashed(&self.ident.0, &self.from, dest.loc.source_index) {
+        if let Some(name) = css_module.reference_dashed(&self.ident.0, &self.from, source_index) {
           dest.write_str("--")?;
           serialize_name(&name, dest)?;
           return Ok(());
@@ -265,10 +254,7 @@ impl<'i> Parse<'i> for Ident<'i> {
 }
 
 impl<'i> ToCss for Ident<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     serialize_identifier(&self.0, dest)?;
     Ok(())
   }
