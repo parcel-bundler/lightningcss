@@ -7,7 +7,12 @@ use crate::macros::{define_shorthand, rect_shorthand, size_shorthand};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
-use crate::values::{length::LengthPercentageOrAuto, rect::Rect, size::Size2D};
+use crate::values::number::NonNegative;
+use crate::values::{
+  length::{LengthPercentage, LengthPercentageOrAuto},
+  rect::Rect,
+  size::Size2D,
+};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -24,7 +29,7 @@ rect_shorthand! {
 
 rect_shorthand! {
   /// A value for the [padding](https://drafts.csswg.org/css-box-4/#propdef-padding) shorthand property.
-  pub struct Padding<LengthPercentageOrAuto> {
+  pub struct Padding<NonNegative<LengthPercentage>> {
     PaddingTop,
     PaddingRight,
     PaddingBottom,
@@ -44,7 +49,7 @@ rect_shorthand! {
 
 rect_shorthand! {
   /// A value for the [scroll-padding](https://drafts.csswg.org/css-scroll-snap/#scroll-padding) shorthand property.
-  pub struct ScrollPadding<LengthPercentageOrAuto> {
+  pub struct ScrollPadding<NonNegative<LengthPercentageOrAuto>> {
     ScrollPaddingTop,
     ScrollPaddingRight,
     ScrollPaddingBottom,
@@ -84,7 +89,7 @@ size_shorthand! {
 
 size_shorthand! {
   /// A value for the [padding-block](https://drafts.csswg.org/css-logical/#propdef-padding-block) shorthand property.
-  pub struct PaddingBlock<LengthPercentageOrAuto> {
+  pub struct PaddingBlock<NonNegative<LengthPercentage>> {
      /// The block start value.
     block_start: PaddingBlockStart,
     /// The block end value.
@@ -94,7 +99,7 @@ size_shorthand! {
 
 size_shorthand! {
   /// A value for the [padding-inline](https://drafts.csswg.org/css-logical/#propdef-padding-inline) shorthand property.
-  pub struct PaddingInline<LengthPercentageOrAuto> {
+  pub struct PaddingInline<NonNegative<LengthPercentage>> {
     /// The inline start value.
     inline_start: PaddingInlineStart,
     /// The inline end value.
@@ -124,7 +129,7 @@ size_shorthand! {
 
 size_shorthand! {
   /// A value for the [scroll-padding-block](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-padding-block) shorthand property.
-  pub struct ScrollPaddingBlock<LengthPercentageOrAuto> {
+  pub struct ScrollPaddingBlock<NonNegative<LengthPercentageOrAuto>> {
      /// The block start value.
     block_start: ScrollPaddingBlockStart,
     /// The block end value.
@@ -134,7 +139,7 @@ size_shorthand! {
 
 size_shorthand! {
   /// A value for the [scroll-padding-inline](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-padding-inline) shorthand property.
-  pub struct ScrollPaddingInline<LengthPercentageOrAuto> {
+  pub struct ScrollPaddingInline<NonNegative<LengthPercentageOrAuto>> {
     /// The inline start value.
     inline_start: ScrollPaddingInlineStart,
     /// The inline end value.
@@ -163,13 +168,13 @@ size_shorthand! {
 }
 
 macro_rules! side_handler {
-  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $shorthand_category: ident $(, $feature: ident, $shorthand_feature: ident)?) => {
+  ($name: ident, $value: ty, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $shorthand_category: ident $(, $feature: ident, $shorthand_feature: ident)?) => {
     #[derive(Debug, Default)]
     pub(crate) struct $name<'i> {
-      top: Option<LengthPercentageOrAuto>,
-      bottom: Option<LengthPercentageOrAuto>,
-      left: Option<LengthPercentageOrAuto>,
-      right: Option<LengthPercentageOrAuto>,
+      top: Option<$value>,
+      bottom: Option<$value>,
+      left: Option<$value>,
+      right: Option<$value>,
       block_start: Option<Property<'i>>,
       block_end: Option<Property<'i>>,
       inline_start: Option<Property<'i>>,
@@ -411,6 +416,7 @@ macro_rules! side_handler {
 
 side_handler!(
   MarginHandler,
+  LengthPercentageOrAuto,
   MarginTop,
   MarginBottom,
   MarginLeft,
@@ -429,6 +435,7 @@ side_handler!(
 
 side_handler!(
   PaddingHandler,
+  NonNegative<LengthPercentage>,
   PaddingTop,
   PaddingBottom,
   PaddingLeft,
@@ -447,6 +454,7 @@ side_handler!(
 
 side_handler!(
   ScrollMarginHandler,
+  LengthPercentageOrAuto,
   ScrollMarginTop,
   ScrollMarginBottom,
   ScrollMarginLeft,
@@ -463,6 +471,7 @@ side_handler!(
 
 side_handler!(
   ScrollPaddingHandler,
+  NonNegative<LengthPercentageOrAuto>,
   ScrollPaddingTop,
   ScrollPaddingBottom,
   ScrollPaddingLeft,
@@ -479,6 +488,7 @@ side_handler!(
 
 side_handler!(
   InsetHandler,
+  LengthPercentageOrAuto,
   Top,
   Bottom,
   Left,

@@ -289,7 +289,7 @@ where
     }
 
     if let Some(config) = &self.options.css_modules {
-      let mut references = HashMap::new();
+      let mut references = CssModuleReferences::new();
       printer.css_module = Some(CssModule::new(
         config,
         &self.sources,

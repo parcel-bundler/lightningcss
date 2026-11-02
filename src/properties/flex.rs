@@ -11,7 +11,7 @@ use crate::macros::*;
 use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
 use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss, Zero};
-use crate::values::number::{CSSInteger, CSSNumber};
+use crate::values::number::{CSSInteger, CSSNumber, NonNegative};
 use crate::values::{
   length::{LengthPercentage, LengthPercentageOrAuto},
   percentage::Percentage,
@@ -128,11 +128,11 @@ define_shorthand! {
 /// A value for the [flex](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-property) shorthand property.
   pub struct Flex(VendorPrefix) {
     /// The flex grow factor.
-    grow: FlexGrow(CSSNumber, VendorPrefix),
+    grow: FlexGrow(NonNegative<CSSNumber>, VendorPrefix),
     /// The flex shrink factor.
-    shrink: FlexShrink(CSSNumber, VendorPrefix),
+    shrink: FlexShrink(NonNegative<CSSNumber>, VendorPrefix),
     /// The flex basis.
-    basis: FlexBasis(LengthPercentageOrAuto, VendorPrefix),
+    basis: FlexBasis(NonNegative<LengthPercentageOrAuto>, VendorPrefix),
   }
 }
 
@@ -140,9 +140,9 @@ impl<'i> Parse<'i> for Flex {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(Flex {
-        grow: 0.0,
-        shrink: 0.0,
-        basis: LengthPercentageOrAuto::Auto,
+        grow: NonNegative(0.0),
+        shrink: NonNegative(0.0),
+        basis: NonNegative(LengthPercentageOrAuto::Auto),
       });
     }
 
@@ -152,15 +152,15 @@ impl<'i> Parse<'i> for Flex {
 
     loop {
       if grow.is_none() {
-        if let Ok(val) = input.try_parse(CSSNumber::parse) {
+        if let Ok(val) = input.try_parse(NonNegative::<CSSNumber>::parse) {
           grow = Some(val);
-          shrink = input.try_parse(CSSNumber::parse).ok();
+          shrink = input.try_parse(NonNegative::<CSSNumber>::parse).ok();
           continue;
         }
       }
 
       if basis.is_none() {
-        if let Ok(val) = input.try_parse(LengthPercentageOrAuto::parse) {
+        if let Ok(val) = input.try_parse(NonNegative::<LengthPercentageOrAuto>::parse) {
           basis = Some(val);
           continue;
         }
@@ -170,10 +170,10 @@ impl<'i> Parse<'i> for Flex {
     }
 
     Ok(Flex {
-      grow: grow.unwrap_or(1.0),
-      shrink: shrink.unwrap_or(1.0),
-      basis: basis.unwrap_or(LengthPercentageOrAuto::LengthPercentage(LengthPercentage::Percentage(
-        Percentage(0.0),
+      grow: grow.unwrap_or(NonNegative(1.0)),
+      shrink: shrink.unwrap_or(NonNegative(1.0)),
+      basis: basis.unwrap_or(NonNegative(LengthPercentageOrAuto::LengthPercentage(
+        LengthPercentage::Percentage(Percentage(0.0)),
       ))),
     })
   }
@@ -184,7 +184,7 @@ impl ToCss for Flex {
   where
     W: std::fmt::Write,
   {
-    if self.grow == 0.0 && self.shrink == 0.0 && self.basis == LengthPercentageOrAuto::Auto {
+    if self.grow.0 == 0.0 && self.shrink.0 == 0.0 && self.basis.0 == LengthPercentageOrAuto::Auto {
       dest.write_str("none")?;
       return Ok(());
     }
@@ -198,7 +198,7 @@ impl ToCss for Flex {
 
     // If the basis is unitless 0, we must write all three components to disambiguate.
     // If the basis is 0%, we can omit the basis.
-    let basis_kind = match &self.basis {
+    let basis_kind = match &self.basis.0 {
       LengthPercentageOrAuto::LengthPercentage(lp) => match lp {
         LengthPercentage::Dimension(l) if l.is_zero() => ZeroKind::Length,
         LengthPercentage::Percentage(p) if p.is_zero() => ZeroKind::Percentage,
@@ -207,16 +207,16 @@ impl ToCss for Flex {
       _ => ZeroKind::NonZero,
     };
 
-    if self.grow != 1.0 || self.shrink != 1.0 || basis_kind != ZeroKind::NonZero {
+    if self.grow.0 != 1.0 || self.shrink.0 != 1.0 || basis_kind != ZeroKind::NonZero {
       self.grow.to_css(dest)?;
-      if self.shrink != 1.0 || basis_kind == ZeroKind::Length {
+      if self.shrink.0 != 1.0 || basis_kind == ZeroKind::Length {
         dest.write_str(" ")?;
         self.shrink.to_css(dest)?;
       }
     }
 
     if basis_kind != ZeroKind::Percentage {
-      if self.grow != 1.0 || self.shrink != 1.0 || basis_kind == ZeroKind::Length {
+      if self.grow.0 != 1.0 || self.shrink.0 != 1.0 || basis_kind == ZeroKind::Length {
         dest.write_str(" ")?;
       }
       self.basis.to_css(dest)?;
@@ -477,13 +477,13 @@ pub(crate) struct FlexHandler {
   box_direction: Option<(BoxDirection, VendorPrefix)>,
   wrap: Option<(FlexWrap, VendorPrefix)>,
   box_lines: Option<(BoxLines, VendorPrefix)>,
-  grow: Option<(CSSNumber, VendorPrefix)>,
-  box_flex: Option<(CSSNumber, VendorPrefix)>,
-  flex_positive: Option<(CSSNumber, VendorPrefix)>,
-  shrink: Option<(CSSNumber, VendorPrefix)>,
-  flex_negative: Option<(CSSNumber, VendorPrefix)>,
-  basis: Option<(LengthPercentageOrAuto, VendorPrefix)>,
-  preferred_size: Option<(LengthPercentageOrAuto, VendorPrefix)>,
+  grow: Option<(NonNegative<CSSNumber>, VendorPrefix)>,
+  box_flex: Option<(NonNegative<CSSNumber>, VendorPrefix)>,
+  flex_positive: Option<(NonNegative<CSSNumber>, VendorPrefix)>,
+  shrink: Option<(NonNegative<CSSNumber>, VendorPrefix)>,
+  flex_negative: Option<(NonNegative<CSSNumber>, VendorPrefix)>,
+  basis: Option<(NonNegative<LengthPercentageOrAuto>, VendorPrefix)>,
+  preferred_size: Option<(NonNegative<LengthPercentageOrAuto>, VendorPrefix)>,
   order: Option<(CSSInteger, VendorPrefix)>,
   box_ordinal_group: Option<(BoxOrdinalGroup, VendorPrefix)>,
   flex_order: Option<(CSSInteger, VendorPrefix)>,
