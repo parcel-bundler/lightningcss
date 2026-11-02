@@ -470,7 +470,7 @@ fn try_parse_color_token<'i, 't>(
   input: &mut Parser<'i, 't>,
 ) -> Option<CssColor> {
   match_ignore_ascii_case! { &*f,
-    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" => {
+    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" | "alpha" => {
       let s = input.state();
       input.reset(&state);
       if let Ok(color) = CssColor::parse(input) {

@@ -541,11 +541,68 @@ pub(crate) struct MinifyContext<'a, 'i> {
 }
 
 impl<'i, T: Clone> CssRuleList<'i, T> {
+  fn coalesce_adjacent_conditional_rules(&mut self) {
+    // Merge adjacent conditional rules before minifying their contents. Otherwise,
+    // long runs of identical @media/@supports/@container rules repeatedly re-minify
+    // the accumulated rule list as each block is appended.
+    if self.0.len() < 2
+      || !self.0.windows(2).any(|rules| match (&rules[0], &rules[1]) {
+        (CssRule::Media(a), CssRule::Media(b)) => a.query == b.query,
+        (CssRule::Supports(a), CssRule::Supports(b)) => a.condition == b.condition,
+        (CssRule::Container(a), CssRule::Container(b)) => a.name == b.name && a.condition == b.condition,
+        _ => false,
+      })
+    {
+      return;
+    }
+
+    let mut rules = Vec::with_capacity(self.0.len());
+    for rule in std::mem::take(&mut self.0) {
+      match rule {
+        CssRule::Media(mut media) => {
+          if let Some(CssRule::Media(last_rule)) = rules.last_mut() {
+            if last_rule.query == media.query {
+              last_rule.rules.0.append(&mut media.rules.0);
+              continue;
+            }
+          }
+
+          rules.push(CssRule::Media(media));
+        }
+        CssRule::Supports(mut supports) => {
+          if let Some(CssRule::Supports(last_rule)) = rules.last_mut() {
+            if last_rule.condition == supports.condition {
+              last_rule.rules.0.append(&mut supports.rules.0);
+              continue;
+            }
+          }
+
+          rules.push(CssRule::Supports(supports));
+        }
+        CssRule::Container(mut container) => {
+          if let Some(CssRule::Container(last_rule)) = rules.last_mut() {
+            if last_rule.name == container.name && last_rule.condition == container.condition {
+              last_rule.rules.0.append(&mut container.rules.0);
+              continue;
+            }
+          }
+
+          rules.push(CssRule::Container(container));
+        }
+        rule => rules.push(rule),
+      }
+    }
+
+    self.0 = rules;
+  }
+
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
     parent_is_unused: bool,
   ) -> Result<(), MinifyError> {
+    self.coalesce_adjacent_conditional_rules();
+
     let mut keyframe_rules = HashMap::new();
     let mut layer_rules = HashMap::new();
     let mut has_layers = false;
@@ -555,6 +612,16 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
       HashMap::with_capacity_and_hasher(self.0.len(), BuildHasherDefault::<PrecomputedHasher>::default());
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
+      // Other rules may contribute to the same layers, including through
+      // conditional groups or imported stylesheets. Do not move layer content
+      // across them without analyzing those contributions.
+      if !matches!(
+        &rule,
+        CssRule::LayerBlock(_) | CssRule::LayerStatement(_) | CssRule::Ignored
+      ) && !matches!(&rule, CssRule::Style(style) if style.rules.0.is_empty())
+      {
+        layer_rules.clear();
+      }
       match &mut rule {
         CssRule::Keyframes(keyframes) => {
           if context.unused_symbols.contains(match &keyframes.name {
@@ -643,17 +710,21 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           }
         }
         CssRule::LayerBlock(layer) => {
-          // Merging non-adjacent layer rules is safe because they are applied
-          // in the order they are first defined.
+          // Remember the last block per top-level layer. A different path in
+          // the same hierarchy (e.g. `a.b` between two `a` blocks) may establish
+          // sublayer order or add styles that must not be reordered by merging.
           if let Some(name) = &layer.name {
-            if let Some(idx) = layer_rules.get(name) {
+            let root = &name.0[0];
+            if let Some(idx) = layer_rules.get(root) {
               if let Some(CssRule::LayerBlock(last_rule)) = rules.get_mut(*idx) {
-                last_rule.rules.0.extend(layer.rules.0.drain(..));
-                continue;
+                if last_rule.name.as_ref() == Some(name) {
+                  last_rule.rules.0.extend(layer.rules.0.drain(..));
+                  continue;
+                }
               }
             }
 
-            layer_rules.insert(name.clone(), rules.len());
+            layer_rules.insert(root.clone(), rules.len());
             has_layers = true;
           }
         }
@@ -661,8 +732,12 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           // Create @layer block rules for each declared layer name,
           // so we can merge other blocks into it later on.
           for name in &layer.names {
-            if !layer_rules.contains_key(name) {
-              layer_rules.insert(name.clone(), rules.len());
+            let root = &name.0[0];
+            let exists = layer_rules.get(root).is_some_and(|idx| {
+              matches!(rules.get(*idx), Some(CssRule::LayerBlock(layer)) if layer.name.as_ref() == Some(name))
+            });
+            if !exists {
+              layer_rules.insert(root.clone(), rules.len());
               has_layers = true;
               rules.push(CssRule::LayerBlock(LayerBlockRule {
                 name: Some(name.clone()),
@@ -902,10 +977,6 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             property_rules.insert(property.name.clone(), rules.len());
           }
         }
-        CssRule::Import(_) => {
-          // @layer blocks can't be inlined into layers declared before imports.
-          layer_rules.clear();
-        }
         _ => {}
       }
 
@@ -955,15 +1026,19 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             }
           }
           CssRule::Import(import) => {
-            if let Some(layer) = &import.layer {
-              // Start a new @layer statement so the import layer is in the right order.
-              layer_statement = None;
-              if let Some(name) = layer {
+            // Even an unlayered import can declare layers in its stylesheet.
+            layer_statement = None;
+            if import.supports.is_none() && import.media.always_matches() {
+              if let Some(Some(name)) = &import.layer {
                 declared_layers.insert(name.clone());
               }
             }
           }
-          _ => {}
+          CssRule::Ignored => {}
+          CssRule::Style(style) if style.rules.0.is_empty() => {}
+          // Do not hoist declarations across rules that may establish layers,
+          // including conditionally. Keep their first-declaration order intact.
+          _ => layer_statement = None,
         }
       }
     }
