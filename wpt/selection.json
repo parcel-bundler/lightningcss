@@ -1,0 +1,12 @@
+{
+  "files": [
+    "css/css-color/parsing/color-valid.html",
+    "css/css-color/parsing/color-invalid.html",
+    "css/css-grid/parsing/grid-template-columns-valid.html",
+    "css/css-grid/parsing/grid-template-columns-invalid.html",
+    "css/css-align/parsing/column-gap-valid.html",
+    "css/css-align/parsing/column-gap-invalid.html",
+    "css/css-animations/parsing/animation-shorthand.html",
+    "css/css-transitions/parsing/transition-shorthand.html"
+  ]
+}

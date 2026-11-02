@@ -2,14 +2,14 @@
 
 use super::calc::Calc;
 use super::length::serialize_dimension;
-use super::number::CSSNumber;
+use super::number::{CSSNumber, NumericRange};
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{
   impl_op,
   private::{AddInternal, TryAdd},
-  Map, Op, Parse, Sign, ToCss, Zero,
+  Map, Op, Parse, ParseNumeric, Sign, ToCss, Zero,
 };
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -43,7 +43,16 @@ pub enum Angle {
 
 impl<'i> Parse<'i> for Angle {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    Self::parse_internal(input, false)
+    Self::parse_with_range(input, NumericRange::All)
+  }
+}
+
+impl<'i> ParseNumeric<'i> for Angle {
+  fn parse_with_range<'t>(
+    input: &mut Parser<'i, 't>,
+    range: NumericRange,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_internal(input, false, range)
   }
 }
 
@@ -52,15 +61,16 @@ impl Angle {
   pub fn parse_with_unitless_zero<'i, 't>(
     input: &mut Parser<'i, 't>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    Self::parse_internal(input, true)
+    Self::parse_internal(input, true, NumericRange::All)
   }
 
   fn parse_internal<'i, 't>(
     input: &mut Parser<'i, 't>,
     allow_unitless_zero: bool,
+    range: NumericRange,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    match input.try_parse(Calc::parse) {
-      Ok(Calc::Value(v)) => return Ok(*v),
+    match input.try_parse(Calc::<Self>::parse) {
+      Ok(Calc::Value(v)) => return Ok(v.map(|value| range.clamp(value))),
       // Angles are always compatible, so they will always compute to a value.
       Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       _ => {}
@@ -70,6 +80,7 @@ impl Angle {
     let token = input.next()?;
     match *token {
       Token::Dimension { value, ref unit, .. } => {
+        let value = range.check(value, location)?;
         match_ignore_ascii_case! { unit,
           "deg" => Ok(Angle::Deg(value)),
           "grad" => Ok(Angle::Grad(value)),
