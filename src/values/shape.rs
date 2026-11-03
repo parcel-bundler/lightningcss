@@ -8,6 +8,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::properties::border_radius::BorderRadius;
 use crate::traits::{Parse, ToCss};
+use crate::values::number::NonNegative;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -69,7 +70,7 @@ pub struct Circle {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ShapeRadius {
   /// An explicit length or percentage.
-  LengthPercentage(LengthPercentage),
+  LengthPercentage(NonNegative<LengthPercentage>),
   /// The length from the center to the closest side of the box.
   ClosestSide,
   /// The length from the center to the farthest side of the box.

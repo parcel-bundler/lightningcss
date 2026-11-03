@@ -147,28 +147,27 @@ impl<'i, T> StyleRule<'i, T> {
   }
 
   /// Returns a hash of this rule for use when deduplicating.
-  /// Includes the selectors and properties.
+  /// Includes the selectors, properties, and importance.
   #[inline]
   pub(crate) fn hash_key(&self) -> u64 {
     let mut hasher = ahash::AHasher::default();
     self.selectors.hash(&mut hasher);
-    for (property, _) in self.declarations.iter() {
+    for (property, important) in self.declarations.iter() {
       property.property_id().hash(&mut hasher);
+      important.hash(&mut hasher);
     }
     hasher.finish()
   }
 
   /// Returns whether this rule is a duplicate of another rule.
-  /// This means it has the same selectors and properties.
+  /// This means it has the same selectors, properties, and importance.
   #[inline]
   pub(crate) fn is_duplicate(&self, other_rule: &StyleRule<'i, T>) -> bool {
     self.declarations.len() == other_rule.declarations.len()
       && self.selectors == other_rule.selectors
-      && self
-        .declarations
-        .iter()
-        .zip(other_rule.declarations.iter())
-        .all(|((a, _), (b, _))| a.property_id() == b.property_id())
+      && self.declarations.iter().zip(other_rule.declarations.iter()).all(
+        |((a, a_important), (b, b_important))| a_important == b_important && a.property_id() == b.property_id(),
+      )
   }
 
   pub(crate) fn update_prefix(&mut self, context: &mut MinifyContext<'_, 'i>) {
