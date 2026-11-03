@@ -10070,6 +10070,78 @@ mod tests {
   }
 
   #[test]
+  fn test_merge_common_custom_properties_revert_rule() {
+    for (value, expected_value) in [
+      ("revert-rule", "revert-rule"),
+      ("ReVeRt-RuLe", "ReVeRt-RuLe"),
+      (r"\72 evert-rule", "revert-rule"),
+      ("revert-rule/**/", "revert-rule"),
+      ("var(--missing,revert-rule)", "var(--missing,revert-rule)"),
+      (
+        "env(missing,var(--missing,revert-rule))",
+        "env(missing,var(--missing,revert-rule))",
+      ),
+      (
+        "if(style(--mode:sharp):blue;else:revert-rule)",
+        "if(style(--mode:sharp):blue;else:revert-rule)",
+      ),
+    ] {
+      // Moving the normal value out of the rule makes it survive rollback.
+      let a = format!(".a{{--shared-property:red;--shared-property:{value}!important;color:red}}");
+      let expected_a =
+        format!(".a{{--shared-property:red;color:red;--shared-property:{expected_value}!important}}");
+      let b = ".b{--shared-property:red;color:green}";
+      minify_test(&format!("{a}{b}"), &format!("{expected_a}{b}"));
+      minify_test(&format!("{b}{a}"), &format!("{b}{expected_a}"));
+
+      // Moving the rollback declaration itself changes which values it excludes.
+      let b = format!(".b{{--shared-property:blue;--shared-property:{value}!important;color:green}}");
+      let expected_b =
+        format!(".b{{--shared-property:blue;color:green;--shared-property:{expected_value}!important}}");
+      minify_test(&format!("{a}{b}"), &format!("{expected_a}{expected_b}"));
+    }
+
+    // A normal rollback value must also preserve its original rule.
+    let source =
+      ".a{--shared-property:revert-rule;color:red}.b{--shared-property:revert-rule;--other:blue;color:green}";
+    minify_test(source, source);
+
+    // Strings and longer identifiers are ordinary values, not rollback keywords.
+    for value in ["\"revert-rule\"", "revert-rule-extra", "var(--revert-rule)"] {
+      minify_test(
+        &format!(".a{{--shared-property:{value};color:red}}.b{{--shared-property:{value};color:green}}"),
+        &format!(".a{{color:red}}.a,.b{{--shared-property:{value}}}.b{{color:green}}"),
+      );
+    }
+  }
+
+  #[test]
+  fn test_merge_style_rules_revert_rule() {
+    for property in ["--shared-property", "color"] {
+      for important in ["", "!important"] {
+        // The second rule must still be able to roll back to the first one.
+        let source = format!(".a{{{property}:red}}.a{{{property}:revert-rule{important}}}");
+        minify_test(&source, &source);
+
+        // Non-adjacent duplicate removal must not discard the rollback target.
+        let source = format!(".a{{{property}:red}}.b{{color:green}}.a{{{property}:revert-rule{important}}}");
+        minify_test(&source, &source);
+      }
+    }
+
+    // Extraction exposes an equal-selector predecessor. The worklist must not
+    // merge it with the original rollback rule on its next visit.
+    minify_test(
+      ".a,.b{--shared-property:revert-rule!important}.a{--shared-property:red;--other:long-value}.b{--shared-property:red;--other:long-value;color:green}",
+      ".a,.b{--shared-property:revert-rule!important}.a,.b{--shared-property:red;--other:long-value}.b{color:green}",
+    );
+
+    // Identical blocks still need distinct rule boundaries in this conservative pass.
+    let source = ".a{--shared-property:revert-rule}.b{--shared-property:revert-rule}";
+    minify_test(source, source);
+  }
+
+  #[test]
   fn test_merge_common_custom_properties_boundaries() {
     for source in [
       // Names are case-sensitive.

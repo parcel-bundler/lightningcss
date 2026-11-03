@@ -71,7 +71,7 @@ use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::{parse_rule_list, parse_style_block, DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
 use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
-use crate::properties::custom::CustomPropertyName;
+use crate::properties::custom::{CustomPropertyName, Token, TokenList, TokenOrValue, UnresolvedColor};
 use crate::properties::Property;
 use crate::rules::keyframes::KeyframesName;
 use crate::selector::{has_nesting, is_compatible, is_equivalent, Component, Selector, SelectorList};
@@ -790,14 +790,15 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
 
           if !merged && !style.is_empty() {
             let source_index = style.loc.source_index;
-            let has_no_rules = style.rules.0.is_empty();
+            // A rollback declaration does not completely override an earlier rule.
+            let can_deduplicate = style.rules.0.is_empty() && !has_revert_rule(&style.declarations);
             let idx = rules.len();
             rules.push(rule);
 
             // Check if this rule is a duplicate of an earlier rule, meaning it has
             // the same selectors and defines the same properties. If so, remove the
             // earlier rule because this one completely overrides it.
-            if has_no_rules {
+            if can_deduplicate {
               // SAFETY: StyleRuleKeys never live beyond this method.
               let key = StyleRuleKey::new(unsafe { &*(&rules as *const _) }, idx);
               if idx > 0 {
@@ -982,6 +983,31 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
   }
 }
 
+// `revert-rule` excludes declarations from its original style rule, including
+// declarations at the other importance level. Preserve that boundary when a
+// value contains the keyword, even inside a substitution or conditional branch.
+fn has_revert_rule(declarations: &DeclarationBlock<'_>) -> bool {
+  fn contains_keyword(value: &TokenList<'_>) -> bool {
+    value.0.iter().any(|token| match token {
+      TokenOrValue::Token(Token::Ident(ident)) => ident.eq_ignore_ascii_case("revert-rule"),
+      TokenOrValue::Function(function) => contains_keyword(&function.arguments),
+      TokenOrValue::Var(var) => var.fallback.as_ref().is_some_and(contains_keyword),
+      TokenOrValue::Env(env) => env.fallback.as_ref().is_some_and(contains_keyword),
+      TokenOrValue::UnresolvedColor(color) => match color {
+        UnresolvedColor::RGB { alpha, .. } | UnresolvedColor::HSL { alpha, .. } => contains_keyword(alpha),
+        UnresolvedColor::LightDark { light, dark } => contains_keyword(light) || contains_keyword(dark),
+      },
+      _ => false,
+    })
+  }
+
+  declarations.iter().any(|(property, _)| match property {
+    Property::Custom(custom) => contains_keyword(&custom.value),
+    Property::Unparsed(unparsed) => contains_keyword(&unparsed.value),
+    _ => false,
+  })
+}
+
 fn factor_custom_properties<'i, T>(mut rules: Vec<CssRule<'i, T>>, targets: Targets) -> Vec<CssRule<'i, T>> {
   if rules.len() < 2 {
     return rules;
@@ -1038,6 +1064,8 @@ fn merge_after_custom_property_extraction<'i, T>(
     || current.selectors.0.iter().any(has_nesting)
     || !previous.is_compatible(targets)
     || !current.is_compatible(targets)
+    || has_revert_rule(&previous.declarations)
+    || has_revert_rule(&current.declarations)
   {
     return false;
   }
@@ -1097,6 +1125,8 @@ fn extract_common_custom_properties<'i, T>(
     || !current.rules.0.is_empty()
     || previous.loc.source_index != current.loc.source_index
     || (previous.vendor_prefix | current.vendor_prefix).intersects(!VendorPrefix::None)
+    || has_revert_rule(&previous.declarations)
+    || has_revert_rule(&current.declarations)
   {
     return None;
   }
@@ -1215,6 +1245,8 @@ fn merge_style_rules<'i, T>(
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
     && (!context.css_modules || style.loc.source_index == last_style_rule.loc.source_index)
+    && !has_revert_rule(&style.declarations)
+    && !has_revert_rule(&last_style_rule.declarations)
   {
     last_style_rule
       .declarations
@@ -1231,6 +1263,7 @@ fn merge_style_rules<'i, T>(
   } else if style.declarations == last_style_rule.declarations
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
+    && !has_revert_rule(&style.declarations)
   {
     // If both selectors are potentially vendor prefixable, and they are
     // equivalent minus prefixes, add the prefix to the last rule.
