@@ -249,7 +249,8 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
     }
 
     let partial = deserializer.deserialize_map(CssRuleVisitor)?;
-    let deserializer = serde_content::Deserializer::new(partial.content).coerce_numbers();
+    let deserializer =
+      serde_content::Deserializer::new(crate::serialization::null_to_none(partial.content)).coerce_numbers();
 
     match partial.rule_type.as_ref() {
       "media" => {
