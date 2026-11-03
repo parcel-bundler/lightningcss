@@ -636,12 +636,12 @@ impl ToCss for CssColor {
     W: std::fmt::Write,
   {
     match self {
-      CssColor::CurrentColor => dest.write_str("currentColor"),
+      CssColor::CurrentColor => dest.write_str("currentColor").map_err(Into::into),
       CssColor::RGBA(color) => {
         if color.alpha == 255 {
           let hex: u32 = ((color.red as u32) << 16) | ((color.green as u32) << 8) | (color.blue as u32);
           if let Some(name) = short_color_name(hex) {
-            return dest.write_str(name);
+            return dest.write_str(name).map_err(Into::into);
           }
 
           let compact = compact_hex(hex);
@@ -656,7 +656,7 @@ impl ToCss for CssColor {
             // If the browser doesn't support `#rrggbbaa` color syntax, it is converted to `transparent` when compressed(minify = true).
             // https://www.w3.org/TR/css-color-4/#transparent-black
             if dest.minify && color.red == 0 && color.green == 0 && color.blue == 0 && color.alpha == 0 {
-              return dest.write_str("transparent");
+              return dest.write_str("transparent").map_err(Into::into);
             } else {
               dest.write_str("rgba(")?;
               write!(dest, "{}", color.red)?;
@@ -714,14 +714,14 @@ impl ToCss for CssColor {
           dest.write_str("var(--lightningcss-dark")?;
           dest.delim(',', false)?;
           dark.to_css(dest)?;
-          return dest.write_char(')');
+          return dest.write_char(')').map_err(Into::into);
         }
 
         dest.write_str("light-dark(")?;
         light.to_css(dest)?;
         dest.delim(',', false)?;
         dark.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       CssColor::System(system) => system.to_css(dest),
     }
@@ -1567,7 +1567,7 @@ where
     write_component(alpha, dest)?;
   }
 
-  dest.write_char(')')
+  dest.write_char(')').map_err(Into::into)
 }
 
 #[inline]
@@ -1616,7 +1616,7 @@ where
     write_component(alpha, dest)?;
   }
 
-  dest.write_char(')')
+  dest.write_char(')').map_err(Into::into)
 }
 
 bitflags! {

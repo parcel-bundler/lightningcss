@@ -1,5 +1,6 @@
 //! Style rules.
 
+use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
 

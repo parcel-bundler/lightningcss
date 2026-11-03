@@ -2,6 +2,8 @@
 
 #![allow(non_upper_case_globals)]
 
+use std::fmt::Write;
+
 use cssparser::*;
 use smallvec::SmallVec;
 
@@ -96,7 +98,7 @@ impl<'i> ToCss for ContainerNameList<'i> {
     W: std::fmt::Write,
   {
     match self {
-      ContainerNameList::None => dest.write_str("none"),
+      ContainerNameList::None => dest.write_str("none").map_err(Into::into),
       ContainerNameList::Names(names) => {
         let mut first = true;
         for name in names {

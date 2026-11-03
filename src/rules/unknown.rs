@@ -8,6 +8,7 @@ use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use std::fmt::Write;
 
 /// An unknown at-rule, stored as raw tokens.
 #[derive(Debug, PartialEq, Clone)]
@@ -52,9 +53,9 @@ impl<'i> ToCss for UnknownAtRule<'i> {
       block.to_css(dest, false)?;
       dest.dedent();
       dest.newline()?;
-      dest.write_char('}')
+      dest.write_char('}').map_err(Into::into)
     } else {
-      dest.write_char(';')
+      dest.write_char(';').map_err(Into::into)
     }
   }
 }

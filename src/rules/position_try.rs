@@ -8,6 +8,7 @@ use crate::traits::ToCss;
 use crate::values::ident::DashedIdent;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use std::fmt::Write;
 
 /// A [@position-try](https://drafts.csswg.org/css-anchor-position-1/#position-try) rule.
 #[derive(Debug, PartialEq, Clone)]

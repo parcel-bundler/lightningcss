@@ -36,6 +36,8 @@
 
 #![deny(missing_docs)]
 
+use std::fmt::Write;
+
 pub mod container;
 pub mod counter_style;
 pub mod custom_media;

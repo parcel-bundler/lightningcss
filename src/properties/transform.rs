@@ -19,6 +19,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
 use std::f32::consts::PI;
+use std::fmt::Write;
 
 /// A value for the [transform](https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform) property.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1041,22 +1042,22 @@ impl ToCss for Transform {
             y.to_css(dest)?;
           }
         }
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       TranslateX(x) => {
         dest.write_str(if dest.minify { "translate(" } else { "translateX(" })?;
         x.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       TranslateY(y) => {
         dest.write_str("translateY(")?;
         y.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       TranslateZ(z) => {
         dest.write_str("translateZ(")?;
         z.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       Translate3d(x, y, z) => {
         if dest.minify && !x.is_zero() && y.is_zero() && z.is_zero() {
@@ -1081,7 +1082,7 @@ impl ToCss for Transform {
           dest.delim(',', false)?;
           z.to_css(dest)?;
         }
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       Scale(x, y) => {
         let x: f32 = x.into();
@@ -1100,25 +1101,25 @@ impl ToCss for Transform {
             y.to_css(dest)?;
           }
         }
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       ScaleX(x) => {
         let x: f32 = x.into();
         dest.write_str("scaleX(")?;
         x.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       ScaleY(y) => {
         let y: f32 = y.into();
         dest.write_str("scaleY(")?;
         y.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       ScaleZ(z) => {
         let z: f32 = z.into();
         dest.write_str("scaleZ(")?;
         z.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       Scale3d(x, y, z) => {
         let x: f32 = x.into();
@@ -1154,27 +1155,27 @@ impl ToCss for Transform {
           dest.delim(',', false)?;
           z.to_css(dest)?;
         }
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       Rotate(angle) => {
         dest.write_str("rotate(")?;
         angle.to_css_with_unitless_zero(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       RotateX(angle) => {
         dest.write_str("rotateX(")?;
         angle.to_css_with_unitless_zero(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       RotateY(angle) => {
         dest.write_str("rotateY(")?;
         angle.to_css_with_unitless_zero(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       RotateZ(angle) => {
         dest.write_str(if dest.minify { "rotate(" } else { "rotateZ(" })?;
         angle.to_css_with_unitless_zero(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       Rotate3d(x, y, z, angle) => {
         if dest.minify && *x == 1.0 && *y == 0.0 && *z == 0.0 {
@@ -1199,7 +1200,7 @@ impl ToCss for Transform {
           dest.delim(',', false)?;
           angle.to_css_with_unitless_zero(dest)?;
         }
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       Skew(x, y) => {
         if dest.minify && x.is_zero() && !y.is_zero() {
@@ -1213,22 +1214,22 @@ impl ToCss for Transform {
             y.to_css_with_unitless_zero(dest)?;
           }
         }
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       SkewX(angle) => {
         dest.write_str(if dest.minify { "skew(" } else { "skewX(" })?;
         angle.to_css_with_unitless_zero(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       SkewY(angle) => {
         dest.write_str("skewY(")?;
         angle.to_css_with_unitless_zero(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       Perspective(len) => {
         dest.write_str("perspective(")?;
         len.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       Matrix(super::transform::Matrix { a, b, c, d, e, f }) => {
         dest.write_str("matrix(")?;
@@ -1243,7 +1244,7 @@ impl ToCss for Transform {
         e.to_css(dest)?;
         dest.delim(',', false)?;
         f.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       Matrix3d(super::transform::Matrix3d {
         m11,
@@ -1295,7 +1296,7 @@ impl ToCss for Transform {
         m43.to_css(dest)?;
         dest.delim(',', false)?;
         m44.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
     }
   }
@@ -1579,7 +1580,7 @@ impl ToCss for Rotate {
     W: std::fmt::Write,
   {
     match self {
-      Rotate::None => dest.write_str("none"),
+      Rotate::None => dest.write_str("none").map_err(Into::into),
       Rotate::XYZ { x, y, z, angle } => {
         // CSS Transforms 2 §5.1:
         // "If the axis is parallel with the x or y axes, it must serialize as the appropriate keyword."

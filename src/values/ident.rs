@@ -10,6 +10,7 @@ use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
 use std::borrow::Borrow;
+use std::fmt::Write;
 use std::ops::Deref;
 
 use super::string::impl_string_type;
@@ -121,7 +122,7 @@ impl<'i> ToCss for NoneOrCustomIdentList<'i> {
     W: std::fmt::Write,
   {
     match self {
-      NoneOrCustomIdentList::None => dest.write_str("none"),
+      NoneOrCustomIdentList::None => dest.write_str("none").map_err(Into::into),
       NoneOrCustomIdentList::Idents(types) => {
         let mut first = true;
         for ident in types {

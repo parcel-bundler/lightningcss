@@ -11,6 +11,7 @@ use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A [page selector](https://www.w3.org/TR/css-page-3/#typedef-page-selector)
 /// within a `@page` rule.
@@ -277,7 +278,7 @@ impl<'i> ToCss for PageRule<'i> {
 
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }
 

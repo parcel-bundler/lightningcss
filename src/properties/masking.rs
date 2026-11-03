@@ -23,6 +23,7 @@ use crate::visitor::Visit;
 use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
+use std::fmt::Write;
 
 enum_property! {
   /// A value for the [mask-type](https://www.w3.org/TR/css-masking-1/#the-mask-type) property.
@@ -433,7 +434,7 @@ impl<'i> ToCss for ClipPath<'i> {
     W: std::fmt::Write,
   {
     match self {
-      ClipPath::None => dest.write_str("none"),
+      ClipPath::None => dest.write_str("none").map_err(Into::into),
       ClipPath::Url(url) => url.to_css(dest),
       ClipPath::Shape {
         shape,

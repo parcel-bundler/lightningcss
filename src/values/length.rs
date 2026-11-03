@@ -16,6 +16,7 @@ use crate::traits::{IsCompatible, TrySign};
 use crate::visitor::Visit;
 use const_str;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A CSS [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage) value.
 /// May be specified as either a length or a percentage that resolves to an length.
@@ -491,7 +492,7 @@ impl ToCss for LengthValue {
     // The unit can be omitted if the value is zero, except inside calc()
     // expressions, where unitless numbers won't be parsed as dimensions.
     if !dest.in_calc && value == 0.0 {
-      return dest.write_char('0');
+      return dest.write_char('0').map_err(Into::into);
     }
 
     serialize_dimension(value, unit, dest)
@@ -528,12 +529,12 @@ where
     if value < 0.0 {
       if let Some(stripped) = s.strip_prefix("-0") {
         dest.write_char('-')?;
-        dest.write_str(stripped)
+        dest.write_str(stripped).map_err(Into::into)
       } else {
-        dest.write_str(&s)
+        dest.write_str(&s).map_err(Into::into)
       }
     } else {
-      dest.write_str(s.trim_start_matches('0'))
+      dest.write_str(s.trim_start_matches('0')).map_err(Into::into)
     }
   } else {
     token.to_css(dest)?;

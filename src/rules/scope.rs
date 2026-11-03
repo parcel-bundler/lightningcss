@@ -9,6 +9,7 @@ use crate::selector::{is_pure_css_modules_selector, SelectorList};
 use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use std::fmt::Write;
 
 /// A [@scope](https://drafts.csswg.org/css-cascade-6/#scope-atrule) rule.
 ///
@@ -102,6 +103,6 @@ impl<'i, T: ToCss> ToCss for ScopeRule<'i, T> {
     dest.with_cleared_context(|dest| self.rules.to_css(dest))?;
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }

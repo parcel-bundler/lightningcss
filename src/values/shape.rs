@@ -12,6 +12,7 @@ use crate::values::number::NonNegative;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A CSS [`<basic-shape>`](https://www.w3.org/TR/css-shapes-1/#basic-shape-functions) value.
 #[derive(Debug, Clone, PartialEq)]
@@ -243,22 +244,22 @@ impl ToCss for BasicShape {
       BasicShape::Inset(rect) => {
         dest.write_str("inset(")?;
         rect.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       BasicShape::Circle(circle) => {
         dest.write_str("circle(")?;
         circle.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       BasicShape::Ellipse(ellipse) => {
         dest.write_str("ellipse(")?;
         ellipse.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       BasicShape::Polygon(poly) => {
         dest.write_str("polygon(")?;
         poly.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
     }
   }

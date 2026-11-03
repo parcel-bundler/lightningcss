@@ -20,6 +20,7 @@ use cssparser::{Parser, ParserInput, StyleSheetParser};
 #[cfg(feature = "sourcemap")]
 use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Write;
 
 pub use crate::parser::{ParserFlags, ParserOptions};
 pub use crate::printer::PrinterOptions;
@@ -284,8 +285,8 @@ where
 
     for comment in &self.license_comments {
       printer.write_str("/*")?;
-      printer.write_str_with_newlines(comment)?;
-      printer.write_str_with_newlines("*/\n")?;
+      printer.write_str(comment)?;
+      printer.write_str("*/\n")?;
     }
 
     if let Some(config) = &self.options.css_modules {

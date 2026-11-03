@@ -17,6 +17,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
+use std::fmt::Write;
 
 /// A CSS [`<image>`](https://www.w3.org/TR/css-images-3/#image-values) value.
 #[derive(Debug, Clone, PartialEq, Parse, ToCss)]
@@ -383,7 +384,7 @@ impl<'i> ToCss for ImageSet<'i> {
       }
       option.to_css(dest, self.vendor_prefix != VendorPrefix::None)?;
     }
-    dest.write_char(')')
+    dest.write_char(')').map_err(Into::into)
   }
 }
 

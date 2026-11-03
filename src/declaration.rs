@@ -1,6 +1,7 @@
 //! CSS declarations.
 
 use std::borrow::Cow;
+use std::fmt::Write;
 use std::ops::Range;
 
 use crate::context::{DeclarationContext, PropertyHandlerContext};
@@ -165,7 +166,7 @@ impl<'i> DeclarationBlock<'i> {
 
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 
   pub(crate) fn has_printable_declarations(&self) -> bool {

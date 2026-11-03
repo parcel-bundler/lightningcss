@@ -13,6 +13,7 @@ use crate::values::{ident::CustomIdent, image::Image};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A value for the [list-style-type](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers) property.
 #[derive(Debug, Clone, PartialEq, Parse, ToCss)]
@@ -240,7 +241,7 @@ impl ToCss for CounterStyle<'_> {
           symbol.to_css(dest)?;
           needs_space = true;
         }
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
     }
   }

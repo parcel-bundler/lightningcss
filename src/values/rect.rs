@@ -6,6 +6,7 @@ use crate::traits::{IsCompatible, Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A generic value that represents a value for four sides of a box,
 /// e.g. border-width, margin, padding, etc.

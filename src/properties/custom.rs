@@ -26,6 +26,7 @@ use crate::values::url::Url;
 use crate::visitor::Visit;
 use cssparser::color::parse_hash_color;
 use cssparser::*;
+use std::fmt::Write;
 
 use super::AnimationName;
 #[cfg(feature = "serde")]
@@ -1221,7 +1222,7 @@ impl<'i> Variable<'i> {
       }
       fallback.to_css(dest, is_custom_property)?;
     }
-    dest.write_char(')')
+    dest.write_char(')').map_err(Into::into)
   }
 
   fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
@@ -1398,7 +1399,7 @@ impl<'i> EnvironmentVariable<'i> {
       }
       fallback.to_css(dest, is_custom_property)?;
     }
-    dest.write_char(')')
+    dest.write_char(')').map_err(Into::into)
   }
 
   fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
@@ -1433,7 +1434,7 @@ impl<'i> Function<'i> {
     self.name.to_css(dest)?;
     dest.write_char('(')?;
     self.arguments.to_css(dest, is_custom_property)?;
-    dest.write_char(')')
+    dest.write_char(')').map_err(Into::into)
   }
 
   fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
@@ -1577,7 +1578,7 @@ impl<'i> UnresolvedColor<'i> {
         b.to_css(dest)?;
         dest.delim('/', true)?;
         alpha.to_css(dest, is_custom_property)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       UnresolvedColor::HSL { h, s, l, alpha } => {
         if should_compile!(dest.targets.current, SpaceSeparatedColorNotation) {
@@ -1601,7 +1602,7 @@ impl<'i> UnresolvedColor<'i> {
         Percentage(*l / 100.0).to_css(dest)?;
         dest.delim('/', true)?;
         alpha.to_css(dest, is_custom_property)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       UnresolvedColor::LightDark { light, dark } => {
         if should_compile!(dest.targets.current, LightDark) {
@@ -1613,14 +1614,14 @@ impl<'i> UnresolvedColor<'i> {
           dest.write_str("var(--lightningcss-dark")?;
           dest.delim(',', false)?;
           dark.to_css(dest, is_custom_property)?;
-          return dest.write_char(')');
+          return dest.write_char(')').map_err(Into::into);
         }
 
         dest.write_str("light-dark(")?;
         light.to_css(dest, is_custom_property)?;
         dest.delim(',', false)?;
         dark.to_css(dest, is_custom_property)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
     }
   }

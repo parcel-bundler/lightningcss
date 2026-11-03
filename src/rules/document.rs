@@ -8,6 +8,7 @@ use crate::printer::Printer;
 use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use std::fmt::Write;
 
 /// A [@-moz-document](https://www.w3.org/TR/2012/WD-css3-conditional-20120911/#at-document) rule.
 ///
@@ -48,6 +49,6 @@ impl<'i, T: ToCss> ToCss for MozDocumentRule<'i, T> {
     self.rules.to_css(dest)?;
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }

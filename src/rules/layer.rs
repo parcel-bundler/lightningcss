@@ -10,6 +10,7 @@ use crate::values::string::CowArcStr;
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
+use std::fmt::Write;
 
 /// A [`<layer-name>`](https://drafts.csswg.org/css-cascade-5/#typedef-layer-name) within
 /// a `@layer` or `@import` rule.
@@ -107,7 +108,7 @@ impl<'i> ToCss for LayerStatementRule<'i> {
     dest.add_mapping(self.loc);
     dest.write_str("@layer ")?;
     self.names.to_css(dest)?;
-    dest.write_char(';')
+    dest.write_char(';').map_err(Into::into)
   }
 }
 
@@ -161,6 +162,6 @@ impl<'a, 'i, T: ToCss> ToCss for LayerBlockRule<'i, T> {
     self.rules.to_css(dest)?;
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }

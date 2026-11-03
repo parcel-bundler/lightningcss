@@ -10,6 +10,7 @@ use crate::values::string::CowArcStr;
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
+use std::fmt::Write;
 
 /// A value for the [composes](https://github.com/css-modules/css-modules/#dependencies) property from CSS modules.
 #[derive(Debug, Clone, PartialEq)]

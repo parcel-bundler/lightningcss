@@ -16,6 +16,7 @@ use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
@@ -64,8 +65,8 @@ impl ToCss for BaselinePosition {
     W: std::fmt::Write,
   {
     match self {
-      BaselinePosition::First => dest.write_str("baseline"),
-      BaselinePosition::Last => dest.write_str("last baseline"),
+      BaselinePosition::First => dest.write_str("baseline").map_err(Into::into),
+      BaselinePosition::Last => dest.write_str("last baseline").map_err(Into::into),
     }
   }
 }
@@ -211,7 +212,7 @@ impl ToCss for JustifyContent {
     W: std::fmt::Write,
   {
     match self {
-      JustifyContent::Normal => dest.write_str("normal"),
+      JustifyContent::Normal => dest.write_str("normal").map_err(Into::into),
       JustifyContent::ContentDistribution(value) => value.to_css(dest),
       JustifyContent::ContentPosition { overflow, value } => {
         if let Some(overflow) = overflow {
@@ -227,7 +228,7 @@ impl ToCss for JustifyContent {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("left")
+        dest.write_str("left").map_err(Into::into)
       }
       JustifyContent::Right { overflow } => {
         if let Some(overflow) = overflow {
@@ -235,7 +236,7 @@ impl ToCss for JustifyContent {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("right")
+        dest.write_str("right").map_err(Into::into)
       }
     }
   }
@@ -434,9 +435,9 @@ impl ToCss for JustifySelf {
     W: std::fmt::Write,
   {
     match self {
-      JustifySelf::Auto => dest.write_str("auto"),
-      JustifySelf::Normal => dest.write_str("normal"),
-      JustifySelf::Stretch => dest.write_str("stretch"),
+      JustifySelf::Auto => dest.write_str("auto").map_err(Into::into),
+      JustifySelf::Normal => dest.write_str("normal").map_err(Into::into),
+      JustifySelf::Stretch => dest.write_str("stretch").map_err(Into::into),
       JustifySelf::BaselinePosition(val) => val.to_css(dest),
       JustifySelf::SelfPosition { overflow, value } => {
         if let Some(overflow) = overflow {
@@ -452,7 +453,7 @@ impl ToCss for JustifySelf {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("left")
+        dest.write_str("left").map_err(Into::into)
       }
       JustifySelf::Right { overflow } => {
         if let Some(overflow) = overflow {
@@ -460,7 +461,7 @@ impl ToCss for JustifySelf {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("right")
+        dest.write_str("right").map_err(Into::into)
       }
     }
   }
@@ -616,9 +617,9 @@ impl ToCss for LegacyJustify {
   {
     dest.write_str("legacy ")?;
     match self {
-      LegacyJustify::Left => dest.write_str("left"),
-      LegacyJustify::Right => dest.write_str("right"),
-      LegacyJustify::Center => dest.write_str("center"),
+      LegacyJustify::Left => dest.write_str("left").map_err(Into::into),
+      LegacyJustify::Right => dest.write_str("right").map_err(Into::into),
+      LegacyJustify::Center => dest.write_str("center").map_err(Into::into),
     }
   }
 }
@@ -704,8 +705,8 @@ impl ToCss for JustifyItems {
     W: std::fmt::Write,
   {
     match self {
-      JustifyItems::Normal => dest.write_str("normal"),
-      JustifyItems::Stretch => dest.write_str("stretch"),
+      JustifyItems::Normal => dest.write_str("normal").map_err(Into::into),
+      JustifyItems::Stretch => dest.write_str("stretch").map_err(Into::into),
       JustifyItems::BaselinePosition(val) => val.to_css(dest),
       JustifyItems::Legacy(val) => val.to_css(dest),
       JustifyItems::SelfPosition { overflow, value } => {
@@ -722,7 +723,7 @@ impl ToCss for JustifyItems {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("left")
+        dest.write_str("left").map_err(Into::into)
       }
       JustifyItems::Right { overflow } => {
         if let Some(overflow) = overflow {
@@ -730,7 +731,7 @@ impl ToCss for JustifyItems {
           dest.write_str(" ")?;
         }
 
-        dest.write_str("right")
+        dest.write_str("right").map_err(Into::into)
       }
     }
   }

@@ -10,6 +10,7 @@ use crate::traits::{impl_op, Map, Op, Parse, ParseNumeric, Sign, ToCss, Zero};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A CSS [`<time>`](https://www.w3.org/TR/css-values-4/#time) value, in either
 /// seconds or milliseconds.
@@ -115,19 +116,19 @@ impl ToCss for Time {
       Time::Seconds(s) => {
         if *s > 0.0 && *s < 0.1 {
           (*s * 1000.0).to_css(dest)?;
-          dest.write_str("ms")
+          dest.write_str("ms").map_err(Into::into)
         } else {
           s.to_css(dest)?;
-          dest.write_str("s")
+          dest.write_str("s").map_err(Into::into)
         }
       }
       Time::Milliseconds(ms) => {
         if *ms == 0.0 || *ms >= 100.0 {
           (*ms / 1000.0).to_css(dest)?;
-          dest.write_str("s")
+          dest.write_str("s").map_err(Into::into)
         } else {
           ms.to_css(dest)?;
-          dest.write_str("ms")
+          dest.write_str("ms").map_err(Into::into)
         }
       }
     }

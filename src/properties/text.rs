@@ -2,6 +2,8 @@
 
 #![allow(non_upper_case_globals)]
 
+use std::fmt::Write;
+
 use super::{Property, PropertyId};
 use crate::compat;
 use crate::context::PropertyHandlerContext;
@@ -537,15 +539,15 @@ impl ToCss for TextDecorationLine {
     W: std::fmt::Write,
   {
     if self.is_empty() {
-      return dest.write_str("none");
+      return dest.write_str("none").map_err(Into::into);
     }
 
     if self.contains(TextDecorationLine::SpellingError) {
-      return dest.write_str("spelling-error");
+      return dest.write_str("spelling-error").map_err(Into::into);
     }
 
     if self.contains(TextDecorationLine::GrammarError) {
-      return dest.write_str("grammar-error");
+      return dest.write_str("grammar-error").map_err(Into::into);
     }
 
     let mut needs_space = false;
@@ -926,7 +928,7 @@ impl<'i> ToCss for TextEmphasisStyle<'i> {
     W: std::fmt::Write,
   {
     match self {
-      TextEmphasisStyle::None => dest.write_str("none"),
+      TextEmphasisStyle::None => dest.write_str("none").map_err(Into::into),
       TextEmphasisStyle::String(s) => s.to_css(dest),
       TextEmphasisStyle::Keyword { fill, shape } => {
         let mut needs_space = false;

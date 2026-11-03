@@ -8,6 +8,7 @@ use crate::traits::ToCss;
 use crate::values::ident::DashedIdent;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use std::fmt::Write;
 
 /// A [@custom-media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -37,6 +38,6 @@ impl<'i> ToCss for CustomMediaRule<'i> {
     self.name.to_css(dest)?;
     dest.write_char(' ')?;
     self.query.to_css(dest)?;
-    dest.write_char(';')
+    dest.write_char(';').map_err(Into::into)
   }
 }

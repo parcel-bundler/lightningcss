@@ -121,7 +121,10 @@ fn derive_enum(data: &DataEnum, opts: &CssOptions) -> TokenStream2 {
         Fields::Unit => {
           let s = Literal::string(&variant.ident.to_string().to_case(opts.case));
           quote! {
-            Self::#name => dest.write_str(#s)
+            Self::#name => {
+              dest.write_str(#s)?;
+              Ok(())
+            }
           }
         }
         Fields::Named(_) => {

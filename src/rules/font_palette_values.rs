@@ -15,6 +15,7 @@ use crate::values::number::CSSInteger;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A [@font-palette-values](https://drafts.csswg.org/css-fonts-4/#font-palette-values) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -207,8 +208,8 @@ impl ToCss for BasePalette {
     W: std::fmt::Write,
   {
     match self {
-      BasePalette::Light => dest.write_str("light"),
-      BasePalette::Dark => dest.write_str("dark"),
+      BasePalette::Light => dest.write_str("light").map_err(Into::into),
+      BasePalette::Dark => dest.write_str("dark").map_err(Into::into),
       BasePalette::Integer(i) => (*i as CSSInteger).to_css(dest),
     }
   }
@@ -379,7 +380,7 @@ impl<'i> ToCss for FontPaletteValuesRule<'i> {
     }
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }
 

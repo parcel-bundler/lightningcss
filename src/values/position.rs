@@ -10,6 +10,7 @@ use crate::traits::{IsCompatible, Parse, ToCss, Zero};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
@@ -185,7 +186,7 @@ impl ToCss for Position {
       {
         // If there is a side keyword with an offset, "center" must be a keyword not a percentage.
         x_pos.to_css(dest)?;
-        dest.write_str(" center")
+        dest.write_str(" center").map_err(Into::into)
       }
       (&HorizontalPosition::Length(ref x_lp), y_pos @ &VerticalPosition::Side { side, offset: Some(_) })
         if side != VerticalPositionKeyword::Top =>
@@ -368,9 +369,9 @@ impl<S: ToCss> ToCss for PositionComponent<S> {
     match &self {
       Center => {
         if dest.minify {
-          dest.write_str("50%")
+          dest.write_str("50%").map_err(Into::into)
         } else {
-          dest.write_str("center")
+          dest.write_str("center").map_err(Into::into)
         }
       }
       Length(lp) => lp.to_css(dest),

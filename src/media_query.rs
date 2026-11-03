@@ -24,6 +24,7 @@ use cssparser::*;
 use static_self::IntoOwned;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Write;
 
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
@@ -1216,7 +1217,7 @@ impl<'i, FeatureId: FeatureToCss> ToCss for QueryFeature<'i, FeatureId> {
       }
     }
 
-    dest.write_char(')')
+    dest.write_char(')').map_err(Into::into)
   }
 }
 
@@ -1508,7 +1509,7 @@ impl FeatureToCss for MediaFeatureId {
       MediaFeatureId::WebKitDevicePixelRatio => {
         dest.write_str("-webkit-")?;
         dest.write_str(prefix)?;
-        dest.write_str("device-pixel-ratio")
+        dest.write_str("device-pixel-ratio").map_err(Into::into)
       }
       _ => {
         dest.write_str(prefix)?;
@@ -1704,9 +1705,9 @@ impl<'i> ToCss for MediaFeatureValue<'i> {
       MediaFeatureValue::Integer(num) => num.to_css(dest),
       MediaFeatureValue::Boolean(b) => {
         if *b {
-          dest.write_char('1')
+          dest.write_char('1').map_err(Into::into)
         } else {
-          dest.write_char('0')
+          dest.write_char('0').map_err(Into::into)
         }
       }
       MediaFeatureValue::Resolution(res) => res.to_css(dest),

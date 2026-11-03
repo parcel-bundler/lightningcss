@@ -10,6 +10,7 @@ use crate::values::ident::NoneOrCustomIdentList;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A [@view-transition](https://drafts.csswg.org/css-view-transitions-2/#view-transition-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -167,7 +168,7 @@ impl<'i> ToCss for ViewTransitionRule<'i> {
     }
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }
 

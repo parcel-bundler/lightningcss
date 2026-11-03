@@ -12,6 +12,7 @@ use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A [@import](https://drafts.csswg.org/css-cascade/#at-import) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -84,6 +85,6 @@ impl<'i> ToCss for ImportRule<'i> {
       dest.write_char(' ')?;
       self.media.to_css(dest)?;
     }
-    dest.write_str(";")
+    dest.write_str(";").map_err(Into::into)
   }
 }

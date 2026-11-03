@@ -90,6 +90,8 @@
 
 #![deny(missing_docs)]
 
+use std::fmt::Write;
+
 pub mod align;
 pub mod animation;
 pub mod background;

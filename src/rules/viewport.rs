@@ -8,6 +8,7 @@ use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use std::fmt::Write;
 
 /// A [@viewport](https://drafts.csswg.org/css-device-adapt/#atviewport-rule) rule.
 #[derive(Debug, PartialEq, Clone)]

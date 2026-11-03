@@ -1,6 +1,7 @@
 //! CSS properties related to keyframe animations.
 
 use std::borrow::Cow;
+use std::fmt::Write;
 
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
@@ -54,7 +55,7 @@ impl<'i> ToCss for AnimationName<'i> {
       dest.css_module.as_ref().map_or(false, |css_module| css_module.config.animation);
 
     match self {
-      AnimationName::None => dest.write_str("none"),
+      AnimationName::None => dest.write_str("none").map_err(Into::into),
       AnimationName::Ident(s) => {
         if css_module_animation_enabled {
           if let Some(css_module) = &mut dest.css_module {
@@ -270,7 +271,7 @@ impl ToCss for ScrollTimeline {
       self.axis.to_css(dest)?;
     }
 
-    dest.write_char(')')
+    dest.write_char(')').map_err(Into::into)
   }
 }
 
@@ -372,7 +373,7 @@ impl ToCss for ViewTimeline {
       self.inset.to_css(dest)?;
     }
 
-    dest.write_char(')')
+    dest.write_char(')').map_err(Into::into)
   }
 }
 
@@ -451,7 +452,7 @@ impl<'i> AnimationAttachmentRange {
     W: std::fmt::Write,
   {
     match self {
-      Self::Normal => dest.write_str("normal"),
+      Self::Normal => dest.write_str("normal").map_err(Into::into),
       Self::LengthPercentage(val) => val.to_css(dest),
       Self::TimelineRange { name, offset } => {
         name.to_css(dest)?;

@@ -1,4 +1,6 @@
 use cssparser::*;
+use std::fmt::Write;
+
 use lightningcss::{
   declaration::DeclarationBlock,
   error::{ParserError, PrinterError},
@@ -138,7 +140,7 @@ impl<'i> ToCss for AtRule<'i> {
       AtRule::Inline(rule) => {
         dest.write_str("@inline ")?;
         rule.name.to_css(dest)?;
-        dest.write_char(';')
+        dest.write_char(';').map_err(Into::into)
       }
     }
   }

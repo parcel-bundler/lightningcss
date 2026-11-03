@@ -22,6 +22,7 @@ use crate::values::size::Size2D;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A value for the [border-width](https://www.w3.org/TR/css-backgrounds-3/#border-width) property.
 #[derive(Debug, Clone, PartialEq, Parse, ToCss)]

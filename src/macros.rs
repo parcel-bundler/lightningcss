@@ -84,7 +84,8 @@ macro_rules! enum_property {
 
     impl ToCss for $name {
       fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-        dest.write_str(self.as_str())
+        dest.write_str(self.as_str())?;
+        Ok(())
       }
     }
   };

@@ -11,6 +11,7 @@ use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 enum_property! {
   /// An [overflow](https://www.w3.org/TR/css-overflow-3/#overflow-properties) keyword

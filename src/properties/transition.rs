@@ -19,6 +19,7 @@ use crate::visitor::Visit;
 use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
+use std::fmt::Write;
 
 define_list_shorthand! {
   /// A value for the [transition](https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property) property.

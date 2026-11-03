@@ -10,6 +10,7 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::{serialize_identifier, serialize_name};
 #[cfg(feature = "sourcemap")]
 use parcel_sourcemap::{OriginalLocation, SourceMap};
+use std::fmt::Write;
 
 /// Options that control how CSS is serialized to a string.
 #[derive(Default)]
@@ -136,47 +137,6 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
     }
   }
 
-  /// Writes a raw string to the underlying destination.
-  ///
-  /// NOTE: Is is assumed that the string does not contain any newline characters.
-  /// If such a string is written, it will break source maps.
-  pub fn write_str(&mut self, s: &str) -> Result<(), PrinterError> {
-    self.col += s.len() as u32;
-    self.dest.write_str(s)?;
-    Ok(())
-  }
-
-  /// Writes a raw string which may contain newlines to the underlying destination.
-  pub fn write_str_with_newlines(&mut self, s: &str) -> Result<(), PrinterError> {
-    let mut last_line_start: usize = 0;
-
-    for (idx, n) in s.char_indices() {
-      if n == '\n' {
-        self.line += 1;
-        self.col = 0;
-
-        // Keep track of where the *next* line starts
-        last_line_start = idx + 1;
-      }
-    }
-
-    self.col += (s.len() - last_line_start) as u32;
-    self.dest.write_str(s)?;
-    Ok(())
-  }
-
-  /// Write a single character to the underlying destination.
-  pub fn write_char(&mut self, c: char) -> Result<(), PrinterError> {
-    if c == '\n' {
-      self.line += 1;
-      self.col = 0;
-    } else {
-      self.col += 1;
-    }
-    self.dest.write_char(c)?;
-    Ok(())
-  }
-
   /// Writes a single whitespace character, unless the `minify` option is enabled.
   ///
   /// Use `write_char` instead if you wish to force a space character to be written,
@@ -186,7 +146,8 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
       return Ok(());
     }
 
-    self.write_char(' ')
+    self.write_char(' ')?;
+    Ok(())
   }
 
   /// Writes a delimiter character, followed by whitespace (depending on the `minify` option).
@@ -413,9 +374,52 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
   }
 }
 
-impl<'a, 'b, 'c, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, 'c, W> {
+impl<'a, 'c, W: std::fmt::Write + Sized> Write for Printer<'a, 'c, W> {
   fn write_str(&mut self, s: &str) -> std::fmt::Result {
-    self.col += s.len() as u32;
+    let mut last_line_start = 0;
+    for (idx, c) in s.char_indices() {
+      if c == '\n' {
+        self.line += 1;
+        last_line_start = idx + 1;
+      }
+    }
+
+    self.col = if last_line_start == 0 {
+      self.col + s.len() as u32
+    } else {
+      (s.len() - last_line_start) as u32
+    };
     self.dest.write_str(s)
+  }
+
+  fn write_char(&mut self, c: char) -> std::fmt::Result {
+    if c == '\n' {
+      self.line += 1;
+      self.col = 0;
+    } else {
+      self.col += 1;
+    }
+
+    self.dest.write_char(c)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{Printer, PrinterOptions};
+  use std::fmt::Write;
+
+  #[test]
+  fn write_tracks_multiline_positions() {
+    let mut output = String::new();
+    let mut printer = Printer::new(&mut output, PrinterOptions::default());
+
+    printer.write_str("a\nbc").unwrap();
+    printer.write_char('\n').unwrap();
+    printer.write_str("d").unwrap();
+
+    assert_eq!((printer.line, printer.col), (2, 1));
+    drop(printer);
+    assert_eq!(output, "a\nbc\nd");
   }
 }

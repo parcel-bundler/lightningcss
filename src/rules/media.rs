@@ -9,6 +9,7 @@ use crate::printer::Printer;
 use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use std::fmt::Write;
 
 /// A [@media](https://drafts.csswg.org/css-conditional-3/#at-media) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -66,6 +67,6 @@ impl<'a, 'i, T: ToCss> ToCss for MediaRule<'i, T> {
     self.rules.to_css(dest)?;
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }

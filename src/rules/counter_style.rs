@@ -8,6 +8,7 @@ use crate::traits::ToCss;
 use crate::values::ident::CustomIdent;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use std::fmt::Write;
 
 /// A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
 #[derive(Debug, PartialEq, Clone)]

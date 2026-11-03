@@ -14,6 +14,7 @@ use crate::{
   },
 };
 use cssparser::*;
+use std::fmt::Write;
 
 /// A [@property](https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -151,7 +152,7 @@ impl<'i> ToCss for PropertyRule<'i> {
 
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }
 

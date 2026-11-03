@@ -13,6 +13,7 @@ use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 enum_property! {
   /// A [`<display-outside>`](https://drafts.csswg.org/css-display-3/#typedef-display-outside) value.
@@ -72,23 +73,23 @@ impl ToCss for DisplayInside {
     W: std::fmt::Write,
   {
     match self {
-      DisplayInside::Flow => dest.write_str("flow"),
-      DisplayInside::FlowRoot => dest.write_str("flow-root"),
-      DisplayInside::Table => dest.write_str("table"),
+      DisplayInside::Flow => dest.write_str("flow").map_err(Into::into),
+      DisplayInside::FlowRoot => dest.write_str("flow-root").map_err(Into::into),
+      DisplayInside::Table => dest.write_str("table").map_err(Into::into),
       DisplayInside::Flex(prefix) => {
         prefix.to_css(dest)?;
         if *prefix == VendorPrefix::Ms {
-          dest.write_str("flexbox")
+          dest.write_str("flexbox").map_err(Into::into)
         } else {
-          dest.write_str("flex")
+          dest.write_str("flex").map_err(Into::into)
         }
       }
       DisplayInside::Box(prefix) => {
         prefix.to_css(dest)?;
-        dest.write_str("box")
+        dest.write_str("box").map_err(Into::into)
       }
-      DisplayInside::Grid => dest.write_str("grid"),
-      DisplayInside::Ruby => dest.write_str("ruby"),
+      DisplayInside::Grid => dest.write_str("grid").map_err(Into::into),
+      DisplayInside::Ruby => dest.write_str("ruby").map_err(Into::into),
     }
   }
 }
@@ -235,12 +236,12 @@ impl ToCss for DisplayPair {
         outside: DisplayOutside::Inline,
         inside: DisplayInside::FlowRoot,
         is_list_item: false,
-      } => dest.write_str("inline-block"),
+      } => dest.write_str("inline-block").map_err(Into::into),
       DisplayPair {
         outside: DisplayOutside::Inline,
         inside: DisplayInside::Table,
         is_list_item: false,
-      } => dest.write_str("inline-table"),
+      } => dest.write_str("inline-table").map_err(Into::into),
       DisplayPair {
         outside: DisplayOutside::Inline,
         inside: DisplayInside::Flex(prefix),
@@ -248,9 +249,9 @@ impl ToCss for DisplayPair {
       } => {
         prefix.to_css(dest)?;
         if *prefix == VendorPrefix::Ms {
-          dest.write_str("inline-flexbox")
+          dest.write_str("inline-flexbox").map_err(Into::into)
         } else {
-          dest.write_str("inline-flex")
+          dest.write_str("inline-flex").map_err(Into::into)
         }
       }
       DisplayPair {
@@ -259,13 +260,13 @@ impl ToCss for DisplayPair {
         is_list_item: false,
       } => {
         prefix.to_css(dest)?;
-        dest.write_str("inline-box")
+        dest.write_str("inline-box").map_err(Into::into)
       }
       DisplayPair {
         outside: DisplayOutside::Inline,
         inside: DisplayInside::Grid,
         is_list_item: false,
-      } => dest.write_str("inline-grid"),
+      } => dest.write_str("inline-grid").map_err(Into::into),
       DisplayPair {
         outside,
         inside,

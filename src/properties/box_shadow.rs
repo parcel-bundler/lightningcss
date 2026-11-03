@@ -17,6 +17,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
+use std::fmt::Write;
 
 /// A value for the [box-shadow](https://drafts.csswg.org/css-backgrounds/#box-shadow) property.
 #[derive(Debug, Clone, PartialEq)]

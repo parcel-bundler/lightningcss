@@ -24,6 +24,7 @@ use parcel_selectors::{
 use smallvec::SmallVec;
 use std::collections::HashSet;
 use std::fmt;
+use std::fmt::Write;
 
 #[cfg(feature = "serde")]
 use crate::serialization::*;
@@ -695,17 +696,17 @@ where
         }
         serialize_identifier(lang, dest)?;
       }
-      return dest.write_str(")");
+      return dest.write_str(")").map_err(Into::into);
     }
     Dir { direction: dir } => {
       dest.write_str(":dir(")?;
       dir.to_css(dest)?;
-      return dest.write_str(")");
+      return dest.write_str(")").map_err(Into::into);
     }
     State { state } => {
       dest.write_str(":state(")?;
       state.to_css(dest)?;
-      return dest.write_str(")");
+      return dest.write_str(")").map_err(Into::into);
     }
     _ => {}
   }
@@ -720,7 +721,7 @@ where
         *$prefix
       };
       vp.to_css(dest)?;
-      dest.write_str($val)
+      dest.write_str($val).map_err(Into::into)
     }};
   }
 
@@ -736,7 +737,7 @@ where
         dest.write_char('.')?;
         dest.write_ident(class, true)
       } else {
-        dest.write_str($s)
+        dest.write_str($s).map_err(Into::into)
       }
     }};
   }
@@ -750,18 +751,18 @@ where
     FocusWithin => pseudo!(focus_within, ":focus-within"),
 
     // https://drafts.csswg.org/selectors-4/#time-pseudos
-    Current => dest.write_str(":current"),
-    Past => dest.write_str(":past"),
-    Future => dest.write_str(":future"),
+    Current => dest.write_str(":current").map_err(Into::into),
+    Past => dest.write_str(":past").map_err(Into::into),
+    Future => dest.write_str(":future").map_err(Into::into),
 
     // https://drafts.csswg.org/selectors-4/#resource-pseudos
-    Playing => dest.write_str(":playing"),
-    Paused => dest.write_str(":paused"),
-    Seeking => dest.write_str(":seeking"),
-    Buffering => dest.write_str(":buffering"),
-    Stalled => dest.write_str(":stalled"),
-    Muted => dest.write_str(":muted"),
-    VolumeLocked => dest.write_str(":volume-locked"),
+    Playing => dest.write_str(":playing").map_err(Into::into),
+    Paused => dest.write_str(":paused").map_err(Into::into),
+    Seeking => dest.write_str(":seeking").map_err(Into::into),
+    Buffering => dest.write_str(":buffering").map_err(Into::into),
+    Stalled => dest.write_str(":stalled").map_err(Into::into),
+    Muted => dest.write_str(":muted").map_err(Into::into),
+    VolumeLocked => dest.write_str(":volume-locked").map_err(Into::into),
 
     // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
     Fullscreen(prefix) => {
@@ -773,65 +774,65 @@ where
       };
       vp.to_css(dest)?;
       if vp == VendorPrefix::WebKit || vp == VendorPrefix::Moz {
-        dest.write_str("full-screen")
+        dest.write_str("full-screen").map_err(Into::into)
       } else {
-        dest.write_str("fullscreen")
+        dest.write_str("fullscreen").map_err(Into::into)
       }
     }
 
     // https://drafts.csswg.org/selectors/#display-state-pseudos
-    Open => dest.write_str(":open"),
-    Closed => dest.write_str(":closed"),
-    Modal => dest.write_str(":modal"),
-    PictureInPicture => dest.write_str(":picture-in-picture"),
+    Open => dest.write_str(":open").map_err(Into::into),
+    Closed => dest.write_str(":closed").map_err(Into::into),
+    Modal => dest.write_str(":modal").map_err(Into::into),
+    PictureInPicture => dest.write_str(":picture-in-picture").map_err(Into::into),
 
     // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open
-    PopoverOpen => dest.write_str(":popover-open"),
+    PopoverOpen => dest.write_str(":popover-open").map_err(Into::into),
 
     // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
-    Defined => dest.write_str(":defined"),
+    Defined => dest.write_str(":defined").map_err(Into::into),
 
     // https://drafts.csswg.org/selectors-4/#location
     AnyLink(prefix) => write_prefixed!(prefix, "any-link"),
-    Link => dest.write_str(":link"),
-    LocalLink => dest.write_str(":local-link"),
-    Target => dest.write_str(":target"),
-    TargetWithin => dest.write_str(":target-within"),
+    Link => dest.write_str(":link").map_err(Into::into),
+    LocalLink => dest.write_str(":local-link").map_err(Into::into),
+    Target => dest.write_str(":target").map_err(Into::into),
+    TargetWithin => dest.write_str(":target-within").map_err(Into::into),
 
     // https://drafts.csswg.org/css-overflow-5/#active-before-after-scroll-markers
-    TargetCurrent => dest.write_str(":target-current"),
-    TargetBefore => dest.write_str(":target-before"),
-    TargetAfter => dest.write_str(":target-after"),
+    TargetCurrent => dest.write_str(":target-current").map_err(Into::into),
+    TargetBefore => dest.write_str(":target-before").map_err(Into::into),
+    TargetAfter => dest.write_str(":target-after").map_err(Into::into),
 
-    Visited => dest.write_str(":visited"),
+    Visited => dest.write_str(":visited").map_err(Into::into),
 
     // https://drafts.csswg.org/selectors-4/#input-pseudos
-    Enabled => dest.write_str(":enabled"),
-    Disabled => dest.write_str(":disabled"),
+    Enabled => dest.write_str(":enabled").map_err(Into::into),
+    Disabled => dest.write_str(":disabled").map_err(Into::into),
     ReadOnly(prefix) => write_prefixed!(prefix, "read-only"),
     ReadWrite(prefix) => write_prefixed!(prefix, "read-write"),
     PlaceholderShown(prefix) => write_prefixed!(prefix, "placeholder-shown"),
-    Default => dest.write_str(":default"),
-    Checked => dest.write_str(":checked"),
-    Indeterminate => dest.write_str(":indeterminate"),
-    Blank => dest.write_str(":blank"),
-    Valid => dest.write_str(":valid"),
-    Invalid => dest.write_str(":invalid"),
-    InRange => dest.write_str(":in-range"),
-    OutOfRange => dest.write_str(":out-of-range"),
-    Required => dest.write_str(":required"),
-    Optional => dest.write_str(":optional"),
-    UserValid => dest.write_str(":user-valid"),
-    UserInvalid => dest.write_str(":user-invalid"),
+    Default => dest.write_str(":default").map_err(Into::into),
+    Checked => dest.write_str(":checked").map_err(Into::into),
+    Indeterminate => dest.write_str(":indeterminate").map_err(Into::into),
+    Blank => dest.write_str(":blank").map_err(Into::into),
+    Valid => dest.write_str(":valid").map_err(Into::into),
+    Invalid => dest.write_str(":invalid").map_err(Into::into),
+    InRange => dest.write_str(":in-range").map_err(Into::into),
+    OutOfRange => dest.write_str(":out-of-range").map_err(Into::into),
+    Required => dest.write_str(":required").map_err(Into::into),
+    Optional => dest.write_str(":optional").map_err(Into::into),
+    UserValid => dest.write_str(":user-valid").map_err(Into::into),
+    UserInvalid => dest.write_str(":user-invalid").map_err(Into::into),
 
     // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
     Autofill(prefix) => write_prefixed!(prefix, "autofill"),
 
-    ActiveViewTransition => dest.write_str(":active-view-transition"),
+    ActiveViewTransition => dest.write_str(":active-view-transition").map_err(Into::into),
     ActiveViewTransitionType { kind } => {
       dest.write_str(":active-view-transition-type(")?;
       kind.to_css(dest)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
 
     Local { selector } => serialize_selector(selector, dest, context, false),
@@ -845,32 +846,34 @@ where
     // https://webkit.org/blog/363/styling-scrollbars/
     WebKitScrollbar(s) => {
       use WebKitScrollbarPseudoClass::*;
-      dest.write_str(match s {
-        Horizontal => ":horizontal",
-        Vertical => ":vertical",
-        Decrement => ":decrement",
-        Increment => ":increment",
-        Start => ":start",
-        End => ":end",
-        DoubleButton => ":double-button",
-        SingleButton => ":single-button",
-        NoButton => ":no-button",
-        CornerPresent => ":corner-present",
-        WindowInactive => ":window-inactive",
-      })
+      dest
+        .write_str(match s {
+          Horizontal => ":horizontal",
+          Vertical => ":vertical",
+          Decrement => ":decrement",
+          Increment => ":increment",
+          Start => ":start",
+          End => ":end",
+          DoubleButton => ":double-button",
+          SingleButton => ":single-button",
+          NoButton => ":no-button",
+          CornerPresent => ":corner-present",
+          WindowInactive => ":window-inactive",
+        })
+        .map_err(Into::into)
     }
 
     Lang { languages: _ } | Dir { direction: _ } | State { .. } => unreachable!(),
     Custom { name } => {
       dest.write_char(':')?;
-      return dest.write_str(&name);
+      return dest.write_str(&name).map_err(Into::into);
     }
     CustomFunction { name, arguments: args } => {
       dest.write_char(':')?;
       dest.write_str(name)?;
       dest.write_char('(')?;
       args.to_css_raw(dest)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
   }
 }
@@ -1103,7 +1106,7 @@ impl<'i> ToCss for ViewTransitionPartName<'i> {
     W: std::fmt::Write,
   {
     match self {
-      ViewTransitionPartName::All => dest.write_char('*'),
+      ViewTransitionPartName::All => dest.write_char('*').map_err(Into::into),
       ViewTransitionPartName::Name(name) => name.to_css(dest),
     }
   }
@@ -1201,7 +1204,7 @@ where
   macro_rules! write_prefixed {
     ($prefix: ident, $val: expr) => {{
       write_prefix!($prefix);
-      dest.write_str($val)
+      dest.write_str($val).map_err(Into::into)
     }};
   }
 
@@ -1209,103 +1212,105 @@ where
     // CSS2 pseudo elements support a single colon syntax in addition
     // to the more correct double colon for other pseudo elements.
     // We use that here because it's supported everywhere and is shorter.
-    After => dest.write_str(":after"),
-    Before => dest.write_str(":before"),
-    FirstLine => dest.write_str(":first-line"),
-    FirstLetter => dest.write_str(":first-letter"),
-    DetailsContent => dest.write_str("::details-content"),
-    TargetText => dest.write_str("::target-text"),
-    SearchText => dest.write_str("::search-text"),
+    After => dest.write_str(":after").map_err(Into::into),
+    Before => dest.write_str(":before").map_err(Into::into),
+    FirstLine => dest.write_str(":first-line").map_err(Into::into),
+    FirstLetter => dest.write_str(":first-letter").map_err(Into::into),
+    DetailsContent => dest.write_str("::details-content").map_err(Into::into),
+    TargetText => dest.write_str("::target-text").map_err(Into::into),
+    SearchText => dest.write_str("::search-text").map_err(Into::into),
     HighlightFunction { name } => {
       dest.write_str("::highlight(")?;
       name.to_css(dest)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
-    Marker => dest.write_str("::marker"),
+    Marker => dest.write_str("::marker").map_err(Into::into),
     Selection(prefix) => write_prefixed!(prefix, "selection"),
-    Cue => dest.write_str("::cue"),
-    CueRegion => dest.write_str("::cue-region"),
+    Cue => dest.write_str("::cue").map_err(Into::into),
+    CueRegion => dest.write_str("::cue-region").map_err(Into::into),
     CueFunction { selector } => {
       dest.write_str("::cue(")?;
       serialize_selector(selector, dest, context, false)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
     CueRegionFunction { selector } => {
       dest.write_str("::cue-region(")?;
       serialize_selector(selector, dest, context, false)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
     Placeholder(prefix) => {
       let vp = write_prefix!(prefix);
       if vp == VendorPrefix::WebKit || vp == VendorPrefix::Ms {
-        dest.write_str("input-placeholder")
+        dest.write_str("input-placeholder").map_err(Into::into)
       } else {
-        dest.write_str("placeholder")
+        dest.write_str("placeholder").map_err(Into::into)
       }
     }
     Backdrop(prefix) => write_prefixed!(prefix, "backdrop"),
     FileSelectorButton(prefix) => {
       let vp = write_prefix!(prefix);
       if vp == VendorPrefix::WebKit {
-        dest.write_str("file-upload-button")
+        dest.write_str("file-upload-button").map_err(Into::into)
       } else if vp == VendorPrefix::Ms {
-        dest.write_str("browse")
+        dest.write_str("browse").map_err(Into::into)
       } else {
-        dest.write_str("file-selector-button")
+        dest.write_str("file-selector-button").map_err(Into::into)
       }
     }
     WebKitScrollbar(s) => {
       use WebKitScrollbarPseudoElement::*;
-      dest.write_str(match s {
-        Scrollbar => "::-webkit-scrollbar",
-        Button => "::-webkit-scrollbar-button",
-        Track => "::-webkit-scrollbar-track",
-        TrackPiece => "::-webkit-scrollbar-track-piece",
-        Thumb => "::-webkit-scrollbar-thumb",
-        Corner => "::-webkit-scrollbar-corner",
-        Resizer => "::-webkit-resizer",
-      })
+      dest
+        .write_str(match s {
+          Scrollbar => "::-webkit-scrollbar",
+          Button => "::-webkit-scrollbar-button",
+          Track => "::-webkit-scrollbar-track",
+          TrackPiece => "::-webkit-scrollbar-track-piece",
+          Thumb => "::-webkit-scrollbar-thumb",
+          Corner => "::-webkit-scrollbar-corner",
+          Resizer => "::-webkit-resizer",
+        })
+        .map_err(Into::into)
     }
-    ViewTransition => dest.write_str("::view-transition"),
+    ViewTransition => dest.write_str("::view-transition").map_err(Into::into),
     ViewTransitionGroup { part } => {
       dest.write_str("::view-transition-group(")?;
       part.to_css(dest)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
     ViewTransitionImagePair { part } => {
       dest.write_str("::view-transition-image-pair(")?;
       part.to_css(dest)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
     ViewTransitionOld { part } => {
       dest.write_str("::view-transition-old(")?;
       part.to_css(dest)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
     ViewTransitionNew { part } => {
       dest.write_str("::view-transition-new(")?;
       part.to_css(dest)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
     PickerFunction { identifier } => {
       dest.write_str("::picker(")?;
       identifier.to_css(dest)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
-    PickerIcon => dest.write_str("::picker-icon"),
-    Checkmark => dest.write_str("::checkmark"),
-    GrammarError => dest.write_str("::grammar-error"),
-    SpellingError => dest.write_str("::spelling-error"),
+    PickerIcon => dest.write_str("::picker-icon").map_err(Into::into),
+    Checkmark => dest.write_str("::checkmark").map_err(Into::into),
+    GrammarError => dest.write_str("::grammar-error").map_err(Into::into),
+    SpellingError => dest.write_str("::spelling-error").map_err(Into::into),
     Custom { name: val } => {
       dest.write_str("::")?;
-      return dest.write_str(val);
+      return dest.write_str(val).map_err(Into::into);
     }
     CustomFunction { name, arguments: args } => {
       dest.write_str("::")?;
       dest.write_str(name)?;
       dest.write_char('(')?;
       args.to_css_raw(dest)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
   }
 }
@@ -1406,10 +1411,10 @@ impl ToCss for Combinator {
   {
     match *self {
       Combinator::Child => dest.delim('>', true),
-      Combinator::Descendant => dest.write_str(" "),
+      Combinator::Descendant => dest.write_str(" ").map_err(Into::into),
       Combinator::NextSibling => dest.delim('+', true),
       Combinator::LaterSibling => dest.delim('~', true),
-      Combinator::Deep => dest.write_str(" /deep/ "),
+      Combinator::Deep => dest.write_str(" /deep/ ").map_err(Into::into),
       Combinator::DeepDescendant => {
         dest.whitespace()?;
         dest.write_str(">>>")?;
@@ -1641,7 +1646,7 @@ where
         parcel_selectors::attr::ParsedCaseSensitivity::AsciiCaseInsensitive => dest.write_str(" i")?,
         parcel_selectors::attr::ParsedCaseSensitivity::ExplicitCaseSensitive => dest.write_str(" s")?,
       }
-      dest.write_char(']')
+      dest.write_char(']').map_err(Into::into)
     }
     Component::Is(ref list)
     | Component::Where(ref list)
@@ -1681,12 +1686,12 @@ where
         _ => unreachable!(),
       }
       serialize_selector_list(list.iter(), dest, context, false)?;
-      dest.write_str(")")
+      dest.write_str(")").map_err(Into::into)
     }
     Component::Has(ref list) => {
       dest.write_str(":has(")?;
       serialize_selector_list(list.iter(), dest, context, true)?;
-      dest.write_str(")")
+      dest.write_str(")").map_err(Into::into)
     }
     Component::NonTSPseudoClass(pseudo) => serialize_pseudo_class(pseudo, dest, context),
     Component::PseudoElement(pseudo) => serialize_pseudo_element(pseudo, dest, context),
@@ -1711,7 +1716,7 @@ where
     Component::Slotted(ref selector) => {
       dest.write_str("::slotted(")?;
       selector.to_css(dest)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
     Component::NthOf(ref nth_of_data) => {
       let nth_data = nth_of_data.nth_data();
@@ -1719,7 +1724,7 @@ where
       nth_data.write_affine(dest)?;
       dest.write_str(" of ")?;
       serialize_selector_list(nth_of_data.selectors().iter(), dest, context, true)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
     _ => {
       cssparser::ToCss::to_css(component, dest)?;
@@ -1759,15 +1764,15 @@ where
     } else {
       dest.write_str(":is(")?;
       serialize_selector_list(ctx.selectors.0.iter(), dest, ctx.parent, false)?;
-      dest.write_char(')')
+      dest.write_char(')').map_err(Into::into)
     }
   } else {
     // If there is no context, we are at the root if nesting is supported. This is equivalent to :scope.
     // Otherwise, if nesting is supported, serialize the nesting selector directly.
     if should_compile!(dest.targets.current, Nesting) {
-      dest.write_str(":scope")
+      dest.write_str(":scope").map_err(Into::into)
     } else {
-      dest.write_char('&')
+      dest.write_char('&').map_err(Into::into)
     }
   }
 }

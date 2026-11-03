@@ -2,6 +2,8 @@
 
 #![allow(non_upper_case_globals)]
 
+use std::fmt::Write;
+
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{Error, ErrorLocation, ParserError, PrinterError, PrinterErrorKind};
@@ -231,12 +233,12 @@ impl ToCss for TrackSize {
         min.to_css(dest)?;
         dest.delim(',', false)?;
         max.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       TrackSize::FitContent(len) => {
         dest.write_str("fit-content(")?;
         len.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
     }
   }
@@ -294,9 +296,9 @@ impl ToCss for TrackBreadth {
     W: std::fmt::Write,
   {
     match self {
-      TrackBreadth::Auto => dest.write_str("auto"),
-      TrackBreadth::MinContent => dest.write_str("min-content"),
-      TrackBreadth::MaxContent => dest.write_str("max-content"),
+      TrackBreadth::Auto => dest.write_str("auto").map_err(Into::into),
+      TrackBreadth::MinContent => dest.write_str("min-content").map_err(Into::into),
+      TrackBreadth::MaxContent => dest.write_str("max-content").map_err(Into::into),
       TrackBreadth::Length(len) => len.to_css(dest),
       TrackBreadth::Flex(flex) => serialize_dimension(flex.0, "fr", dest),
     }
@@ -363,7 +365,7 @@ impl<'i> ToCss for TrackRepeat<'i> {
       first = false;
     }
 
-    dest.write_char(')')
+    dest.write_char(')').map_err(Into::into)
   }
 }
 
@@ -394,7 +396,7 @@ where
     }
     write_ident(&name.0, dest)?;
   }
-  dest.write_char(']')
+  dest.write_char(']').map_err(Into::into)
 }
 
 fn write_ident<W>(name: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
@@ -518,7 +520,7 @@ impl ToCss for TrackSizeList {
     W: std::fmt::Write,
   {
     if self.0.len() == 0 {
-      return dest.write_str("auto");
+      return dest.write_str("auto").map_err(Into::into);
     }
 
     let mut first = true;
@@ -632,7 +634,7 @@ impl ToCss for GridTemplateAreas {
     W: std::fmt::Write,
   {
     match self {
-      GridTemplateAreas::None => dest.write_str("none"),
+      GridTemplateAreas::None => dest.write_str("none").map_err(Into::into),
       GridTemplateAreas::Areas { areas, .. } => {
         let mut iter = areas.iter();
         let mut next = iter.next();
@@ -701,7 +703,7 @@ impl GridTemplateAreas {
       *next = iter.next();
     }
 
-    dest.write_char('"')
+    dest.write_char('"').map_err(Into::into)
   }
 }
 
@@ -1102,7 +1104,7 @@ impl ToCss for GridAutoFlow {
       unreachable!();
     };
 
-    dest.write_str(s)
+    dest.write_str(s).map_err(Into::into)
   }
 }
 
@@ -1436,7 +1438,7 @@ impl ToCss for GridLine<'_> {
     W: std::fmt::Write,
   {
     match self {
-      GridLine::Auto => dest.write_str("auto"),
+      GridLine::Auto => dest.write_str("auto").map_err(Into::into),
       GridLine::Area { name } => write_ident(&name.0, dest),
       GridLine::Line { index, name } => {
         index.to_css(dest)?;

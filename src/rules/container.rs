@@ -1,6 +1,7 @@
 //! The `@container` rule.
 
 use cssparser::*;
+use std::fmt::Write;
 
 use super::Location;
 use super::{CssRuleList, MinifyContext};
@@ -366,7 +367,7 @@ impl<'i> ToCss for ContainerCondition<'i> {
       ContainerCondition::Style(ref query) => {
         dest.write_str("style(")?;
         query.to_css(dest)?;
-        dest.write_char(')')
+        dest.write_char(')').map_err(Into::into)
       }
       ContainerCondition::ScrollState(ref query) => {
         let needs_parens = !matches!(query, ScrollStateQuery::Feature(_));
@@ -502,6 +503,6 @@ impl<'a, 'i, T: ToCss> ToCss for ContainerRule<'i, T> {
     self.rules.to_css(dest)?;
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }

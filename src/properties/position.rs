@@ -12,6 +12,7 @@ use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A value for the [position](https://www.w3.org/TR/css-position-3/#position-property) property.
 #[derive(Debug, Clone, PartialEq)]
@@ -60,13 +61,13 @@ impl ToCss for Position {
     W: std::fmt::Write,
   {
     match self {
-      Position::Static => dest.write_str("static"),
-      Position::Relative => dest.write_str("relative"),
-      Position::Absolute => dest.write_str("absolute"),
-      Position::Fixed => dest.write_str("fixed"),
+      Position::Static => dest.write_str("static").map_err(Into::into),
+      Position::Relative => dest.write_str("relative").map_err(Into::into),
+      Position::Absolute => dest.write_str("absolute").map_err(Into::into),
+      Position::Fixed => dest.write_str("fixed").map_err(Into::into),
       Position::Sticky(prefix) => {
         prefix.to_css(dest)?;
-        dest.write_str("sticky")
+        dest.write_str("sticky").map_err(Into::into)
       }
     }
   }

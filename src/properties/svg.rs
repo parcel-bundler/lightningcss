@@ -11,6 +11,7 @@ use crate::values::{color::CssColor, url::Url};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// An SVG [`<paint>`](https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint) value
 /// used in the `fill` and `stroke` properties.
@@ -175,7 +176,7 @@ impl ToCss for StrokeDasharray {
     W: std::fmt::Write,
   {
     match self {
-      StrokeDasharray::None => dest.write_str("none"),
+      StrokeDasharray::None => dest.write_str("none").map_err(Into::into),
       StrokeDasharray::Values(values) => {
         let mut first = true;
         for value in values {

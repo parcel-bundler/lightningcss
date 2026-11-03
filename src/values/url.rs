@@ -8,6 +8,7 @@ use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
 #[derive(Debug, Clone)]
@@ -76,7 +77,7 @@ impl<'i> ToCss for Url<'i> {
         if buf2.len() + 5 < buf.len() {
           dest.write_str("url(")?;
           dest.write_str(&buf2)?;
-          return dest.write_char(')');
+          return dest.write_char(')').map_err(Into::into);
         }
       }
 

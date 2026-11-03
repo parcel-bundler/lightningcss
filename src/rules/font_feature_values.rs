@@ -169,7 +169,7 @@ impl<'i> ToCss for FontFeatureValuesRule<'i> {
         dest.newline()?;
       }
     }
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }
 
@@ -272,7 +272,7 @@ impl<'i> ToCss for FontFeatureSubrule<'i> {
     }
     dest.dedent();
     dest.newline()?;
-    dest.write_char('}')
+    dest.write_char('}').map_err(Into::into)
   }
 }
 

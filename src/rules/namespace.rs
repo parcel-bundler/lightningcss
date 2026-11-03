@@ -8,6 +8,7 @@ use crate::values::ident::Ident;
 use crate::values::string::CSSString;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use std::fmt::Write;
 
 /// A [@namespace](https://drafts.csswg.org/css-namespaces/#declaration) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -43,6 +44,6 @@ impl<'i> ToCss for NamespaceRule<'i> {
     }
 
     self.url.to_css(dest)?;
-    dest.write_char(';')
+    dest.write_char(';').map_err(Into::into)
   }
 }

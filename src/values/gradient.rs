@@ -20,6 +20,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
 use std::f32::consts::PI;
+use std::fmt::Write;
 
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
@@ -221,7 +222,7 @@ impl ToCss for Gradient {
       Gradient::WebKitGradient(g) => g.to_css(dest)?,
     }
 
-    dest.write_char(')')
+    dest.write_char(')').map_err(Into::into)
   }
 }
 
@@ -507,8 +508,8 @@ impl LineDirection {
       LineDirection::Horizontal(k) => {
         if dest.minify {
           match k {
-            HorizontalPositionKeyword::Left => dest.write_str("270deg"),
-            HorizontalPositionKeyword::Right => dest.write_str("90deg"),
+            HorizontalPositionKeyword::Left => dest.write_str("270deg").map_err(Into::into),
+            HorizontalPositionKeyword::Right => dest.write_str("90deg").map_err(Into::into),
           }
         } else {
           if !is_prefixed {
@@ -520,8 +521,8 @@ impl LineDirection {
       LineDirection::Vertical(k) => {
         if dest.minify {
           match k {
-            VerticalPositionKeyword::Top => dest.write_str("0deg"),
-            VerticalPositionKeyword::Bottom => dest.write_str("180deg"),
+            VerticalPositionKeyword::Top => dest.write_str("0deg").map_err(Into::into),
+            VerticalPositionKeyword::Bottom => dest.write_str("180deg").map_err(Into::into),
           }
         } else {
           if !is_prefixed {
@@ -1272,7 +1273,7 @@ impl ToCss for WebKitColorStop {
       dest.delim(',', false)?;
       self.color.to_css(dest)?;
     }
-    dest.write_char(')')
+    dest.write_char(')').map_err(Into::into)
   }
 }
 
@@ -1360,14 +1361,14 @@ impl<S: ToCss + Clone + Into<LengthPercentage>> ToCss for WebKitGradientPointCom
     match &self {
       Center => {
         if dest.minify {
-          dest.write_str("50%")
+          dest.write_str("50%").map_err(Into::into)
         } else {
-          dest.write_str("center")
+          dest.write_str("center").map_err(Into::into)
         }
       }
       Number(lp) => {
         if matches!(lp, NumberOrPercentage::Percentage(Percentage(p)) if *p == 0.0) {
-          dest.write_char('0')
+          dest.write_char('0').map_err(Into::into)
         } else {
           lp.to_css(dest)
         }

@@ -9,6 +9,7 @@ use crate::traits::{IsCompatible, Map, Op, Parse, ParseNumeric, Sign, ToCss, Try
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 /// Describes what values are allowed when parsing a numeric value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -130,9 +131,11 @@ impl ToCss for CSSNumber {
       cssparser::ToCss::to_css(self, &mut s)?;
       if number < 0.0 {
         dest.write_char('-')?;
-        dest.write_str(s.trim_start_matches("-").trim_start_matches("0"))
+        dest
+          .write_str(s.trim_start_matches("-").trim_start_matches("0"))
+          .map_err(Into::into)
       } else {
-        dest.write_str(s.trim_start_matches('0'))
+        dest.write_str(s.trim_start_matches('0')).map_err(Into::into)
       }
     } else {
       cssparser::ToCss::to_css(self, dest)?;

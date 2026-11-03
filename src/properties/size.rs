@@ -17,6 +17,7 @@ use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::Write;
 
 #[cfg(feature = "serde")]
 use crate::serialization::*;
@@ -103,30 +104,30 @@ impl ToCss for Size {
   {
     use Size::*;
     match self {
-      Auto => dest.write_str("auto"),
-      Contain => dest.write_str("contain"),
+      Auto => dest.write_str("auto").map_err(Into::into),
+      Contain => dest.write_str("contain").map_err(Into::into),
       MinContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("min-content")
+        dest.write_str("min-content").map_err(Into::into)
       }
       MaxContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("max-content")
+        dest.write_str("max-content").map_err(Into::into)
       }
       FitContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("fit-content")
+        dest.write_str("fit-content").map_err(Into::into)
       }
       Stretch(vp) => match *vp {
-        VendorPrefix::None => dest.write_str("stretch"),
-        VendorPrefix::WebKit => dest.write_str("-webkit-fill-available"),
-        VendorPrefix::Moz => dest.write_str("-moz-available"),
+        VendorPrefix::None => dest.write_str("stretch").map_err(Into::into),
+        VendorPrefix::WebKit => dest.write_str("-webkit-fill-available").map_err(Into::into),
+        VendorPrefix::Moz => dest.write_str("-moz-available").map_err(Into::into),
         _ => unreachable!(),
       },
       FitContentFunction(l) => {
         dest.write_str("fit-content(")?;
         l.to_css(dest)?;
-        dest.write_str(")")
+        dest.write_str(")").map_err(Into::into)
       }
       LengthPercentage(l) => l.to_css(dest),
     }
@@ -236,30 +237,30 @@ impl ToCss for MaxSize {
   {
     use MaxSize::*;
     match self {
-      None => dest.write_str("none"),
-      Contain => dest.write_str("contain"),
+      None => dest.write_str("none").map_err(Into::into),
+      Contain => dest.write_str("contain").map_err(Into::into),
       MinContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("min-content")
+        dest.write_str("min-content").map_err(Into::into)
       }
       MaxContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("max-content")
+        dest.write_str("max-content").map_err(Into::into)
       }
       FitContent(vp) => {
         vp.to_css(dest)?;
-        dest.write_str("fit-content")
+        dest.write_str("fit-content").map_err(Into::into)
       }
       Stretch(vp) => match *vp {
-        VendorPrefix::None => dest.write_str("stretch"),
-        VendorPrefix::WebKit => dest.write_str("-webkit-fill-available"),
-        VendorPrefix::Moz => dest.write_str("-moz-available"),
+        VendorPrefix::None => dest.write_str("stretch").map_err(Into::into),
+        VendorPrefix::WebKit => dest.write_str("-webkit-fill-available").map_err(Into::into),
+        VendorPrefix::Moz => dest.write_str("-moz-available").map_err(Into::into),
         _ => unreachable!(),
       },
       FitContentFunction(l) => {
         dest.write_str("fit-content(")?;
         l.to_css(dest)?;
-        dest.write_str(")")
+        dest.write_str(")").map_err(Into::into)
       }
       LengthPercentage(l) => l.to_css(dest),
     }

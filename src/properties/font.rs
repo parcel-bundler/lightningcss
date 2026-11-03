@@ -1,6 +1,7 @@
 //! CSS properties related to fonts.
 
 use std::collections::HashSet;
+use std::fmt::Write;
 
 use super::{Property, PropertyId};
 use crate::compat::Feature;
@@ -88,8 +89,8 @@ impl ToCss for AbsoluteFontWeight {
     use AbsoluteFontWeight::*;
     match self {
       Weight(val) => val.to_css(dest),
-      Normal => dest.write_str(if dest.minify { "400" } else { "normal" }),
-      Bold => dest.write_str(if dest.minify { "700" } else { "bold" }),
+      Normal => dest.write_str(if dest.minify { "400" } else { "normal" }).map_err(Into::into),
+      Bold => dest.write_str(if dest.minify { "700" } else { "bold" }).map_err(Into::into),
     }
   }
 }
@@ -439,7 +440,7 @@ impl<'i> ToCss for FamilyName<'i> {
         serialize_identifier(slice, &mut id)?;
       }
       if id.len() < val.len() + 2 {
-        return dest.write_str(&id);
+        return dest.write_str(&id).map_err(Into::into);
       }
     }
     serialize_string(&val, dest)?;
@@ -512,8 +513,8 @@ impl ToCss for FontStyle {
     W: std::fmt::Write,
   {
     match self {
-      FontStyle::Normal => dest.write_str("normal"),
-      FontStyle::Italic => dest.write_str("italic"),
+      FontStyle::Normal => dest.write_str("normal").map_err(Into::into),
+      FontStyle::Italic => dest.write_str("italic").map_err(Into::into),
       FontStyle::Oblique(angle) => {
         dest.write_str("oblique")?;
         if *angle != FontStyle::default_oblique_angle() {

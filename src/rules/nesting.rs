@@ -1,6 +1,7 @@
 //! The `@nest` rule.
 
 use smallvec::SmallVec;
+use std::fmt::Write;
 
 use super::style::StyleRule;
 use super::Location;
