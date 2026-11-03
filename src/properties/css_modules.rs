@@ -2,7 +2,6 @@
 
 use crate::dependencies::Location;
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::{CustomIdent, CustomIdentList};
 use crate::values::string::CowArcStr;
@@ -10,7 +9,6 @@ use crate::values::string::CowArcStr;
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
-use std::fmt::Write;
 
 /// A value for the [composes](https://github.com/css-modules/css-modules/#dependencies) property from CSS modules.
 #[derive(Debug, Clone, PartialEq)]
@@ -88,10 +86,7 @@ fn parse_one_ident<'i, 't>(
 }
 
 impl ToCss for Composes<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let mut first = true;
     for name in &self.names {
       if first {
@@ -123,10 +118,7 @@ impl<'i> Parse<'i> for Specifier<'i> {
 }
 
 impl<'i> ToCss for Specifier<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       Specifier::Global => dest.write_str("global")?,
       Specifier::File(file) => serialize_string(&file, dest)?,

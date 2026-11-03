@@ -90,8 +90,6 @@
 
 #![deny(missing_docs)]
 
-use std::fmt::Write;
-
 pub mod align;
 pub mod animation;
 pub mod background;
@@ -247,7 +245,7 @@ macro_rules! define_properties {
     }
 
     impl<'i> ToCss for PropertyId<'i> {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+      fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
         let mut first = true;
         macro_rules! delim {
           () => {
@@ -774,7 +772,7 @@ macro_rules! define_properties {
       }
 
       /// Serializes the value of a CSS property without its name or `!important` flag.
-      pub fn value_to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+      pub fn value_to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
         use Property::*;
 
         match self {
@@ -803,7 +801,7 @@ macro_rules! define_properties {
       }
 
       /// Serializes the CSS property, with an optional `!important` flag.
-      pub fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
+      pub fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT, important: bool) -> Result<(), PrinterError> {
         use Property::*;
 
         let mut first = true;
@@ -1644,10 +1642,7 @@ impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
 }
 
 impl<T: smallvec::Array<Item = V>, V: ToCss> ToCss for SmallVec<T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let len = self.len();
     for (idx, val) in self.iter().enumerate() {
       val.to_css(dest)?;
@@ -1666,10 +1661,7 @@ impl<'i, T: Parse<'i>> Parse<'i> for Vec<T> {
 }
 
 impl<T: ToCss> ToCss for Vec<T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let len = self.len();
     for (idx, val) in self.iter().enumerate() {
       val.to_css(dest)?;

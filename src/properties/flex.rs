@@ -9,7 +9,6 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::{is_flex_2009, Feature};
-use crate::printer::Printer;
 use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::number::{CSSInteger, CSSNumber, NonNegative};
 use crate::values::{
@@ -20,7 +19,6 @@ use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
-use std::fmt::Write;
 
 enum_property! {
   /// A value for the [flex-direction](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction) property.
@@ -104,10 +102,7 @@ impl<'i> Parse<'i> for FlexFlow {
 }
 
 impl ToCss for FlexFlow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let mut needs_space = false;
     if self.direction != FlexDirection::default() || self.wrap == FlexWrap::default() {
       self.direction.to_css(dest)?;
@@ -181,10 +176,7 @@ impl<'i> Parse<'i> for Flex {
 }
 
 impl ToCss for Flex {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.grow.0 == 0.0 && self.shrink.0 == 0.0 && self.basis.0 == LengthPercentageOrAuto::Auto {
       dest.write_str("none")?;
       return Ok(());

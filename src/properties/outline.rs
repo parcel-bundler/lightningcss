@@ -6,14 +6,12 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{impl_shorthand, shorthand_handler};
-use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::CssColor;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
-use std::fmt::Write;
 
 /// A value for the [outline-style](https://drafts.csswg.org/css-ui/#outline-style) property.
 #[derive(Debug, Clone, PartialEq, Parse, ToCss)]

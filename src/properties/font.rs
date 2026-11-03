@@ -1,7 +1,6 @@
 //! CSS properties related to fonts.
 
 use std::collections::HashSet;
-use std::fmt::Write;
 
 use super::{Property, PropertyId};
 use crate::compat::Feature;
@@ -9,7 +8,6 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
-use crate::printer::Printer;
 use crate::targets::should_compile;
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthValue;
@@ -82,16 +80,14 @@ impl Default for AbsoluteFontWeight {
 }
 
 impl ToCss for AbsoluteFontWeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     use AbsoluteFontWeight::*;
     match self {
-      Weight(val) => val.to_css(dest),
-      Normal => dest.write_str(if dest.minify { "400" } else { "normal" }).map_err(Into::into),
-      Bold => dest.write_str(if dest.minify { "700" } else { "bold" }).map_err(Into::into),
-    }
+      Weight(val) => val.to_css(dest)?,
+      Normal => dest.write_str(if dest.options().minify { "400" } else { "normal" })?,
+      Bold => dest.write_str(if dest.options().minify { "700" } else { "bold" })?,
+    };
+    Ok(())
   }
 }
 
@@ -263,11 +259,8 @@ impl Into<Percentage> for &FontStretch {
 }
 
 impl ToCss for FontStretch {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    if dest.minify {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
+    if dest.options().minify {
       let percentage: Percentage = self.into();
       return percentage.to_css(dest);
     }
@@ -364,10 +357,7 @@ impl<'i> Parse<'i> for FontFamily<'i> {
 }
 
 impl<'i> ToCss for FontFamily<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
       FontFamily::Generic(val) => val.to_css(dest),
       FontFamily::FamilyName(val) => val.to_css(dest),
@@ -413,10 +403,7 @@ impl<'i> Parse<'i> for FamilyName<'i> {
 }
 
 impl<'i> ToCss for FamilyName<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     // Generic family names such as sans-serif must be quoted if parsed as a string.
     // CSS wide keywords, as well as "default", must also be quoted.
     // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
@@ -440,7 +427,8 @@ impl<'i> ToCss for FamilyName<'i> {
         serialize_identifier(slice, &mut id)?;
       }
       if id.len() < val.len() + 2 {
-        return dest.write_str(&id).map_err(Into::into);
+        dest.write_str(&id)?;
+        return Ok(());
       }
     }
     serialize_string(&val, dest)?;
@@ -508,22 +496,19 @@ impl<'i> Parse<'i> for FontStyle {
 }
 
 impl ToCss for FontStyle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      FontStyle::Normal => dest.write_str("normal").map_err(Into::into),
-      FontStyle::Italic => dest.write_str("italic").map_err(Into::into),
+      FontStyle::Normal => dest.write_str("normal")?,
+      FontStyle::Italic => dest.write_str("italic")?,
       FontStyle::Oblique(angle) => {
         dest.write_str("oblique")?;
         if *angle != FontStyle::default_oblique_angle() {
           dest.write_char(' ')?;
           angle.to_css(dest)?;
         }
-        Ok(())
       }
-    }
+    };
+    Ok(())
   }
 }
 
@@ -756,10 +741,7 @@ impl<'i> Parse<'i> for Font<'i> {
 }
 
 impl<'i> ToCss for Font<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     if self.style != FontStyle::default() {
       self.style.to_css(dest)?;
       dest.write_char(' ')?;

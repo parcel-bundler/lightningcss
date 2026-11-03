@@ -3,12 +3,10 @@
 use super::Location;
 use crate::declaration::DeclarationBlock;
 use crate::error::PrinterError;
-use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::CustomIdent;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
-use std::fmt::Write;
 
 /// A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -29,11 +27,7 @@ pub struct CounterStyleRule<'i> {
 }
 
 impl<'i> ToCss for CounterStyleRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_str("@counter-style ")?;
     self.name.to_css(dest)?;

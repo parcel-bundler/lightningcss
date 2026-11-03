@@ -25,10 +25,7 @@ pub fn derive_to_css(input: TokenStream) -> TokenStream {
 
   let output = quote! {
     impl #impl_generics ToCss for #ident #ty_generics #where_clause {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-      where
-        W: std::fmt::Write,
-      {
+      fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
         #imp
       }
     }

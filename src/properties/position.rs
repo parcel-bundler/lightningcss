@@ -5,14 +5,12 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
 use crate::prefixes::Feature;
-use crate::printer::Printer;
 use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::values::number::CSSInteger;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
-use std::fmt::Write;
 
 /// A value for the [position](https://www.w3.org/TR/css-position-3/#position-property) property.
 #[derive(Debug, Clone, PartialEq)]
@@ -56,18 +54,28 @@ impl<'i> Parse<'i> for Position {
 }
 
 impl ToCss for Position {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      Position::Static => dest.write_str("static").map_err(Into::into),
-      Position::Relative => dest.write_str("relative").map_err(Into::into),
-      Position::Absolute => dest.write_str("absolute").map_err(Into::into),
-      Position::Fixed => dest.write_str("fixed").map_err(Into::into),
+      Position::Static => {
+        dest.write_str("static")?;
+        Ok(())
+      }
+      Position::Relative => {
+        dest.write_str("relative")?;
+        Ok(())
+      }
+      Position::Absolute => {
+        dest.write_str("absolute")?;
+        Ok(())
+      }
+      Position::Fixed => {
+        dest.write_str("fixed")?;
+        Ok(())
+      }
       Position::Sticky(prefix) => {
         prefix.to_css(dest)?;
-        dest.write_str("sticky").map_err(Into::into)
+        dest.write_str("sticky")?;
+        Ok(())
       }
     }
   }

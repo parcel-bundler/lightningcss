@@ -3,13 +3,11 @@
 use super::angle::impl_try_from_angle;
 use super::calc::Calc;
 use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 use crate::traits::private::AddInternal;
 use crate::traits::{IsCompatible, Map, Op, Parse, ParseNumeric, Sign, ToCss, TrySign, Zero};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
-use std::fmt::Write;
 
 /// Describes what values are allowed when parsing a numeric value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,7 +60,7 @@ impl<'i, T: ParseNumeric<'i>> Parse<'i> for NonNegative<T> {
 }
 
 impl<T: ToCss> ToCss for NonNegative<T> {
-  fn to_css<W: std::fmt::Write>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     self.0.to_css(dest)
   }
 }
@@ -121,21 +119,18 @@ impl<'i> ParseNumeric<'i> for CSSNumber {
 }
 
 impl ToCss for CSSNumber {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     let number = *self;
     if number != 0.0 && number.abs() < 1.0 {
       let mut s = String::new();
       cssparser::ToCss::to_css(self, &mut s)?;
       if number < 0.0 {
         dest.write_char('-')?;
-        dest
-          .write_str(s.trim_start_matches("-").trim_start_matches("0"))
-          .map_err(Into::into)
+        dest.write_str(s.trim_start_matches("-").trim_start_matches("0"))?;
+        Ok(())
       } else {
-        dest.write_str(s.trim_start_matches('0')).map_err(Into::into)
+        dest.write_str(s.trim_start_matches('0'))?;
+        Ok(())
       }
     } else {
       cssparser::ToCss::to_css(self, dest)?;
@@ -226,10 +221,7 @@ impl<'i> ParseNumeric<'i> for CSSInteger {
 }
 
 impl ToCss for CSSInteger {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     cssparser::ToCss::to_css(self, dest)?;
     Ok(())
   }

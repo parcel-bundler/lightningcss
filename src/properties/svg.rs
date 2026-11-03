@@ -2,7 +2,6 @@
 
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
-use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 use crate::values::length::LengthPercentage;
@@ -11,7 +10,6 @@ use crate::values::{color::CssColor, url::Url};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
-use std::fmt::Write;
 
 /// An SVG [`<paint>`](https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint) value
 /// used in the `fill` and `stroke` properties.
@@ -171,12 +169,12 @@ impl<'i> Parse<'i> for StrokeDasharray {
 }
 
 impl ToCss for StrokeDasharray {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     match self {
-      StrokeDasharray::None => dest.write_str("none").map_err(Into::into),
+      StrokeDasharray::None => {
+        dest.write_str("none")?;
+        Ok(())
+      }
       StrokeDasharray::Values(values) => {
         let mut first = true;
         for value in values {

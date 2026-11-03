@@ -1,7 +1,6 @@
 use crate::declaration::{parse_declaration, DeclarationBlock, DeclarationList};
 use crate::error::{Error, ParserError, PrinterError};
 use crate::media_query::*;
-use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
 use crate::rules::font_feature_values::FontFeatureValuesRule;
@@ -124,7 +123,7 @@ impl<'i> crate::traits::AtRuleParser<'i> for DefaultAtRuleParser {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DefaultAtRule;
 impl crate::traits::ToCss for DefaultAtRule {
-  fn to_css<W: std::fmt::Write>(&self, _: &mut Printer<W>) -> Result<(), PrinterError> {
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, _: &mut PrinterT) -> Result<(), PrinterError> {
     Err(PrinterError {
       kind: crate::error::PrinterErrorKind::FmtError,
       loc: None,

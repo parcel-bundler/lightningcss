@@ -3,12 +3,10 @@
 use super::Location;
 use crate::declaration::DeclarationBlock;
 use crate::error::PrinterError;
-use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
-use std::fmt::Write;
 
 /// A [@viewport](https://drafts.csswg.org/css-device-adapt/#atviewport-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -33,11 +31,7 @@ pub struct ViewportRule<'i> {
 }
 
 impl<'i> ToCss for ViewportRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    #[cfg(feature = "sourcemap")]
+  fn to_css<PrinterT: crate::printer::PrinterTrait>(&self, dest: &mut PrinterT) -> Result<(), PrinterError> {
     dest.add_mapping(self.loc);
     dest.write_char('@')?;
     self.vendor_prefix.to_css(dest)?;
