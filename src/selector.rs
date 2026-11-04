@@ -288,7 +288,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
       "placeholder" => Placeholder(VendorPrefix::None),
       "-webkit-input-placeholder" => Placeholder(VendorPrefix::WebKit),
       "-moz-placeholder" => Placeholder(VendorPrefix::Moz),
-      "-ms-input-placeholder" => Placeholder(VendorPrefix::Moz),
+      "-ms-input-placeholder" => Placeholder(VendorPrefix::Ms),
       "marker" => Marker,
       "backdrop" => Backdrop(VendorPrefix::None),
       "-webkit-backdrop" => Backdrop(VendorPrefix::WebKit),
