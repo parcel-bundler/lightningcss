@@ -1,5 +1,6 @@
 //! CSS properties related to transitions.
 
+use super::custom::is_unknown_longhand;
 use super::{Property, PropertyId};
 use crate::compat;
 use crate::context::PropertyHandlerContext;
@@ -234,6 +235,12 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
         dest.push(Property::Unparsed(
           val.get_prefixed(context.targets, Feature::Transition),
         ));
+      }
+      Custom(val) if is_unknown_longhand(&val.name, "transition-") => {
+        // A longhand without a typed property, such as `transition-behavior`, must stay
+        // after the buffered `transition` shorthand it follows, or the shorthand resets it.
+        self.flush(dest, context);
+        dest.push(property.clone());
       }
       _ => return false,
     }
