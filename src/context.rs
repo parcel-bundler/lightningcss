@@ -231,4 +231,11 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     self.rtl.clear();
     self.dark.clear();
   }
+
+  pub fn merge(&mut self, other: Self) {
+    self.supports.extend(other.supports);
+    self.ltr.extend(other.ltr);
+    self.rtl.extend(other.rtl);
+    self.dark.extend(other.dark);
+  }
 }
