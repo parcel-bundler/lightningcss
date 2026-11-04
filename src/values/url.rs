@@ -8,6 +8,7 @@ use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::fmt::{self, Write};
 
 /// A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
 #[derive(Debug, Clone)]
@@ -68,11 +69,25 @@ impl<'i> ToCss for Url<'i> {
       let mut buf = String::new();
       Token::UnquotedUrl(CowRcStr::from(self.url.as_ref())).to_css(&mut buf)?;
 
-      // If the unquoted url is longer than it would be quoted (e.g. `url("...")`)
-      // then serialize as a string and choose the shorter version.
+      // If quoting could be shorter, choose the quote that needs fewer escapes,
+      // then compare with the unquoted url. Keep the existing choice on ties.
       if buf.len() > self.url.len() + 7 {
+        let mut single_quotes = 0;
+        let mut double_quotes = 0;
+        for b in self.url.bytes() {
+          match b {
+            b'\'' => single_quotes += 1,
+            b'"' => double_quotes += 1,
+            _ => {}
+          }
+        }
+
         let mut buf2 = String::new();
-        serialize_string(&self.url, &mut buf2)?;
+        if double_quotes > single_quotes {
+          serialize_single_quoted_string(&self.url, &mut buf2)?;
+        } else {
+          serialize_string(&self.url, &mut buf2)?;
+        }
         if buf2.len() + 5 < buf.len() {
           dest.write_str("url(")?;
           dest.write_str(&buf2)?;
@@ -89,6 +104,24 @@ impl<'i> ToCss for Url<'i> {
 
     Ok(())
   }
+}
+
+fn serialize_single_quoted_string<W: Write>(value: &str, dest: &mut W) -> fmt::Result {
+  dest.write_char('\'')?;
+  let mut start = 0;
+  for (i, b) in value.bytes().enumerate() {
+    if matches!(b, b'\'' | b'"') {
+      // Delegate all other escapes, including hex escape terminators, to cssparser.
+      CssStringWriter::new(dest).write_str(&value[start..i])?;
+      if b == b'\'' {
+        dest.write_char('\\')?;
+      }
+      dest.write_char(b as char)?;
+      start = i + 1;
+    }
+  }
+  CssStringWriter::new(dest).write_str(&value[start..])?;
+  dest.write_char('\'')
 }
 
 impl<'i> Url<'i> {
