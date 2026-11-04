@@ -3115,35 +3115,35 @@ export type Declaration =
     }
   | {
       property: "padding-top";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-bottom";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-left";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-right";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-block-start";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-block-end";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-inline-start";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-inline-end";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-block";
@@ -6507,7 +6507,7 @@ export type ContainerNameList =
  * A value for the [view-transition-name](https://drafts.csswg.org/css-view-transitions-1/#view-transition-name-prop) property.
  */
 export type ViewTransitionName =
-  "none" | "auto" | String;
+  "none" | "auto" | "match-element" | String;
 /**
  * The `none` keyword, or a space-separated list of custom idents.
  */
@@ -8736,11 +8736,11 @@ export interface PaddingBlock {
   /**
    * The block end value.
    */
-  blockEnd: LengthPercentageOrAuto;
+  blockEnd: DimensionPercentageFor_LengthValue;
   /**
    * The block start value.
    */
-  blockStart: LengthPercentageOrAuto;
+  blockStart: DimensionPercentageFor_LengthValue;
 }
 /**
  * A value for the [padding-inline](https://drafts.csswg.org/css-logical/#propdef-padding-inline) shorthand property.
@@ -8749,11 +8749,11 @@ export interface PaddingInline {
   /**
    * The inline end value.
    */
-  inlineEnd: LengthPercentageOrAuto;
+  inlineEnd: DimensionPercentageFor_LengthValue;
   /**
    * The inline start value.
    */
-  inlineStart: LengthPercentageOrAuto;
+  inlineStart: DimensionPercentageFor_LengthValue;
 }
 /**
  * A value for the [padding](https://drafts.csswg.org/css-box-4/#propdef-padding) shorthand property.
@@ -8762,19 +8762,19 @@ export interface Padding {
   /**
    * The bottom value.
    */
-  bottom: LengthPercentageOrAuto;
+  bottom: DimensionPercentageFor_LengthValue;
   /**
    * The left value.
    */
-  left: LengthPercentageOrAuto;
+  left: DimensionPercentageFor_LengthValue;
   /**
    * The right value.
    */
-  right: LengthPercentageOrAuto;
+  right: DimensionPercentageFor_LengthValue;
   /**
    * The top value.
    */
-  top: LengthPercentageOrAuto;
+  top: DimensionPercentageFor_LengthValue;
 }
 /**
  * A value for the [scroll-margin-block](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-margin-block) shorthand property.

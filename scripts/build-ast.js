@@ -83,19 +83,14 @@ compileFromFile('node/ast.json', {
       ) {
         path.get('typeAnnotation.types.1').replaceWith(path.node.typeAnnotation.types[1].members[0].typeAnnotation.typeAnnotation);
       } else if (
-        path.node.id.name === 'ViewTransitionGroup' &&
-        path.node.typeAnnotation.type === 'TSUnionType' &&
-        path.node.typeAnnotation.types[3].type === 'TSTypeLiteral' &&
-        path.node.typeAnnotation.types[3].members[0].key.name === 'custom'
+        (path.node.id.name === 'ViewTransitionGroup' || path.node.id.name === 'ViewTransitionName') &&
+        path.node.typeAnnotation.type === 'TSUnionType'
       ) {
-        path.get('typeAnnotation.types.3').replaceWith(path.node.typeAnnotation.types[3].members[0].typeAnnotation.typeAnnotation);
-      } else if (
-        path.node.id.name === 'ViewTransitionName' &&
-        path.node.typeAnnotation.type === 'TSUnionType' &&
-        path.node.typeAnnotation.types[2].type === 'TSTypeLiteral' &&
-        path.node.typeAnnotation.types[2].members[0].key.name === 'custom'
-      ) {
-        path.get('typeAnnotation.types.2').replaceWith(path.node.typeAnnotation.types[2].members[0].typeAnnotation.typeAnnotation);
+        for (let type of path.get('typeAnnotation.types')) {
+          if (type.node.type === 'TSTypeLiteral' && type.node.members[0].key.name === 'custom') {
+            type.replaceWith(type.node.members[0].typeAnnotation.typeAnnotation);
+          }
+        }
       }
     }
   });
