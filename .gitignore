@@ -14,3 +14,4 @@ wpt/discovery*.json
 wpt/results*.html
 wpt/discovery*.html
 wpt/fixtures.json
+.idea
