@@ -98,4 +98,23 @@ test('minification works as expected on older yet modern android versions', () =
   assert.equal(res.code.toString(), '.foo{color:#0000}');
 })
 
+test('error recovery preserves declarations before invalid nested rules', () => {
+  let options = {
+    filename: 'a.css',
+    code: Buffer.from('.a{color:red;width:1px;@keyframes k{from{opacity:0}}height:2px}'),
+    errorRecovery: true,
+    minify: true
+  };
+  let result = transform(options);
+
+  assert.equal(result.code.toString(), '.a{color:red;width:1px;height:2px}');
+  assert.equal(result.warnings, [{
+    message: 'Unknown at rule: @keyframes',
+    type: 'AtRuleInvalid',
+    value: 'keyframes',
+    loc: {filename: 'a.css', line: 1, column: 36}
+  }]);
+  assert.throws(() => transform({...options, errorRecovery: false}));
+});
+
 test.run();
