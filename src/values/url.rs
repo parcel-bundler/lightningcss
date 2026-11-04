@@ -32,6 +32,7 @@ impl<'i> PartialEq for Url<'i> {
 
 impl<'i> Parse<'i> for Url<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.skip_whitespace();
     let loc = input.current_source_location();
     let url = input.expect_url()?.into();
     Ok(Url { url, loc: loc.into() })
