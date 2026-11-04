@@ -1043,6 +1043,9 @@ where
 
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
     let operator = match operator {
+      // min-/max- prefixed features are invalid in a boolean context.
+      // https://drafts.csswg.org/mediaqueries/#mq-min-max
+      Err(..) if legacy_op.is_some() => return Err(input.new_custom_error(ParserError::InvalidMediaQuery)),
       Err(..) => return Ok(QueryFeature::Boolean { name }),
       Ok(operator) => operator,
     };
