@@ -956,9 +956,11 @@ impl<'i> AnimationHandler<'i> {
       {
         let timeline_property = if timelines.iter().any(|t| *t != AnimationTimeline::Auto)
           && (intersection != VendorPrefix::None
-            || !context
-              .targets
-              .is_compatible(crate::compat::Feature::AnimationTimelineShorthand))
+            // No browser can set animation-timeline via the shorthand yet, so only
+            // fold it in when targets are known to support it.
+            || context.targets.browsers.map_or(true, |browsers| {
+              !crate::compat::Feature::AnimationTimelineShorthand.is_compatible(browsers)
+            }))
         {
           Some(Property::AnimationTimeline(timelines.clone().into_owned()))
         } else {
