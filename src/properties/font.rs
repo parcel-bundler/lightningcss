@@ -584,7 +584,7 @@ impl IsCompatible for FontVariantCaps {
 }
 
 /// A value for the [line-height](https://www.w3.org/TR/2020/WD-css-inline-3-20200827/#propdef-line-height) property.
-#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
+#[derive(Debug, Clone, PartialEq, Parse)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -600,6 +600,20 @@ pub enum LineHeight {
   Number(NonNegative<CSSNumber>),
   /// An explicit height.
   Length(NonNegative<LengthPercentage>),
+}
+
+impl ToCss for LineHeight {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      LineHeight::Normal => dest.write_str("normal"),
+      LineHeight::Number(number) => number.to_css(dest),
+      // A unitless zero would be parsed as a <number>, so the unit must be preserved.
+      LineHeight::Length(length) => dest.with_zero_units(|dest| length.to_css(dest)),
+    }
+  }
 }
 
 impl Default for LineHeight {

@@ -103,7 +103,7 @@ impl IsCompatible for BorderImageRepeat {
 }
 
 /// A value for the [border-image-width](https://www.w3.org/TR/css-backgrounds-3/#border-image-width) property.
-#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
+#[derive(Debug, Clone, PartialEq, Parse)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -119,6 +119,20 @@ pub enum BorderImageSideWidth {
   LengthPercentage(NonNegative<LengthPercentage>),
   /// The `auto` keyword, representing the natural width of the image slice.
   Auto,
+}
+
+impl ToCss for BorderImageSideWidth {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      BorderImageSideWidth::Number(number) => number.to_css(dest),
+      // A unitless zero would be parsed as a <number>, so the unit must be preserved.
+      BorderImageSideWidth::LengthPercentage(length) => dest.with_zero_units(|dest| length.to_css(dest)),
+      BorderImageSideWidth::Auto => dest.write_str("auto"),
+    }
+  }
 }
 
 impl Default for BorderImageSideWidth {
