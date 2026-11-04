@@ -52,6 +52,13 @@ export interface TransformOptions<C extends CustomAtRules> {
    */
   unusedSymbols?: string[],
   /**
+   * A list of pseudo-class names (without the leading `:`) that should be treated as compatible
+   * with all target browsers. This prevents unknown pseudo-classes (e.g. `global`, `local`)
+   * from causing selectors to be wrapped in `:is()` during minification, and suppresses
+   * unknown pseudo-class warnings during parsing.
+   */
+  knownPseudoClasses?: string[],
+  /**
    * Whether to ignore invalid rules and declarations rather than erroring.
    * When enabled, warnings are returned, and the invalid rule or declaration is
    * omitted from the output code.
