@@ -98,4 +98,50 @@ test('minification works as expected on older yet modern android versions', () =
   assert.equal(res.code.toString(), '.foo{color:#0000}');
 })
 
+test('throws on an invalid pseudo-element inside :has()', () => {
+  let error;
+  try {
+    transform({
+      filename: 'test.css',
+      code: Buffer.from('video:not(:has(::backdrop)) { color: red }'),
+    });
+  } catch (err) {
+    error = err;
+  }
+
+  assert.ok(error, 'expected transform to throw');
+  assert.equal(error.message, 'Invalid state');
+});
+
+test('throws on an empty or malformed :has()', () => {
+  const invalid = {
+    'foo:has() { color: red }': 'Unexpected end of input',
+    'foo:has(slot="selection") { color: red }': `Unexpected token Delim('=')`,
+  };
+
+  for (let [code, message] of Object.entries(invalid)) {
+    let error;
+    try {
+      transform({ filename: 'test.css', code: Buffer.from(code) });
+    } catch (err) {
+      error = err;
+    }
+    assert.ok(error, `expected transform to throw for ${code}`);
+    assert.equal(error.message, message, `wrong message for ${code}`);
+  }
+});
+
+test('drops the rule and warns for an invalid :has() when error recovery is enabled', () => {
+  let res = transform({
+    filename: 'test.css',
+    code: Buffer.from('video:not(:has(::backdrop)) { color: red } a { color: green }'),
+    errorRecovery: true,
+    minify: true,
+  });
+
+  assert.equal(res.code.toString(), 'a{color:green}');
+  assert.equal(res.warnings.length, 1);
+  assert.equal(res.warnings[0].message, 'Invalid state');
+});
+
 test.run();
