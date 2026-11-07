@@ -43,6 +43,28 @@ test('can enable scroll navigation controls draft syntax', () => {
   assert.equal(res.warnings, []);
 });
 
+test('can enable custom functions draft syntax', () => {
+  let code = '@function --double(--x <length>) returns <length> { result: calc(var(--x) * 2); } .b { width: --double(10px) }';
+  let res = transform({
+    filename: 'test.css',
+    code: Buffer.from(code),
+    drafts: {
+      customFunctions: true
+    },
+    minify: true
+  });
+
+  assert.equal(res.code.toString(), '.b{width:20px}');
+
+  res = transform({
+    filename: 'test.css',
+    code: Buffer.from(code),
+    minify: true
+  });
+
+  assert.equal(res.code.toString().includes('--double(10px)'), true);
+});
+
 test('can enable features without targets', () => {
   let res = transform({
     filename: 'test.css',

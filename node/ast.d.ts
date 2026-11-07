@@ -86,6 +86,10 @@ export type Rule<D = Declaration, M = MediaQuery> = | {
     value: PropertyRule;
   }
 | {
+    type: "function";
+    value: FunctionRule;
+  }
+| {
     type: "container";
     value: ContainerRule<D, M>;
   }
@@ -9839,6 +9843,65 @@ export interface PropertyRule {
    * A syntax string to specify the grammar for the custom property.
    */
   syntax: SyntaxString;
+}
+/**
+ * A [@function](https://drafts.csswg.org/css-mixins-1/#function-rule) rule.
+ */
+export interface FunctionRule {
+  /**
+   * The location of the rule in the source file.
+   */
+  loc: Location2;
+  /**
+   * Local custom properties declared in the body of the function.
+   */
+  locals: FunctionLocal[];
+  /**
+   * The name of the function.
+   */
+  name: String;
+  /**
+   * The parameters of the function.
+   */
+  parameters: FunctionParameter[];
+  /**
+   * The value of the `result` descriptor.
+   */
+  result?: TokenOrValue[] | null;
+  /**
+   * The syntax of the value the function returns, if declared.
+   */
+  returns?: SyntaxString | null;
+}
+/**
+ * A parameter of a [@function](https://drafts.csswg.org/css-mixins-1/#function-rule) rule.
+ */
+export interface FunctionParameter {
+  /**
+   * The value used when no argument is passed for the parameter.
+   */
+  default?: TokenOrValue[] | null;
+  /**
+   * The name of the parameter.
+   */
+  name: String;
+  /**
+   * The syntax of the parameter, if declared.
+   */
+  ty?: SyntaxString | null;
+}
+/**
+ * A local custom property declared in the body of a [@function](https://drafts.csswg.org/css-mixins-1/#function-rule) rule.
+ */
+export interface FunctionLocal {
+  /**
+   * The name of the custom property.
+   */
+  name: String;
+  /**
+   * The value of the custom property.
+   */
+  value: TokenOrValue[];
 }
 /**
  * A [syntax component](https://drafts.css-houdini.org/css-properties-values-api/#syntax-component) within a [SyntaxString](SyntaxString).

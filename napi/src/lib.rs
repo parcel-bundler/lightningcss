@@ -668,6 +668,8 @@ struct Drafts {
   custom_media: bool,
   #[serde(default)]
   scroll_navigation_controls: bool,
+  #[serde(default)]
+  custom_functions: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -703,6 +705,10 @@ fn compile<'i>(
     flags.set(
       ParserFlags::SCROLL_NAVIGATION_CONTROLS,
       matches!(drafts, Some(d) if d.scroll_navigation_controls),
+    );
+    flags.set(
+      ParserFlags::CUSTOM_FUNCTIONS,
+      matches!(drafts, Some(d) if d.custom_functions),
     );
     flags.set(
       ParserFlags::DEEP_SELECTOR_COMBINATOR,
@@ -837,6 +843,10 @@ fn compile_bundle<'i, 'o, P: SourceProvider, F: FnOnce(&mut StyleSheet<'i, AtRul
     flags.set(
       ParserFlags::SCROLL_NAVIGATION_CONTROLS,
       matches!(drafts, Some(d) if d.scroll_navigation_controls),
+    );
+    flags.set(
+      ParserFlags::CUSTOM_FUNCTIONS,
+      matches!(drafts, Some(d) if d.custom_functions),
     );
     flags.set(
       ParserFlags::DEEP_SELECTOR_COMBINATOR,

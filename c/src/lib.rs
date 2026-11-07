@@ -78,6 +78,7 @@ pub struct ParseOptions {
   nesting: bool,
   custom_media: bool,
   scroll_navigation_controls: bool,
+  custom_functions: bool,
   css_modules: bool,
   css_modules_pattern: *const c_char,
   css_modules_dashed_idents: bool,
@@ -264,6 +265,7 @@ pub extern "C" fn lightningcss_stylesheet_parse(
     ParserFlags::SCROLL_NAVIGATION_CONTROLS,
     options.scroll_navigation_controls,
   );
+  flags.set(ParserFlags::CUSTOM_FUNCTIONS, options.custom_functions);
   let opts = ParserOptions {
     filename: if options.filename.is_null() {
       String::new()

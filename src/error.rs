@@ -370,6 +370,21 @@ pub enum MinifyErrorKind {
   },
   /// A CSS module selector did not contain at least one class or id selector.
   ImpureCSSModuleSelector,
+  /// A `@function` rule was called circularly.
+  CircularFunction {
+    /// The name of the custom function that was called circularly.
+    name: String,
+  },
+  /// The arguments of a custom function call could not be bound to the parameters of the function.
+  InvalidFunctionArguments {
+    /// The name of the custom function that was called.
+    name: String,
+  },
+  /// The result of a custom function call did not match the declared return type.
+  InvalidFunctionResult {
+    /// The name of the custom function that was called.
+    name: String,
+  },
 }
 
 impl fmt::Display for MinifyErrorKind {
@@ -386,6 +401,13 @@ impl fmt::Display for MinifyErrorKind {
         f,
         "A selector in CSS modules should contain at least one class or ID selector"
       ),
+      CircularFunction { name } => write!(f, "Circular custom function {} detected", name),
+      InvalidFunctionArguments { name } => {
+        write!(f, "Invalid arguments in call to custom function {}", name)
+      }
+      InvalidFunctionResult { name } => {
+        write!(f, "Custom function {} produced an invalid result", name)
+      }
     }
   }
 }

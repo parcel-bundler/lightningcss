@@ -24,6 +24,7 @@ typedef struct ParseOptions {
   bool nesting;
   bool custom_media;
   bool scroll_navigation_controls;
+  bool custom_functions;
   bool css_modules;
   const char *css_modules_pattern;
   bool css_modules_dashed_idents;
