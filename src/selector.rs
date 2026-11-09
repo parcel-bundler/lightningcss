@@ -1352,6 +1352,30 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
       PseudoElement::Custom { .. } | PseudoElement::CustomFunction { .. },
     )
   }
+
+  /// Element-backed pseudo-elements represent a real element, so all
+  /// pseudo-classes and pseudo-elements are syntactically allowed after them,
+  /// as if they were type selectors.
+  ///
+  /// The view-transition pseudo-elements are deliberately not included: the
+  /// spec only allows `:only-child` after them, and they must remain
+  /// non-element-backed for that to keep working.
+  ///
+  /// https://drafts.csswg.org/css-pseudo-4/#element-like
+  fn parses_as_element_backed(&self) -> bool {
+    matches!(
+      *self,
+      PseudoElement::DetailsContent | PseudoElement::PickerFunction { .. }
+    )
+  }
+
+  fn is_before_or_after(&self) -> bool {
+    matches!(*self, PseudoElement::Before | PseudoElement::After)
+  }
+
+  fn valid_after_before_or_after(&self) -> bool {
+    matches!(*self, PseudoElement::Marker)
+  }
 }
 
 impl<'i> PseudoElement<'i> {
