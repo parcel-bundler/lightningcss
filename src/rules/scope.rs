@@ -43,7 +43,9 @@ impl<'i, T: Clone> ScopeRule<'i, T> {
       if let Some(scope_start) = &self.scope_start {
         if !scope_start.0.iter().all(is_pure_css_modules_selector) {
           return Err(MinifyError {
-            kind: crate::error::MinifyErrorKind::ImpureCSSModuleSelector,
+            kind: crate::error::MinifyErrorKind::ImpureCSSModuleSelector {
+              selector: scope_start.to_string(),
+            },
             loc: self.loc,
           });
         }
@@ -52,7 +54,9 @@ impl<'i, T: Clone> ScopeRule<'i, T> {
       if let Some(scope_end) = &self.scope_end {
         if !scope_end.0.iter().all(is_pure_css_modules_selector) {
           return Err(MinifyError {
-            kind: crate::error::MinifyErrorKind::ImpureCSSModuleSelector,
+            kind: crate::error::MinifyErrorKind::ImpureCSSModuleSelector {
+              selector: scope_end.to_string(),
+            },
             loc: self.loc,
           });
         }
