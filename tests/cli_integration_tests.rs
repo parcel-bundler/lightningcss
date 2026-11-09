@@ -218,6 +218,29 @@ fn output_file_option_create_missing_directories() -> Result<(), Box<dyn std::er
 }
 
 #[test]
+fn output_file_option_with_sourcemap_create_missing_directories() -> Result<(), Box<dyn std::error::Error>> {
+  let infile = test_file()?;
+  let outdir = assert_fs::TempDir::new()?;
+  let outfile = outdir.child("out.css");
+  outdir.close()?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(infile.path());
+  cmd.arg("--sourcemap");
+  cmd.arg("--output-file").arg(outfile.path());
+  cmd.assert().success();
+  outfile.assert(predicate::str::contains(indoc! {
+    r#"
+      .foo {
+        border: none;
+      }
+    "#
+  }));
+  fs::remove_dir_all(outfile.parent().unwrap())?;
+
+  Ok(())
+}
+
+#[test]
 fn multiple_input_files() -> Result<(), Box<dyn std::error::Error>> {
   let infile = test_file()?;
   let infile2 = test_file2()?;
