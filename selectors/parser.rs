@@ -48,6 +48,14 @@ pub trait PseudoElement<'i>: Sized + ToCss {
   fn is_unknown(&self) -> bool {
     false
   }
+
+  /// Whether the `:current` and `:not(:current)` state pseudo-classes
+  /// are allowed to the right of this pseudo-element.
+  ///
+  /// https://drafts.csswg.org/css-pseudo-4/#selectordef-search-text
+  fn accepts_current_pseudo_class(&self) -> bool {
+    false
+  }
 }
 
 /// A trait that represents a pseudo-class.
@@ -62,6 +70,14 @@ pub trait NonTSPseudoClass<'i>: Sized + ToCss {
   ///
   /// https://drafts.csswg.org/selectors-4/#useraction-pseudos
   fn is_user_action_state(&self) -> bool;
+
+  /// Whether this pseudo-class is `:current`, which is allowed after
+  /// pseudo-elements that accept it (e.g. `::search-text`).
+  ///
+  /// https://drafts.csswg.org/css-pseudo-4/#selectordef-search-text
+  fn is_current(&self) -> bool {
+    false
+  }
 
   fn is_valid_before_webkit_scrollbar(&self) -> bool {
     true
@@ -137,6 +153,10 @@ bitflags! {
         const AFTER_WEBKIT_SCROLLBAR = 1 << 8;
         const AFTER_VIEW_TRANSITION = 1 << 9;
         const AFTER_UNKNOWN_PSEUDO_ELEMENT = 1 << 10;
+
+        /// Whether we've parsed a pseudo-element that accepts the `:current`
+        /// (and `:not(:current)`) pseudo-classes to the right of it.
+        const AFTER_CURRENT_ACCEPTING_PSEUDO_ELEMENT = 1 << 11;
     }
 }
 
@@ -2791,6 +2811,9 @@ where
         if p.is_view_transition() {
           state.insert(SelectorParsingState::AFTER_VIEW_TRANSITION);
         }
+        if p.accepts_current_pseudo_class() {
+          state.insert(SelectorParsingState::AFTER_CURRENT_ACCEPTING_PSEUDO_ELEMENT);
+        }
         builder.push_simple_selector(Component::PseudoElement(p));
       }
     }
@@ -3127,7 +3150,10 @@ where
       return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterWebKitScrollbar));
     }
   } else if state.intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT) {
-    if !pseudo_class.is_user_action_state() {
+    if !pseudo_class.is_user_action_state()
+      && !(pseudo_class.is_current()
+        && state.intersects(SelectorParsingState::AFTER_CURRENT_ACCEPTING_PSEUDO_ELEMENT))
+    {
       return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterPseudoElement));
     }
   } else if !pseudo_class.is_valid_before_webkit_scrollbar() {
@@ -3151,12 +3177,14 @@ pub mod tests {
     Hover,
     Active,
     Lang(String),
+    Current,
   }
 
   #[derive(Clone, Debug, Eq, PartialEq, Hash)]
   pub enum PseudoElement {
     Before,
     After,
+    SearchText,
   }
 
   impl<'i> parser::PseudoElement<'i> for PseudoElement {
@@ -3164,6 +3192,10 @@ pub mod tests {
 
     fn accepts_state_pseudo_classes(&self) -> bool {
       true
+    }
+
+    fn accepts_current_pseudo_class(&self) -> bool {
+      matches!(*self, PseudoElement::SearchText)
     }
 
     fn valid_after_slotted(&self) -> bool {
@@ -3183,6 +3215,11 @@ pub mod tests {
     fn is_user_action_state(&self) -> bool {
       self.is_active_or_hover()
     }
+
+    #[inline]
+    fn is_current(&self) -> bool {
+      matches!(*self, PseudoClass::Current)
+    }
   }
 
   impl ToCss for PseudoClass {
@@ -3198,6 +3235,7 @@ pub mod tests {
           serialize_identifier(lang, dest)?;
           dest.write_char(')')
         }
+        PseudoClass::Current => dest.write_str(":current"),
       }
     }
   }
@@ -3210,6 +3248,7 @@ pub mod tests {
       match *self {
         PseudoElement::Before => dest.write_str("::before"),
         PseudoElement::After => dest.write_str("::after"),
+        PseudoElement::SearchText => dest.write_str("::search-text"),
       }
     }
   }
@@ -3352,6 +3391,7 @@ pub mod tests {
       match_ignore_ascii_case! { &name,
           "hover" => return Ok(PseudoClass::Hover),
           "active" => return Ok(PseudoClass::Active),
+          "current" => return Ok(PseudoClass::Current),
           _ => {}
       }
       Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClass(name)))
@@ -3380,6 +3420,7 @@ pub mod tests {
       match_ignore_ascii_case! { &name,
           "before" => return Ok(PseudoElement::Before),
           "after" => return Ok(PseudoElement::After),
+          "search-text" => return Ok(PseudoElement::SearchText),
           _ => {}
       }
       Err(location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name)))
@@ -3949,6 +3990,21 @@ pub mod tests {
     assert!(parse("::spelling-error").is_ok());
     assert!(parse("::part(mypart)::grammar-error").is_ok());
     assert!(parse("::part(mypart)::spelling-error").is_ok());
+  }
+
+  #[test]
+  fn test_search_text_current() {
+    // The `:current` pseudo-class may be combined with `::search-text`.
+    // https://drafts.csswg.org/css-pseudo-4/#selectordef-search-text
+    assert!(parse("::search-text:current").is_ok());
+    assert!(parse("::search-text:not(:current)").is_ok());
+    assert!(parse(".a::search-text:current").is_ok());
+    assert!(parse("::part(my-part)::search-text:current").is_ok());
+
+    // Other pseudo-classes after a pseudo-element remain invalid.
+    assert!(parse("::search-text:past").is_err());
+    assert!(parse("::before:current").is_err());
+    assert!(parse("::search-text:current::before").is_err());
   }
 
   #[test]
