@@ -104,7 +104,7 @@ impl<'i> ToCss for KeyframesName<'i> {
         // CSS-wide keywords and `none` cannot remove quotes.
         match_ignore_ascii_case! { &*s,
           "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
-            serialize_string(&s, dest)?;
+            crate::serialize::string(&s, dest)?;
           },
           _ => {
             dest.write_ident(s.as_ref(), css_module_animation_enabled)?;
