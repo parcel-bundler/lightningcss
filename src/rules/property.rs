@@ -142,7 +142,13 @@ impl<'i> ToCss for PropertyRule<'i> {
 
       dest.write_str("initial-value:")?;
       dest.whitespace()?;
-      initial_value.to_css(dest)?;
+      // If the syntax also accepts a <number> or <integer>, a unitless zero would be
+      // parsed as one, changing the type of the initial value, so the unit must be kept.
+      if self.syntax.accepts_unitless_zero_as_number() {
+        initial_value.to_css_with_zero_length_units(dest)?;
+      } else {
+        initial_value.to_css(dest)?;
+      }
 
       if !dest.minify {
         dest.write_char(';')?;

@@ -962,8 +962,8 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
   where
     W: std::fmt::Write,
   {
-    let was_in_calc = dest.in_calc;
-    dest.in_calc = true;
+    let was_preserving_zero_units = dest.preserve_zero_units;
+    dest.preserve_zero_units = true;
 
     let res = match self {
       Calc::Value(v) => v.to_css(dest),
@@ -996,7 +996,7 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
       Calc::Function(f) => f.to_css(dest),
     };
 
-    dest.in_calc = was_in_calc;
+    dest.preserve_zero_units = was_preserving_zero_units;
     res
   }
 }
