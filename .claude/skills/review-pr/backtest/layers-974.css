@@ -1,0 +1,23 @@
+/* case: #974 sublayer declared order */
+@layer one, one.a, one.b;
+@layer one { @layer b { .t { color: red } } }
+@layer one.a { .t { color: green } }
+/* case: layer statement hoisted past conditional layer */
+@layer c;
+@media (min-width: 600px) { @layer a { .x { --v: a; color: red } } }
+@layer b, a;
+@layer b { .x { color: blue } }
+/* case: merging across @media print */
+@layer a { .x { --v: first; color: red } }
+@media (min-width: 600px) { @layer a { .x { --v: middle; color: green } } }
+@layer a { .x { --v: last; color: blue } }
+/* case: nested sublayer ordering */
+@layer a { @layer x; }
+@layer a.y { .t { color: red } }
+@layer a { @layer z { .t { color: green } } }
+/* case: tailwind-style statement then blocks (size) */
+@layer theme, base;
+@layer theme { :root { --c: red } }
+@media print { .p { color: red } }
+@layer base { .t { color: var(--c) } }
+@layer theme { :root { --d: blue } }
