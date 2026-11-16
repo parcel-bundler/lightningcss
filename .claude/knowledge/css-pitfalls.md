@@ -65,4 +65,10 @@ Lightning CSS merges, deduplicates and moves rules. That is only safe if no rule
 
 - **Updated expectations.** Be suspicious when a PR changes existing expected outputs to match new behavior. Wrong outputs have been enshrined before (445def9, a862e39, 60622a1). Every changed expectation needs evidence.
 - **Pretty and minified output.** Check that tests cover both, and with targets as well as without.
-- **Over-conservative fixes cost bytes for everyone.** A fix that disables an optimization broadly can be correct and still unacceptable (32aecd9 was reverted). Report the size impact on realistic CSS, not just the bug case.
+- **Over-conservative fixes cost bytes for everyone.** A fix that disables an optimization broadly can be correct and still unacceptable. 32aecd9 fixed #974 by stopping layer merging across any other rule. Output from atomic CSS libraries, which wrap each rule in its own `@layer` block, then exploded in size because those blocks no longer merged, so it was reverted (4a1b083; confirmed by the maintainer). Report the size impact on realistic CSS, not just the bug case.
+- **Realistic size corpora to check:**
+  - atomic CSS (thousands of tiny rules, each in its own `@layer` block, with interleaved `@media`);
+  - utility frameworks (Tailwind-style: a layer statement, then `@property`, then layer blocks, then `@media`);
+  - component libraries (Bootstrap-style).
+  
+  The fix must be precise: only stop optimizing when an intervening rule can actually affect the result.
