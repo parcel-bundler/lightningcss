@@ -6,9 +6,11 @@
 // element and pseudo-element. Any difference means the transform changed what
 // the CSS does, at least in this browser.
 //
-// The comparison runs across several viewports, forced interaction states
-// (:hover, :focus, ...), dir/lang variations and sampled animation times, so
-// @media, state-dependent selectors and @keyframes are covered too.
+// The comparison runs across viewports at either side of every breakpoint in
+// the CSS, emulated media (dark mode, print, reduced motion), forced
+// interaction states (:hover, :focus, ...), dir/lang variations, and sampled
+// animation and transition times, so @media, state-dependent selectors,
+// @keyframes and transitions are covered too.
 //
 // Usage:
 //   node scripts/equivalence.mjs input.css [options] [-- lightningcss-cli-args]
@@ -22,9 +24,13 @@
 //                        target/debug lightningcss). Build it with
 //                        `cargo build --release --features cli`.
 //   --seeds N            Number of generated fixtures (default 4).
-//   --viewports LIST     e.g. 1280x800,375x667. Default: 1280x800, plus
-//                        narrower ones when the CSS uses @media/@container or
-//                        viewport/container units.
+//   --viewports LIST     e.g. 1280x800,375x667. Default: 1280x800 and 80x800,
+//                        plus widths/heights just below, at and just above
+//                        every px/em/rem length in @media/@import/@custom-media
+//                        preludes, and 500x800 when viewport units are used.
+//   --media LIST         Emulated media, comma separated: default, dark, print,
+//                        reduced-motion, more-contrast, forced-colors. Default:
+//                        "default" plus each one the CSS mentions.
 //   --states LIST        Forced pseudo-class sets, comma separated; join
 //                        several in one set with "+". "none" = no forcing.
 //                        Default: "none" plus each of hover, focus(-*),
@@ -33,7 +39,17 @@
 //   --no-animations      Skip sampling animations at several times.
 //   --chrome PATH        Chrome/Chromium executable (or CHROME_PATH env).
 //   --max-diffs N        Maximum differences to print (default 40).
+//   --quiet              Don't print the transformed CSS.
 //   --json               Print a machine-readable report.
+//
+// Differences are classified. Only "computed" ones make the result NOT
+// EQUIVALENT. Also reported, but not failing:
+//   color-space        the same color written in another color space/syntax
+//                      (compared in sRGB with a small tolerance);
+//   prefixed-fallback  a vendor-prefixed property the output added and the
+//                      input never declared (e.g. -webkit-mask-box-image), which
+//                      this browser may apply even though the input did not;
+//   rounding / whitespace  float noise; whitespace in custom properties.
 //
 // Everything after `--` is passed to the CLI (default: --minify). Examples:
 //   node scripts/equivalence.mjs test.css
@@ -57,17 +73,71 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PSEUDOS = ['::before', '::after', '::marker', '::placeholder', '::first-letter', '::first-line', '::selection', '::backdrop', '::file-selector-button'];
 const DEFAULT_ANIMATION_SAMPLES = [0, 0.3, 0.5, 0.99];
 
-// Pick a test matrix based on what the CSS uses, so trivial inputs stay fast.
+// Pick a test matrix based on what the CSS uses, so trivial inputs stay fast
+// and breakpoints are tested on both sides.
 export function autoMatrix(css) {
-  let viewports = /@media|@container|@custom-media|\d(?:[sdl]?v[hwib]|vmin|vmax|cq[whib]|cqmin|cqmax)\b/i.test(css)
-    ? '1280x800,500x800,320x900' : '1280x800';
-  let states = ['none'];
-  if (/:hover\b/i.test(css)) states.push('hover');
-  if (/:focus/i.test(css)) states.push('focus+focus-visible+focus-within');
-  if (/:active\b/i.test(css)) states.push('active');
-  if (/:(?:checked|indeterminate)\b/i.test(css)) states.push('checked');
-  if (/:visited\b/i.test(css)) states.push('visited');
-  return {viewports, states: states.join(',')};
+  let preludes = [...css.matchAll(/@(?:media|import|custom-media)\b([^{;]*)/gi)].map(m => m[1]).join(' ');
+  let toPx = (n, unit) => Number(n) * (/r?em/i.test(unit) ? 16 : 1);
+  let lengths = [...preludes.matchAll(/(-?\d*\.?\d+)(px|r?em)\b/gi)].map(m => toPx(m[1], m[2])).filter(n => n > 0 && n < 5000);
+  let around = (n) => [Math.floor(n) - 1, Math.floor(n), Math.ceil(n), Math.ceil(n) + 1].filter(x => x > 0);
+  let widths = new Set([1280, 80]);
+  let heights = new Set();
+  let usesHeight = /height|aspect-ratio|orientation/i.test(preludes);
+  for (let n of lengths) {
+    for (let w of around(n)) widths.add(w);
+    if (usesHeight) for (let h of around(n)) heights.add(h);
+  }
+  if (/\d(?:[sdl]?v[hwib]|vmin|vmax)\b/i.test(css) || /orientation|aspect-ratio/i.test(preludes)) widths.add(500);
+  let sample = (set, max) => {
+    let arr = [...set].sort((a, b) => a - b);
+    if (arr.length <= max) return arr;
+    return Array.from({length: max}, (_, i) => arr[Math.round(i * (arr.length - 1) / (max - 1))]);
+  };
+  let viewports = sample(widths, 16).map(width => ({width, height: 800}));
+  for (let height of sample(heights, 8)) viewports.push({width: 1280, height});
+  if (/orientation/i.test(preludes)) viewports.push({width: 400, height: 900});
+
+  let states = [[]];
+  if (/:hover\b/i.test(css)) states.push(['hover']);
+  if (/:focus/i.test(css)) states.push(['focus', 'focus-visible', 'focus-within']);
+  if (/:active\b/i.test(css)) states.push(['active']);
+  if (/:(?:checked|indeterminate)\b/i.test(css)) states.push(['checked']);
+  if (/:visited\b/i.test(css)) states.push(['visited']);
+
+  let media = [MEDIA.default];
+  if (/prefers-color-scheme|color-scheme|light-dark\(/i.test(css)) media.push(MEDIA.dark);
+  if (/\bprint\b/i.test(preludes)) media.push(MEDIA.print);
+  if (/prefers-reduced-motion/i.test(css)) media.push(MEDIA['reduced-motion']);
+  if (/prefers-contrast/i.test(css)) media.push(MEDIA['more-contrast']);
+  if (/forced-colors/i.test(css)) media.push(MEDIA['forced-colors']);
+  return {viewports, states, media};
+}
+
+export const MEDIA = {
+  default: {name: 'default', type: null, features: []},
+  dark: {name: 'dark', type: null, features: [{name: 'prefers-color-scheme', value: 'dark'}]},
+  print: {name: 'print', type: 'print', features: []},
+  'reduced-motion': {name: 'reduced-motion', type: null, features: [{name: 'prefers-reduced-motion', value: 'reduce'}]},
+  'more-contrast': {name: 'more-contrast', type: null, features: [{name: 'prefers-contrast', value: 'more'}]},
+  'forced-colors': {name: 'forced-colors', type: null, features: [{name: 'forced-colors', value: 'active'}]},
+};
+
+export function parseViewports(str) {
+  return str.split(',').map(v => {
+    let [width, height] = v.split('x').map(Number);
+    return {width, height};
+  });
+}
+
+export function parseStates(str) {
+  return str.split(',').map(s => (s === 'none' ? [] : s.split('+')));
+}
+
+export function parseMedia(str) {
+  return str.split(',').map(m => {
+    if (!MEDIA[m]) throw new Error(`Unknown --media value ${m}`);
+    return MEDIA[m];
+  });
 }
 
 function parseArgs(argv) {
@@ -82,6 +152,8 @@ function parseArgs(argv) {
     seeds: 4,
     viewports: null,
     states: null,
+    media: null,
+    quiet: false,
     concurrency: 4,
     animations: true,
     chrome: process.env.CHROME_PATH || null,
@@ -102,6 +174,8 @@ function parseArgs(argv) {
       case '--seeds': opts.seeds = Number(next()); break;
       case '--viewports': opts.viewports = next(); break;
       case '--states': opts.states = next(); break;
+      case '--media': opts.media = next(); break;
+      case '--quiet': opts.quiet = true; break;
       case '--no-animations': opts.animations = false; break;
       case '--chrome': opts.chrome = next(); break;
       case '--max-diffs': opts.maxDiffs = Number(next()); break;
@@ -209,8 +283,9 @@ function generateFixture(vocab, seed) {
   };
   // Also include one element with every class and a nested chain of them, so
   // compound and descendant selectors always have something to match.
-  let all = vocab.classes.length ? `<div class="${esc(vocab.classes.join(' '))}">All</div>` : '';
-  let chain = vocab.classes.reduceRight((inner, c) => `<div class="${esc(c)}">${inner}</div>`, 'Chain');
+  let all = vocab.classes.length ? `<div class="${esc(vocab.classes.slice(0, 200).join(' '))}">All</div>` : '';
+  // Cap the depth: very deep trees overflow the DevTools protocol.
+  let chain = vocab.classes.slice(0, 24).reduceRight((inner, c) => `<div class="${esc(c)}">${inner}</div>`, 'Chain');
   return node(0) + node(0) + all + chain;
 }
 
@@ -227,20 +302,27 @@ async function forceStates(page, states) {
   let client = await page.target().createCDPSession();
   await client.send('DOM.enable');
   await client.send('CSS.enable');
-  let {root} = await client.send('DOM.getDocument', {depth: -1});
+  let {root} = await client.send('DOM.getDocument', {depth: 0});
   let {nodeIds} = await client.send('DOM.querySelectorAll', {nodeId: root.nodeId, selector: '*'});
   await Promise.all(nodeIds.map(nodeId => client.send('CSS.forcePseudoState', {nodeId, forcedPseudoClasses: states})));
   return client;
 }
 
 // Snapshot computed styles of every element and pseudo-element.
-async function snapshot(page, pseudos, customProps, animationFraction) {
-  return page.evaluate((PSEUDOS, customProps, animationFraction) => {
-    // Finish transitions started by forced states; pause and seek animations
-    // so results never depend on wall-clock timing.
+async function snapshot(page, pseudos, customProps, animationFraction, transitionFraction) {
+  return page.evaluate((PSEUDOS, customProps, animationFraction, transitionFraction) => {
+    // Pause and seek animations and transitions (started by forced states) so
+    // results never depend on wall-clock timing. A null transition fraction
+    // means the end state.
     for (let a of document.getAnimations()) {
       if (typeof CSSTransition !== 'undefined' && a instanceof CSSTransition) {
-        a.finish();
+        if (transitionFraction == null) {
+          a.finish();
+        } else {
+          let timing = a.effect.getComputedTiming();
+          a.pause();
+          a.currentTime = (timing.delay || 0) + (Number.isFinite(timing.duration) ? timing.duration : 0) * transitionFraction;
+        }
       } else {
         let timing = a.effect.getComputedTiming();
         let duration = Number.isFinite(timing.duration) ? timing.duration : 0;
@@ -291,7 +373,7 @@ async function snapshot(page, pseudos, customProps, animationFraction) {
       out.push(entry);
     }
     return out;
-  }, pseudos, customProps, animationFraction);
+  }, pseudos, customProps, animationFraction, transitionFraction);
 }
 
 function numbersClose(a, b) {
@@ -330,7 +412,52 @@ function compareSnapshots(a, b, context) {
   return diffs;
 }
 
-export async function compare({originalCss, transformedCss, fixtures, viewports, states, animations, chrome, concurrency = 4}) {
+const COLOR_TOKEN = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]*\)/gi;
+const HAS_COLOR = new RegExp(COLOR_TOKEN.source, 'i');
+
+// Re-express every color in a value in sRGB, so the same color written in
+// another color space or syntax compares equal.
+async function normalizeColors(page, values) {
+  return page.evaluate((values, source) => {
+    let re = new RegExp(source, 'gi');
+    let el = document.createElement('div');
+    document.body.append(el);
+    let toSrgb = (c) => {
+      el.style.color = '';
+      el.style.color = `color-mix(in srgb, ${c} 100%, transparent)`;
+      return el.style.color ? getComputedStyle(el).color : c;
+    };
+    let out = values.map(v => {
+      let t = v.trim();
+      // A whole value that is a bare named color (custom properties).
+      if (/^[a-z]+$/i.test(t) && CSS.supports('color', t) && !/^(?:currentcolor|inherit|initial|unset|revert)$/i.test(t)) return toSrgb(t);
+      return v.replace(re, toSrgb);
+    });
+    el.remove();
+    return out;
+  }, values, COLOR_TOKEN.source);
+}
+
+function numbersCloseAbs(a, b, tol) {
+  let re = /-?\d*\.?\d+(?:e[-+]?\d+)?/gi;
+  if (a.replace(re, '#').replace(/\s+/g, '') !== b.replace(re, '#').replace(/\s+/g, '')) return false;
+  let na = a.match(re) || [], nb = b.match(re) || [];
+  return na.every((x, i) => Math.abs(Number(x) - Number(nb[i])) <= tol);
+}
+
+// Was this property introduced as a vendor-prefixed fallback by the output?
+function isAddedPrefixedProperty(prop, originalCss, transformedCss) {
+  if (!/^-(?:webkit|moz|ms|o)-/.test(prop)) return false;
+  let parts = prop.split('-');
+  for (let k = parts.length; k >= 3; k--) {
+    let name = parts.slice(0, k).join('-');
+    let decl = new RegExp(`(^|[;{\\s])${name.replace(/[-]/g, '\\-')}\\s*:`, 'i');
+    if (decl.test(transformedCss)) return !decl.test(originalCss);
+  }
+  return false;
+}
+
+export async function compare({originalCss, transformedCss, fixtures, viewports, states, media = [MEDIA.default], animations = true, chrome, concurrency = 4}) {
   let browser = await puppeteer.launch({
     headless: true,
     executablePath: chrome ?? findChrome(),
@@ -341,27 +468,42 @@ export async function compare({originalCss, transformedCss, fixtures, viewports,
   // Only inspect pseudo-elements the CSS can style.
   let pseudos = PSEUDOS.filter(p => new RegExp(':?' + p.replace(/^::/, ':') + '\\b', 'i').test(both));
   let hasAnimations = animations && /@keyframes/i.test(both);
+  let hasTransitions = animations && /transition/i.test(both);
   let jobs = [];
+  let add = (job) => {
+    let {fixture, viewport, stateSet, mediaSet, fraction, tFraction} = job;
+    job.context = `${fixture.name} @ ${viewport.width}x${viewport.height}` +
+      (mediaSet.name !== 'default' ? ` [${mediaSet.name}]` : '') +
+      (stateSet.length ? ` :${stateSet.join(':')}` : '') +
+      (hasAnimations && fraction ? ` anim=${fraction}` : '') +
+      (tFraction != null ? ` transition=${tFraction}` : '');
+    jobs.push(job);
+  };
   for (let fixture of fixtures) {
     for (let viewport of viewports) {
       for (let stateSet of states) {
-        // Sample animation times without forced states only, to bound runtime.
+        // Sample animations without forced states, and transitions (which
+        // forced states start) part-way through, to bound runtime.
         let fractions = hasAnimations && !stateSet.length ? DEFAULT_ANIMATION_SAMPLES : [0];
+        let tFractions = hasTransitions && stateSet.length ? [null, 0.3, 0.7] : [null];
         for (let fraction of fractions) {
-          let context = `${fixture.name} @ ${viewport.width}x${viewport.height}` +
-            (stateSet.length ? ` :${stateSet.join(':')}` : '') +
-            (hasAnimations && !stateSet.length ? ` anim=${fraction}` : '');
-          jobs.push({fixture, viewport, stateSet, fraction, context});
+          for (let tFraction of tFractions) add({fixture, viewport, stateSet, mediaSet: MEDIA.default, fraction, tFraction});
         }
       }
     }
+    // Other emulated media: every viewport, no forced states.
+    for (let mediaSet of media.filter(m => m.name !== 'default')) {
+      for (let viewport of viewports) add({fixture, viewport, stateSet: [], mediaSet, fraction: 0, tFraction: null});
+    }
   }
   try {
-    let render = async (page, css, {fixture, viewport, stateSet, fraction}) => {
+    let render = async (page, css, {fixture, viewport, stateSet, mediaSet, fraction, tFraction}) => {
       await page.setViewport(viewport);
+      await page.emulateMediaType(mediaSet.type);
+      await page.emulateMediaFeatures(mediaSet.features);
       await page.setContent(documentFor(fixture.html, css), {waitUntil: 'load'});
       let client = stateSet.length ? await forceStates(page, stateSet) : null;
-      let snap = await snapshot(page, pseudos, customProps, fraction);
+      let snap = await snapshot(page, pseudos, customProps, fraction, tFraction);
       if (client) await client.detach();
       return snap;
     };
@@ -378,10 +520,39 @@ export async function compare({originalCss, transformedCss, fixtures, viewports,
       await page.close();
     };
     await Promise.all(Array.from({length: Math.max(1, Math.min(concurrency, jobs.length))}, worker));
+
+    // Reclassify differences that are only color-space conversions or added
+    // vendor-prefixed fallbacks.
+    let colorCandidates = diffs.filter(d => d.kind === 'computed' && (HAS_COLOR.test(d.original + ' ' + d.transformed) || /^--/.test(d.property)));
+    if (colorCandidates.length) {
+      let values = [...new Set(colorCandidates.flatMap(d => [d.original, d.transformed]))];
+      let page = await browser.newPage();
+      await page.setContent('<!doctype html><body>');
+      let normalized = await normalizeColors(page, values);
+      await page.close();
+      let map = new Map(values.map((v, i) => [v, normalized[i]]));
+      for (let d of colorCandidates) {
+        let a = map.get(d.original), b = map.get(d.transformed);
+        if ((a !== d.original || b !== d.transformed) && numbersCloseAbs(a, b, 2e-3)) d.kind = 'color-space';
+      }
+    }
+    for (let d of diffs) {
+      if (d.kind === 'computed' && isAddedPrefixedProperty(d.property, originalCss, transformedCss)) d.kind = 'prefixed-fallback';
+    }
     return {browser: await browser.version(), checks: jobs.length, diffs};
   } finally {
     await browser.close();
   }
+}
+
+// Convenience wrapper: build fixtures and a matrix, compare, and summarize.
+export async function checkEquivalence({originalCss, transformedCss, html = null, seeds = 3, matrix = null, animations = true, chrome, concurrency}) {
+  let auto = autoMatrix(originalCss + '\n' + transformedCss);
+  let m = {...auto, ...(matrix || {})};
+  let fixtures = await buildFixtures({originalCss, html, seeds, chrome});
+  let result = await compare({originalCss, transformedCss, fixtures, viewports: m.viewports, states: m.states, media: m.media, animations, chrome, concurrency});
+  let significant = result.diffs.filter(d => d.kind === 'computed');
+  return {...result, fixtures, significant, equivalent: significant.length === 0};
 }
 
 export async function buildFixtures({originalCss, html, seeds, chrome}) {
@@ -416,14 +587,12 @@ async function main() {
       process.exit(2);
     }
   }
-  let auto = autoMatrix(originalCss);
-  let viewports = (opts.viewports ?? auto.viewports).split(',').map(v => {
-    let [width, height] = v.split('x').map(Number);
-    return {width, height};
-  });
-  let states = (opts.states ?? auto.states).split(',').map(s => (s === 'none' ? [] : s.split('+')));
+  let auto = autoMatrix(originalCss + '\n' + transformedCss);
+  let viewports = opts.viewports ? parseViewports(opts.viewports) : auto.viewports;
+  let states = opts.states ? parseStates(opts.states) : auto.states;
+  let media = opts.media ? parseMedia(opts.media) : auto.media;
   let fixtures = await buildFixtures({originalCss, html: opts.html && fs.readFileSync(opts.html, 'utf8'), seeds: opts.seeds, chrome: opts.chrome});
-  let result = await compare({originalCss, transformedCss, fixtures, viewports, states, animations: opts.animations, chrome: opts.chrome, concurrency: opts.concurrency});
+  let result = await compare({originalCss, transformedCss, fixtures, viewports, states, media, animations: opts.animations, chrome: opts.chrome, concurrency: opts.concurrency});
 
   let significant = result.diffs.filter(d => d.kind === 'computed');
   let minor = result.diffs.filter(d => d.kind !== 'computed');
@@ -431,8 +600,11 @@ async function main() {
     console.log(JSON.stringify({transformedCss, ...result, equivalent: significant.length === 0}, null, 2));
   } else {
     console.log(`Browser: ${result.browser}`);
-    console.log(`Transformed CSS (${originalCss.length} -> ${transformedCss.length} bytes):\n${transformedCss.trim()}\n`);
-    console.log(`Compared ${result.checks} renders across ${fixtures.length} fixture(s).`);
+    if (!opts.quiet) {
+      let shown = transformedCss.length > 3000 ? transformedCss.slice(0, 3000) + '\n... (truncated; use --json for all)' : transformedCss.trim();
+      console.log(`Transformed CSS (${originalCss.length} -> ${transformedCss.length} bytes):\n${shown}\n`);
+    }
+    console.log(`Compared ${result.checks} renders across ${fixtures.length} fixture(s): viewports ${viewports.map(v => `${v.width}x${v.height}`).join(' ')}; media ${media.map(m => m.name).join(', ')}; states ${states.map(s => s.length ? s.join('+') : 'none').join(', ')}.`);
     // Collapse differences with the same values (e.g. `color` and every
     // currentcolor-derived border color) into one entry.
     let groups = new Map();
@@ -456,8 +628,13 @@ async function main() {
     }
     if (minor.length) {
       let kinds = minor.reduce((acc, d) => ((acc[d.kind] = (acc[d.kind] || 0) + 1), acc), {});
-      console.log(`\nIgnored minor differences: ${Object.entries(kinds).map(([k, n]) => `${n} ${k}`).join(', ')}` +
-        ' (whitespace inside custom property values; float rounding noise). Use --json to inspect.');
+      console.log(`\nNot counted: ${Object.entries(kinds).map(([k, n]) => `${n} ${k}`).join(', ')} (see --help). Examples:`);
+      let seen = new Set();
+      for (let d of minor) {
+        if (seen.has(d.kind) || d.kind === 'rounding' || d.kind === 'whitespace') continue;
+        seen.add(d.kind);
+        console.log(`  [${d.kind}] ${d.property}: ${d.original} -> ${d.transformed}`);
+      }
     }
   }
   process.exit(significant.length ? 1 : 0);

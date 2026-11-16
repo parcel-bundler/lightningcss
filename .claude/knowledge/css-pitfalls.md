@@ -14,6 +14,12 @@ Lightning CSS merges, deduplicates and moves rules. That is only safe if no rule
 - **`@layer` order is set by first declaration**, including declarations inside `@media`/`@supports` (conditional), nested `@layer` blocks (`a.b`) and `@import ... layer()`. Merging or hoisting layer blocks/statements across any of these can reorder layers (6419d54 → 33ea2c1 → 32aecd9, reverted in 4a1b083, #974). Unlayered styles beat layered ones; for `!important` the layer order is reversed. Probe: `@layer one, one.a, one.b; @layer one{@layer b{…}} @layer one.a{…}`.
 - **Merging adjacent rules with different selectors into one list.** If any selector is invalid or unsupported in a target browser, that browser drops the *whole* rule (only `:is()`/`:where()` are forgiving). Vendor-prefixed pseudos (`::-webkit-…`, `:-moz-…`) are the classic case. `StyleRule::is_compatible` guards this; check new selector features are covered by compat data.
 - **Merging adjacent `@media`/`@supports`/`@container` blocks** (620a36b) is only safe when nothing in between interleaves.
+- **Layer merging must be precise, not just safe.**
+  - Merging or hoisting across a rule is unsafe only if that rule can *declare a layer*: `@import`, `@layer`, unknown at-rules, or a grouping or style rule that contains one, recursively.
+  - `@property`, `@keyframes`, `@font-face`, `@counter-style` and similar never declare layers. Blocking on them destroys merging for atomic and framework CSS (the size regression that reverted 32aecd9).
+  - A blind backtest review prototyped this rule (`may_declare_layers`). It fixed #974 and kept base output size on everything except genuinely unsafe `@media{@layer x{}}` interleaving.
+- **Hash-seed nondeterminism.** `AHasher` keys are random per process, so a bug that depends on hash collisions or iteration order shows up in only a small fraction of runs. #1235/#1236: about 1% of runs silently *dropped a live rule*. Test with many processes and many distinct copies of the pattern.
+- **Dedup across CSS-module files.** A candidate that can't be removed, because it came from another file, must not pile up in a bucket. That makes dedup quadratic in the number of files (found in the #1236 review: 12k files took 0.2 s on master and 7.7 s with the PR).
 
 ## 2. Order and buffering inside a declaration block
 
@@ -22,10 +28,22 @@ Lightning CSS merges, deduplicates and moves rules. That is only safe if no rule
 - **`!important` and normal declarations** are separate buckets; never merge across them.
 - **Fallback chains are intentional.** `color: red; color: oklch(…)` must keep the first declaration when targets lack support for the second. Without targets, removing the earlier declaration is fine only if the later one is known to be valid everywhere.
 - **`var()` in a shorthand** makes every longhand pending-substitution. A shorthand with `var()` cannot be split into longhands. Longhands containing `var()` cannot be safely folded into a shorthand.
+- **Fallback lists in `PropertyHandlerContext` must be emitted and cleared for every rule kind.** The handler context collects `@supports` overrides (`get_supports_rules`), logical-property rules and dark-mode `@media (prefers-color-scheme)` rules (`get_additional_rules`).
+  - If a rule kind doesn't drain *all* of them, nested declarations (`CSSNestedDeclarations`) for example, they are dropped or attached to the next sibling rule's selector.
+  - The #1386 review found that PR draining only `@supports`; the logical and dark-mode fallbacks still leaked.
+- **Queued fallbacks can resurrect overridden values.** With `--x: lab(…); --x: blue` and targets, an `@supports (color: lab(…)) { --x: lab(…) }` override emitted *after* the rule makes the overridden `lab()` value win in modern browsers. Fallback rules must only carry values that are still the winning declaration.
 
 ## 3. Values and serialization
 
-- **Zero units.** Unitless `0` is valid only where `<length>` is accepted *and* no `<number>` alternative changes the meaning. Unsafe examples: `line-height` (`0` is a number), `flex` (`flex:1 1 0` vs `0px` basis), `tab-size`, `<time>` (`0s` must keep its unit), `0%` vs `0`, and values inside `calc()` (`calc(0)` is a number). #1416 is about this. Probe each property whose grammar includes both `<number>` and `<length>`.
+- **Zero units.** Unitless `0` is valid only where `<length>` is accepted *and* no `<number>` alternative changes the meaning.
+  - **Affected properties** (every property in mdn-data whose grammar includes both `<number>` and `<length>`):
+    - `line-height` and the `/lh` part of `font`;
+    - `tab-size`;
+    - `border-image-outset`/`-width`;
+    - `mask-border-outset`/`-width` and their `-webkit-mask-box-image-*` aliases.
+  - **`@property` `initial-value`** when the syntax has a `<number>`/`<integer>` component. Components match *in order*, so `<length> | <number>` with `0` is still a length, and only `<number>` before `<length>` is ambiguous.
+  - **Other unsafe spots:** `flex` (`flex:1 1 0` vs a `0px` basis), `<time>` (`0s` must keep its unit), `0%` vs `0`, and values inside `calc()` (`calc(0)` is a number).
+  - **Effect:** the type changes, so animations and transitions become discrete, and for `tab-size` and `border-image-*` the computed value changes too (#1416).
 - **calc() simplification.** Simplifying is wrong when it:
   - mixes types or loses percentages whose basis depends on the property;
   - drops a range clamp that applies at computed-value time (`width: calc(-1px)` is valid and clamps to 0; `width: -1px` is invalid);
@@ -45,7 +63,9 @@ Lightning CSS merges, deduplicates and moves rules. That is only safe if no rule
 ## 4. Lowering for targets
 
 - **Specificity.** Lowered nesting, `:is()` and `:where()` must keep specificity. For example, `.a, #b { .c & {} }` needs `:is()` semantics (max specificity); expanding it into a plain selector list changes the winner (open #1324).
-- **Media query range syntax.** `(width < 600px)` → `(max-width: 599.98px)` style epsilons; `not` needs parentheses when combined with `or`/`and` (7f29035 → c4091ee). Boolean context: `(min-width)` is invalid, while `(width)` is valid (#1366, #1380).
+- **Media query range syntax.** `(width < 600px)` → `(max-width: 599.98px)` style epsilons; `not` needs parentheses when combined with `or`/`and` (7f29035 → c4091ee).
+- **Boolean context.** `(min-width)` is not a valid `<media-feature>`, while `(width)` is. Chromium treats `(min-width)` as `<general-enclosed>`, which evaluates to *unknown* like `(min-foo)`; it is not a whole-query syntax error (`not all`). So `(min-width) or (width)` still matches, and siblings in a comma list survive (#1366, #1380).
+- **Unknown conditions keep their siblings.** Turning a condition into opaque tokens stops lowering its sibling features in the same query, e.g. `(min-width) or (width > 100px)` for Safari 12.
 - **Logical properties and `:dir()`/`:lang()` fallbacks** generate extra rules whose position in the cascade matters.
 - **Vendor prefixes:**
   - The prefixed form must come before the unprefixed form.
