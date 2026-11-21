@@ -20,7 +20,7 @@
 
 import puppeteer from 'puppeteer';
 import fs from 'fs';
-import {findChrome, MEDIA} from './equivalence.mjs';
+import {findChrome, MEDIA, emulateMedia} from './equivalence.mjs';
 
 let argv = process.argv.slice(2);
 let css = '', html = '', viewport = {width: 1280, height: 800}, media = MEDIA.default, exprs = [];
@@ -35,10 +35,11 @@ for (let i = 0; i < argv.length; i++) {
       break;
     }
     case '--media': media = MEDIA[argv[++i]]; if (!media) throw new Error('Unknown media'); break;
+    case '-h': case '--help': break;
     default: exprs.push(argv[i]);
   }
 }
-if (!exprs.length) {
+if (!exprs.length || argv.includes('--help') || argv.includes('-h')) {
   console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n\n')[1].replace(/^\/\/ ?/gm, ''));
   process.exit(2);
 }
@@ -47,8 +48,7 @@ let browser = await puppeteer.launch({headless: true, executablePath: findChrome
 try {
   let page = await browser.newPage();
   await page.setViewport(viewport);
-  await page.emulateMediaType(media.type);
-  await page.emulateMediaFeatures(media.features);
+  await emulateMedia(page, media);
   await page.setContent(`<!doctype html><html><head><style id="__probe">${css.replace(/<\/style/gi, '<\\/style')}</style></head><body>${html}</body></html>`);
   console.log(`// ${await browser.version()}, ${viewport.width}x${viewport.height}, media: ${media.name}`);
   for (let expr of exprs) {

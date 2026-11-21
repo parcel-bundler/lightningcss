@@ -124,6 +124,18 @@ export const MEDIA = {
   'forced-colors': {name: 'forced-colors', type: null, features: [{name: 'forced-colors', value: 'active'}]},
 };
 
+// Set the emulated media type and features in a single call: Puppeteer's
+// emulateMediaType() and emulateMediaFeatures() each reset the other.
+const mediaSessions = new WeakMap();
+export async function emulateMedia(page, mediaSet) {
+  let client = mediaSessions.get(page);
+  if (!client) {
+    client = await page.target().createCDPSession();
+    mediaSessions.set(page, client);
+  }
+  await client.send('Emulation.setEmulatedMedia', {media: mediaSet.type || '', features: mediaSet.features});
+}
+
 export function parseViewports(str) {
   return str.split(',').map(v => {
     let [width, height] = v.split('x').map(Number);
@@ -336,8 +348,13 @@ async function snapshot(page, pseudos, customProps, animationFraction, transitio
       } else {
         let timing = a.effect.getComputedTiming();
         let duration = Number.isFinite(timing.duration) ? timing.duration : 0;
-        a.pause();
-        a.currentTime = (timing.delay || 0) + duration * animationFraction;
+        try {
+          a.pause();
+          a.currentTime = (timing.delay || 0) + duration * animationFraction;
+        } catch {
+          // Scroll-driven animations (scroll()/view() timelines) can't be
+          // seeked by time; they follow the (fixed) scroll position instead.
+        }
       }
     }
     let read = (el, pseudo) => {
@@ -512,8 +529,7 @@ export async function compare({originalCss, transformedCss, fixtures, viewports,
   try {
     let render = async (page, css, {fixture, viewport, stateSet, mediaSet, fraction, tFraction}) => {
       await page.setViewport(viewport);
-      await page.emulateMediaType(mediaSet.type);
-      await page.emulateMediaFeatures(mediaSet.features);
+      await emulateMedia(page, mediaSet);
       await page.setContent(documentFor(fixture.html, css), {waitUntil: 'load'});
       let client = stateSet.length ? await forceStates(page, stateSet) : null;
       let snap = await snapshot(page, pseudos, customProps, fraction, tFraction);
