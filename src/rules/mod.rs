@@ -62,7 +62,7 @@ pub mod viewport;
 
 use self::font_feature_values::FontFeatureValuesRule;
 use self::font_palette_values::FontPaletteValuesRule;
-use self::layer::{LayerBlockRule, LayerStatementRule};
+use self::layer::{LayerBlockRule, LayerEffects, LayerMergeTracker, LayerStatementRule};
 use self::property::PropertyRule;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
@@ -604,7 +604,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
     self.coalesce_adjacent_conditional_rules();
 
     let mut keyframe_rules = HashMap::new();
-    let mut layer_rules = HashMap::new();
+    let mut layer_tracker = LayerMergeTracker::default();
     let mut has_layers = false;
     let mut property_rules = HashMap::new();
     let mut font_feature_values_rules = Vec::new();
@@ -612,6 +612,19 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
       HashMap::with_capacity_and_hasher(self.0.len(), BuildHasherDefault::<PrecomputedHasher>::default());
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
+      // Record how rules that contain layers (e.g. inside @media) affect them,
+      // so later @layer blocks aren't merged across them unsafely. Layer rules
+      // themselves are handled below.
+      if layer_tracker.has_targets()
+        && !matches!(
+          rule,
+          CssRule::LayerBlock(..) | CssRule::LayerStatement(..) | CssRule::Import(..)
+        )
+        && LayerEffects::may_affect_layers(&rule)
+      {
+        layer_tracker.apply(&layer_tracker.effects_of(&rule), None);
+      }
+
       match &mut rule {
         CssRule::Keyframes(keyframes) => {
           if context.unused_symbols.contains(match &keyframes.name {
@@ -699,33 +712,52 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             continue;
           }
         }
-        CssRule::LayerBlock(layer) => {
-          // Merging non-adjacent layer rules is safe because they are applied
-          // in the order they are first defined.
-          if let Some(name) = &layer.name {
-            if let Some(idx) = layer_rules.get(name) {
-              if let Some(CssRule::LayerBlock(last_rule)) = rules.get_mut(*idx) {
-                last_rule.rules.0.extend(layer.rules.0.drain(..));
-                continue;
-              }
+        CssRule::LayerBlock(_) => {
+          // Scanning nested rules is only needed if there are earlier blocks
+          // that this one could be merged into or affect. Skipping it keeps
+          // deeply nested layers linear.
+          let effects = match &rule {
+            CssRule::LayerBlock(LayerBlockRule { name: Some(name), .. }) => {
+              layer_tracker.block_effects(&name.0, &rule)
             }
+            _ => LayerEffects::of_name(&rule),
+          };
+          if let CssRule::LayerBlock(layer) = &mut rule {
+            if let Some(name) = &layer.name {
+              // Merge into an earlier block with the same name when nothing in
+              // between makes that change the cascade (see LayerMergeTracker).
+              if let Some(idx) = layer_tracker.merge_target(&name.0, &effects) {
+                if let Some(CssRule::LayerBlock(target)) = rules.get_mut(idx) {
+                  target.rules.0.extend(layer.rules.0.drain(..));
+                  layer_tracker.apply(&effects, Some(&name.0));
+                  continue;
+                }
+              }
 
-            layer_rules.insert(name.clone(), rules.len());
-            has_layers = true;
+              let name = name.0.iter().cloned().collect();
+              layer_tracker.apply(&effects, None);
+              layer_tracker.set_target(name, rules.len());
+              has_layers = true;
+            } else {
+              layer_tracker.apply(&effects, None);
+            }
           }
         }
         CssRule::LayerStatement(layer) => {
-          // Create @layer block rules for each declared layer name,
-          // so we can merge other blocks into it later on.
+          // Create @layer block rules for each newly declared layer name,
+          // so we can merge other blocks into it later on. Names that are
+          // already declared have no effect and are dropped.
           for name in &layer.names {
-            if !layer_rules.contains_key(name) {
-              layer_rules.insert(name.clone(), rules.len());
-              has_layers = true;
-              rules.push(CssRule::LayerBlock(LayerBlockRule {
+            if !layer_tracker.is_known(&name.0) {
+              let block = CssRule::LayerBlock(LayerBlockRule {
                 name: Some(name.clone()),
                 rules: CssRuleList(vec![]),
                 loc: layer.loc.clone(),
-              }));
+              });
+              layer_tracker.apply(&LayerEffects::of(&block), None);
+              layer_tracker.set_target(name.0.iter().cloned().collect(), rules.len());
+              has_layers = true;
+              rules.push(block);
             }
           }
           continue;
@@ -961,7 +993,8 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
         }
         CssRule::Import(_) => {
           // @layer blocks can't be inlined into layers declared before imports.
-          layer_rules.clear();
+          layer_tracker.apply(&LayerEffects::of(&rule), None);
+          has_layers = true;
         }
         _ => {}
       }
@@ -970,58 +1003,66 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
     }
 
     // Optimize @layer rules. Combine subsequent empty layer blocks into a single @layer statement
-    // so that layers are declared in the correct order.
+    // so that layers are declared in the correct order. A name can only be moved into an earlier
+    // statement if no rule in between declares a layer for the first time.
     if has_layers {
-      let mut declared_layers = HashSet::new();
+      let mut declared_layers: HashSet<_, ahash::RandomState> = HashSet::default();
       let mut layer_statement = None;
       for index in 0..rules.len() {
-        match &mut rules[index] {
-          CssRule::LayerBlock(layer) => {
-            if layer.minify(context, parent_is_unused)? {
-              if let Some(name) = &layer.name {
-                if declared_layers.contains(name) {
-                  // Remove empty layer that has already been declared.
-                  rules[index] = CssRule::Ignored;
-                  continue;
+        if let CssRule::LayerBlock(layer) = &mut rules[index] {
+          if layer.minify(context, parent_is_unused)? {
+            if let Some(name) = &layer.name {
+              if declared_layers.contains(&name.0[..]) {
+                // Remove empty layer that has already been declared.
+                rules[index] = CssRule::Ignored;
+                continue;
+              }
+
+              let name = name.clone();
+              for len in 1..=name.0.len() {
+                if !declared_layers.contains(&name.0[..len]) {
+                  declared_layers.insert(name.0[..len].iter().cloned().collect::<SmallVec<[_; 2]>>());
                 }
+              }
 
-                let name = name.clone();
-                declared_layers.insert(name.clone());
-
-                if let Some(layer_index) = layer_statement {
-                  if let CssRule::LayerStatement(layer) = &mut rules[layer_index] {
-                    // Add name to previous layer statement rule and remove this one.
-                    layer.names.push(name);
-                    rules[index] = CssRule::Ignored;
-                  }
-                } else {
-                  // Create a new layer statement rule to declare the name.
-                  rules[index] = CssRule::LayerStatement(LayerStatementRule {
-                    names: vec![name],
-                    loc: layer.loc,
-                  });
-                  layer_statement = Some(index);
+              if let Some(layer_index) = layer_statement {
+                if let CssRule::LayerStatement(layer) = &mut rules[layer_index] {
+                  // Add name to previous layer statement rule and remove this one.
+                  layer.names.push(name);
+                  rules[index] = CssRule::Ignored;
                 }
               } else {
-                // Remove empty anonymous layer.
-                rules[index] = CssRule::Ignored;
+                // Create a new layer statement rule to declare the name.
+                rules[index] = CssRule::LayerStatement(LayerStatementRule {
+                  names: vec![name],
+                  loc: layer.loc,
+                });
+                layer_statement = Some(index);
               }
             } else {
-              // Non-empty @layer block. Start a new statement.
-              layer_statement = None;
+              // Remove empty anonymous layer.
+              rules[index] = CssRule::Ignored;
             }
+            continue;
           }
-          CssRule::Import(import) => {
-            if let Some(layer) = &import.layer {
-              // Start a new @layer statement so the import layer is in the right order.
-              layer_statement = None;
-              if let Some(name) = layer {
-                declared_layers.insert(name.clone());
-              }
-            }
-          }
-          _ => {}
         }
+
+        if matches!(rules[index], CssRule::Ignored) || !LayerEffects::may_affect_layers(&rules[index]) {
+          continue;
+        }
+
+        // A non-empty layer block, @import, or a rule containing layers.
+        // If it declares a new layer, later names can't be hoisted before it.
+        // Without a pending statement, only the declared name matters.
+        let effects = if layer_statement.is_some() {
+          LayerEffects::of(&rules[index])
+        } else {
+          LayerEffects::of_name(&rules[index])
+        };
+        if effects.declares_new(&declared_layers) {
+          layer_statement = None;
+        }
+        effects.declare_known(&mut declared_layers);
       }
     }
 
