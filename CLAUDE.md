@@ -65,6 +65,8 @@ CSS has many non-obvious rules, so reasoning alone is not evidence that a transf
 - `scripts/size-check.sh BASE_BIN NEW_BIN [files...]` compares minified output size and time on two corpora:
   - a synthetic one (`scripts/size-corpus.py`): Tailwind-style, component bundles and atomic CSS;
   - a pinned real-world one (`scripts/real-corpus.json`, fetched from npm by `scripts/fetch-corpus.mjs`): react-spectrum S2's atomic CSS, Radix Themes, Bootstrap, Bulma, Primer, Pico, animate.css, Open Props and Font Awesome.
+- `node scripts/repro.mjs repro.mjs [--range A..B] [--bisect]` runs an issue repro (JS API) against the local build and published npm releases (cached in `target/review/npm`), groups identical outputs, and bisects to the release where behavior changed.
+- `node scripts/fetch-issues.mjs` builds a local index of all issues and PRs at `target/review/issues.jsonl` for duplicate searches.
 - Chromium is at `/opt/pw-browsers/chromium` in cloud sessions (`CHROME_PATH` overrides). Puppeteer is a dev dependency.
 
 Limits: only one engine (Chromium), and only meaning in a *modern* browser is checked. Whether lowered output works in an old target browser comes from compat data and specs, not this tool. A pass means "no difference observed", so pair it with deliberately adversarial fixtures and cases.
