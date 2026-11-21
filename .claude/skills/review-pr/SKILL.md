@@ -162,6 +162,21 @@ What was run and the results. Gaps in the PR's tests.
 What you couldn't check and why (old-browser behavior, WPT fixtures, etc.).
 ```
 
+### 9. Public PR comment (only when asked to post)
+
+The report above is internal: it is for the maintainer, and it holds all the evidence. A comment on the PR is a different, much shorter document. Draft it separately, show it to the maintainer, and post only the text they approve.
+
+- **Tone.** Keep it friendly, and thank the contributor briefly. It reads as coming from the maintainer, so don't announce verdicts like "request changes" or "needs maintainer decision". Never approve or say the PR is ready to merge; the maintainer decides.
+- **Length.** Aim for 100–250 words. Put the most important point first, and leave nits out unless they are cheap and clearly useful.
+- **Each point** gets one or two sentences of what's wrong, a minimal repro (input, current output, what it should be) and a suggested direction. Name the concrete type or function where a better fix belongs.
+- **Speak in browser terms, not tool terms.** Write "in Chrome this element ends up red instead of blue", not "NOT EQUIVALENT (2686 diffs)". Leave out internal tooling, edge-case tables, confidence labels and build hashes.
+- **Spec links** go in only where they decide the question, with a short quote at most.
+- **Benchmarks and size numbers** get one line each (e.g. "with 12k CSS module files: 0.2 s → 7.7 s"), and only when they drive a requested change.
+- **A `<details>` block** is fine for a longer repro, but keep it short.
+- End with the footer the session's GitHub instructions require.
+
+### 10. Prototyping alternatives
+
 If you find a better approach, prototype it in a copy of the worktree (with its own `CARGO_TARGET_DIR`) and include the diff and its measurements. A concrete alternative is much more useful than "this could be more precise".
 
 Write the report to the path you were given, or to the scratchpad. Report outcomes faithfully: if something was skipped or inconclusive, say so; never round "probably fine" up to "verified".
