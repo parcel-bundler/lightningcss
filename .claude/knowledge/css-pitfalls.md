@@ -21,7 +21,7 @@ Lightning CSS merges, deduplicates and moves rules. That is only safe if no rule
   Re-declaring layers that are already known changes nothing. Neither does `@property`, `@keyframes` or `@font-face`.
   - 32aecd9 blocked merging at every non-layer rule and was reverted: react-spectrum's atomic CSS exploded.
   - The backtest's prototype (`may_declare_layers`) blocked at every `@layer` rule instead. That still grew react-spectrum S2 by 288%, because each component file starts with `@layer _.prose;` and re-declares `_.a`, `_.b`, `_.b.l`, …
-  - Track the set of declared paths; don't classify by rule type.
+  - Track the set of declared paths; don't classify by rule type. `LayerMergeTracker` in `src/rules/layer.rs` implements this (#974); its tests in `test_layer_merging_across_rules` pin down the merges that must keep happening.
 - **Hash-seed nondeterminism.** `AHasher` keys are random per process, so a bug that depends on hash collisions or iteration order shows up in only a small fraction of runs. #1235/#1236: about 1% of runs silently *dropped a live rule*. Test with many processes and many distinct copies of the pattern.
 - **Dedup across CSS-module files.** A candidate that can't be removed, because it came from another file, must not pile up in a bucket. That makes dedup quadratic in the number of files (found in the #1236 review: 12k files took 0.2 s on master and 7.7 s with the PR).
 

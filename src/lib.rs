@@ -10356,6 +10356,83 @@ mod tests {
   }
 
   #[test]
+  fn test_layer_order_across_rules() {
+    // A conditional declaration can establish `a` before `b`. Hoisting the
+    // final statement changes their order when the condition matches.
+    minify_test(
+      "@layer c; @media (min-width: 600px) { @layer a { .x { --v: a } } } @layer b, a;",
+      "@layer c;@media (width>=600px){@layer a{.x{--v:a}}}@layer b,a;",
+    );
+    minify_test(
+      "@layer c; @supports (display: grid) { @layer a { .x { --v: a } } } @layer b, a;",
+      "@layer c;@supports (display:grid){@layer a{.x{--v:a}}}@layer b,a;",
+    );
+    // An unlayered import may declare layers in its stylesheet too.
+    minify_test(
+      "@layer c; @import 'a.css'; @layer b, a;",
+      "@layer c;@import \"a.css\";@layer b,a;",
+    );
+    // A conditional import cannot make a later unconditional declaration
+    // redundant: that declaration must still apply if the condition is false.
+    minify_test(
+      "@import 'a.css' layer(a) screen; @layer a, b;",
+      "@import \"a.css\" layer(a) screen;@layer a,b;",
+    );
+    // Moving the last block into the first reverses the order of declarations
+    // within `a` when the intervening condition matches.
+    minify_test(
+      "@layer a { .x { --v: first } } @media print { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
+      "@layer a{.x{--v:first}}@media print{@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
+    );
+    minify_test(
+      "@layer a { .x { --v: first } } @supports (display: grid) { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
+      "@layer a{.x{--v:first}}@supports (display:grid){@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
+    );
+    // Dotted layer names and nested blocks address the same layer hierarchy.
+    // Merging the two `a` blocks would declare `a.z` before `a.y`.
+    minify_test(
+      "@layer a { @layer x; } @layer a.y { .x { --v: y } } @layer a { @layer z { .x { --v: z } } }",
+      "@layer a{@layer x;}@layer a.y{.x{--v:y}}@layer a{@layer z{.x{--v:z}}}",
+    );
+    // Moving a block before the first declaration of a layer it uses changes
+    // the order of that layer (#974).
+    minify_test(
+      "@layer a, a.x, a.y; @layer a { @layer y { .t { color: red } } } @layer a.x { .t { color: green } }",
+      "@layer a;@layer a.x{.t{color:green}}@layer a.y;@layer a{@layer y{.t{color:red}}}",
+    );
+    // A style rule containing a layer contributes to it, like a conditional rule.
+    minify_test(
+      "@layer a { .x { color: red } } .p { @layer a { .x { color: green } } } @layer a { .p .x { color: blue } }",
+      "@layer a{.x{color:red}}.p{@layer a{& .x{color:green}}}@layer a{.p .x{color:#00f}}",
+    );
+  }
+
+  #[test]
+  fn test_layer_merging_across_rules() {
+    // Rules that can't declare or contribute to layers don't prevent merging.
+    minify_test(
+      r#"@layer a { .x { color: red } } @property --p { syntax: "*"; inherits: false } @keyframes k { to { opacity: 0 } } @font-face { font-family: f; src: local(Arial) } @media (min-width: 1px) { .y { color: blue } } .z { color: green } @layer a { .x { background: red } }"#,
+      r#"@layer a{.x{color:red;background:red}}@property --p{syntax:"*";inherits:false}@keyframes k{to{opacity:0}}@font-face{font-family:f;src:local(Arial)}@media (width>=1px){.y{color:#00f}}.z{color:green}"#,
+    );
+    // Re-declaring layers that are already declared has no effect, e.g. when
+    // bundling files from atomic CSS libraries that each declare their layers.
+    minify_test(
+      "@layer _.prose; @layer _.a { .a1 { color: red } } @layer _.b { .b1 { color: red } } @layer _.b.l { .l1 { color: red } } @layer _.prose; @layer _.a { .a2 { color: blue } } @layer _.b { .b2 { color: blue } } @layer _.b.l { .l2 { color: blue } }",
+      "@layer _.prose;@layer _.a{.a1{color:red}.a2{color:#00f}}@layer _.b{.b1{color:red}.b2{color:#00f}}@layer _.b.l{.l1{color:red}.l2{color:#00f}}",
+    );
+    // A layer's own styles come after its sublayers regardless of position, so
+    // sublayer blocks in between don't prevent merging the parent.
+    minify_test(
+      "@layer a { .x { color: red } } @layer a.b { .x { color: green } } @layer a { .y { color: blue } }",
+      "@layer a{.x{color:red}.y{color:#00f}}@layer a.b{.x{color:green}}",
+    );
+    minify_test(
+      r#"@layer theme, base, components, utilities; @layer theme { :root { --c: red } } @property --tw { syntax: "*"; inherits: false } @layer utilities { .u { color: var(--c) } } @layer theme { :root { --d: blue } }"#,
+      r#"@layer theme{:root{--c:red;--d:blue}}@layer base,components;@layer utilities{.u{color:var(--c)}}@property --tw{syntax:"*";inherits:false}"#,
+    );
+  }
+
+  #[test]
   fn test_duplicate_rules_preserve_importance() {
     minify_test(
       ".x { --c: first !important } @layer a { .y { --c: middle } } .x { --c: last }",
