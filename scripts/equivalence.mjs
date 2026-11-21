@@ -391,7 +391,10 @@ function numbersClose(a, b) {
   let re = /-?\d*\.?\d+(?:e[-+]?\d+)?/gi;
   if (a.replace(re, '#') !== b.replace(re, '#')) return false;
   let na = a.match(re) || [], nb = b.match(re) || [];
-  return na.every((x, i) => Math.abs(Number(x) - Number(nb[i])) <= 1e-3 * Math.max(1, Math.abs(Number(x))));
+  // Chromium lays out in 1/64px units, so anything at or above that is a real
+  // layout difference (e.g. 99.984375px vs 100px from printing 33.3333%).
+  // Only treat differences far below it as float noise.
+  return na.every((x, i) => Math.abs(Number(x) - Number(nb[i])) <= 1e-3);
 }
 
 function compareSnapshots(a, b, context) {
