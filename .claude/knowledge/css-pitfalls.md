@@ -53,6 +53,8 @@ Lightning CSS merges, deduplicates and moves rules. That is only safe if no rule
   - drops a range clamp that applies at computed-value time (`width: calc(-1px)` is valid and clamps to 0; `width: -1px` is invalid);
   - mishandles NaN, infinity or `-0` (open #1397, #1398, #1405).
   - `clamp()`/`min()`/`max()` reductions need comparisons that cannot be known at build time (`em` vs `vh`; ddc9ce8).
+- **Comma-separated lists keep their pairing.** In `transition` and `animation` lists, entries pair by index with the timing lists, and for a repeated property the *last* entry applies. Deduplicating property names without the timing lists shifts timings onto the wrong properties: `transition: -webkit-transform .3s, transform .3s, opacity .5s` came out with `opacity .3s` (#1401, since 1.28.2).
+- **Number precision.** Printing numbers with 6 significant digits changes layout: Chromium lays out in 1/64px, so `33.3333%` of 300px is 99.984375px and not 100px (#949). Print the shortest representation that round-trips the stored value.
 - **Transforms.** Collapsing a transform list into `matrix()` changes how it interpolates in transitions and animations (e37b9ed, #288). Individual `translate`/`rotate`/`scale` properties are separate from `transform` (40fb4ea).
 - **Colors:**
   - Conversions between color spaces lose precision.
@@ -78,6 +80,8 @@ Lightning CSS merges, deduplicates and moves rules. That is only safe if no rule
   - Unknown prefix combinations must not panic (9d0da3f: `stretch` with all prefixes hit `unreachable!()`).
 - **`@supports` fallbacks** must wrap exactly the declarations that need them, and nested declarations keep their order (#1386).
 - **Compat data.** "Unknown support" must be treated as unsupported. Partial support in caniuse often means "do not rely on it".
+- **Partial implementations in browser-compat-data must count as unsupported.** `scripts/build-prefixes.js` drops `partial_implementation` entries for some features but not all. For example, `animation-timeline` in the `animation` shorthand is "reset-only" in Chrome, yet the shorthand is emitted, and Chromium rejects `animation:… scroll(root)`, losing the whole animation (#572, #1283, PR #1306).
+- **Generated compat data can silently change between releases.** A Safari version cap in the generated prefix data dropped `-webkit-user-select` in 1.28.2–1.29.1 (#925). Releases that lock two different caniuse-lite copies are a suspected trigger.
 
 ## 5. Strictness and error recovery
 

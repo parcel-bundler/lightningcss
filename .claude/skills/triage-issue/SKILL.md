@@ -27,7 +27,9 @@ Note who is affected. Reactions, duplicates, and frameworks or tools named in th
 
 ### 2. Check for duplicates and existing fixes
 
-`node scripts/fetch-issues.mjs` refreshes a local index of every issue and PR at `target/review/issues.jsonl`. Grep it for the property, rule, error message or API involved, and look at both open and closed items, including PRs. Also run `git log --oneline -S '<identifier>'` or `git log --grep '#<number>'`, and check whether a commit already mentions the issue.
+`node scripts/fetch-issues.mjs` refreshes a local index of every issue and PR at `target/review/issues.jsonl`. Search it with `node scripts/find-issues.mjs <regex> [<regex>...]`, which matches titles and bodies (bodies are truncated, so read the full issue through MCP when it matters) and lists the PRs that claim to fix each match. Use `node scripts/find-issues.mjs --refs <number>` to see everything that mentions an issue. Search for the property, rule, error message or API involved, open and closed, issues and PRs. Also run `git log --oneline -S '<identifier>'` or `git log --grep '#<number>'`.
+
+**Open PRs that claim to fix the issue** are common, and pointing the maintainer at a good one is the most valuable outcome of triage. Read each one's diff and judge it briefly without building it. Does it fix the root cause or just the reported case? Does it hand-edit generated files? Does it change the public API or AST shape? Does it come with tests? Record the result in `openPRs`, and recommend which to review first.
 
 Treat something as a duplicate only if the root cause matches. Similar symptoms aren't enough.
 
@@ -48,10 +50,16 @@ node scripts/repro.mjs repro.mjs                        # local (master) + lates
 node scripts/repro.mjs repro.mjs --range 1.29.0..1.30.2 --bisect   # find the release where it changed
 ```
 
+- **Look beyond the reporter's examples.** Try the wider family of inputs that hit the same code: other values, orderings, sibling properties, targets on either side of the support boundary. In the pilot, the most important findings in two issues were variants the reporter never mentioned.
+- **Use named cases** (`export const cases = [{name, css, options, check}]`) when there are several examples, so each check only sees its own output.
 - **Use the reporter's API and options.** Most reports come through the JS API (often via Vite, Tailwind or PostCSS), and the CLI doesn't expose everything. Translate the tool's config into `transform()` or `bundle()` options. For example, browserslist targets need `browserslistToTargets` from the package.
 - **The local build.** It is master when you're on a branch without source changes: `git diff --quiet origin/master -- src`. Build it with `PATH=node_modules/.bin:$PATH node scripts/build.js` if no `.node` file exists. For a quick CLI check, use `target/release/lightningcss`.
-- **Check the output in a browser** whenever the claim is about behavior: `node scripts/equivalence.mjs in.css --transformed out.css [--html fixture.html]`. Use `node scripts/probe.mjs` for how Chromium parses or computes something.
-- **Regressions:** bisect between the versions the reporter names.
+- **Check the output in a browser** whenever the claim is about behavior: `node scripts/equivalence.mjs in.css --transformed out.css [--html fixture.html]` (`--quick` for a fast sanity check). Use `node scripts/probe.mjs` for how Chromium parses or computes something; its `--html` takes an HTML string, while equivalence's takes a file. Headless Chromium can't emulate `pointer` or `hover` media features (it reports `pointer: none`), so verify those by reasoning and say so.
+- **Release builds abort on a Rust panic.** They show `CRASH` in `repro.mjs`, where the local debug build shows `ERROR` for the same panic. That's not a behavior difference. A panic in a release kills the whole Node process, so try/catch can't help users; rate it accordingly.
+- **Options that need targets.** Some features only apply with `targets` set (e.g. `customMedia` substitution); a repro without targets can silently show no effect.
+- **Nondeterminism.** Use `--repeat N` (separate processes) and amplify the input with distinct selectors.
+- **Regressions:** run `--range <lastGood>..<firstBad>`, which lists every change of `check()` between consecutive releases. `--bisect` is faster but assumes a single change; behavior sometimes flipped several times (#925). Map releases to commits with `git log v<a>..v<b>`. Some patch releases have no git tag; search commit messages for the version in that case, or diff the cached packages in `target/review/npm/<version>`.
+- **Prefix and compat-data issues.** Decisions come from the generated `src/compat.rs` and `src/prefixes.rs`, which are built by `scripts/build-prefixes.js` from caniuse-lite, @mdn/browser-compat-data and autoprefixer. Check whether the *data* or the *logic* is wrong. Browser versions there are encoded as `major << 16 | minor << 8 | patch` (e.g. 1180416 = 18.3). Compare against the MDN/caniuse entries in `node_modules`. Partial implementations in browser-compat-data should count as unsupported.
 - **Already fixed:** if master is correct but releases are not, find the fixing commit and whether it has been released. The last release date and its commit are in `git log --tags --simplify-by-decoration`.
 - **No reproduction:** if the issue doesn't contain enough to reproduce, say exactly what's missing instead of guessing.
 
@@ -96,28 +104,44 @@ Write a JSON record and a short markdown summary to the path you were given, or 
   "suggestedLabels": ["bug", "area: minification"],
   "action": "close | keep-open | needs-info | link-duplicate | queue-fix | needs-maintainer-decision",
   "fix": {"size": "small | medium | large", "approach": "one or two sentences", "goodFirstIssue": false},
+  "openPRs": [{"number": 1259, "assessment": "fixes the root cause; has tests; recommend reviewing first"}],
+  "subcases": null,
   "draftReply": "only when the action involves replying; see below",
   "confidence": "high | medium | low",
   "notVerified": "what couldn't be checked"
 }
 ```
 
-**Severity:**
+**Umbrella issues** collect several cases, like #572. Add a `subcases` array to the record, each entry with its own status (fixed in a version, duplicate of #N, still open with its fix PR). Set the overall action to `keep-open` with a status comment, or `close` once every sub-case is tracked elsewhere.
+
+**Severity** reflects impact *now*. For an issue that's already fixed in the latest release, use low and give the historical severity in `impact`.
+
+**Severity levels:**
 - **critical:** silently wrong output or a crash on CSS common in the wild, or a regression in a recent release that affects many users.
 - **high:** wrong output for a realistic pattern, or blocks a common tool or setup.
 - **medium:** wrong output for an uncommon pattern, or an error with a workaround.
 - **low:** spec-precise edge cases unlikely in real CSS, cosmetic issues, and nice-to-have features.
 
-**Existing labels:** `bug`, `enhancement`, `documentation`, `good first issue`, `help wanted`, `pending triage`, `area: minification`, `area: transpilation`, `area: css-modules`, `area: custom visitors`. Don't invent labels. If one seems missing, note it in the summary.
+**Existing labels:** `bug`, `enhancement`, `documentation`, `good first issue`, `help wanted`, `pending triage`, `area: minification`, `area: transpilation`, `area: css-modules`, `area: custom visitors`. Don't invent labels. If one seems missing, note it in the summary; `area: bundler` and `area: parser` are known gaps.
 
 **Draft replies** follow the same rules as public PR comments (see the review-pr skill):
 - friendly and short, 50–150 words;
 - the conclusion first, then the evidence a reporter can check (versions, a minimal repro, a spec link);
 - the next step: a workaround, `errorRecovery`, the duplicate's number, or what information is needed;
 - no tool jargon, and no speaking for decisions the maintainer hasn't made;
-- end with the footer the session's GitHub instructions require.
+- when an open PR exists that the maintainer hasn't reviewed, mention it neutrally ("there's an open PR, #N, that addresses this"), never as accepted;
+- end with:
+
+```
+---
+_Generated by [Claude Code](https://claude.ai/code)_
+```
 
 Report faithfully. "Couldn't reproduce with the information given" is different from "fixed". Low confidence is fine if you say so.
+
+## Output files
+
+Output folders may be shared with other triage runs. Name files after the issue (`<N>.json`, `<N>.md`, `<N>-repro*.mjs`), and give batch digests a unique name such as `digest-<numbers>.md`. Never write generic names like `digest.md`, and never overwrite another file.
 
 ## Batches
 
