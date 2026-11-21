@@ -38,7 +38,22 @@ Reasoning about CSS without evidence is how plausible-but-wrong changes get merg
 - Reproduce the original bug when there is one. Show that the base build gets it wrong, and why (spec or browser evidence).
 - Ask the browser directly when behavior is in question: `node scripts/probe.mjs "matchMedia('(min-width)').media" "CSS.supports('selector(:lang(a,b))')" "parse('tab-size','0')"`. Add `--css-text`, `--html` and `--media dark` for computed values (`cs('.a','color')`). Direct CSSOM evidence is often decisive.
 
-### 3. Build both versions
+### 3. Review the design, not just the behavior
+
+A PR can produce correct output and still be the wrong change. Before testing edge cases, answer these questions in the report:
+
+- **Is there a general rule?** People often fix the one property or case they ran into. Research whether the spec has a general rule behind the bug, e.g. every property whose grammar allows both `<number>` and `<length>`. Find *all* properties, values and rules it applies to (`node_modules/mdn-data/css/properties.json` has the grammars), and check whether the PR covers them.
+- **Is the fix in the reusable place?** Copy-pasting the same logic into several property implementations is a red flag. Look for the shared type that should own it: e.g. a fix for `<length> | <number>` belongs in `LengthOrNumber`'s serialization, or in a derive macro (`ToCss`, `Parse`) if the shared type doesn't fit. Prefer designs that *automatically* apply to future properties, so nobody has to remember to copy the logic again. If you see a better place, name it concretely.
+- **Is the complexity worth it?** Lots of new bookkeeping (extra maps, indices, invalidation logic) needs a measured benefit. Identify the assumption the complexity serves, e.g. "a pre-computed hash is much faster than rehashing on lookup", and benchmark it. If the benefit is small, propose the simpler design. Even if it is large, consider whether an alternative design needs less bookkeeping.
+- **Does it fit the project philosophy?** See the "Project philosophy" section of `CLAUDE.md`. Check four things:
+  - syntax is fully parsed, not kept as tokens;
+  - strict vs `errorRecovery` behavior follows the policy: an error in strict mode only for known syntax, a warning with the CSS preserved as written in recovery;
+  - there are no non-standard syntax extensions and no hacks for browsers nobody uses;
+  - draft features are behind flags.
+
+Quadratic (or worse) behavior in a realistic scenario is blocking on its own: request a different solution, don't approve with a follow-up.
+
+### 4. Build both versions
 
 ```sh
 eval "$(scripts/build-pr.sh <PR>)"   # sets PR_BIN and BASE_BIN; worktree in target/review/pr-<PR>/src
@@ -47,7 +62,7 @@ eval "$(scripts/build-pr.sh --on-master <PR>)"   # stale PRs: PR merged onto cur
 
 A first build of two trees can take 10+ minutes on a small machine, so run it in the background and write cases meanwhile. Run cargo tests in the worktree with `CARGO_TARGET_DIR=target/review/cargo-test`.
 
-### 4. Attack it with edge cases
+### 5. Attack it with edge cases
 
 Write a cases file in the scratchpad (format in `scripts/cases.mjs`).
 - **Start with the PR's own examples.** Then go through `.claude/knowledge/css-pitfalls.md` and add cases for every category that applies to the touched code. Aim for 15–40 cases.
@@ -102,20 +117,21 @@ The browser check only covers modern Chromium:
 
 The browser check only covers modern Chromium. For lowering, also reason from compat data about whether the output parses and behaves correctly in the *old* target browsers, and say that this part is unverified by the browser.
 
-### 5. Run the tests
+### 6. Run the tests
 
 - In the worktree, run `cargo test --lib <relevant tests>`. Run the full `cargo test --all-features` if the change is broad.
 - Check that the PR's new tests fail on the base build. Copy them into the base worktree, or reason from base outputs.
 - If parser or serializer code changed, run `yarn test:wpt:baseline` if fixtures are available. Otherwise say it was skipped.
 - If node bindings or types changed, `yarn build && yarn test && yarn tsc`.
 
-### 6. Performance and size
+### 7. Performance and size
 
 - **Hot paths.** For changes in parsing, `DeclarationHandler`, rule minification or printing, run `cargo bench --bench transform` on both builds (or time the CLI on a large generated stylesheet). Report numbers.
 - **Complexity.** Look for new loops over rule or token lists, clones and allocations in hot code.
-- **Size.** Always run `scripts/size-check.sh "$BASE_BIN" "$PR_BIN" [real.css...]` for changes to minification, and paste the table. The corpus covers Tailwind-style, component-bundle and atomic CSS. A correct fix that grows atomic CSS output by 5% is a problem: that is exactly why 32aecd9 was reverted.
+- **Size and time.** Always run `scripts/size-check.sh "$BASE_BIN" "$PR_BIN"` for changes to minification, and paste the table. It covers synthetic framework and atomic CSS plus pinned real-world packages. Real-world CSS catches what synthetic inputs miss. The backtest's prototype layer fix looked perfect on synthetic inputs but grew react-spectrum S2's atomic CSS by 288%. A correct fix that noticeably grows any corpus entry is a problem; that is exactly why 32aecd9 was reverted.
+- **Recursive or nested checks.** A recursive check called inside a loop (e.g. scanning nested rule lists for every rule) can blow up on deep nesting. Time it on generated inputs with deep nesting, many siblings and long rule lists, not just on the corpus.
 
-### 7. Write the report
+### 8. Write the report
 
 Use this structure. Be concise: the reader is an expert maintainer.
 
@@ -125,6 +141,9 @@ Use this structure. Be concise: the reader is an expert maintainer.
 
 ## Summary
 What it changes, in 2-4 sentences. Whether the claimed bug is real (with evidence).
+
+## Design
+Is the fix general (all affected properties and values per the spec), is it in the right reusable place, is its complexity justified by measurements, and does it fit the project philosophy? Name the better alternative concretely if there is one.
 
 ## Spec
 Quoted text + links. Note browser deviations.

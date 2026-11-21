@@ -2,6 +2,18 @@
 
 A CSS parser, transformer, bundler and minifier in Rust, published as the `lightningcss` crate and the `lightningcss` npm package (200M+ weekly downloads). Correctness matters more than output size: a minifier bug silently changes the look of a huge number of production sites. When unsure whether a transform preserves meaning, it must not be applied.
 
+## Project philosophy
+
+These come from the maintainer. Apply them when reviewing PRs, triaging issues and writing fixes:
+
+- **Fully parse all syntax.** Every property, value and rule gets a typed representation, rather than raw tokens in the AST like other CSS parsers store. It's more work, but it is what makes the performance, minification and correctness possible. A PR that stores something as unparsed tokens to avoid writing a parser is usually the wrong approach.
+- **Strict by default.** Lightning CSS errors in more cases than browsers and other CSS parsers, on purpose. It's a build tool, and developers should learn about broken CSS before it ships, not have it silently ignored. Because third-party packages often contain invalid CSS unknowingly, the `errorRecovery` option exists: errors become warnings and parsing recovers exactly like a browser would, keeping the CSS as written rather than "repairing" it. So:
+  - **Strict mode:** errors are for definitely invalid input involving *known* syntax, e.g. `(min-width)` in a boolean context. Unknown-but-valid syntax passes through, e.g. `(min-foo)`.
+  - **Error recovery mode:** the same input produces a warning and is preserved as written.
+- **No non-standard features.** Non-standard rules and properties can pass through in `errorRecovery` mode if they are valid CSS syntax. Other syntax extensions are not supported, because they complicate the tokenizer and parser; external tools should process them first.
+- **Limit hacks for very old browsers.** Target browsers people actually use. The CSS specification is the source of truth, not implementation bugs; don't add workarounds for bugs in browsers nobody uses.
+- **Put experimental and draft features behind flags.** Draft syntax (e.g. only in Chrome, without other browsers committed) may change. It goes behind draft feature flags so a later spec change isn't a breaking change for users.
+
 ## Layout
 
 - `src/lib.rs`: crate root. Also holds most of the test suite (~30k lines, the `tests` module).
@@ -50,7 +62,9 @@ CSS has many non-obvious rules, so reasoning alone is not evidence that a transf
 - `node scripts/cases.mjs cases.css [--base-bin A] [--bin B] [--config "--minify"]... [--repeat N]` runs many `/* case: name */` blocks through one or two builds under several option sets. It browser-checks every output and classifies each run as regression, fixed, still-broken, changed or ok.
 - `node scripts/probe.mjs "matchMedia('(min-width)').media" ...` evaluates expressions in Chromium (with optional `--css-text`/`--html`/`--media`) to see how a real browser parses or computes something.
 - `scripts/build-pr.sh [--on-master] <pr-number>` builds the PR and its merge base (or the PR merged onto master, and master) into `target/review/` and prints `PR_BIN=` / `BASE_BIN=`.
-- `scripts/size-check.sh BASE_BIN NEW_BIN [files...]` compares minified output size on a synthetic corpus (Tailwind-style, component bundles, atomic CSS; `scripts/size-corpus.py`).
+- `scripts/size-check.sh BASE_BIN NEW_BIN [files...]` compares minified output size and time on two corpora:
+  - a synthetic one (`scripts/size-corpus.py`): Tailwind-style, component bundles and atomic CSS;
+  - a pinned real-world one (`scripts/real-corpus.json`, fetched from npm by `scripts/fetch-corpus.mjs`): react-spectrum S2's atomic CSS, Radix Themes, Bootstrap, Bulma, Primer, Pico, animate.css, Open Props and Font Awesome.
 - Chromium is at `/opt/pw-browsers/chromium` in cloud sessions (`CHROME_PATH` overrides). Puppeteer is a dev dependency.
 
 Limits: only one engine (Chromium), and only meaning in a *modern* browser is checked. Whether lowered output works in an old target browser comes from compat data and specs, not this tool. A pass means "no difference observed", so pair it with deliberately adversarial fixtures and cases.

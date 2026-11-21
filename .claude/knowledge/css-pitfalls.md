@@ -14,10 +14,14 @@ Lightning CSS merges, deduplicates and moves rules. That is only safe if no rule
 - **`@layer` order is set by first declaration**, including declarations inside `@media`/`@supports` (conditional), nested `@layer` blocks (`a.b`) and `@import ... layer()`. Merging or hoisting layer blocks/statements across any of these can reorder layers (6419d54 → 33ea2c1 → 32aecd9, reverted in 4a1b083, #974). Unlayered styles beat layered ones; for `!important` the layer order is reversed. Probe: `@layer one, one.a, one.b; @layer one{@layer b{…}} @layer one.a{…}`.
 - **Merging adjacent rules with different selectors into one list.** If any selector is invalid or unsupported in a target browser, that browser drops the *whole* rule (only `:is()`/`:where()` are forgiving). Vendor-prefixed pseudos (`::-webkit-…`, `:-moz-…`) are the classic case. `StyleRule::is_compatible` guards this; check new selector features are covered by compat data.
 - **Merging adjacent `@media`/`@supports`/`@container` blocks** (620a36b) is only safe when nothing in between interleaves.
-- **Layer merging must be precise, not just safe.**
-  - Merging or hoisting across a rule is unsafe only if that rule can *declare a layer*: `@import`, `@layer`, unknown at-rules, or a grouping or style rule that contains one, recursively.
-  - `@property`, `@keyframes`, `@font-face`, `@counter-style` and similar never declare layers. Blocking on them destroys merging for atomic and framework CSS (the size regression that reverted 32aecd9).
-  - A blind backtest review prototyped this rule (`may_declare_layers`). It fixed #974 and kept base output size on everything except genuinely unsafe `@media{@layer x{}}` interleaving.
+- **Layer merging must be precise, not just safe.** Layer order depends only on when each layer *path* is first declared, so an intervening rule matters only if:
+  - it declares a layer path that hasn't been declared yet, including conditionally (`@media{@layer x{}}`) or through `@import … layer()`; or
+  - it conditionally contributes styles to the layer being merged.
+
+  Re-declaring layers that are already known changes nothing. Neither does `@property`, `@keyframes` or `@font-face`.
+  - 32aecd9 blocked merging at every non-layer rule and was reverted: react-spectrum's atomic CSS exploded.
+  - The backtest's prototype (`may_declare_layers`) blocked at every `@layer` rule instead. That still grew react-spectrum S2 by 288%, because each component file starts with `@layer _.prose;` and re-declares `_.a`, `_.b`, `_.b.l`, …
+  - Track the set of declared paths; don't classify by rule type.
 - **Hash-seed nondeterminism.** `AHasher` keys are random per process, so a bug that depends on hash collisions or iteration order shows up in only a small fraction of runs. #1235/#1236: about 1% of runs silently *dropped a live rule*. Test with many processes and many distinct copies of the pattern.
 - **Dedup across CSS-module files.** A candidate that can't be removed, because it came from another file, must not pile up in a bucket. That makes dedup quadratic in the number of files (found in the #1236 review: 12k files took 0.2 s on master and 7.7 s with the PR).
 
@@ -75,13 +79,20 @@ Lightning CSS merges, deduplicates and moves rules. That is only safe if no rule
 - **`@supports` fallbacks** must wrap exactly the declarations that need them, and nested declarations keep their order (#1386).
 - **Compat data.** "Unknown support" must be treated as unsupported. Partial support in caniuse often means "do not rely on it".
 
-## 5. Robustness
+## 5. Strictness and error recovery
+
+- **Strict mode** (the default) errors on definitely invalid use of *known* syntax: `(min-width)` in a boolean context, `(min-width: hi)`. Unknown-but-valid syntax passes through unchanged: `(min-foo)`, unknown properties with valid tokens.
+- **`errorRecovery` mode** turns those errors into warnings and keeps the CSS *as written*, the way a browser would skip it. Never "repair" invalid input into something with a different meaning: `(min-width)` → `(width)` was #1366.
+- **Recovery granularity.** Recovering a whole condition as opaque tokens also stops optimizing or lowering its valid siblings. Recover the smallest unit possible.
+- **Non-standard syntax extensions** (as opposed to unknown properties or at-rules with valid CSS syntax) are out of scope. Don't add parser support for them.
+
+## 6. Robustness
 
 - Pathological input must not take quadratic or exponential time: deeply nested `calc()`/`var()`/`light-dark()` (#1390, #1383), long selector lists, many rules.
 - No panics on any input. Look for `unwrap()`, `unreachable!()`, indexing and arithmetic overflow in new code, especially in fallback generation for unusual combinations.
 - Error recovery: invalid declarations and rules are dropped exactly as a browser would, without taking neighbors with them.
 
-## 6. Reviewing tests
+## 7. Reviewing tests
 
 - **Updated expectations.** Be suspicious when a PR changes existing expected outputs to match new behavior. Wrong outputs have been enshrined before (445def9, a862e39, 60622a1). Every changed expectation needs evidence.
 - **Pretty and minified output.** Check that tests cover both, and with targets as well as without.

@@ -15,6 +15,9 @@
 #                 interleaved (the case that regressed when 32aecd9 stopped
 #                 merging layer blocks)
 #   atomic-media  atomic CSS with responsive variants in @media{@layer{}}
+#   atomic-files  atomic CSS split into per-component files, shaped like
+#                 react-spectrum's style macro output: each file repeats a layer
+#                 statement and blocks for dotted sublayers (_.a, _.b, _.b.l, ...)
 
 import os, sys
 
@@ -82,7 +85,25 @@ def atomic_media():
         if i % 4 == 0: s += "@media (min-width:640px){@layer atoms{.sm_a%d{%s:%s}}}\n" % (i, p, v)
     return s
 
-KINDS = {"tw4": tw4, "tw4x3": tw4x3, "components": components, "atomic": atomic, "atomic-media": atomic_media}
+def atomic_files():
+    # Per-component atomic CSS files concatenated by a bundler. Every file
+    # re-declares the same layers, so merging across files is safe and is
+    # where nearly all the size savings come from.
+    s = ""
+    n = 0
+    for f in range(60):
+        s += "@layer _.prose;\n"
+        for layer in ["_.a", "_.b", "_.c", "_.d", "_.b.l", "_.b.s"]:
+            s += "@layer %s{" % layer
+            for j in range(6):
+                p, v = util(n)
+                s += ".x%d{%s:%s}" % (n % 400, p, v)
+                n += 1
+            s += "}\n"
+        if f % 6 == 0: s += '@property --g%d{syntax:"*";inherits:false}\n' % f
+    return s
+
+KINDS = {"tw4": tw4, "tw4x3": tw4x3, "components": components, "atomic": atomic, "atomic-media": atomic_media, "atomic-files": atomic_files}
 
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--all":
