@@ -40,6 +40,8 @@
 //   --chrome PATH        Chrome/Chromium executable (or CHROME_PATH env).
 //   --max-diffs N        Maximum differences to print (default 40).
 //   --quiet              Don't print the transformed CSS.
+//   --quick              One fixture, one viewport, no forced states or
+//                        emulated media: a fast sanity check, not a review.
 //   --json               Print a machine-readable report.
 //
 // Differences are classified. Only "computed" ones make the result NOT
@@ -176,6 +178,14 @@ function parseArgs(argv) {
       case '--states': opts.states = next(); break;
       case '--media': opts.media = next(); break;
       case '--quiet': opts.quiet = true; break;
+      case '--quick':
+        // Fast sanity check for triage: one fixture, one viewport, no
+        // forced states or emulated media. Not thorough enough for reviews.
+        opts.seeds = 1;
+        opts.viewports ??= '1280x800';
+        opts.states ??= 'none';
+        opts.media ??= 'default';
+        break;
       case '--no-animations': opts.animations = false; break;
       case '--chrome': opts.chrome = next(); break;
       case '--max-diffs': opts.maxDiffs = Number(next()); break;

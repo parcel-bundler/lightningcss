@@ -188,6 +188,9 @@ async function main() {
     let status = g.check === null ? '' : g.check ? '  [check: correct]' : '  [check: WRONG]';
     console.log(`--- ${g.versions.join(', ')}${status}\n${g.output.trim()}\n`);
   }
+  if (results.every(r => /^(ERROR|CRASH|LOAD ERROR|INSTALL ERROR):/.test(r.output))) {
+    console.log('note: every version errored; check the repro itself before concluding it is a bug.');
+  }
   if (bisect) console.log(`bisect: ${bisect.result || bisect.error}`);
 }
 
