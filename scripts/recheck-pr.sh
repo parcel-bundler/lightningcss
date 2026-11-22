@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Show which stored issue repros (.claude/triage/repros) a branch or PR would
+# Show which stored issue repros (the `triage` branch, see scripts/triage-dir.mjs) a branch or PR would
 # change compared with a base (default: current master). Both refs get their
 # own worktree and Node binding; the repros and tooling come from this
 # checkout. Use it for browser data update PRs ("does this update fix or
@@ -14,6 +14,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REVIEW="$ROOT/target/review"
 export CARGO_TARGET_DIR="$REVIEW/cargo-node"
 mkdir -p "$REVIEW"
+export LCSS_TRIAGE_DIR="$(node "$ROOT/scripts/triage-dir.mjs")"
 
 ref="${1:?usage: scripts/recheck-pr.sh <pr-number|git-ref> [base-ref]}"
 base="${2:-origin/master}"
@@ -31,9 +32,9 @@ build() { # <commit> -> prints the worktree dir
     git -C "$ROOT" worktree add --quiet --detach "$dir" "$commit" >&2
   fi
   # Tooling and repros from this checkout, so both sides run the same checks.
-  mkdir -p "$dir/scripts" "$dir/.claude"
-  cp "$ROOT/scripts/repro.mjs" "$ROOT/scripts/recheck-issues.mjs" "$dir/scripts/"
-  rm -rf "$dir/.claude/triage" && cp -r "$ROOT/.claude/triage" "$dir/.claude/triage"
+  # The repros are read from $LCSS_TRIAGE_DIR (shared, read-only here).
+  mkdir -p "$dir/scripts"
+  cp "$ROOT/scripts/repro.mjs" "$ROOT/scripts/recheck-issues.mjs" "$ROOT/scripts/triage-dir.mjs" "$dir/scripts/"
   ln -sfn "$ROOT/node_modules" "$dir/node_modules"
   if [[ "$(cat "$dir/.node-built" 2>/dev/null)" != "$commit" ]]; then
     (cd "$dir" && PATH="$ROOT/node_modules/.bin:$PATH" node scripts/build.js >&2)

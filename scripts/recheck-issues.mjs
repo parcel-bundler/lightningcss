@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// Re-run every stored issue repro (.claude/triage/repros/<issue>/*.mjs)
+// Re-run every stored issue repro (repros/<issue>/*.mjs on the `triage`
+// branch, see scripts/triage-dir.mjs)
 // against the local build (master) and the latest npm release, and report
 // which ones changed state since the recorded baseline
-// (.claude/triage/repro-status.json). Run it after compat data updates, after
+// (repro-status.json on the same branch). Run it after compat data updates, after
 // releases, or on a schedule, to find issues that are now fixed (or broken).
 //
 // Usage:
@@ -21,10 +22,12 @@ import fs from 'fs';
 import path from 'path';
 import {spawnSync} from 'child_process';
 import {fileURLToPath} from 'url';
+import {triageDir} from './triage-dir.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const REPROS = path.join(ROOT, '.claude/triage/repros');
-const STATUS = path.join(ROOT, '.claude/triage/repro-status.json');
+const TRIAGE = triageDir();
+const REPROS = path.join(TRIAGE, 'repros');
+const STATUS = path.join(TRIAGE, 'repro-status.json');
 
 let argv = process.argv.slice(2);
 let update = argv.includes('--update');
@@ -96,5 +99,5 @@ if (json) {
 if (update) {
   let results = only ? {...baseline.results, ...current} : current;
   fs.writeFileSync(STATUS, JSON.stringify({updated: new Date().toISOString().slice(0, 10), results}, null, 2) + '\n');
-  if (!json) console.log(`Baseline written to ${path.relative(ROOT, STATUS)}.`);
+  if (!json) console.log(`Baseline written to ${STATUS} (commit and push the triage branch to keep it).`);
 }

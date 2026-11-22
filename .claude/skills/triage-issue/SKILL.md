@@ -155,6 +155,8 @@ Report faithfully. "Couldn't reproduce with the information given" is different 
 
 ## Output files
 
+Triage data lives on the `triage` branch, checked out at the directory `node scripts/triage-dir.mjs` prints (see its README). Keepers go there: records in `records/`, a repro worth re-checking weekly in `repros/<N>/` (follow the conventions in that README), and maintainer feedback on your calls in `calibration/triage-issue.md`, which is the eval set for this skill. Read the calibration log before triaging. Only the triage automation commits to that branch, directly, without PRs.
+
 Output folders may be shared with other triage runs. Name files after the issue (`<N>.json`, `<N>.md`, `<N>-repro*.mjs`), and give batch digests a unique name such as `digest-<numbers>.md`. Never write generic names like `digest.md`, and never overwrite another file.
 
 ## Batches

@@ -1,5 +1,0 @@
-:root{color-scheme:light dark;--white:#fff;--black:#000;--bg:light-dark(var(--white),var(--black));--fg:light-dark(var(--black),var(--white))}
-body{background-color:var(--bg);color:var(--fg)}
-.dark{color-scheme:only dark;background-color:var(--bg);color:var(--fg)}
-.light{color-scheme:only light;background-color:var(--bg);color:var(--fg)}
-.inverse{background-color:var(--fg);color:var(--bg)}
