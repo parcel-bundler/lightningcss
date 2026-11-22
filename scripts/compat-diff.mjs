@@ -21,6 +21,8 @@
 //                         Android minimum far above Chrome's is a data artifact
 //                         (caniuse lists only the current WebView version, #568)
 //   ios-lags-safari       iOS Safari needing a much newer version than Safari
+//   prefix-capped-at-latest  a prefix is needed up to exactly the latest known
+//                         version, so the next release is assumed unprefixed (#925)
 //
 // Exit code: 0, or 1 when there are suspicious changes or new anomalies.
 
@@ -28,6 +30,7 @@ import fs from 'fs';
 import path from 'path';
 import {execFileSync} from 'child_process';
 import {fileURLToPath} from 'url';
+import {createRequire} from 'module';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -78,6 +81,39 @@ function read(ref, file) {
   return execFileSync('git', ['show', `${ref}:${file}`], {cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20});
 }
 
+// Latest released version per browser, from caniuse-lite in node_modules.
+function latestVersions() {
+  let latest = {};
+  try {
+    let req = createRequire(path.join(ROOT, 'package.json'));
+    let agents = req('caniuse-lite').agents;
+    for (let [k, v] of Object.entries(agents)) {
+      let versions = Object.keys(v.release_date).filter(x => v.release_date[x]).map(x => {
+        let [a, b = 0, c = 0] = x.split('-')[0].split('.').map(Number);
+        return (a << 16) | (b << 8) | c;
+      }).filter(Number.isFinite);
+      if (versions.length) latest[k] = Math.max(...versions);
+    }
+  } catch {}
+  return latest;
+}
+
+// A prefix range ending exactly at the latest released version means "needs the
+// prefix up to the newest browser we know of": if that browser still needs the
+// prefix, the next release is wrongly treated as unprefixed (#925).
+function prefixAnomalies(prefixes, latest) {
+  let out = [];
+  for (let [feature, ranges] of prefixes) {
+    for (let r of ranges) {
+      let [browser, range] = r.split(' ');
+      let max = range.split('-')[1];
+      if (!max || max === '*' || !latest[browser]) continue;
+      if (max === decode(latest[browser])) out.push({kind: 'prefix-capped-at-latest', feature, detail: `${r}: ends at the latest known ${browser}`});
+    }
+  }
+  return out;
+}
+
 function anomalies(compat) {
   let out = [];
   for (let [feature, s] of compat) {
@@ -104,7 +140,8 @@ for (let feature of new Set([...oldCompat.keys(), ...newCompat.keys()])) {
   if (!b) { changes.push({feature, kind: 'REMOVED feature', detail: ''}); continue; }
   for (let browser of new Set([...Object.keys(a), ...Object.keys(b)])) {
     if (browser === '__none') continue;
-    let va = a[browser], vb = b[browser];
+    // A feature no browser supports has no per-browser entries: treat as null.
+    let va = a.__none ? null : a[browser] ?? null, vb = b.__none ? null : b[browser] ?? null;
     if (va === vb) continue;
     let kind = va == null && vb != null ? 'newly supported'
       : va != null && vb == null ? 'REMOVED support'
@@ -117,8 +154,9 @@ for (let feature of new Set([...oldPrefixes.keys(), ...newPrefixes.keys()])) {
   if (a !== b) changes.push({feature, kind: 'prefix change', detail: `${a || '(none)'}  =>  ${b || '(none)'}`});
 }
 
-let oldAnomalies = new Set(anomalies(oldCompat).map(a => `${a.kind}:${a.feature}`));
-let found = anomalies(newCompat).map(a => ({...a, new: !oldAnomalies.has(`${a.kind}:${a.feature}`)}));
+let latest = latestVersions();
+let oldAnomalies = new Set([...anomalies(oldCompat), ...prefixAnomalies(oldPrefixes, latest)].map(a => `${a.kind}:${a.feature}:${a.detail}`));
+let found = [...anomalies(newCompat), ...prefixAnomalies(newPrefixes, latest)].map(a => ({...a, new: !oldAnomalies.has(`${a.kind}:${a.feature}:${a.detail}`)}));
 let suspicious = changes.filter(c => /^[A-Z]/.test(c.kind) || c.kind === 'prefix change');
 
 if (json) {
