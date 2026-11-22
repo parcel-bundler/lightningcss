@@ -6,6 +6,7 @@
 // Usage:
 //   node scripts/repro.mjs REPRO.mjs [--versions local,1.33.0,1.30.2]
 //        [--latest N] [--all] [--range A..B] [--bisect] [--case NAME]
+//        (--case limits output to one named case; with --bisect it picks the case to bisect)
 //        [--repeat N] [--json]
 //
 // REPRO.mjs is an ES module exporting one case:
@@ -220,6 +221,11 @@ async function main() {
   }
 
   let results = [...byVersion.values()].flat();
+  // --case limits the output (and transitions) to one case, in every mode.
+  if (opts.caseName) {
+    results = results.filter(r => r.name === opts.caseName || r.name === '*');
+    transitions = transitions.filter(t => t.startsWith(`${opts.caseName}:`));
+  }
   if (opts.json) {
     console.log(JSON.stringify({results, transitions, bisect}, null, 2));
     return;
