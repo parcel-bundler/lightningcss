@@ -1,8 +1,8 @@
-// #137 variant: whether bundling errors depends on the race (unconditional + supports + media imports of the same file).
+// #137 variant (3000 iterations: 1.33.0 fails only ~2 in 300, so fewer runs can miss it): whether bundling errors depends on the race (unconditional + supports + media imports of the same file).
 import path from 'path';
 import {fileURLToPath} from 'url';
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '137-fixture');
-const N = Number(process.env.N || 300);
+const N = Number(process.env.N || 3000);
 export function run(l) {
   const seen = new Map();
   for (let i = 0; i < N; i++) {
