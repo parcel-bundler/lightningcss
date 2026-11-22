@@ -32808,4 +32808,22 @@ mod tests {
       ".d,.e{border-top-left-radius:16px;border-top-right-radius:16px}.foo{padding:5px}.d,.e{border-top-right-radius:16px}",
     );
   }
+
+  /// The cascade loop merges `.d, .e { border-top-right-radius }` into the
+  /// previous rule and pops it. The next rule lands at the same index with the
+  /// selectors and properties the popped rule had when it was indexed. A dedup
+  /// entry left behind for the popped rule would point at the new rule, which
+  /// would then be removed as a duplicate of itself, losing `.d`'s 8px radius.
+  /// Fails deterministically without the fix.
+  #[test]
+  fn test_dedup_does_not_remove_rule_pushed_at_popped_index() {
+    minify_test(
+      ".d { border-top-left-radius: 16px } \
+       .e { border-top-left-radius: 16px } \
+       .d { border-top-right-radius: 16px } \
+       .e { border-top-right-radius: 16px } \
+       .d { border-top-right-radius: 8px }",
+      ".d,.e{border-top-left-radius:16px;border-top-right-radius:16px}.d{border-top-right-radius:8px}",
+    );
+  }
 }
