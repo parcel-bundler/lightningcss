@@ -10120,6 +10120,47 @@ mod tests {
       "@media (min-scan: interlace) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
     );
+    // min-/max- prefixed features are invalid in a boolean context.
+    // https://drafts.csswg.org/mediaqueries/#mq-min-max
+    error_test(
+      "@media (min-width) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (max-height) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (-webkit-min-device-pixel-ratio) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    // With error recovery, the query is kept as written and reported once.
+    for (source, expected) in [
+      (
+        "@media (min-width) { .foo { color: chartreuse }}",
+        "@media (min-width){.foo{color:#7fff00}}",
+      ),
+      (
+        "@media (min-width), print { .foo { color: chartreuse }}",
+        "@media (min-width),print{.foo{color:#7fff00}}",
+      ),
+      (
+        "@media (MIN-WIDTH) { .foo { color: chartreuse }}",
+        "@media (MIN-WIDTH){.foo{color:#7fff00}}",
+      ),
+    ] {
+      let warnings = Some(Arc::new(RwLock::new(Vec::new())));
+      minify_test_with_options(
+        source,
+        expected,
+        ParserOptions {
+          error_recovery: true,
+          warnings: warnings.clone(),
+          ..ParserOptions::default()
+        },
+      );
+      assert_eq!(warnings.unwrap().read().unwrap().len(), 1, "{source}");
+    }
     error_test(
       "@media (1px <= width <= bar) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
@@ -31899,6 +31940,7 @@ mod tests {
 
     error_test("@container (inline-size <= foo) {}", ParserError::InvalidMediaQuery);
     error_test("@container (orientation <= 10px) {}", ParserError::InvalidMediaQuery);
+    error_test("@container (min-width) {}", ParserError::InvalidMediaQuery);
 
     error_test(
       "@container style(style(--foo: bar)) {}",
