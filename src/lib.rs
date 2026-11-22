@@ -1352,6 +1352,27 @@ mod tests {
       },
     );
 
+    // Android WebView has shared Chrome's version numbers since 37. caniuse lists
+    // only the current WebView version, which used to make every feature added
+    // after Android 4.4 look unsupported in older WebViews (#568).
+    prefix_test(
+      r#"
+      .foo {
+        font-family: Helvetica, system-ui, sans-serif;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-family: Helvetica, system-ui, sans-serif;
+      }
+    "#
+      },
+      Browsers {
+        android: Some(131 << 16),
+        ..Browsers::default()
+      },
+    );
+
     prefix_test(
       r#"
       .foo {
