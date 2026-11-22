@@ -1,0 +1,22 @@
+{
+  "number": 516,
+  "title": "CSS Modules pattern crashes using [name]",
+  "type": "bug",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "medium",
+  "impact": "JS/Rust API users who call transform() with cssModules and a [name] pattern but no filename (or a filename with no stem such as '', '/', '..'). Published builds use panic='abort', so the panic kills the whole Node process (exit 134) instead of throwing; nothing catchable. 0 reactions, no duplicates. Maintainer replied in 2023 that filename must be passed; filename is required in node/index.d.ts, so TS users are warned, plain JS users and the docs example (which elides filename as '// ...') are not.",
+  "area": "css-modules",
+  "code": ["src/css_modules.rs: Pattern::write, Segment::Name arm (path.file_stem().unwrap().to_str().unwrap(), line 161)", "napi/src/lib.rs: transform uses config.filename.unwrap_or_default()"],
+  "summary": "With a [name] segment in cssModules.pattern and no filename, Pattern::write unwraps Path::file_stem() of an empty path and panics. In released npm builds (panic=abort) this aborts the Node process. It should either fall back (e.g. an empty or placeholder name) or return a normal error saying [name] requires a filename.",
+  "repro": "516-repro.mjs: transform({cssModules:{pattern:'my-company-[name]-[hash]-[local]'}, code:'.logo{background:skyblue}'}) -> panic 'called Option::unwrap() on a None value' at css_modules.rs:161. 516-repro-filename.mjs: same with filename 'src/logo.module.css' -> .my-company-logo-module-0Bc8-q-logo (works). 516-repro-edge.mjs: filenames '', '/', '..' panic; 'dir/', '.css', 'a.module.css' ok.",
+  "evidence": "scripts/repro.mjs on local (master), 1.21.0 and 1.33.0: all panic. Direct node -e on 1.33.0: process aborted, exit 134, try/catch not reached. Local debug build throws a catchable JS error instead (debug profile unwinds), so master and releases look different but have the same bug.",
+  "suggestedLabels": ["bug", "area: css-modules", "good first issue"],
+  "action": "queue-fix",
+  "fix": {"size": "small", "approach": "Replace the unwraps in Segment::Name with a fallible path: either return an error (e.g. a new CSS modules error 'the [name] pattern segment requires a filename') or fall back to an empty string; add tests in src/lib.rs next to the existing css_modules pattern tests. Maintainer should pick error vs fallback; an error is more in line with 'strict by default'. Pattern::write's generic error type may need a small plumbing change if erroring.", "goodFirstIssue": true},
+  "draftReply": "Thanks for the report, and sorry for the slow follow-up. This still happens on the latest release (1.33.0): with `[name]` in `cssModules.pattern` and no `filename` option, Lightning CSS panics, and in the published builds that aborts the Node process rather than throwing an error you can catch. The workaround is to pass `filename` to `transform()` (it is what `[name]` is derived from), e.g. `filename: 'src/logo.module.css'` gives `.my-company-logo-module-...-logo`. A missing filename should produce a clear error instead of a crash, so I'm leaving this open as a bug.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "confidence": "high",
+  "notVerified": "Rust API path (ParserOptions::default() filename is empty, so it should hit the same unwrap) not run directly; wasm binding not checked."
+}

@@ -1,0 +1,26 @@
+{
+  "number": 1176,
+  "title": "Support container-type: anchored and @container anchored()",
+  "type": "feature",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": "open PR #1218 (not merged)",
+  "regression": null,
+  "severity": "medium",
+  "impact": "21 reactions; duplicate #1228 (closed, 4 reactions); blocks Turbopack/Next.js and Parcel users (comments), and the MDN example for anchored container queries fails. Strict mode errors, so builds fail.",
+  "area": "parser",
+  "code": [
+    "src/media_query.rs: parse_query_condition / parse_parens_or_function (QueryConditionFlags; unknown functions are rejected instead of treated as <general-enclosed>)",
+    "src/rules/container.rs: ContainerCondition",
+    "src/properties/contain.rs: ContainerType (single-keyword enum; cannot express combinations like `anchored inline-size` or `scroll-state size`)"
+  ],
+  "summary": "`@container anchored(fallback: ...)` fails in strict mode with `Unexpected token Function(\"anchored\")` on master and in 1.31.1 through 1.33.0. `container-type: anchored` silently falls back to an unparsed property. The feature is specified in css-anchor-position-2 (Editor's Draft) and shipped in Chrome/Edge 143. Firefox and Safari don't support it, and BCD marks it experimental. This is the same situation as scroll-state() queries, which Lightning CSS already supports without a flag. PR #1218 implements it and has addressed the maintainer's two review comments (bitflags for container-type, typed fallback value).",
+  "repro": "1176-repro.mjs, output in 1176-repro-output.txt. Strict: `ERROR Unexpected token Function(\"anchored\")`. errorRecovery: the @container rules are kept verbatim (unminified prelude and body) with a warning; `container-type:anchored inline-size` passes through.",
+  "evidence": "repro.mjs on local (master), 1.33.0, 1.32.0, 1.31.1: identical. Spec: css-anchor-position-2 ED §'Extending @container syntax for anchored queries': `<query-in-parens> = ... | anchored( <anchored-query> )`, and the `fallback` feature `none | [ [<dashed-ident> || <try-tactic>] | <position-area-query> ]`; container-type gains `anchored`, combinable (`anchored inline-size`). BCD 8.0.7: container-type.anchored and @container.anchor_position_queries chrome/edge 143, firefox false, safari false, experimental. Chromium 153: CSS.supports('container-type','anchored inline-size') = true and the @container rule round-trips in CSSOM. Separate finding: `@container foo(x){}` (and `@media foo(x)`) also error, although css-contain-3/mediaqueries-4 grammar includes <general-enclosed>, so unknown functions are valid syntax (Chromium keeps them). Compare `@container (min-foo:1px)`, which passes.",
+  "suggestedLabels": ["enhancement"],
+  "action": "needs-maintainer-decision",
+  "fix": {"size": "medium", "approach": "Review and land PR #1218 (adds ALLOW_ANCHORED query function, AnchoredQuery/PositionTryFallback types, bitflags ContainerType). Note it changes the serialized AST of ContainerType from a string to 'normal' | string[] (node/ast.d.ts), which is a breaking change for JS visitors and should be called out. It also leaves <position-area-query> unsupported. Independently, accepting unknown query functions as <general-enclosed> would stop future query functions from failing builds.", "goodFirstIssue": false},
+  "draftReply": "Thanks for the report. Confirmed: `@container anchored(fallback: ...)` currently fails to parse (master and 1.33.0), and `container-type: anchored` is passed through without being understood. The syntax is in the css-anchor-position-2 draft (https://drafts.csswg.org/css-anchor-position-2/#container-rule-anchored) and shipped in Chrome 143. Firefox and Safari don't have it yet.\n\nThere's an open PR implementing it (#1218) that is waiting on review. Until it lands, enabling `errorRecovery: true` turns the error into a warning and keeps these rules as written in the output.",
+  "confidence": "high",
+  "notVerified": "Did not build or test PR #1218 (no Rust rebuilds allowed). Did not check how Turbopack/Next.js expose errorRecovery. Did not check Firefox/Safari intent-to-ship status beyond BCD."
+}

@@ -1,0 +1,22 @@
+{
+  "number": 925,
+  "title": "Strange behavoiur for prefixing property `user-select`",
+  "type": "bug",
+  "status": "fixed-in-release",
+  "duplicateOf": null,
+  "fixedBy": "eccb673 (bump browser compat data, released in 1.29.2 for Safari <= 18.3); data later regenerated open-ended, correct for any Safari version in 1.29.3 and 1.31.0+",
+  "regression": {"lastGood": "1.28.1", "firstBad": "1.28.2"},
+  "severity": "high",
+  "impact": "2 reactions. Any user targeting current Safari/iOS Safari (e.g. 'last 2 versions') silently lost -webkit-user-select in 1.28.2-1.29.1, and for Safari newer than the build-time data also in 1.29.2 and 1.30.0-1.30.2. Safari still needs the prefix (caniuse 'y x' through 26.5, MDN prefix-only).",
+  "area": "transpilation",
+  "code": ["src/prefixes.rs: Feature::UserSelect (generated)", "scripts/build-prefixes.js: browserMap range building with latestBrowserVersions / isCurrentVersion"],
+  "summary": "With Safari 18.2/18.3 targets, 1.29.1 (the release current when this was filed) output `user-select` without `-webkit-`. The generated prefix data for Safari had an upper bound (`version <= 18.1`, from 4159bc5), so newer Safari versions were treated as not needing the prefix. Current master and 1.31.0+ emit `-webkit-user-select:all;user-select:all`.",
+  "repro": "925-repro.mjs (safari/ios_saf 18.2 + chrome 132): local, 1.33.0..1.31.1 -> `pre{-webkit-user-select:all;user-select:all}`; 1.29.1/1.29.0/1.28.2 -> `pre{user-select:all}`. 925-repro-newer.mjs (safari 26.5, newer than old data): wrong in 1.28.2, 1.29.0-1.29.2, 1.30.0-1.30.2; correct in 1.29.3, 1.31.0+, local.",
+  "evidence": "repro.mjs --all on every cached 1.x release (bisect is misleading because the result flips several times; 1.14-1.16.0 also lack it, older unrelated cause). git show 4159bc5 changed safari/ios_saf UserSelect from `>= 3.1` to `>= 3.1 && <= 18.1`; eccb673 moved the cap to 18.3 (1180416); current src/prefixes.rs has open-ended `>= 196864`. caniuse-lite 1.0.30001806 user-select-none: safari 26.2..TP all 'y x'; MDN css.properties.user-select safari: prefix -webkit- only. The bad releases' yarn.lock pins two caniuse-lite copies (1.0.30001690 and a newer one) and 4159bc5's package.json had a `resolutions` pin for caniuse-lite, removed in eccb673.",
+  "suggestedLabels": ["bug"],
+  "action": "close",
+  "fix": {"size": "small", "approach": "Already fixed by data regeneration. Optional hardening in scripts/build-prefixes.js: the upper bound is dropped only when the exact latest caniuse version is in autoprefixer's list, so a version mismatch between the caniuse-lite copies used by the script and by autoprefixer turns 'still prefixed' into a closed range. Fail the build if those versions differ, or treat a max equal to autoprefixer's newest version as open-ended.", "goodFirstIssue": false},
+  "draftReply": "Thanks for the report, and sorry for the slow reply. This was a problem in the browser compatibility data bundled with 1.28.2-1.29.1: for Safari, the `-webkit-user-select` prefix stopped at Safari 18.1, so Safari 18.2/18.3 got no prefix. The data was updated in later releases. With your targets, 1.31.0 and later (including the current 1.33.0) output:\n\n```css\npre{-webkit-user-select:all;user-select:all}\n```\n\nPlease upgrade to 1.31.0 or later. 1.29.2-1.30.2 can still drop the prefix for Safari versions newer than their data. I'll close this, but please reopen if you still see it on the latest version.",
+  "confidence": "high",
+  "notVerified": "Didn't reproduce through the StackBlitz sandbox or bundleAsync; I used transform() with the equivalent targets (prefixing is the same code path). The cause in build-prefixes.js (mismatched caniuse-lite copies) is inferred from the lockfiles, not reproduced by regenerating old data."
+}

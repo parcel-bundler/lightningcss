@@ -1,0 +1,2 @@
+@media not (width = 10px){.a{color:red}}
+@media not (width >= 600px){.b{color:blue}}

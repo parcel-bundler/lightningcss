@@ -1,0 +1,22 @@
+{
+  "number": 1319,
+  "title": "Two-value `overflow` shorthand is emitted for targets that don't support it",
+  "type": "bug",
+  "status": "works-as-intended",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "No reactions or comments. No real-world breakage shown; the report rests on wrong support versions.",
+  "area": "transpilation",
+  "code": ["src/properties/overflow.rs: OverflowHandler::finalize (checks Feature::OverflowShorthand)", "src/compat.rs: Feature::OverflowShorthand (generated from mdn css.properties.overflow.multiple_keywords)"],
+  "summary": "The reporter says two-value `overflow` needs Chrome 90 / Firefox 72 / Safari 15.4 and so must be split for Safari 14. MDN browser-compat-data says it shipped in Chrome 68, Firefox 61 and Safari 13.1 (iOS 13.4). Lightning CSS already uses that data: it merges and keeps the shorthand only when all targets support it, and splits it into overflow-x/overflow-y otherwise. Safari 14 supports it, so the output is correct. The Chrome 90 / Safari 16 numbers match `overflow: clip`, a different feature.",
+  "repro": "1319-repro.mjs (reporter's case, safari 14): `.a{overflow:hidden scroll}` for both inputs in local and 1.31.1-1.33.0, as reported. 1319-repro-boundary.mjs: safari 13 / chrome 67 / firefox 60 -> `.a{overflow-x:hidden;overflow-y:scroll}` for both merged and hand-written input; safari 13.1 / chrome 68 -> `.a{overflow:hidden scroll}`. Correct on local, 1.33.0, 1.32.0.",
+  "evidence": "node_modules/@mdn/browser-compat-data (~8.0.7) css.properties.overflow.multiple_keywords: chrome 68, edge 79, firefox 61, opera 55, safari 13.1, safari_ios 13.4, samsung 10.0, ie false. src/compat.rs OverflowShorthand: safari < 852224 (13.1) -> unsupported, which matches. MDN css.properties.overflow.clip: chrome 90, firefox 81, safari 16, matching the reporter's figures for a different feature. The handler both merges (finalize) and lowers a written shorthand (handle_property splits into x/y, then finalize re-checks compat).",
+  "suggestedLabels": [],
+  "action": "close",
+  "fix": null,
+  "draftReply": "Thanks for the detailed report! I think the support versions here are off. Per MDN's compatibility data, the two-value `overflow` syntax shipped in Chrome 68, Firefox 61 and Safari 13.1 (iOS 13.4) ([MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow#browser_compatibility), \"Multiple keywords\" row). Chrome 90 / Safari 16 is when `overflow: clip` shipped. So `overflow: hidden scroll` is valid for Safari 14.\n\nLightning CSS uses that data for exactly the behavior you describe. Below the cut-off it splits the shorthand. For example, with `targets: { safari: 13 << 16 }`, both of your inputs become `.a{overflow-x:hidden;overflow-y:scroll}`, and the same happens for Chrome 67 or Firefox 60.\n\nIf you've seen Safari 14 actually fail to apply `overflow: hidden scroll`, please share the details and we can recheck the data. Otherwise I think this is working as intended.",
+  "confidence": "high",
+  "notVerified": "Couldn't test a real Safari 13.x/14 or Chrome 67 (only modern Chromium is available). The cut-off versions rest on MDN data, not on a browser run."
+}

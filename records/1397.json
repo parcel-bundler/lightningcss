@@ -1,0 +1,31 @@
+{
+  "number": 1397,
+  "title": "`font-weight: calc(2000)` minifies to `2000`, a value outside the property's range that the browser drops",
+  "type": "bug",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "No reactions (batch report). Out-of-range calc() in font-weight is a spec-precise edge case. Real stylesheets use keywords or 100-900 literals, and var()-based tokens are unparsed and unaffected. The follow-up comment's case is somewhat more plausible: an invalid literal (0, 1001, 9000) is accepted as typed and can override an earlier valid weight (`font-weight:bold;font-weight:9000` -> `font-weight:9000`, so the browser uses 400, not 700) or be folded into a `font` shorthand that the browser then drops whole (font-size and family too). That is still invalid input, but strict mode should reject it, and errorRecovery should keep it as written without discarding the valid fallback.",
+  "area": "minification",
+  "code": [
+    "src/properties/font.rs: AbsoluteFontWeight::Weight(CSSNumber) (derived Parse)",
+    "src/values/number.rs: NumericRange (All, NonNegative only) and CSSNumber::parse_with_range"
+  ],
+  "summary": "font-weight is `<number [1,1000]>`. lightningcss parses it as an unrestricted CSSNumber: calc() folds to its unclamped value, so `calc(2000)` (valid, clamped to 1000 by the browser) becomes the invalid literal `2000`; out-of-range literals are also accepted. Calcs should clamp to [1,1000], and out-of-range literals should fail to parse (falling back to unparsed, like `width:-5px` after #1329).",
+  "repro": "1397-repro.mjs: `.a{font-weight:calc(2000)}.b{font-weight:calc(-5)}.c{font-weight:calc(1000 + 1)}.d{font-weight:calc(500)}` -> `.a{font-weight:2000}.b{font-weight:-5}.c{font-weight:1001}.d{font-weight:500}`. 1397-repro-literal.mjs: `.a{font-weight:bold;font-weight:9000}` -> `.a{font-weight:9000}`; longhands with font-weight:9000 -> `font:9000 10px serif`; `font-weight:0` kept.",
+  "evidence": "repro.mjs --all: same output on every release 1.14.0 through 1.33.0 and master (long-standing, not a regression). Chromium 153: computed weight for calc(2000) = 1000, calc(-5) = 1, calc(1000 + 1) = 1000; literals 2000/-5/0/0.5 and `font:9000 10px serif` are invalid (parse() = ''). equivalence.mjs: NOT EQUIVALENT (.b 700 -> 400, .c 1000 -> 400). Spec: css-fonts-4 `<font-weight-absolute> = [ normal | bold | <number [1,1000]> ]`, \"Only values greater than or equal to 1, and less than or equal to 1000, are valid, and all other values are invalid.\" css-values-4: numeric functions \"returning out-of-range values never cause a declaration to become invalid. Instead, the value ... is clamped to the range allowed in the context\".",
+  "suggestedLabels": [
+    "bug"
+  ],
+  "action": "queue-fix",
+  "fix": {
+    "size": "small",
+    "approach": "Parse AbsoluteFontWeight::Weight with a [1,1000] range: clamp folded calc() results and reject out-of-range literals so they fall back to unparsed. Either add a range variant to NumericRange (it is a public enum without #[non_exhaustive], so a new variant is technically a Rust API break) or write a custom Parse for AbsoluteFontWeight. Same type is used by the @font-face font-weight descriptor, which has the same range. Tests next to the existing font-weight tests. A candidate good first issue once the maintainer picks the approach.",
+    "goodFirstIssue": false
+  },
+  "draftReply": null,
+  "confidence": "high",
+  "notVerified": "Only Chromium checked. Did not check the @font-face descriptor output or font-stretch/font-style oblique angle ranges, which may have the same class of bug."
+}

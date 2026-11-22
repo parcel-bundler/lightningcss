@@ -1,0 +1,27 @@
+{
+  "number": 572,
+  "title": "Properties order not maintained",
+  "type": "bug",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": "partially: 22a8b6f (v1.28.0) fixed the width/height/size + var()/calc-size() sub-cases from the comments",
+  "regression": null,
+  "severity": "high",
+  "impact": "10 reactions, 14 comments; reporters via Vite, Astro, Vue SFC, MiniCssExtractPlugin. The thread has become an umbrella: at least 8 separate open issues/PRs track individual sub-cases (#1084, #1207, #1225, #1283, #1342, #1362, #1369, #1391; PRs #1306, #1365, #1387). The original animation-timeline case is reported again independently (#815, #1115 closed; #1283 with 11 reactions, #1342, #1369 open).",
+  "area": "minification",
+  "code": [
+    "src/properties/animation.rs: AnimationHandler::flush (folds animation-timeline into the shorthand when Feature::AnimationTimelineShorthand is 'compatible')",
+    "scripts/build-prefixes.js:337 animationTimelineShorthand from BCD animation-timeline_included, which is partial_implementation (reset-only) in Chrome",
+    "src/properties/transition.rs / animation.rs: longhands not buffered by the handler (transition-behavior, animation-composition) are emitted before the buffered shorthand",
+    "src/properties/font.rs (#1207), src/properties/prefix_handler.rs (#1362), position/direction/unicode-bidi handlers (#1225)"
+  ],
+  "summary": "The original report (animation + animation-timeline) changed shape in v1.25.0 (f4408c7): instead of moving animation-timeline before the shorthand, Lightning CSS now folds it into the shorthand (`animation:both fade scroll(root)`), which no engine accepts, so the whole animation declaration is dropped. This happens with no targets and with Chrome 115+ targets because the compat flag is generated from a BCD entry Chrome only partially (reset-only) implements. Other sub-cases in the thread are distinct root causes, each with its own open issue; the size-property/var() cases were fixed in 1.28.0.",
+  "repro": "572-repro.mjs (all sub-cases x 3 target sets), output in 572-repro-output.txt. Original: `.item{animation:fade both;animation-timeline:scroll(root block)}` -> master/1.33.0 `.item{animation:both fade scroll(root)}` (no targets, Chrome 120); 1.21.0 `.item{animation-timeline:scroll(root block);animation:both fade}`. transition: `.t{transition:ease opacity .3s;transition-behavior:allow-discrete}` -> `.t{transition-behavior:allow-discrete;transition:opacity .3s}` on all versions.",
+  "evidence": "repro.mjs on local (master, src clean vs origin/master), 1.33.0, 1.27.0, 1.25.0, 1.21.0; bisect of height/var and calc-size: changed between 1.27.0 and 1.28.0 (22a8b6f 'Flush size properties when we hit an unparsed value', in v1.28.0). Chromium 153 probe: parse('animation','fade both scroll(root)') = '' (invalid), computed animation-name on master output = none vs fade on input. equivalence.mjs on the transition case: NOT EQUIVALENT (transition-behavior allow-discrete -> normal). Spec: css-animations-2 ED includes <single-animation-timeline> in <single-animation>, but BCD css.properties.animation.animation-timeline_included is partial_implementation in Chrome 115+ ('reset-only ... cannot be set via animation'), false in Firefox/Safari.",
+  "suggestedLabels": ["bug", "area: minification"],
+  "action": "keep-open",
+  "fix": {"size": "medium", "approach": "Per sub-case. animation-timeline: never fold the timeline into the shorthand (PR #1306; build-prefixes.js should also skip partial_implementation for this feature). Unbuffered longhands: PR #1365. A general rule (flush/keep source order whenever a declaration that a buffered shorthand resets arrives) would close most of the remaining ones.", "goodFirstIssue": false},
+  "draftReply": "Thanks all. A status update, since this thread now covers several different bugs:\n\n- **animation + animation-timeline (the original report):** since 1.25.0 the timeline is folded into the shorthand (`animation:both fade scroll(root)`). No browser accepts a timeline inside `animation` yet (Chrome's support is reset-only), so the whole declaration is dropped. Tracked in #1283 / #1369, with a fix proposed in #1306.\n- **transition-behavior / animation-composition after the shorthand:** #1084, fix proposed in #1365.\n- **width/height/block-size with var() or calc-size():** fixed in 1.28.0.\n- `font` + `font-variant-*`: #1207; `caret`: #1362; `position`/`direction` with var(): #1225.\n\nIf you hit a case not in that list, please open a new issue with a minimal input and output so each one can be fixed and tested on its own.",
+  "confidence": "high",
+  "notVerified": "font-weight vs font-variation-settings (moso's comment, #1009): treated as not a bug because they are separate properties applied at different steps of font feature resolution regardless of declaration order, but not rendered in a browser. equivalence.mjs could not be used on the animation-timeline case (it crashes on scroll-driven animations); probe.mjs used instead. Firefox/Safari not run."
+}

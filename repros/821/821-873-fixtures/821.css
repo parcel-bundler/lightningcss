@@ -1,0 +1,2 @@
+:root{--background:light-dark(white,black);--text:light-dark(black,white)}
+p{color:var(--text);background:var(--background);color-scheme:dark}

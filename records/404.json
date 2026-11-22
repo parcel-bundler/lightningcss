@@ -1,0 +1,35 @@
+{
+  "number": 404,
+  "title": ":export ICSS rule",
+  "type": "feature",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "medium",
+  "impact": "Most-demanded missing CSS modules feature: 8 reactions on the issue, 8 on the use-case comment, ~10 users across 2023-2026. Main source is Sass users exposing $variables to JS (`:export { rows: $rows }`), a pattern documented by css-loader/webpack and common in CRA-era codebases. Users hit it when Vite (css.transformer: 'lightningcss', Vite 8/rolldown) or Next.js/Turbopack route CSS modules through Lightning CSS; one commenter switched Vite back to esbuild over it.",
+  "area": "css-modules",
+  "code": [
+    "src/selector.rs: SelectorParser::parse_non_ts_pseudo_class (':export' becomes PseudoClass::Custom with a generic warning)",
+    "src/css_modules.rs: CssModule / CssModuleExports",
+    "src/rules/style.rs / src/stylesheet.rs: where a top-level :export rule would be collected and removed"
+  ],
+  "summary": "With cssModules on, `:export { rowCount: 4 }` is not recognized: the block is copied into the output CSS unchanged, nothing is added to `exports`, and the only signal is a misleading warning (\"'export' is not recognized as a valid pseudo-class. Did you mean '::export'...\"). No error even in strict mode, so the breakage is silent at build time and shows up as `undefined` in JS. The docs list :import/:export as unsupported.",
+  "repro": "404-repro.mjs. Input `:export { rowCount: 4; primaryColor: #ff0000; } .list { color: red }` with cssModules:true -> output keeps `:export {...}` verbatim, exports = {list} only, warning about unknown pseudo-class. Same on local, 1.33.0, 1.32.0, 1.31.1, 1.30.0, 1.27.0.",
+  "evidence": "repro.mjs on local + 1.27.0..1.33.0; feature case WRONG everywhere, controls correct. Docs website/pages/css-modules.md 'Unsupported features' lists :import/:export. ICSS spec: github.com/css-modules/icss. Not a CSS standard.",
+  "suggestedLabels": [
+    "enhancement",
+    "area: css-modules"
+  ],
+  "action": "needs-maintainer-decision",
+  "fix": {
+    "size": "medium",
+    "approach": "Philosophy fit: unlike @value, `:export` is valid CSS syntax (a style rule with an unknown pseudo-class and custom-ident declarations) and only appears inside the already-supported cssModules mode, so it needs no tokenizer/parser extension or per-property substitution. Implement as: in cssModules mode, a top-level rule whose selector is exactly `:export` is removed from the output and each declaration `name: <tokens>` is added to exports. API shape: putting the serialized value in the existing `name` field ({rowCount: {name: '4', composes: [], isReferenced: false}}) would make Vite/Parcel/Turbopack expose it with no downstream changes, but overloads `name`; a separate field/kind is cleaner but changes the exports shape. Cheap interim step regardless: a specific error/warning ('ICSS :export is not supported') instead of the '::export' suggestion.",
+    "goodFirstIssue": false
+  },
+  "openPRs": [],
+  "subcases": null,
+  "draftReply": null,
+  "confidence": "high",
+  "notVerified": "Did not verify which Vite 8 / Next.js configurations route CSS modules through Lightning CSS by default (Vite's default css.transformer may still be postcss, in which case postcss-modules consumes :export before minification). Did not check how Turbopack maps exports to JS."
+}

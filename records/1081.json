@@ -1,0 +1,39 @@
+{
+  "number": 1081,
+  "title": "Regression in `v1.30.2`? \"Error: failed to deserialize; expected an object-like struct named Specifier, found ()\"",
+  "type": "regression",
+  "status": "duplicate",
+  "duplicateOf": 1065,
+  "fixedBy": null,
+  "regression": {
+    "lastGood": "1.30.1",
+    "firstBad": "1.30.2",
+    "commit": "9879b91 (#1062)"
+  },
+  "severity": "high",
+  "impact": "14 reactions, 12 comments. Reports from users of the documented @mixin/@apply recipe, Tailwind v4-style @theme, Expo/NativeWind (StyleSheetExit) and Vite 8. Same population as #1065.",
+  "area": "custom visitors",
+  "code": [
+    "napi/src/transformer.rs: ValueOrVec::deserialize",
+    "serde-content 0.1.2 de/mod.rs deserialize_option"
+  ],
+  "summary": "The documented @mixin/@apply custom at-rule visitor fails on 1.30.2+ when the mixin body contains var(). Same root cause as #1065: serde-content deserializes JS null as Some(()) for Option fields such as DashedIdentReference.from. The thread includes the root-cause analysis (Brentlok) and a null-stripping workaround.",
+  "repro": "1081-repro.mjs: reporter's mixin/apply visitor (via transform() with exclude: Features.Nesting) on `@mixin --base { color: red; &:not(:has(header)) { padding-block-start: var(--s); } } .page { @apply --base; }` -> `ERROR: failed to deserialize; expected an object-like struct named Specifier, found ()`; correct on 1.30.1. 1081-repro-theme.mjs: @theme -> :root with `--primary: var(--blue)`, same error.",
+  "evidence": "repro.mjs: both repros wrong on local master, 1.33.0, 1.32.0, 1.31.1 and 1.30.2; 1081-repro correct on 1.30.1. Same error, bisect window and code path as #1065. 1065-repro-nulls.mjs shows that stripping nulls avoids it.",
+  "suggestedLabels": [
+    "bug",
+    "area: custom visitors"
+  ],
+  "action": "link-duplicate",
+  "fix": {
+    "size": "small",
+    "approach": "Same fix as #1065. Open PR #1357 says it fixes both.",
+    "goodFirstIssue": false
+  },
+  "relatedPRs": [
+    1357
+  ],
+  "draftReply": "Thanks for the detailed report, and to @Brentlok for tracking down the cause. This has the same root cause as #1065: since 1.30.2, returning a node with a `null` optional field (like the `from: null` inside `var()`) fails to deserialize. It still happens on 1.33.0 with the mixin/apply example from the docs. Let's track it in #1065. #1357 proposes a fix for both. Until it's released, stripping `null` fields from the nodes your visitor returns works around it, or you can pin 1.30.1.",
+  "confidence": "high",
+  "notVerified": "Used transform() rather than the reporter's bundle() call (same visitor and deserializer path). #1071 (mixin docs example) is related but reports a different 1.30.1 nesting-output problem; it wasn't triaged here."
+}

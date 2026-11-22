@@ -1,0 +1,44 @@
+{
+  "number": 659,
+  "title": "[feat] Support CSS modules @value rule (or another way to import class names from other files)",
+  "type": "feature",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "11 reactions, 4 supporting comments (one says it is the only blocker to adopting Lightning CSS); webpack css-loader and rspack support @value. Main use case here is importing another module's hashed class name to use in a local selector (`.button .spinner`), which neither CSS variables nor the `from` dashed-ident syntax cover. Earlier request #865 was closed by the maintainer: 'CSS variables are the successor to @value'.",
+  "area": "css-modules",
+  "code": [
+    "src/parser.rs: parse_prelude, \"value\" if css_modules -> ParserError::DeprecatedCssModulesValueRule (added in #842, v1.28.0)"
+  ],
+  "summary": "@value is a CSS modules convention, not standard CSS. Since 1.28.0 (#842) it is a hard error in cssModules mode ('The @value rule is deprecated'); with errorRecovery it becomes a warning and the rule is dropped, so `color: primary` stays unsubstituted and imported class names get this file's hash. The maintainer has declined value substitution twice (#6 comment 2021, #865 in 2024) because it affects every property's parsing. The class-name-import use case in this issue is distinct and has no supported alternative.",
+  "repro": "659-repro.mjs (controls only). `@value button from \"./button.module.css\"; .button .spinner {}` with cssModules -> ERROR 'The @value rule is deprecated' (local, 1.30.0-1.33.0); errorRecovery -> warning, rule dropped, `.button` hashed as this file's class. 1.27.0 passed it through with 'Unknown at rule' warning.",
+  "evidence": "repro.mjs local + 1.27.0, 1.30.0, 1.31.1-1.33.0. Maintainer comments in #6 and #865. Docs list @value as unsupported ('superseded by standard CSS variables').",
+  "suggestedLabels": [
+    "enhancement",
+    "area: css-modules"
+  ],
+  "action": "needs-maintainer-decision",
+  "fix": {
+    "size": "large",
+    "approach": "Value substitution (`@value x: 1px` used in any property or media query) is out of scope per philosophy: it is non-standard and requires substituting raw tokens before typed parsing of every property. If anything, consider only the import form for class names (`@value a, b from './x.css'` limited to use as class selectors), which maps onto the existing composes/`from` dependency machinery; or point the class-import use case at a different syntax. Otherwise close as won't-fix referencing #865.",
+    "goodFirstIssue": false
+  },
+  "openPRs": [],
+  "subcases": [
+    {
+      "case": "@value constants (values)",
+      "status": "declined (#865); CSS variables with dashedIdents + `var(--x from './file.css')` are the supported alternative",
+      "code": "src/parser.rs"
+    },
+    {
+      "case": "@value imported class names used in selectors",
+      "status": "no supported alternative; needs decision",
+      "code": "src/parser.rs, src/css_modules.rs"
+    }
+  ],
+  "draftReply": null,
+  "confidence": "high",
+  "notVerified": "Whether rspack's @value support is via Lightning CSS or its own implementation."
+}

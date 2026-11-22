@@ -1,0 +1,37 @@
+{
+  "number": 1393,
+  "title": "Adding a length to a long `calc()` sum that does not fold takes time quadratic in its terms",
+  "type": "bug",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "No reactions, no project named; agent-style batch report. Quadratic only matters with hundreds of non-folding terms (500 terms: ~0.1 s, 2000: ~1.7 s); real calc() expressions have a handful of terms, where the cost is negligible (a realistic 5-term calc x1000 transforms: ~0.1 s total). Not a practical DoS for a build tool.",
+  "area": "minification",
+  "code": [
+    "src/values/percentage.rs: DimensionPercentage::add_recursive (Calc::Sum arms clone *a / *b at each level of the left spine)"
+  ],
+  "summary": "Confirmed on master and releases: `calc(min(1px, 1em) + ... + 1px)` with N terms scales ~4x per doubling. When the trailing length is added, add_recursive wraps a deep clone of the left operand in a new DimensionPercentage::Calc at each level of the left-associative sum, so total work is O(N^2). Length-first, no trailing length, and var() terms are all linear. #1245 (open) only changes Calc::add in calc.rs and doesn't touch this path.",
+  "repro": "1393-repro.mjs (time budget 500 ms at N=2000; master ~1.7 s, linear controls ~10-20 ms). Scaling on master (node binding): N=250 31 ms, 500 104 ms, 1000 448 ms, 2000 1724 ms. Controls at N=2000: no trailing length 18 ms, var() terms 11 ms, alternating em/vw + 1px 8 ms, length first fast.",
+  "evidence": "Ran a scaling script on the local binding (master) and scripts/repro.mjs on local, 1.33.0, 1.32.0: main case over budget everywhere, controls within budget. Read add_recursive and PR #1245's file list/diff.",
+  "suggestedLabels": [
+    "bug"
+  ],
+  "action": "queue-fix",
+  "fix": {
+    "size": "small",
+    "approach": "Make add_recursive recurse on &Calc references instead of building DimensionPercentage::Calc(Box::new(a.clone())) at each level, cloning only the branch that actually changes when a merge succeeds (or flatten the sum into a Vec of terms once). Add a test with a long sum to lib.rs. Low priority; reasonable to close instead if the maintainer considers it fringe.",
+    "goodFirstIssue": true
+  },
+  "openPRs": [
+    {
+      "number": 1245,
+      "assessment": "Unrelated path (Calc::add sum-term reduction in calc.rs, for #910); doesn't fix this. Its push_reduced_sum_term is itself O(n^2) over Value terms, worth keeping in mind when reviewing it."
+    }
+  ],
+  "subcases": null,
+  "draftReply": null,
+  "confidence": "high",
+  "notVerified": "Didn't prototype the fix (no rebuild allowed). Didn't check whether other Calc paths (e.g. Length / Angle sums in calc.rs) have the same clone pattern."
+}

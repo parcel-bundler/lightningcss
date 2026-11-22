@@ -1,0 +1,36 @@
+{
+  "number": 1049,
+  "title": "logical border-radius removed when :where is present",
+  "type": "regression",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": {"lastGood": "1.29.3", "firstBad": "1.30.0"},
+  "severity": "critical",
+  "impact": "Silently drops declarations. Tailwind + daisyUI (join/btn radius) in Next.js (vercel/next.js#81763); Next.js's default browserslist (chrome 64, safari 12) is below logical-property support, so every daisyUI-on-Next user with default targets gets it. 8 reactions. Same root cause as open #1023 (logical props inside nested @media vanish) and #1246 (logical fallback rules attached to the *next* nested rule, e.g. only applied on :hover; seen with Rspack). Sibling of #1381 (@supports color fallbacks dropped for the same rule type).",
+  "area": "transpilation",
+  "code": [
+    "src/rules/mod.rs: CssRuleList::minify, CssRule::NestedDeclarations arm (never drains handler_context ltr/rtl/dark/supports)",
+    "src/rules/nesting.rs: NestedDeclarationsRule::minify",
+    "src/context.rs: PropertyHandlerContext::get_additional_rules / get_supports_rules / reset"
+  ],
+  "summary": "Since 6c465c1 (1.30.0, new nesting spec) declarations that follow a nested rule (or sit directly inside a nested @media) become a NestedDeclarationsRule. When targets need logical-property lowering, the handler moves the value into the context's ltr/rtl lists, but nothing emits them for that rule type: if no style rule follows they are lost; if a sibling nested rule follows (&:hover) they are emitted with that rule's selector. Expected: the physical :not(:lang(...)) / :lang(...) rules for the parent selector, in source order.",
+  "repro": "1049-repro.mjs. `.btn1 { :where(&) { width: unset; } border-start-start-radius: var(--r); }` targets chrome 80 -> `:where(.btn1) { width: unset; }` only (1.29.3 emitted four .btn1:...:lang() radius rules). Cases cover literal values, margin-inline-start, minify, the #1023 nested-@media variant and the #1246 leak-into-&:hover variant; controls: declaration before the nested rule, no nested rule, chrome 120 (no lowering) all correct.",
+  "evidence": "repro.mjs on local (master) + 1.33.0/1.32.0/1.31.1: all bug cases WRONG, controls correct. --range 1.22.0..1.33.0: correct in 1.29.3 -> WRONG in 1.30.0 for every bug case (also #1023's input). git log v1.29.3..v1.30.0: 6c465c1 'Update nesting implementation for new spec'. equivalence.mjs (Chromium 153) input vs chrome-80 output: NOT EQUIVALENT, border-top-left-radius 8px -> 0px. #1246 leak confirmed with safari 14: radius only emitted as .btn:hover:not(:lang(...)).",
+  "suggestedLabels": ["bug", "area: transpilation"],
+  "action": "queue-fix",
+  "fix": {"size": "medium", "approach": "In the NestedDeclarations arm of CssRuleList::minify, drain ltr/rtl/dark/supports right after the rule and emit them as nested rules at that position (e.g. StyleRules with selector `&:dir(ltr)`/`&:dir(rtl)` and `@supports { <nested declarations> }`, which the existing nesting printer resolves against the parent), then reset the context. One fix covers #1049, #1023, #1246 and #1381; tests for each, pretty + minified, with and without nesting lowered.", "goodFirstIssue": false},
+  "openPRs": [
+    {"number": 1123, "assessment": "Merges the child handler context back into the parent, so fallbacks are emitted after the parent rule. Fixes the reported case, but moves the declarations ahead of the nested rules (wrong cascade order if an equal-specificity nested rule like :is(&) sets the same property) and does not fix the #1246 leak, since the shared child context is still read by the next nested style rule first. Has a test. Not recommended as-is."},
+    {"number": 1061, "assessment": "Only adds debug println! and a failing test; not a fix."},
+    {"number": 1386, "assessment": "Fixes the sibling #1381 by draining only `supports` in the same arm; the right location. Extending it to drain ltr/rtl/dark too would fix this issue. Recommend reviewing first and asking for that extension."}
+  ],
+  "subcases": [
+    {"issue": 1023, "cause": "same: logical declarations inside nested @media are a NestedDeclarationsRule", "status": "open, same regression 1.29.3 -> 1.30.0; link as duplicate"},
+    {"issue": 1246, "cause": "same: undrained ltr/rtl picked up by the following nested &:hover rule", "status": "open; link as duplicate"},
+    {"issue": 1381, "cause": "same arm, @supports overrides", "status": "open, PR #1386"}
+  ],
+  "draftReply": "Thanks, confirmed. This is a regression in 1.30.0 (1.29.3 is fine): declarations that come after a nested rule are now kept in their own block per the updated nesting spec, and the extra rules generated for logical properties are never emitted for that block. So the radius is lost when nothing follows, and when another nested rule follows (e.g. `&:hover`) it is attached to that rule instead (#1246). The same applies inside nested `@media` (#1023).\n\nMinimal repro, targets Chrome 80:\n```css\n.btn1 { :where(&) { width: unset } border-start-start-radius: 4px }\n```\nWorkarounds until it's fixed: put the declarations before the nested rules, or use targets that support logical properties. There is an open PR, #1386, that fixes the same problem for `@supports` color fallbacks in this spot; it could be extended to cover this.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+  "confidence": "high",
+  "notVerified": "The fix itself was not built (no Rust rebuild allowed). Real behavior in Chrome 80 not tested (only modern Chromium); the loss is visible in the output text."
+}

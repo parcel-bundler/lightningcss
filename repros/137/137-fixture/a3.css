@@ -1,0 +1,4 @@
+@import "b.css";
+@import "b.css" supports(color: red);
+@import "b.css" print;
+.a { color: red }

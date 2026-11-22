@@ -1,0 +1,26 @@
+{
+  "number": 788,
+  "title": "Support the CSS Functions and Mixins draft spec",
+  "type": "feature",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "18 thumbs-up on the issue plus several '+1' comments (2025-2026); one commenter wrote a userland visitor polyfill using customAtRules. Related: open PR #1356 (2026-10-01) implementing @function behind a new `customFunctions` draft flag; older closed #497/#964 and open #1071 concern the unrelated non-standard custom-at-rule mixin example in the docs.",
+  "area": "transpilation",
+  "code": ["src/rules/ (new @function/@mixin rule types)", "src/properties/custom.rs (dashed-function calls in token lists)", "src/stylesheet.rs / ParserFlags (draft flag, like CUSTOM_MEDIA)"],
+  "summary": "Request to support css-mixins-1 (@function, @mixin/@apply). Today all three pass through unchanged as unknown at-rules (a warning, not an error, even in strict mode), and `--fn()` calls are kept as written, so CSS using them isn't broken. Functions ship only in Chrome 139+ (MDN BCD: experimental; Firefox/Safari not yet), and mixins ship in no browser, so under the project philosophy anything here belongs behind a draft flag. PR #1356 already proposes the @function half.",
+  "repro": "788-repro.mjs / 788-repro-recovery.mjs: `@function --double(--x <length>) returns <length> { result: calc(var(--x) * 2) } @mixin --m(--c){color:var(--c)} .box{width:--double(10px); @apply --m(red)}` with minify -> passed through unchanged with warnings 'Unknown at rule: @function; @mixin; @apply' on local master, 1.33.0 and 1.32.0.",
+  "evidence": "Spec: css-mixins-1 Overview.bs is 'Status: ED', 'Work Status: Exploring'; the ED defines @function plus @mixin/@apply. MDN BCD (local node_modules): css.at-rules.function chrome 139, firefox false, safari false, experimental; no @mixin/@apply entry. Issue index: PR #1356 open with no review comments.",
+  "suggestedLabels": ["enhancement"],
+  "action": "needs-maintainer-decision",
+  "fix": {
+    "size": "large",
+    "approach": "Functions: review PR #1356 (draft flag `customFunctions`). A design point for the maintainer: build-time resolution is only meaning-preserving when the body and arguments don't depend on custom properties from the element's cascade or inheritance (the spec evaluates functions at computed-value time in the caller's context). The PR resolves var() from the rule containing the call, which can differ, so unresolvable cases should probably be left as written. Mixins: wait for at least one engine to ship or multiple engines to commit, per the draft-feature policy.",
+    "goodFirstIssue": false
+  },
+  "draftReply": "Thanks for the request, and for all the research in this thread. Where things stand: Lightning CSS currently passes `@function`, `@mixin` and `@apply` through unchanged (with an 'unknown at rule' warning), so stylesheets that use them for Chrome aren't broken. The spec is still an Editor's Draft, and so far only Chrome ships `@function`; no browser ships mixins yet. Anything here would go behind a `drafts` option, like `customMedia`. There's an open PR, #1356, that adds `@function` support behind a draft flag; it's waiting for review. Mixins would come later, once the spec and browser support settle.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "confidence": "medium",
+  "notVerified": "Didn't review or build PR #1356, and didn't check its handling of var() context in depth beyond its description. Chrome's shipping status comes from the BCD version installed locally, which may be outdated. The draft reply mentions #1356; the maintainer may prefer not to point to an unreviewed PR."
+}

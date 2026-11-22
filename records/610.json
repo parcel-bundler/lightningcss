@@ -1,0 +1,22 @@
+{
+  "number": 610,
+  "title": "Consider adding --watch to the cli",
+  "type": "feature",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "22 reactions, 4 '+1' comments over 3 years; users running the standalone CLI without a JS toolchain (e.g. Phoenix/Rails-style setups, see related #126). Users of Vite/Parcel/etc. already get watching from their bundler.",
+  "area": "cli",
+  "code": ["src/main.rs: CliArgs / main (clap 3); cli/lightningcss npm wrapper ships the same Rust binary", "src/bundler.rs: Bundler (knows the @import graph a watcher would need)"],
+  "summary": "The Rust CLI has no watch mode (`--help` lists no such option; no commit mentions one). Related #126 (2022, closed by the reporter) was answered with external watchers (watchexec, npm-watch). This is not a CSS-syntax question, so the project philosophy neither rules it in nor out: it's a scope decision for the maintainer. A built-in watcher would have one real advantage over external tools with `--bundle`: it could watch the files actually reached through @import instead of a glob.",
+  "repro": "n/a (feature). `target/release/lightningcss --help` shows no --watch option.",
+  "evidence": "Checked src/main.rs CliArgs and the built CLI's --help on master; `git log -i --grep watch` finds nothing; issue index has no PR for this; #126 comments recommend watchexec/npm-watch.",
+  "suggestedLabels": ["enhancement"],
+  "action": "needs-maintainer-decision",
+  "fix": {"size": "medium", "approach": "Add `--watch` behind the `cli` feature using a file-watching crate (e.g. notify), re-running the existing transform/bundle path on change. With --bundle, watch every file the Bundler loaded. Debounce, and skip the output file/dir to avoid loops. Adds a dependency and platform-specific behaviour to maintain.", "goodFirstIssue": false},
+  "draftReply": null,
+  "confidence": "high",
+  "notVerified": "Maintainer's appetite for CLI scope or for extra dependencies. Whether the napi/npm CLI wrapper would need changes beyond shipping the new binary."
+}

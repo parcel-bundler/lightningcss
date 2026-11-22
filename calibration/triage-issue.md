@@ -1,0 +1,24 @@
+# Triage calibration log
+
+Maintainer verdicts on agent triage. Use it as an eval set: after changing the skill, re-triage these issues and compare. General lessons go into `SKILL.md`; this log keeps the specifics.
+
+| Issue | Agent | Maintainer | Lesson |
+|---|---|---|---|
+| #695 backdrop-filter dropped | confirmed regression, critical | agrees; many people hit it | Duplicates and reactions are good impact evidence. |
+| #1065 visitor null fields | confirmed regression, high | agrees | — |
+| #1081 | duplicate of #1065 | agrees | — |
+| #572 property order umbrella | keep open, status comment | case by case; no single fix | Causes differ: a new reset-only property we don't parse yet, a bug in the shorthand's property handler, or compat data. Triage each sub-case separately. |
+| #1176 container anchored() | feature, review PR #1218 | research spec status and other engines first; verify `errorRecovery` passes it through (if not, that's a bug) | Single-browser features: an early draft goes behind a flag. The AST change is fine: the Rust crate is alpha, and the JS change only adds a union case. |
+| #925 user-select prefix | fixed in release, close | glad it's fixed | Idea: after each compat data update, re-run stored repros to find fixed issues. |
+| #1319 overflow two-value | works as intended, close | reply with the MDN link and ask where the reporter's data came from | Ask rather than just assert. |
+| #1072 ::scroll-button | duplicate of #1184 | agrees; Turbopack may have stopped turning warnings into errors | Check current downstream behavior. |
+| #949 number precision | needs decision | spec serializes 6 digits, but computes at higher precision; keep `calc()` or reduce the fraction for repeating decimals | — |
+| #1401 transition list | regression, medium | bug, but a fringe case unlikely in real code, probably agent-found; low | Real-world likelihood dominates priority. |
+| #1403 transform-origin | bug, medium | valid TODO; changing the Rust type is OK if the JS AST keeps its shape | — |
+| #213 negated custom media | bug, medium | bug: it produces invalid syntax, so move the type to the start or wrap in parens. Check the spec: no browser implements custom media | Without browser implementations, the spec is the only oracle. |
+| #137 bundler order | bug | agrees | — |
+| #516 CSS modules [name] | bug, good first issue | user error, but it shouldn't crash | — |
+| #1397 font-weight range | bug, low | extreme edge case; would probably just close | Close fringe agent-style reports instead of queuing them. |
+| #436 image-set duplicate | low | low | — |
+| #610 CLI --watch | needs decision | the CLI is little used; would review a PR, not build it | CLI-only features are low priority. |
+| #788 CSS functions/mixins | needs decision, draft flag | was Chrome-only (would have flagged it); Safari is now implementing it, so consider it | Re-check current implementation status. |

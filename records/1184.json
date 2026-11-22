@@ -1,0 +1,64 @@
+{
+  "number": 1184,
+  "title": "Support CSS Overflow Module Level 5",
+  "type": "feature",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "7 reactions, filed by a maintainer-team member. Duplicates: #1072 (::scroll-button) and #1177 (::scroll-marker). Users of Chrome's CSS carousel pattern get one warning per selector, and build tools that promote warnings to errors fail. The output itself is already correct: the selectors pass through unchanged in both modes.",
+  "area": "parser",
+  "code": [
+    "src/selector.rs: SelectorParser::parse_pseudo_element / parse_functional_pseudo_element, PseudoElement enum, is_compatible",
+    "selectors/parser.rs: pseudo-class-after-pseudo-element validation (SelectorParsingState)",
+    "scripts/build-prefixes.js: mdnFeatures (then regenerate compat.rs)"
+  ],
+  "summary": "The :target-current/before/after pseudo-classes already landed in #1185 behind the `drafts.scrollNavigationControls` flag. ::scroll-marker, ::scroll-marker-group, ::scroll-button() and ::column are still unknown pseudo-elements. Today they warn in both strict and errorRecovery mode but pass through unchanged, so no errorRecovery bug. The properties (scroll-marker-group, scroll-target-group) pass through silently as unparsed. Only Chrome ships this (since 135, all 'experimental' in BCD). Mozilla (#1161) and WebKit (#447, concerns about accessibility and i18n) have no position. The ED still has open syntax issues on ::scroll-button() keywords. Recommendation: implement behind the existing draft flag. Open PR #1321 does that, but misses ::scroll-button():disabled, which the spec explicitly allows.",
+  "repro": "1184-repro.mjs (7 flag cases fail today; 3 pass-through controls pass). E.g. `.c::scroll-button(right){content:\">\"}` -> `.c::scroll-button(right){content:\">\"}` plus warning \"'scroll-button' is not recognized as a valid pseudo-element\" (strict and errorRecovery, with or without the flag). `li::scroll-marker:target-current` with the flag: passes through, with the scroll-marker warning.",
+  "evidence": "repro.mjs on local, 1.33.0, 1.32.0, 1.31.1: identical pass-through with warnings. BCD 8.0.7: ::scroll-marker, ::scroll-marker-group, ::scroll-button and ::column are chrome 135, firefox/safari false; :target-before/after chrome 142; scroll-target-group chrome 140; scroll-button next/prev unsupported anywhere. Chromium 153 CSS.supports: ::scroll-button(*):disabled true, ::scroll-marker:target-current true, ::column::scroll-marker true, ::scroll-button(next) false, ::scroll-button(sideways) false. css-overflow-5 Overview.bs is Status: ED, with an inline Issue about adding multi-button keywords (all/horizontal/vertical/block/inline) to ::scroll-button(). It also says \"The ':disabled' pseudo-class can apply to '::scroll-button()'\". Standards positions: mozilla/standards-positions #1161 (CSS Overflow Navigation Controls), #1251 (scroll-target-group) and #1291 (:target-before/after) are open with no position; WebKit/standards-positions #447 is open with concerns: accessibility and internationalization, #514 and #544 are open.",
+  "suggestedLabels": [
+    "enhancement"
+  ],
+  "action": "needs-maintainer-decision",
+  "fix": {
+    "size": "medium",
+    "approach": "Behind ParserFlags::SCROLL_NAVIGATION_CONTROLS: add ScrollMarker, ScrollMarkerGroup and ScrollButton{direction}, plus ::column. Allow :target-* after ::scroll-marker, and :disabled/:enabled after ::scroll-button(). Add mdnFeatures to build-prefixes.js. Properties can stay unparsed for now, or get typed parsers later. The JS AST change only adds new union cases.",
+    "goodFirstIssue": false
+  },
+  "openPRs": [
+    {
+      "number": 1321,
+      "assessment": "Recommend reviewing it, with one change requested. It adds the three pseudo-elements behind the existing flag, adds the compat features via build-prefixes.js (not hand-edited), has tests, and only adds AST cases. Gap: with the flag on, `::scroll-button(*):disabled` (allowed by the spec and accepted by Chromium; the common carousel pattern) would hit InvalidPseudoClassAfterPseudoElement. That is an error in strict mode, and errorRecovery would drop the rule. It needs the same AFTER_* exception as ::scroll-marker. Also missing: ::column (and ::column::scroll-marker). Its `prev`/`next` keywords are in the ED, but no browser supports them. Mergeable state: behind master. Closes #1177."
+    }
+  ],
+  "subcases": [
+    {
+      "item": ":target-current/:target-before/:target-after",
+      "status": "done in #1185 (v1.33.0), behind drafts.scrollNavigationControls"
+    },
+    {
+      "item": "::scroll-marker, ::scroll-marker-group, ::scroll-button()",
+      "status": "open PR #1321 (behind the flag); duplicates #1177 and #1072"
+    },
+    {
+      "item": "::scroll-button():disabled",
+      "status": "not handled by #1321; becomes an error once the pseudo-element is known"
+    },
+    {
+      "item": "::column (and ::column::scroll-marker)",
+      "status": "not covered; Chrome 135 only"
+    },
+    {
+      "item": "scroll-marker-group / scroll-target-group / scroll-initial-target properties",
+      "status": "pass through as unparsed today, no warning; typed parsing optional"
+    },
+    {
+      "item": "::nth-fragment(), scroll-axis-lock",
+      "status": "no browser implementation; wait"
+    }
+  ],
+  "draftReply": "Status update: `:target-current`, `:target-before` and `:target-after` shipped in 1.33.0 behind `drafts: { scrollNavigationControls: true }`. There's an open PR, #1321, that adds `::scroll-marker`, `::scroll-marker-group` and `::scroll-button()` behind the same flag. Until then, these selectors are passed through unchanged with a warning. They stay behind a flag because only Chrome ships them so far, Mozilla and WebKit haven't taken positions (mozilla/standards-positions#1161, WebKit/standards-positions#447), and the draft still has open questions on `::scroll-button()` keywords. #1072 and #1177 track the same thing.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+  "confidence": "high",
+  "notVerified": "I didn't build PR #1321. The :disabled gap comes from reading its diff: master rejects `.c::before:disabled` with InvalidPseudoClassAfterPseudoElement, and the PR's ::scroll-button only adds no AFTER_* exception. Gecko and WebKit implementation bugs were not checked beyond the standards-positions threads."
+}

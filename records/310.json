@@ -1,0 +1,31 @@
+{
+  "number": 310,
+  "title": "Lightning CSS doesn't escape `content: \"\\...\"`",
+  "type": "bug",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "high",
+  "impact": "Long-running, widely hit: 28 comments from ~15 users over 4 years (icon fonts: Font Awesome, Bootstrap Icons, @mdi/font, iconfont, antd; Vite 4 with lightningcss, Dioxus CLI). Comment reactions up to 10. #164 was the same symptom (closed by its reporter after adding a UTF-8 meta tag). Users work around it by disabling minification (~45% size cost), regex post-processing, or visitor hacks, or by switching back to PostCSS/cssnano.",
+  "area": "minification",
+  "code": [
+    "src/parser.rs: AtRulePrelude::Charset (@charset is parsed and dropped, ~line 340)",
+    "cssparser serialize_string / serialize_identifier (used by CSSString, Ident, FamilyName, TokenList in src/properties/custom.rs): escapes are decoded on parse and non-ASCII is written raw",
+    "src/printer.rs / PrinterOptions: no charset/ascii-only option"
+  ],
+  "summary": "Escapes like `content:\"\\f67f\"` are decoded at parse time and printed as raw UTF-8, and `@charset \"UTF-8\"` is always removed. In a UTF-8 context the output is equivalent, but CSS decoding falls back to the referring document's encoding when the stylesheet has no BOM, no HTTP charset and no @charset, so on non-UTF-8 pages (or when something else picks the wrong encoding) the output means something different from an input that was pure ASCII or carried @charset. The maintainer's earlier answer (UTF-8 is the default) holds only when the page or server declares UTF-8.",
+  "repro": "310-repro.mjs. `.bi-123::before{content:\"\\f67f\"}` -> `.bi-123:before{content:\"\\u{f67f}\"}` (raw bytes EF 99 BF), and `@charset \"UTF-8\";.a::before{content:\"\\u2713\"}` -> `.a:before{content:\"\\u2713\"}` with the @charset rule dropped; same on local, 1.33.0, 1.32.0, 1.31.1. Identifiers (`.caf\\e9` -> `.caf\\u00e9`) and font-family names behave the same. Controls: `\\31` -> `1` and ASCII-only input stays ASCII without an @charset rule.",
+  "evidence": "Chromium 153, stylesheet served as `text/css` without charset via request interception (scratchpad/charset/charset-probe.mjs). UTF-8 page: input, output and output+@charset all compute U+2713. windows-1252 page: input `\"\\2713\"` => U+2713; input with raw char + `@charset \"UTF-8\"` => U+2713; Lightning CSS output of either => `\"\\u00e2\\u0153\\u201c\"` (mojibake); output with `@charset \"UTF-8\";` prepended => U+2713. So the dropped @charset alone changes meaning. Spec: CSS Syntax 3 'determine the fallback encoding': BOM / protocol encoding / `@charset \"...\";` as the first bytes / the referring document's encoding / UTF-8. The 'only with DevTools open' reports were not reproduced. esbuild for comparison: `charset: 'ascii'` is its default and it escapes non-ASCII; with `charset: 'utf8'` it keeps raw characters.",
+  "suggestedLabels": ["bug", "area: minification"],
+  "action": "needs-maintainer-decision",
+  "fix": {"size": "medium", "approach": "Two independent options: (a) when the printed output contains non-ASCII, emit `@charset \"UTF-8\";` first (or at least keep it when the input had it); cheap, a few bytes, makes the output self-describing (bundler must keep only one at the top). (b) an opt-in or default ASCII-only output mode that writes non-ASCII code points in strings, idents and urls as `\\hex ` escapes (needs a custom serializer instead of cssparser's serialize_string/serialize_identifier; watch the escape terminator before hex digits and whitespace). (a) fixes the correctness issue; (b) is what icon-font users ask for.", "goodFirstIssue": false},
+  "openPRs": [],
+  "subcases": [
+    {"case": "@charset \"UTF-8\" dropped while output has non-ASCII", "status": "confirmed bug: output decodes differently from input on non-UTF-8 pages", "code": "src/parser.rs Charset prelude; stylesheet/bundler printing"},
+    {"case": "ASCII escapes decoded to raw non-ASCII (\\f67f, \\e600, \\2713)", "status": "feature request: ascii-only output option (esbuild charset: 'ascii' equivalent); equivalent only in UTF-8 contexts", "code": "values/string.rs, values/ident.rs, properties/custom.rs token printing"}
+  ],
+  "draftReply": "Some context from testing this in Chromium: when a page and server both use UTF-8, `content: \"\\f67f\"` and the raw character Lightning CSS outputs are identical. But a stylesheet with no charset in its HTTP header and no `@charset` is decoded with the page's encoding. On a `windows-1252` page, the original `\"\\2713\"` renders ✓ and the output renders `âœ“`. Lightning CSS also drops `@charset \"UTF-8\"`, so adding it to your source doesn't help. When we added it back to the output, the output rendered correctly again.\n\nPossible fixes are emitting `@charset \"UTF-8\"` whenever the output contains non-ASCII characters, or an option to keep non-ASCII characters escaped (like esbuild's `charset: 'ascii'`). The maintainer hasn't chosen yet. For now, serving CSS with `Content-Type: text/css; charset=utf-8`, or using `<meta charset=\"utf-8\">` on the page, avoids the problem.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+  "confidence": "high",
+  "notVerified": "Firefox/Safari decoding (spec is explicit, so expected to match); the 'only with DevTools open' flakiness; bundler behavior with @charset in several files."
+}

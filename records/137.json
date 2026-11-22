@@ -1,0 +1,22 @@
+{
+  "number": 137,
+  "title": "Non-deterministic ordering of `@supports` conditions",
+  "type": "bug",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "medium",
+  "impact": "bundle()/bundleAsync() users who @import the same file more than once with different supports()/media conditions. Output is semantically equivalent in the plain OR case but byte-unstable across runs (breaks reproducible builds and content hashes, and makes bundler::tests::test_bundle flaky in CI). A worse variant: with mixed unconditional + supports() + media imports of one file, whether bundling fails with 'Unsupported import condition' depends on the race. Pattern is uncommon in real CSS; 1 reaction, no duplicates (#291 and #1235 are other nondeterminism bugs with different causes).",
+  "area": "bundler",
+  "code": ["src/bundler.rs: Bundler::load_file (the 'already loaded this file' branch: entry.media.or / existing_supports.or / unsupported-condition check)", "src/bundler.rs: load_file's par_iter_mut over a file's @import rules (line ~473)"],
+  "summary": "Imports of a file are loaded in parallel with rayon, and when a file is imported again its media/supports conditions are OR-ed into the existing entry in whatever order the threads arrive. So the order of the combined conditions varies between runs, for @media as well as @supports, and the compatibility check between media and supports conditions is order-dependent, so an error can appear or not. Conditions should be combined in source (import) order regardless of thread scheduling.",
+  "repro": "137-repro.mjs + 137-fixture/ (bundle a.css 200x in one process: 8 imports of b.css with supports(--pN:1) plus c.css print/screen). Master: 140 distinct outputs out of 200, e.g. '@supports (--p0:1) or (--p3:1) or ...' and '@media print,screen' vs '@media screen,print'. Issue's exact case (ENTRY=a2.css, 20 separate processes, N=1): 19x '(color:red) or (foo:bar)', 1x '(foo:bar) or (color:red)'. 137-repro-error.mjs (a3.css: @import b.css; @import b.css supports(color:red); @import b.css print): master 273x '.b{color:green}.a{color:red}', 27x 'ERROR: Unsupported import condition' out of 300; 1.33.0 298/2.",
+  "evidence": "scripts/repro.mjs on local (master), 1.14.0, 1.20.0, 1.33.0: all nondeterministic (140/85/92/65 distinct of 200). Code read confirms first-come combining in load_file. Never fixed; no commit references #137.",
+  "suggestedLabels": ["bug"],
+  "action": "queue-fix",
+  "fix": {"size": "medium", "approach": "Make the combination order-independent of scheduling: record each (importing source index, rule index, condition) for a repeated file and fold them in a deterministic order (depth-first import order) after the parallel load, then run the media/supports compatibility check on the folded result. Sorting conditions (maintainer's 2022 suggestion) also gives determinism but reorders authored conditions and does not fix the order-dependent error. Add a stress test (or loop) in src/bundler.rs tests.", "goodFirstIssue": false},
+  "draftReply": null,
+  "confidence": "high",
+  "notVerified": "Did not run cargo test (no rebuild allowed) to measure how often test_bundle itself fails; the JS repro exercises the same code. Layer combination in the same branch was read but not stress-tested."
+}

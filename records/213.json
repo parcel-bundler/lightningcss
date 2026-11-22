@@ -1,0 +1,26 @@
+{
+  "number": 213,
+  "title": "Negating custom media query breaks",
+  "type": "bug",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "medium",
+  "impact": "Users of the customMedia draft (e.g. Open Props-style @custom-media) whose custom media contains a media type (screen/print) or a `not` qualifier and is then negated, OR-ed, or AND-ed with other conditions. No reactions or duplicates; related closed #286. Silent wrong output, but uncommon pattern behind a draft flag.",
+  "area": "transpilation",
+  "code": ["src/media_query.rs: process_condition (MediaCondition::Feature custom-media branch and MediaCondition::Not branch)"],
+  "summary": "When a @custom-media query has a media type (or `not` qualifier), process_condition hoists that type/qualifier onto the enclosing @media query regardless of the boolean context the custom media sits in. So `not (--h)` with `--h: screen and (pointer: fine)` becomes `screen and not (pointer: fine)` instead of `not screen and (pointer: fine)`; `(--h) or (color)` becomes `screen and ((pointer: fine) or (color))`; and `--h: not screen and (color)` used as `(--h) and (min-width: 2000px)` becomes `not screen and (color) and (min-width:2000px)` (the not now covers the min-width). Spec: custom media is evaluated logically, not textually.",
+  "repro": "213-repro.mjs (reporter case), 213-variants.mjs (three variants), 213-browser.mjs (Chromium matchMedia under print). Input: `@custom-media --supports-hover screen and (pointer: fine); @media not (--supports-hover) {.a{color:red}}` with drafts.customMedia + targets chrome 100. Output (master and all releases 1.14.0-1.33.0): `@media screen and not (pointer: fine)`. Expected: `@media not screen and (pointer: fine)`.",
+  "evidence": "repro.mjs --all: identical wrong output on local master and every cached release 1.14.0-1.33.0. Chromium 153 with media type emulated as print (CDP Emulation.setEmulatedMedia): `not screen and (pointer: fine)` matches=true, LCSS output `screen and not (pointer: fine)` matches=false; `screen and (pointer: fine), (color)` true vs LCSS `screen and ((pointer: fine) or (color))` false. Default screen media, 1280px: `(not screen and (color)) && (min-width:2000px)` false vs LCSS `not screen and (color) and (min-width: 2000px)` true. Spec (mediaqueries-5 Overview.bs, @custom-media): 'the custom media query evaluates to true if the <media-query-list> it represents evaluates to true' and 'The custom media query is evaluated logically, not treated as a textual substitution.'",
+  "suggestedLabels": ["bug"],
+  "action": "queue-fix",
+  "fix": {
+    "size": "small",
+    "approach": "Track the boolean context in process_condition. Only hoist a custom media's media type/qualifier when the reference is the whole @media condition or a top-level AND term of an @media with no type/qualifier of its own (and a `not` qualifier only when the reference is the entire condition); for `not (--x)` as the entire condition, flip the qualifier (`not screen and (...)`). In any other context (under Not other than at the top, under Or, `not` qualifier mixed with other AND terms) return UnsupportedCustomMediaBooleanLogic as already done for mismatched types. Add custom_media_test cases for the three variants.",
+    "goodFirstIssue": false
+  },
+  "draftReply": "Thanks for the report, and sorry for the slow reply. This still reproduces on the latest release (1.33.0) and on master: with `@custom-media --supports-hover screen and (pointer: fine)`, `@media not (--supports-hover)` compiles to `@media screen and not (pointer: fine)`, which only negates the pointer feature. You're right that it should be `not screen and (pointer: fine)`: [Media Queries 5](https://drafts.csswg.org/mediaqueries-5/#custom-mq) says a custom media query is evaluated logically, not substituted as text. The same problem shows up when a custom media with a media type is used inside `or`, or when one with `not` is combined with `and`. Until it's fixed, a workaround is to keep the media type out of the custom media and write it in the `@media` rule: with `@custom-media --fine-pointer (pointer: fine)`, `@media not screen and (--fine-pointer)` compiles to `@media not screen and (pointer: fine)` as expected.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "confidence": "high",
+  "notVerified": "Pointer-feature emulation is not honored by headless Chromium (pointer stays none), so the browser checks distinguish outputs via media type (print) and viewport width only. Whether the maintainer prefers erroring vs. rewriting in the OR/AND cases is a design choice. Fix not implemented or tested."
+}

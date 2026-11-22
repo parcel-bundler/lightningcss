@@ -1,0 +1,34 @@
+{
+  "number": 231,
+  "title": "Add an option to prevent re-ordering of rules",
+  "type": "feature",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "Users shipping unminified, human-edited bundles (here Shopify-style themes). 5 thumbs-up; Chris Coyier commented (CodePen) about `!important` moving last. Cosmetic only: the reorderings observed are cascade-equivalent. Meaning-changing reorders are tracked separately (#572 umbrella, #1207, #1225, #1362, #1391).",
+  "area": "minification",
+  "code": [
+    "src/declaration.rs: DeclarationHandler / DeclarationBlock::minify (handlers buffer and emit in finalize order; !important emitted after normal)",
+    "napi/src/lib.rs: transform/bundle always call StyleSheet::minify"
+  ],
+  "summary": "Even with minify: false, transform() and bundle() run StyleSheet::minify, so declarations are re-emitted grouped by property handler (e.g. custom properties pulled up together, display moved last) and !important declarations are written after normal ones. Rules are not reordered (the title says rules, but the body describes declarations). The request is an option to keep the source order, or to skip it when not minifying.",
+  "repro": "231-repro.mjs. `.a{color:red;--x:1px;margin:0;--y:2px;padding:0}` -> color, --x, --y, margin, padding. `hr{border:0 !important;border-bottom:1px solid red}` -> border-bottom first, then `border: 0 !important`. `.a{display:flex;color:red;width:10px;background:blue;margin-top:1px}` -> color, background, width, margin-top, display. Controls: rule order kept; !important still present.",
+  "evidence": "scripts/repro.mjs local + 1.31.1..1.33.0, all identical. Bindings always call stylesheet.minify (napi/src/lib.rs:761, 896); the Rust API can skip minify(), which keeps source order but also skips all lowering/prefixing.",
+  "suggestedLabels": [
+    "enhancement",
+    "area: minification"
+  ],
+  "action": "needs-maintainer-decision",
+  "fix": {
+    "size": "large",
+    "approach": "Options: (1) a JS/CLI flag that skips StyleSheet::minify when minify is false (cheap, but also disables targets lowering, so only useful without targets); (2) make the handler pipeline preserve source positions (design work across every property handler, risky for shorthand merging).",
+    "goodFirstIssue": false
+  },
+  "openPRs": [],
+  "subcases": null,
+  "draftReply": null,
+  "confidence": "high",
+  "notVerified": "Did not measure the cost of preserving order in handlers. No reply drafted, since it depends on the maintainer's decision."
+}

@@ -1,0 +1,41 @@
+{
+  "number": 5,
+  "title": "Implement CSSOM spec",
+  "type": "meta",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "Maintainer-filed long-term idea (2021), 9 +1 reactions; Deno (lucacasonato) was interested in 2022 for CSSStyleSheet, needing only parse/serialize primitives. No recent demand in the index beyond #440/#556 (which ask for parse/serialize in JS, not CSSOM).",
+  "area": "bindings",
+  "code": [
+    "src/declaration.rs: DeclarationBlock::get/set/remove (shorthand-aware, from #165)",
+    "src/properties/mod.rs: PropertyId::longhands, Property::set_longhand",
+    "src/traits.rs: Parse / ToCss::to_css_string (public since #140)",
+    "src/rules/mod.rs: CssRule::parse_string",
+    "node/: no CSSOM-style JS API"
+  ],
+  "summary": "Tracking idea to expose CSSOM / Typed OM as the JS API. The Rust foundations landed in 2022 (#140 public Parse/ToCss, #143 serde AST, #165 'Foundations for CSS OM': ordered DeclarationBlock get/set/remove with shorthand/longhand handling). Nothing CSSOM-shaped exists in the JS binding; the WIP PR #10 has been open and untouched since 2021. The JS API went the visitor route instead (transform({visitor}), StyleSheet visitor since 1.23.0).",
+  "repro": "No repro: there is no JS behavior to pin; the Rust primitives are covered by the crate's own tests. JS parse/serialize workarounds are pinned in 440-repro.mjs and 556-repro.mjs.",
+  "evidence": "Read issue + comments, PR #10 body, find-issues --refs 5 (#140, #143, #165), grep of src/declaration.rs and node/index.d.ts on master (dd8feeb).",
+  "suggestedLabels": [
+    "enhancement"
+  ],
+  "action": "needs-maintainer-decision",
+  "fix": {
+    "size": "large",
+    "approach": "Either a JS CSSOM layer over parse/serialize primitives (Deno's suggested design: pure parse_rule/serialize ops, state held in JS), or close as not planned in favor of the visitor API. Prerequisite either way: small JS parse/print primitives (see #440/#556).",
+    "goodFirstIssue": false
+  },
+  "openPRs": [
+    {
+      "number": 10,
+      "assessment": "WIP from 2021 implementing CSSOM in the napi crate; stale, predates the visitor API and major AST changes; not reviewable as is. Could be closed."
+    }
+  ],
+  "subcases": null,
+  "draftReply": null,
+  "confidence": "high",
+  "notVerified": "Whether Deno still wants this (Deno has not shipped CSSStyleSheet as far as the index shows); WPT CSSOM serialization conformance was not run."
+}

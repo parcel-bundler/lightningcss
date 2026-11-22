@@ -1,0 +1,27 @@
+{
+  "number": 491,
+  "title": "More flexibility over cssModules pattern",
+  "type": "feature",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "5 reactions, one 'please prioritize' comment; reporter is a contributor. Use case: truncating long file/class names. Nice-to-have; workaround is a shorter pattern (e.g. drop [name]).",
+  "area": "css-modules",
+  "code": ["src/css_modules.rs: Pattern::parse / Pattern::write / Segment", "napi/src/lib.rs: CssModulesConfig (pattern is a String)", "node/index.d.ts: CSSModulesConfig.pattern"],
+  "summary": "Request for either length modifiers in placeholders ([name:5], [hash:5], [local:4], webpack-style) or a JS function pattern. Today only [name], [local], [hash], [content-hash] parse; anything else is a clear 'unknown placeholder' error.",
+  "repro": "491-repro.mjs. 'x-[hash:5]-[local]' -> ERROR unknown placeholder \"[hash:5]\"; '[hash]-[local:4]' -> ERROR unknown placeholder \"[local:4]\". Controls: 'w-[name]-[hash]-[local]' -> w-very-long-component-name-module-JfO8bq-navigation-item; '[foo]' errors.",
+  "evidence": "scripts/repro.mjs on local, 1.33.0, 1.32.0, 1.31.1: identical.",
+  "suggestedLabels": ["enhancement", "area: css-modules"],
+  "action": "needs-maintainer-decision",
+  "fix": {"size": "small", "approach": "Length suffix ([hash:N], [name:N], [local:N]) is a small, self-contained change in Pattern::parse/write (add an Option<usize> to the segments) and works in all bindings (CLI, wasm, Rust). Truncating [local] can create collisions (.navigation-a/.navigation-b), so [local:N] should probably be refused or documented; [hash:N] reduces uniqueness. A function pattern is larger: it needs napi threading and does not work for the CLI/wasm.", "goodFirstIssue": false},
+  "openPRs": [
+    {"number": 1262, "assessment": "Function pattern ({resolve(hash, path, local, contentHash?)}). Not ready: transform() is synchronous on the JS thread, but the provider calls a ThreadsafeFunction in Blocking mode and then blocks on rx.recv(), which by reading looks like a deadlock (the queued JS call can't run while the JS thread waits); un-gates threadsafe_function from the bundler feature and uses it unconditionally (likely breaks non-bundler/wasm builds); d.ts says `content_hash` but the code reads `contentHash`; no tests; unrelated reformatting in bundler.rs/selector.rs; grid [local]-suffix check is skipped for function patterns (FIXME). Public Rust API change: Pattern becomes an enum (acceptable for the alpha crate, but call it out). Not built or run."},
+    {"number": 1237, "assessment": "Webpack-parity PR; adds [hash:N] / [algo:hash:digest:N] (covers the hash half only, not [name:N]/[local:N]). Large, with new crypto deps; maintainer was skeptical of the goal. If only truncation is wanted, a small [hash:N] change is simpler."}
+  ],
+  "subcases": null,
+  "draftReply": null,
+  "confidence": "medium",
+  "notVerified": "Neither PR was built; the #1262 deadlock is from reading the diff, not from running it."
+}

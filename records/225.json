@@ -1,0 +1,29 @@
+{
+  "number": 225,
+  "title": "Only adjacent rules are merged",
+  "type": "feature",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "No reactions on the issue; several commenters (Tailwind + custom base styles, zero-runtime CSS-in-JS, atomic CSS) ask for an opt-in 'unsafe' mode like csso's `scopes`. Three 2023 comments by one account are email-reply noise ('yes', a CI link). Measured real-world gain of the safe version is small: same-selector merges <=0.04% raw on every corpus file; same-declaration merges 1.10% raw on Bulma (Sass loop output), 0.31% Radix, <=0.19% elsewhere, 0 on react-spectrum S2/animate/open-props.",
+  "area": "minification",
+  "code": ["src/rules/mod.rs: CssRuleList::minify (StyleRuleKey / is_duplicate dedup)", "src/rules/mod.rs: merge_style_rules", "src/rules/style.rs: StyleRule::is_duplicate"],
+  "summary": "Non-adjacent rules with the same selector (or the same declarations) are not merged. In general that is unsafe (maintainer's `.a{green} .b{aqua} .a{red}` example, browser-verified), but it is safe when no rule in between (including rules inside @media/@supports/@layer/@container blocks) declares a property in an overlapping group: same property, shorthand/longhand (`margin`/`margin-top`), logical/physical pairs (`width`/`inline-size`), aliases (`word-wrap`/`overflow-wrap`), or `all`; nested rules block. The reporter's example meets that condition. An opt-in mode that ignores the cascade would conflict with 'correctness over size'.",
+  "repro": "225-repro.mjs. `body{color:red}body{background-color:blue}h1{font-weight:normal}body{margin:0}` -> `body{color:red;background-color:#00f}h1{font-weight:400}body{margin:0}`. Controls (all correct today): `.a{color:green}.b{color:aqua}.a{color:red}` -> `.b{color:#0ff}.a{color:red}` (existing dedup already drops the overridden earlier rule), shorthand/@media/logical in between not crossed.",
+  "evidence": "repro.mjs local (master 8865c3d), 1.33.0, 1.32.0, 1.31.1: identical. equivalence.mjs (Chromium): reporter's merge EQUIVALENT; maintainer example merged DIFFERENT; Bulma-style same-body merge across rules that only set another custom property EQUIVALENT. Corpus estimate (scratchpad/triage/analyze-merge.mjs, conservative property-family overlap, lookback 2000 rules) on minified output: same-selector safe merges: bootstrap 2 (67 B), bulma 6 (45 B), primer 3 (106 B), pico 2, fontawesome 1, others 0; same-body safe merges: bulma 35 (7,496 B, 1.10%), radix 32 (2,081 B, 0.31%), pico 5 (152 B), bootstrap 12 (166 B), primer 5 (458 B), react-spectrum 2 (46 B). Raw bytes only; gzip/brotli gain will be much smaller since repeated blocks compress well.",
+  "suggestedLabels": ["enhancement", "area: minification"],
+  "action": "needs-maintainer-decision",
+  "fix": {"size": "medium", "approach": "If wanted: when pushing a style rule, look back through rules in the same list while tracking the property families declared by intervening rules (recursing into conditional/layer blocks; @keyframes/@font-face/@property are neutral), and merge into an earlier rule with the same selectors (or identical declarations + compatible selectors) only if no family overlaps. Needs a cap or an incremental index to avoid quadratic work on atomic CSS. Recommend declining the unsafe opt-in option.", "goodFirstIssue": false},
+  "openPRs": [],
+  "subcases": [
+    {"case": "same selector, non-adjacent, non-overlapping properties in between (reporter)", "status": "safe; feature; negligible size gain (<=0.04%)"},
+    {"case": "same declarations, non-adjacent (naruaway, Sass loops)", "status": "safe under the same condition plus selector compat; up to 1.1% raw (Bulma)"},
+    {"case": "opt-in unsafe/global merging (csso scopes)", "status": "needs maintainer decision; conflicts with the project's correctness-first philosophy"},
+    {"case": "same selector + same property set, non-adjacent", "status": "already done (aa083a7, StyleRuleKey dedup removes the overridden earlier rule)"}
+  ],
+  "draftReply": "Status update: master still only merges adjacent rules (`body{...}h1{...}body{margin:0}` keeps two `body` rules). Merging across other rules is safe only when nothing in between can set an overlapping property; that includes shorthands/longhands, logical/physical pairs like `width`/`inline-size`, `all`, and rules inside `@media`/`@supports`/`@layer`. Your example meets that condition. Non-adjacent rules with the same selector *and* the same properties are already handled: the earlier one is dropped.\n\nWe measured the potential on real stylesheets (Bootstrap, Bulma, Primer, Radix Themes, Pico and others): merging same-selector rules saves under 0.05%; merging rules with identical declarations saves up to about 1% before compression (mostly Bulma's generated color variants). An opt-in mode that ignores the cascade is still an open question: it can silently change rendering, so it would need a careful design.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+  "confidence": "medium",
+  "notVerified": "Corpus numbers are from a conservative text-level prototype, not an implementation; chained merges and the cost of selector-compat checks not modelled; compressed-size effect not measured. Declining the unsafe option is a recommendation, not a maintainer decision."
+}

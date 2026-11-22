@@ -1,0 +1,26 @@
+{
+  "number": 436,
+  "title": "Duplicate 'image-set' generated with certain browserslist targets",
+  "type": "bug",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "Only targets that include browsers needing legacy -webkit-gradient() (Chrome 4-9, Safari <5.1, iOS Safari <=6, Android 2.x) together with a target needing -webkit-image-set, e.g. browserslist '>=0.0%'. Realistic queries such as 'defaults' or '>=0.01%' don't trigger it. Output is a redundant identical declaration (extra bytes, no change in behavior). No reactions, no duplicates.",
+  "area": "transpilation",
+  "code": ["src/values/image.rs: FallbackValues for SmallVec<[T; 1]>::get_fallbacks (legacy -webkit-gradient branch)", "src/values/image.rs: Image::get_legacy_webkit"],
+  "summary": "In get_fallbacks, when any image needs a WebKit prefix and the targets include legacy -webkit-gradient browsers, it pushes a 'legacy' fallback built with Image::get_legacy_webkit, which returns a plain clone for anything that isn't a gradient. For an image-set-only value, that fallback is identical to the unprefixed value that's emitted last, so the declaration appears twice. For mixed lists (gradient + image-set) the legacy line also contains an unprefixed image-set(), which those old browsers can't parse anyway.",
+  "repro": "436-repro.mjs (reporter's case: browserslistToTargets(browserslist('>=0.0%'))), 436-variants.mjs. Minimal: `.a{background-image:image-set(url(a.jpg) 1x, url(b.jpg) 2x)}` with targets {chrome: 9<<16, safari: 6<<16} -> `background-image: image-set(\"a.jpg\" 1x, \"b.jpg\" 2x); background-image: -webkit-image-set(url(\"a.jpg\") 1x, url(\"b.jpg\") 2x); background-image: image-set(\"a.jpg\" 1x, \"b.jpg\" 2x);` (also happens with the `background` shorthand and with minify).",
+  "evidence": "repro.mjs --all: duplicate present on local master and every cached release 1.14.0-1.33.0 (reported on 1.19.0); never worked, not a regression. Variants: chrome 30 alone gives the correct two declarations; adding chrome 9 + safari 6 adds the duplicate first line. No browser check needed: the extra declaration is byte-identical to the final one, so it cannot change the cascade.",
+  "suggestedLabels": ["bug", "good first issue"],
+  "action": "queue-fix",
+  "fix": {
+    "size": "small",
+    "approach": "In the legacy -webkit-gradient branch of get_fallbacks, only push the legacy list when at least one item is a gradient (or have get_legacy_webkit return Err for non-gradient images that need prefixes, such as image-set, so the item is dropped like other unconvertible items). Add a prefix_test in src/lib.rs next to the existing image-set prefix tests.",
+    "goodFirstIssue": true
+  },
+  "draftReply": "Thanks for the clear repro! This still happens on the latest release (1.33.0). It only shows up when the targets include very old WebKit browsers that need the legacy `-webkit-gradient()` syntax (Chrome 4-9, Safari before 5.1), which `>=0.0%` pulls in: Lightning CSS builds a legacy fallback for those, and for an `image-set()` that isn't a gradient the fallback ends up identical to the final declaration. The duplicate is harmless (same value, so browsers behave the same), just extra bytes. A minimal case is `background-image: image-set(url(a.jpg) 1x, url(b.jpg) 2x)` with targets Chrome 9 and Safari 6. Using a more realistic query, such as `defaults`, avoids it.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "confidence": "high",
+  "notVerified": "Fix not implemented. Didn't check the other fallback consumers (mask-image, border-image, list-style-image use the same ImageFallback path and are likely affected the same way)."
+}

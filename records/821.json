@@ -1,0 +1,64 @@
+{
+  "number": 821,
+  "title": "`light-dark` is broken when children have different `color-scheme`'s",
+  "type": "bug",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "high",
+  "impact": "9 reactions on #821 plus 9 on #873 (same cause); real projects named: Esri calcite-design-system (#15348, documented a workaround), react-data-grid (switched to esbuild, via #873), component-library authors; Vite 8 now uses Lightning CSS by default with targets below Chrome 123/Safari 17.5, and rolldown/Turbopack too, so any design-token setup that defines light-dark() tokens on :root and sets color-scheme on a descendant breaks by default. Tailwind sidesteps it by excluding LightDark.",
+  "area": "transpilation",
+  "code": [
+    "src/values/color.rs: CssColor::to_css (LightDark branch, var(--lightningcss-light,..) output)",
+    "src/properties/custom.rs: TokenList / UnresolvedColor::LightDark (custom property values)",
+    "src/properties/ui.rs: ColorSchemeHandler::handle_property (emits the toggles)",
+    "src/declaration.rs: DeclarationHandler::add_conditional_fallbacks"
+  ],
+  "summary": "The light-dark() polyfill rewrites it as var(--lightningcss-light,a) var(--lightningcss-dark,b), with the toggles set next to color-scheme. In a custom property the var() toggles are substituted where the custom property is declared (e.g. :root), so the inherited token value is fixed there; a descendant that changes color-scheme flips the toggles but not the already-computed token. Native light-dark() in a custom property stays unresolved until it is used, so it follows the using element's color-scheme. This is inherent to the polyfill technique; it can only be fixed for browsers that support light-dark() natively.",
+  "repro": "821-repro.mjs. Input `:root{--background:light-dark(white,black);--text:light-dark(black,white)} p{color:var(--text);background:var(--background);color-scheme:dark}` with targets chrome 90 -> `:root{--background:var(--lightningcss-light,#fff)var(--lightningcss-dark,#000);...}p{...;--lightningcss-light: ;--lightningcss-dark:initial;color-scheme:dark}` (local, 1.33.0, 1.32.0, 1.31.1 identical).",
+  "evidence": "repro.mjs: reporter case WRONG on local/1.33.0/1.32.0/1.31.1; controls correct (tokens on the same element as color-scheme work; native targets untouched). equivalence.mjs (Chromium 153, default + emulated dark) on the reporter's CSS with --targets 'chrome 90': NOT EQUIVALENT, p background rgb(0,0,0) -> transparent and color white -> black (here :root also lacks color-scheme, so the token is '#fff #000', invalid at computed time). Hand-built output in the style of PR #1287 (polyfill + `@supports (color:light-dark(#000,#fff)){:root{--bg:light-dark(...)}}`) on the #873 theme-class fixture: EQUIVALENT in default and dark. Comment sub-cases: `color-scheme:inherit` -> `normal` (bennypowers) fixed by #1152, correct since 1.32.0 (wrong in 1.31.1). Hysterelius' Rust example passes targets only to to_css, not to minify(), so ColorSchemeHandler never emits toggles; with targets in transform() the docs example output is produced (usage error, see control case).",
+  "suggestedLabels": [
+    "bug",
+    "area: transpilation"
+  ],
+  "action": "needs-maintainer-decision",
+  "fix": {
+    "size": "medium",
+    "approach": "For custom properties whose value contains light-dark(), keep the polyfilled value and add an `@supports (color: light-dark(#000,#fff))` override with the native value (PR #1287), so modern browsers get native semantics and old ones keep today's behavior; alternatively a separate feature flag to skip lowering light-dark() inside custom properties, as the maintainer suggested. Independently, add the docs caveat the maintainer agreed to (not yet in website/pages/transpilation.md).",
+    "goodFirstIssue": false
+  },
+  "openPRs": [
+    {
+      "number": 1287,
+      "assessment": "Second iteration (after the maintainer called the first one breaking) keeps the polyfill and adds native @supports overrides for custom properties, handling redeclaration (remove_conditional_property), LAB/P3 combos and @property initial-value. The approach is browser-equivalent on the #873 fixture. Has tests. Not yet reviewed by the maintainer since the rewrite; branch is behind master. Concerns: adds bytes for every light-dark() token (one extra rule per block); bundles unrelated changes (TargetsWithSupportsScope now also flips `include`, attr()/var() fallbacks no longer count for @supports feature detection, @property initial-value no longer lowered) that deserve separate review; need to check the overrides are drained in nested-declaration/@media contexts (pitfall section 2). Recommend reviewing this first."
+    }
+  ],
+  "subcases": [
+    {
+      "case": "tokens on :root, color-scheme on descendant (original report)",
+      "status": "confirmed",
+      "cause": "polyfill resolves in custom property at declaration element",
+      "fix": "PR #1287 or new flag; docs caveat"
+    },
+    {
+      "case": "Hysterelius: Rust API, variables never defined",
+      "status": "works-as-intended (usage)",
+      "cause": "targets passed to to_css() but not to minify(); the toggles are emitted during minify by ColorSchemeHandler",
+      "fix": "pass targets in MinifyOptions too"
+    },
+    {
+      "case": "bennypowers/Bricklou: color-scheme:inherit -> normal",
+      "status": "fixed-in-release",
+      "fixedBy": "#1152 (released in 1.32.0)"
+    },
+    {
+      "case": "requests to stop lowering light-dark() by default",
+      "status": "needs-maintainer-decision",
+      "cause": "maintainer said removal is breaking; Features.LightDark exclude or raising targets already disables it"
+    }
+  ],
+  "draftReply": "Thanks all for the detailed reports. To summarize where this stands: the light-dark() fallback relies on CSS variables, and a custom property's value is computed on the element that declares it. So when tokens like `--background: light-dark(...)` are defined on `:root` and `color-scheme` changes on a descendant, the token has already been resolved and doesn't follow the descendant's scheme. It works when the tokens are declared on the same element that sets `color-scheme`. This can't be fixed for browsers without native support, but there's an open PR, #1287, that keeps the fallback and adds a native `light-dark()` override for browsers that support it.\n\nUntil then, you can disable the transform with `exclude: Features.LightDark` (in Vite: `css.lightningcss.exclude`) or raise targets to Chrome 123 / Safari 17.5 / Firefox 120.\n\nThe `color-scheme: inherit` -> `normal` problem mentioned above was fixed in 1.32.0 (#1152).\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+  "confidence": "high",
+  "notVerified": "PR #1287 not built or run; only its expected output pattern was browser-checked by hand. Old-browser behavior (Chrome <123) not run, only reasoned. Only Chromium checked."
+}

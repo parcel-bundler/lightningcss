@@ -1,0 +1,3 @@
+@import "b.css" supports(color: red);
+@import "b.css" supports(foo: bar);
+.a { color: red }

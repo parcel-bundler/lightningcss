@@ -1,0 +1,31 @@
+{
+  "number": 1163,
+  "title": "Add support to ppc64/s390 and IBM AIX architectures",
+  "type": "feature",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "medium",
+  "impact": "Node.js core's doc tooling (Vite + lightningcss) fails on Node's ppc64le (rhel8/9) and s390x (rhel9) CI nodes with `Cannot find module '../lightningcss.linux-ppc64-gnu.node'` / `linux-s390x-gnu.node`; Node says it must support those platforms. 2 reactions here; related requests #1075 (s390x), PRs #1217 (ppc64le+s390x) and #1294 (s390x). Otherwise a niche platform set. Maintainer already said on #1294 (2026-07-20): 'not sure this has wide enough usage to take on officially. We also have no way to test that it works.'",
+  "area": "bindings",
+  "code": [".github/workflows/release.yml", "scripts/build-npm.js (triples, cpuToNodeArch)", "node/index.js (loader picks lightningcss-${platform}-${arch}-gnu)"],
+  "summary": "No prebuilt packages exist for linux-ppc64-gnu or linux-s390x-gnu, so node/index.js falls through to a missing local .node file. Adding them is a release-pipeline change (cross-compile on x86_64 runners + two npm packages) with no on-hardware testing in CI; AIX (powerpc64-ibm-aix is a tier-3 Rust target) is not realistic. Decision is the maintainer's: support officially (Node.js core is a strong user) or decline and point to the WASM package / building from source.",
+  "repro": "1163-repro.mjs: lists optionalDependencies of each published lightningcss (or triples in scripts/build-npm.js for local). 1.31.1..1.33.0 and master: no linux-ppc64-gnu / linux-s390x-gnu. Control (x64/arm64 gnu present): correct.",
+  "evidence": "Ran repro on local + 3 releases. Read PR diffs. @napi-rs/cli 2.18.4 (node_modules) CpuToNodeArch has no powerpc64le entry, so `napi build --platform --target powerpc64le-unknown-linux-gnu` emits lightningcss.linux-powerpc64le-gnu.node (consistent with IronBlood's artifacts).",
+  "suggestedLabels": ["enhancement"],
+  "action": "needs-maintainer-decision",
+  "fix": {"size": "small", "approach": "Add the two triples to release.yml and build-npm.js (PR #1217), plus renaming the ppc64le artifact to lightningcss.linux-ppc64-gnu.node; ideally a QEMU smoke test (e.g. run node/test under qemu-user) since s390x is big-endian.", "goodFirstIssue": false},
+  "openPRs": [
+    {"number": 1217, "assessment": "Recommended if the maintainer accepts the platforms. Cross-compiles both on ubuntu-latest and adds triples + powerpc64le->ppc64 mapping in build-npm.js. Likely bug: napi-rs CLI 2.x names the ppc64le addon lightningcss.linux-powerpc64le-gnu.node, but buildNode() copies artifacts/bindings-powerpc64le-unknown-linux-gnu/lightningcss.linux-ppc64-gnu.node, so the npm step would fail unless the build job renames it (IronBlood's fork does `mv ... linux-ppc64-gnu.node`). No tests on target hardware; uses Node 18 and actions v3 like other jobs. Behind master."},
+    {"number": 1294, "assessment": "s390x only, via the napi-rs debian docker image. Subset of #1217; maintainer already pushed back on it. Close in favour of #1217 if accepted."}
+  ],
+  "subcases": [
+    {"case": "linux ppc64le (process.arch 'ppc64')", "status": "open; PR #1217. Note the npm package cpu:['ppc64'] would also match rare big-endian ppc64 Linux, where the LE binary won't load."},
+    {"case": "linux s390x", "status": "open; PRs #1217, #1294, issue #1075. Big-endian; IronBlood reports node tests passing under emulation (not verified). css_modules hashing uses to_le_bytes so output is endian-independent."},
+    {"case": "IBM AIX", "status": "not feasible: Rust target powerpc64-ibm-aix is tier 3 with no std guarantees, and napi on AIX is untested; recommend lightningcss-wasm"}
+  ],
+  "draftReply": null,
+  "confidence": "medium",
+  "notVerified": "Did not build PR #1217 or run under QEMU. The intermittent segfault at process exit on ppc64 (IronBlood) is unverified and may be the runner/Node rather than lightningcss. Did not confirm whether lightningcss-wasm can be aliased in for Vite's `import('lightningcss')` as a workaround."
+}

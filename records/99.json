@@ -1,0 +1,39 @@
+{
+  "number": 99,
+  "title": "CSS Color Level 5",
+  "type": "meta",
+  "status": "feature-request",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "Umbrella opened by the maintainer in 2022; 7 reactions. The most-used parts (color-mix, relative colors, light-dark, alpha()) are done. The main remaining gap with real-world demand is contrast-color(), which now ships in all three engines.",
+  "area": "transpilation",
+  "code": ["src/values/color.rs: parse_color_function, parse_color_mix, CssColor", "src/properties/custom.rs: try_parse_color_token, UnresolvedColor"],
+  "summary": "Supported: color-mix() with an explicit color space and two colors, relative color syntax, light-dark() (colors, and images via the var() lowering), and alpha() (since 1.33.0). Missing: contrast-color() (open PRs #808, #1160), the new color-mix() forms (optional color space, more than two colors; tracked in #1224), the display-p3-linear color space (tracked in #1161), and the at-risk features no browser ships (device-cmyk(), @color-profile, custom color spaces). Unsupported syntax passes through unchanged as tokens, not lowered and with no error, so nothing is broken in strict mode.",
+  "repro": "99-repro.mjs: one case per feature (controls for supported features, desired behavior for missing ones, passthrough checks for at-risk ones).",
+  "evidence": "scripts/repro.mjs on local (master) + 1.33.0, 1.32.0, 1.31.1. Spec: css-color-5 ED Overview.bs (Status: ED; the 2026 changes list puts custom color spaces, @color-profile, device-cmyk() and relative alpha colors at risk; contrast-color(<color>) resolves to white or black with a UA-defined algorithm). @mdn/browser-compat-data 8.0.7 (repo node_modules). Chromium 153 probe: contrast-color(red)/(#777) -> black, #666/navy -> white (consistent with the WCAG 2 maximum); color-mix(red, blue) is supported, the three-color form is not; device-cmyk is not supported.",
+  "suggestedLabels": ["enhancement"],
+  "action": "keep-open",
+  "fix": {"size": "medium", "approach": "Each case separately. contrast-color(): per the maintainer's #1160 comment, resolve known colors to black/white at build time (no CssColor::ContrastColor variant needed) and keep var()/currentColor unresolved; scope #808 down to the level 5 syntax (no `max`, no level 6 candidate list).", "goodFirstIssue": false},
+  "openPRs": [
+    {"number": 1160, "assessment": "Parse-only: adds CssColor::ContrastColor plus UnresolvedColor::ContrastColor, keeps contrast-color(...) as written (no lowering). Has tests. The maintainer asked for build-time resolution, which would remove the new AST variant; the author argued the L5 algorithm is subpar. Unresolved design disagreement."},
+    {"number": 808, "assessment": "Resolves at build time with WCAG 2 contrast; also accepts the `max` keyword (since removed from the L5 ED) and L6 `tbd-bg wcag2, <colors>` behind a `level6` cargo feature. Old (2024) and needs a rebase. The maintainer suggested scoping it down to L5. Its luminance calculation is a closer starting point for what the maintainer wants."}
+  ],
+  "subcases": [
+    {"feature": "color-mix() (explicit space, two colors)", "status": "supported", "since": "PR #105 (2022)", "note": "color-mix(in srgb, red 40%, blue) -> #609"},
+    {"feature": "Relative color syntax", "status": "supported", "since": "commit 44a402d (2022)", "note": "not resolvable with var() origins (passes through)"},
+    {"feature": "alpha() relative-alpha function", "status": "supported", "since": "1.33.0 (#1266)", "browsers": "Chrome 151, Safari 27, Firefox preview", "note": "the spec puts it at risk"},
+    {"feature": "light-dark() colors", "status": "supported", "note": "lowered with --lightningcss-light/dark vars; separate open bugs #821, #873, #831, #1382"},
+    {"feature": "light-dark() images (new 2026 form)", "status": "works", "note": "lowered with the same var() trick for old targets; browsers: Chrome 150, Firefox 150, Safari 27"},
+    {"feature": "contrast-color()", "status": "missing", "browsers": "Chrome 147, Firefox 146, Safari 26 (all shipped)", "tracking": "open PRs #808, #1160; no separate issue", "note": "passes through unchanged and is not lowered for older targets; the most valuable remaining item"},
+    {"feature": "color-mix() optional interpolation method (defaults to oklab)", "status": "missing", "browsers": "supported in Chromium 153 (probe); BCD 8.0.7 has no entry", "tracking": "#1224"},
+    {"feature": "color-mix() with more than two colors", "status": "missing", "browsers": "Firefox 150; Safari preview; Chrome no", "tracking": "#1224"},
+    {"feature": "display-p3-linear color space (color(), interpolation)", "status": "missing", "browsers": "Chrome 144, Firefox 146, Safari 26.2", "tracking": "#1161", "note": "now in css-color-4 as well"},
+    {"feature": "device-cmyk()", "status": "missing (passes through)", "browsers": "none", "note": "at risk in the ED; out of scope until a browser ships it"},
+    {"feature": "@color-profile and custom color spaces color(--x ...), in --x", "status": "missing (passes through; @color-profile warns as an unknown at-rule)", "browsers": "none", "note": "at risk; needs ICC profiles, can't be lowered at build time"}
+  ],
+  "draftReply": "Status update on Color 5 as of 1.33.0:\n\n**Supported:** `color-mix()` (explicit color space, two colors), relative color syntax, `light-dark()` (colors, and now images), and `alpha()` (new in 1.33.0).\n\n**Missing:**\n- `contrast-color()`: now shipped in Chrome, Firefox and Safari. There are two open PRs, #808 and #1160, that address it.\n- The newer `color-mix()` forms (optional color space, more than two colors): tracked in #1224.\n- The `display-p3-linear` color space: tracked in #1161.\n- `device-cmyk()`, `@color-profile` and custom color spaces: no browser supports them and the spec marks them at risk. They pass through unchanged.\n\nUnsupported syntax currently passes through as written, without being lowered for older browsers.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+  "confidence": "high",
+  "notVerified": "Browser versions come from the repo's @mdn/browser-compat-data 8.0.7 and a Chromium 153 probe; Firefox/Safari were not run. Did not build either contrast-color PR. Did not check whether the light-dark() image lowering is visually correct in an old browser."
+}

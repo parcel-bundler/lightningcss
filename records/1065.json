@@ -1,0 +1,41 @@
+{
+  "number": 1065,
+  "title": "Stylesheet visitor fails when using custom properties in 1.30.2",
+  "type": "regression",
+  "status": "confirmed",
+  "duplicateOf": null,
+  "fixedBy": null,
+  "regression": {
+    "lastGood": "1.30.1",
+    "firstBad": "1.30.2",
+    "commit": "9879b91 Use serde-content instead of private serde types (#1062)"
+  },
+  "severity": "high",
+  "impact": "15 reactions, 11 comments; duplicate #1081 (14 reactions, 12 comments). Breaks every .css file in Expo SDK 57 + NativeWind 5 (react-native-css uses StyleSheetExit), with 10+ downstream NativeWind reports. Also breaks the documented @mixin/@apply custom at-rule recipe and Tailwind-style @theme -> :root transforms, plus sugarcss and kitto visitors. Users are pinning to 1.30.1, which is getting harder now that Vite 8 bundles a newer lightningcss. Arguably critical given the NativeWind blast radius, but limited to JS visitor users.",
+  "area": "custom visitors",
+  "code": [
+    "napi/src/transformer.rs: ValueOrVec::deserialize, TokensOrRaw::deserialize",
+    "src/properties/mod.rs: Property Deserialize (serde_content::Deserializer::new(content))",
+    "src/rules/mod.rs: CssRule Deserialize",
+    "dependency serde-content 0.1.2 src/de/mod.rs:355 deserialize_option (`_ => visitor.visit_some(self)`)"
+  ],
+  "summary": "Since 1.30.2, any visitor that returns a node containing an Option field set to null fails to deserialize, e.g. `var()`'s `name.from: null` or `fallback: null`. The error is `expected an object-like struct named Specifier, found ()`. #1062 replaced serde's private Content with serde-content, whose deserialize_option treats Value::Unit (JS null) as Some(()). Serde's own Content treated Unit as None.",
+  "repro": "1065-repro.mjs: `.foo { color: var(--color-red); }` with visitor `{StyleSheet(s){return s}}` -> `ERROR: failed to deserialize; expected an object-like struct named Specifier, found ()` (expected `.foo{color:var(--color-red)}`). 1065-repro-function.mjs: Function visitor returning `var(--a)` unchanged, same error. 1065-repro-nulls.mjs: same sheet with null fields stripped -> works, which confirms the null/Option root cause.",
+  "evidence": "repro.mjs: wrong on local master, 1.33.0, 1.32.0, 1.31.1, 1.31.0, 1.30.2; correct on 1.29.0-1.30.1. Bisect: 1.30.1 -> 1.30.2. 9879b91 (#1062) is in v1.30.2 and not in v1.30.1. Read serde-content-0.1.2/src/de/mod.rs:355-369: only Value::Option(None) maps to visit_none, everything else to visit_some. The analysis by Brentlok in #1081 matches.",
+  "suggestedLabels": [
+    "bug",
+    "area: custom visitors"
+  ],
+  "action": "queue-fix",
+  "fix": {
+    "size": "small",
+    "approach": "Normalize Value::Unit to Value::Option(None) before deserializing buffered content (Property, CssRule, napi ValueOrVec), or patch serde-content. Open PR #1357 does the former with Rust and JS tests and says it fixes #1065 and #1081. Review and merge it rather than writing a new fix.",
+    "goodFirstIssue": false
+  },
+  "relatedPRs": [
+    1357
+  ],
+  "draftReply": "Confirmed: this is a regression in 1.30.2 and still happens on 1.33.0. Returning a node that contains a `null` optional field, most commonly a plain `var()` (`from: null`, `fallback: null`), fails with `expected an object-like struct named Specifier, found ()`. It comes from #1062, which switched the internal deserializer to serde-content, and serde-content treats `null` as \"present\" for optional fields. 1.30.1 is the last good version.\n\nWorkaround until a fix is released: strip `null`-valued properties from the nodes you return, as shown in the comments here. Omitted fields deserialize fine. #1357 proposes a fix, and #1081 is the same issue.",
+  "confidence": "high",
+  "notVerified": "PR #1357 wasn't built or run (no Rust rebuild allowed). The WASM/playground build wasn't tested separately, though it shares the deserializer. Whether the Rust serde_json path (tests/test_serde.rs) also fails wasn't checked locally; PR #1357 says it does."
+}

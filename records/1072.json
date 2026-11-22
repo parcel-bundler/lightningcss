@@ -1,0 +1,22 @@
+{
+  "number": 1072,
+  "title": "CSS Parsing error for `:scroll-button`",
+  "type": "feature",
+  "status": "duplicate",
+  "duplicateOf": 1184,
+  "fixedBy": null,
+  "regression": null,
+  "severity": "low",
+  "impact": "2 reactions, plus sibling #1177 (::scroll-marker, 3 reactions). Next.js Turbopack users get a build failure because Turbopack turns Lightning CSS warnings into errors (maintainer comment, 2026-03-16). The feature is Chrome 135+ only (MDN: experimental, Firefox/Safari false).",
+  "area": "parser",
+  "code": ["src/selector.rs: pseudo-element parsing (parse_pseudo_element / PseudoElement::Custom fallback)", "src/error.rs:280 UnsupportedPseudoElement message"],
+  "summary": "`::scroll-button()` (CSS Overflow 5) isn't a known pseudo-element. Since 1.28.0 Lightning CSS keeps the rule unchanged and emits a warning even in strict mode, and Turbopack reports that as an error. Typed support for ::scroll-button/::scroll-marker/::scroll-marker-group is tracked in #1184 (#1177 is the same request for ::scroll-marker). Separately, the warning text ('Did you mean :scroll-button (pseudo-class)?') is a misleading hint for a valid pseudo-element; it probably explains the ':scroll-button' in the title.",
+  "repro": "1072-repro.mjs: `.c::scroll-button(right){content:\">\"} .c::scroll-button(*):disabled{opacity:.5}`. Local and 1.28.0-1.33.0: output unchanged in both strict and errorRecovery modes, with 2 warnings \"'scroll-button' is not recognized as a valid pseudo-element. Did you mean ':scroll-button' (pseudo-class) or is this a typo?\". 1.21-1.27: unchanged with warning 'Unsupported pseudo class or element'. <=1.20: strict ERROR 'Invalid pseudo class after pseudo element' on the :disabled rule.",
+  "evidence": "repro.mjs --all --bisect (message change between 1.27.0 and 1.28.0). probe.mjs in Chromium 153: CSS.supports('selector(.c::scroll-button(*):disabled)') and selector(.c::scroll-marker) are both true. Spec (css-overflow-5 Overview.bs, ED): \"The ::scroll-button( '*' | <<scroll-button-direction>> ) pseudo-elements\" (line 567). MDN bcd css.selectors.scroll-button: chrome 135, firefox false, safari false, experimental.",
+  "suggestedLabels": ["enhancement"],
+  "action": "link-duplicate",
+  "fix": {"size": "medium", "approach": "Add typed PseudoElement variants for ::scroll-button(<direction>|*), ::scroll-marker and ::scroll-marker-group (with the user-action/state pseudo-classes allowed after them), behind a draft flag if the maintainer wants that for single-engine features, as part of #1184. Separately (small): improve the UnsupportedPseudoElement hint so it doesn't suggest a pseudo-class when the name was written with ::.", "goodFirstIssue": false},
+  "draftReply": "Thanks for the report! The output is already right: since 1.28, Lightning CSS keeps `::scroll-button()` rules exactly as written and only emits a warning that it doesn't recognize the pseudo-element. The build failure comes from Turbopack treating that warning as an error, which we've raised with the Next.js team. Typed support for `::scroll-button()`, `::scroll-marker` and `::scroll-marker-group` (CSS Overflow 5, currently Chrome 135+ only) is tracked in #1184, so let's follow it there. Also, the warning's suggestion of a `:scroll-button` pseudo-class is misleading; your `::scroll-button` syntax is correct.",
+  "confidence": "high",
+  "notVerified": "Didn't reproduce through Next.js/Turbopack, and the screenshot wasn't readable as text. Whether current Next.js still promotes the warning is unknown. Whether the maintainer wants a draft flag for these Chrome-only pseudo-elements is a maintainer decision."
+}
