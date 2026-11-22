@@ -13,9 +13,11 @@ Maintainer verdicts on agent reviews. This is an eval set for the review skill: 
 
 ## Decision queue PR batch 2026-11-22
 
-Comments approved and posted for #1250, #1259, #1306, #1321, #1354, #1383, #1387, #1390; #1287 (needs-maintainer-decision) still pending. Maintainer edited three drafts before posting:
-- #1250, #1354: trimmed the opening and removed evidence about how it was verified (tool details, mapping counts); kept the concrete browser behavior and requests.
-- #1387: shortened.
+Comments approved and posted for #1250, #1259, #1306, #1321, #1354, #1383, #1387, #1390; #1287 (needs-maintainer-decision) still pending. Maintainer edited three drafts before posting, all small trims:
+- #1250: dropped the "thanks for pushing back on the old-browsers-only point" opener; softened "It's still true" to "Looks like it's still true".
+- #1354: removed "CI hasn't run on this PR yet, so that still needs to happen."
+- #1387: removed "There's no size change on real-world CSS."
+Pattern: leave out remarks about process (CI status, size results with no change) and anything that re-litigates the thread; keep the browser behavior and the requests.
 Maintainer notes:
 - For selector changes, check whether upstream servo/stylo selectors (the fork source) has related changes. Added to the skill.
 - Follow-up bugs already mentioned in a PR comment count as handled there; only file separate issues for ones that weren't.
