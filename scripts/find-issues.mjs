@@ -3,7 +3,8 @@
 // scripts/fetch-issues.mjs) and show which PRs reference each match.
 //
 // Usage:
-//   node scripts/find-issues.mjs REGEX [REGEX...]   all regexes must match (title or body), case-insensitive
+//   node scripts/find-issues.mjs REGEX [REGEX...]   ALL regexes must match (title or body), case-insensitive
+//   node scripts/find-issues.mjs --any REGEX [REGEX...]  ANY regex may match
 //   node scripts/find-issues.mjs --refs 1065         PRs/issues that mention #1065 ("fixes #1065", "#1065", ...)
 //   options: --open, --closed, --issues, --prs, --limit N
 import fs from 'fs';
@@ -33,6 +34,7 @@ for (let r of rows) {
 
 let argv = process.argv.slice(2);
 let flags = new Set(argv.filter(a => a.startsWith('--') && a !== '--limit' && a !== '--refs'));
+let any = flags.has('--any');
 let limit = argv.includes('--limit') ? Number(argv[argv.indexOf('--limit') + 1]) : 30;
 let fmt = (r) => {
   let kind = r.kind === 'pr' ? (r.merged ? 'PR merged' : `PR ${r.state}`) : `issue ${r.state}`;
@@ -53,11 +55,11 @@ if (argv.includes('--refs')) {
 
 let patterns = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--limit').map(p => new RegExp(p, 'i'));
 if (!patterns.length) {
-  console.error('Usage: node scripts/find-issues.mjs REGEX [REGEX...] | --refs N  [--open|--closed] [--issues|--prs] [--limit N]');
+  console.error('Usage: node scripts/find-issues.mjs [--any] REGEX [REGEX...] | --refs N  [--open|--closed] [--issues|--prs] [--limit N]\nWithout --any, all patterns must match.');
   process.exit(2);
 }
 let matches = rows.filter(r =>
-  patterns.every(p => p.test(r.title) || p.test(r.body)) &&
+  (any ? patterns.some(p => p.test(r.title) || p.test(r.body)) : patterns.every(p => p.test(r.title) || p.test(r.body))) &&
   (!flags.has('--open') || r.state === 'open') &&
   (!flags.has('--closed') || r.state === 'closed') &&
   (!flags.has('--issues') || r.kind === 'issue') &&
