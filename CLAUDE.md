@@ -62,7 +62,7 @@ CSS has many non-obvious rules, so reasoning alone is not evidence that a transf
 - `node scripts/cases.mjs cases.css [--base-bin A] [--bin B] [--config "--minify"]... [--repeat N]` runs many `/* case: name */` blocks through one or two builds under several option sets. It browser-checks every output and classifies each run as regression, fixed, still-broken, changed or ok.
 - `node scripts/probe.mjs "matchMedia('(min-width)').media" ...` evaluates expressions in Chromium (with optional `--css-text`/`--html`/`--media`) to see how a real browser parses or computes something.
 - `scripts/build-pr.sh [--on-master] <pr-number>` builds the PR and its merge base (or the PR merged onto master, and master) into `target/review/` and prints `PR_BIN=` / `BASE_BIN=`.
-- `scripts/size-check.sh BASE_BIN NEW_BIN [files...]` compares minified output size and time on two corpora:
+- `scripts/size-check.sh BASE_BIN NEW_BIN [files...]` compares minified output size and time, without targets and with older targets (lowering only happens with targets), on two corpora:
   - a synthetic one (`scripts/size-corpus.py`): Tailwind-style, component bundles and atomic CSS;
   - a pinned real-world one (`scripts/real-corpus.json`, fetched from npm by `scripts/fetch-corpus.mjs`): react-spectrum S2's atomic CSS, Radix Themes, Bootstrap, Bulma, Primer, Pico, animate.css, Open Props and Font Awesome.
 - `node scripts/repro.mjs repro.mjs [--range A..B] [--bisect]` runs an issue repro (JS API) against the local build and published npm releases (cached in `target/review/npm`), groups identical outputs, and bisects to the release where behavior changed.
