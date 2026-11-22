@@ -1,0 +1,25 @@
+{
+ "pr": 1248,
+ "title": "fix(test): cross-platform color rounding in conversions",
+ "author": "cscnk52",
+ "created": "2026-05-23",
+ "lastActivity": "2026-05-23",
+ "linkedIssues": [
+  541
+ ],
+ "relatedPRs": [
+  1247,
+  1249,
+  1119,
+  1120
+ ],
+ "kind": "tests",
+ "size": "+32/-16 in 3 files",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Despite the title, this changes production color-conversion math: it replaces std atan2/sin/cos/cbrt/powf with the `libm` crate and powi with multiplication, so Windows test output matches Linux. It adds a new runtime dependency and may change last-digit output and speed on all platforms; part of a Windows-parity cluster (#1247 hashes, #1249 CI matrix, #1119/#1120).",
+ "evidence": "Master still uses powi/cbrt/atan2 in src/values/color.rs. #541 shows Windows diffs like `40.4543` vs `40.4542`. A commenter on #541 suggested tolerance-based test comparisons instead. No reviews or comments on the PR. Not checked: whether outputs change on Linux, or the perf of libm vs intrinsics.",
+ "decision": "Is Windows test parity worth adding a `libm` dependency and changing color math on every platform, or should tests use tolerant comparisons (or skip Windows CI)?",
+ "draft": null,
+ "confidence": "medium"
+}

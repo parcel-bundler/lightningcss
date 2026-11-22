@@ -1,0 +1,20 @@
+{
+ "pr": 1339,
+ "title": "fix: deduplicate mask image prefixes",
+ "author": "SyMind",
+ "created": "2026-09-08",
+ "lastActivity": "2026-10-29",
+ "linkedIssues": [],
+ "relatedPRs": [
+  1295
+ ],
+ "kind": "bugfix",
+ "size": "+84/-1 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "low",
+ "summary": "With prefix targets, an authored `-webkit-mask-image: var(--x); mask-image: var(--x)` pair produces a duplicate `-webkit-mask-image`. The maintainer asked on 2026-09-27 for a simpler adjacent-only merge without the quadratic backward scan, and the author did exactly that on 2026-10-08 (a check of `dest.last_mut()`). The feedback is addressed, so it's ready for a real review.",
+ "evidence": "master 574eee2 CLI (target/review/base-574eee2/lightningcss; master-build.log was still empty) with --targets 'chrome 90': `.foo{-webkit-mask-image:var(--image);-webkit-mask-image:var(--image);mask-image:var(--image)}` (duplicate, harmless but bloated). devongovett 2026-09-27: \"Could we simplify this a bit? We could check whether `dest.last_mut()` is an unparsed `mask-image` with the same token value and merge its prefix bits... The current backward scan also introduces quadratic behavior\". The current diff (commit 0e6ec3a) is that simplification. kdy1 (member) reviewed against the spec on 2026-10-29 and found no issues. The PR description is stale (it still describes the backward scan). Related but separate: #1295 dedupes unparsed `-webkit-mask` (shorthand). Output only gets smaller, so it's cosmetic, hence low priority.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

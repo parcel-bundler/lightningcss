@@ -1,0 +1,25 @@
+{
+ "pr": 1295,
+ "title": "Fix: deduplicate unparsed -webkit-mask declarations",
+ "author": "franciscolourenco",
+ "created": "2026-07-15",
+ "lastActivity": "2026-07-15",
+ "linkedIssues": [
+  969,
+  403
+ ],
+ "relatedPRs": [
+  1259,
+  1284,
+  850
+ ],
+ "kind": "bugfix",
+ "size": "+162/-4 in 4 files",
+ "recommendation": "deep-review",
+ "priority": "low",
+ "summary": "When an authored `-webkit-mask`/`mask` pair has an unparsed value (e.g. var()), prefixing duplicates `-webkit-mask`; the PR merges an unparsed declaration into the previous one when it is the same property with identical tokens, in the mask handler and in @supports color fallbacks. The bug is real but harmless (identical duplicate). The fix only covers mask, though the same bug is in transition/animation/transform/border-radius handlers.",
+ "evidence": "master 574eee2 CLI with --targets 'chrome 90': `.foo{-webkit-mask:url(m.svg) var(--o);mask:url(m.svg) var(--o)}` -> `-webkit-mask` emitted twice, then `mask`. Still reproduces. No reviews. Design question for review (calibration #1416): the helper is applied per handler; a shared place (e.g. where unparsed prefixed properties are pushed) may be preferred so the other handlers get it too.",
+ "decision": null,
+ "draft": null,
+ "confidence": "medium"
+}

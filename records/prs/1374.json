@@ -1,0 +1,23 @@
+{
+  "pr": 1374,
+  "title": "Preserve parsed declarations during error recovery",
+  "author": "tevinch",
+  "created": "2026-10-15",
+  "lastActivity": "2026-10-15",
+  "linkedIssues": [
+    1358
+  ],
+  "relatedPRs": [
+    1240,
+    954
+  ],
+  "kind": "bugfix",
+  "size": "+73/-2 in 3 files",
+  "recommendation": "deep-review",
+  "priority": "high",
+  "summary": "Removes the two `declarations.clear()` calls in `NestedRuleParser::parse_nested` (src/parser.rs) so that, with errorRecovery, an invalid item inside a style block no longer throws away every declaration parsed before it. One-line core change plus Rust and Node tests; strict mode still errors.",
+  "evidence": "Master (574eee2) with --error-recovery: `.a{color:red;width:1px;@keyframes k{from{opacity:0}}height:2px}` -> `.a{height:2px}`; also `.a{color:red;*zoom:1;width:1px}` -> `.a{width:1px}`, so any invalid declaration (common old IE hacks in third-party CSS) drops all earlier declarations, unlike browsers. Same wrong output on published 1.24.0, 1.25.0 and 1.33.0 (long-standing, not a recent regression). Issue reports Tailwind/Vite production builds losing declarations. The clear() calls look like a misport of stylo's per-declaration scratch buffer; review should confirm nothing relied on it (e.g. partially pushed shorthand expansions from a failed declaration). No maintainer comments; closed #1240 attempted a much bigger Raw-node approach.",
+  "decision": null,
+  "draft": null,
+  "confidence": "high"
+}

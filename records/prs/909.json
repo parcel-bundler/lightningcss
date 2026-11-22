@@ -1,0 +1,20 @@
+{
+ "pr": 909,
+ "title": "Add failing test for composing default class",
+ "author": "mrginglymus",
+ "created": "2025-02-04",
+ "lastActivity": "2025-08-14",
+ "linkedIssues": [
+  908
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+30/-1 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "low",
+ "summary": "`composes: default` is silently ignored because the class name is parsed with CustomIdent, which rejects CSS-wide keywords and `default`; the declaration then falls back to an unparsed `composes:` that leaks into the output. Despite the title, the PR includes the fix: parse a plain ident (still rejecting `from`).",
+ "evidence": "Master CLI (/home/user/lightningcss/target/review/ref-574eee2/lightningcss (master 574eee2)) `--css-modules`: `.default{color:blue}.foo{composes:default;color:red}` -> JSON `foo.composes: []` and CSS `.WduyGG_foo{composes:default;color:red}`. One-line change in src/properties/css_modules.rs parse_one_ident; also makes `composes: inherit/initial` etc. reference classes of that name (CSS-wide keywords aren't handled generically in Property::parse, so previously they also became unparsed `composes`). Author pinged the maintainer 2025-08-14 with no reply. Nearly trivial; quick review to confirm the keyword behavior is wanted.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

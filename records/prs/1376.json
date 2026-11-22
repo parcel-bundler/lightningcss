@@ -1,0 +1,20 @@
+{
+ "pr": 1376,
+ "title": "Carry forward missing components in color-mix()",
+ "author": "ybai08",
+ "created": "2026-10-17",
+ "lastActivity": "2026-10-17",
+ "linkedIssues": [
+  1368
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+157/-0 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "low",
+ "summary": "Implements css-color-4 \u00a713.3 carry-forward of `none` components when a color-mix() input is converted to the interpolation space (analogous-component table plus the 'remaining set' rule). Spec-correct, well tested, raises a WPT subset from 48 to 101 passing; worth a review, but `none` inside cross-space color-mix() is rare in real CSS.",
+ "evidence": "master 574eee2 CLI: `color-mix(in hsl, lch(none none 180), hsl(11 33 44))` -> `#4b2d26`; PR/browsers expect `#95594b`, so the bug is still on master. No competing PR for #1368. No comments/reviews. Review notes: adds a required method `set_missing_components` to the public `pub trait Interpolate` (Rust API break for external implementors; give it a default impl), and adds a `ColorSpace` bound on `CssColor::interpolate`. Issue and PR look agent-generated (fringe case).",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

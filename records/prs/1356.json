@@ -1,0 +1,20 @@
+{
+ "pr": 1356,
+ "title": "feat: add support for the @function rule",
+ "author": "SahilRajputdotexe",
+ "created": "2026-10-01",
+ "lastActivity": "2026-10-01",
+ "linkedIssues": [
+  788
+ ],
+ "relatedPRs": [],
+ "kind": "feature",
+ "size": "+1190/-0 in 15 files",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "medium",
+ "summary": "Adds CSS Functions `@function` behind a new `customFunctions` drafts flag and evaluates calls at build time (substituting results and dropping the @function rule), similar to customMedia. Large new public option across Rust/napi/C/JS, on a draft spec that Chrome ships and Safari is implementing; the core question is whether build-time evaluation is the right model at all.",
+ "evidence": "#788 has 18 reactions, no maintainer comment there; calibration log (#788): 'was Chrome-only; Safari is now implementing it, so consider it'. PR inlines calls with `var()` resolved only against locals, params and custom properties *on the same rule*, so inherited/contextual custom properties (which real @function resolves dynamically at the element) can't be evaluated correctly at build time. Hand-edits generated `node/ast.d.ts`. Nested @function (e.g. in @media) kept as written. No reviews/comments.",
+ "decision": "Should Lightning CSS support @function by evaluating calls at build time (this PR, behind a drafts flag), or first parse and pass @function/calls through as typed syntax and only lower the statically resolvable cases?",
+ "draft": null,
+ "confidence": "medium"
+}

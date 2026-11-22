@@ -1,0 +1,18 @@
+{
+  "pr": 1335,
+  "title": "fix: minify zero-valued translate3d in a single pass",
+  "author": "SyMind",
+  "created": "2026-09-08",
+  "lastActivity": "2026-11-02",
+  "linkedIssues": [],
+  "relatedPRs": [],
+  "kind": "perf",
+  "size": "+65/-1 in 2 files",
+  "recommendation": "trivial-merge",
+  "priority": "low",
+  "summary": "One-condition change in Transform::to_css: translate3d(x,0,0) now minifies to translate(x) even when x is zero, so translate3d(0,0,0) becomes translate(0) instead of translate(0,0). translate()'s omitted second argument is defined as 0, so the two outputs are identical functions; the 3D->2D conversion itself already exists on master. Tests cover units, -0, %, calc, prefixes, var() and non-minified output.",
+  "evidence": "Master: `.foo{transform:translate3d(0,0,0)}` -> `.foo{transform:translate(0,0)}`. src/properties/transform.rs:1062 still has `!x.is_zero()`; the fall-through branch prints translate(x,y), so the change only shortens output. kdy1 (member) reviewed against CSS Transforms 1 §7.1/§10 on 2026-10-29 and asked for a rebase, which the author did on 2026-11-02.",
+  "decision": null,
+  "draft": null,
+  "confidence": "high"
+}

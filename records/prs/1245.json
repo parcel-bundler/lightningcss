@@ -1,0 +1,20 @@
+{
+ "pr": 1245,
+ "title": "fix(calc): enhance sum term reduction in calculations to prevent segmentation faults",
+ "author": "TheAlexLichter",
+ "created": "2026-05-20",
+ "lastActivity": "2026-06-24",
+ "linkedIssues": [
+  910
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+128/-8 in 3 files",
+ "recommendation": "deep-review",
+ "priority": "high",
+ "summary": "Adding two Calc::Sum nodes goes through V::try_from(a)?.add(V::try_from(b)?), which recurses without end for inputs like `calc((100dvh - 10.5rem) + (4vh + 230px))` and overflows the stack. The PR flattens both sums into terms and combines like terms. Webflow reported it from production user CSS, so it's a crash on realistic input.",
+ "evidence": "master 574eee2 CLI (target/review/base-574eee2/lightningcss; master-build.log was still empty): `.a{height:calc((100dvh - 10.5rem) + (4vh + 230px))}` -> \"thread 'main' has overflowed its stack\" (abort), still broken on master. #910 is from a Webflow engineer (segfault on their server). Review points: push_reduced_sum_term is O(n^2) in the number of terms (fine for real calc sizes, but check it); the new expected outputs need browser checking (e.g. `calc(min(100vw,1724px)/12 + 50vw - 6.66667px + min(100vw - 112px,1612px)/-2)`); it adds a `Zero` bound to Calc's Parse impl; it includes unrelated rustfmt changes in selector.rs. Related deep-recursion crash reports: #1297, #1155. No maintainer response to the author's ping on 2026-06-24.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

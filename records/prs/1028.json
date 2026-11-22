@@ -1,0 +1,18 @@
+{
+  "pr": 1028,
+  "title": "feat: support options serialize and deserialize",
+  "author": "shulandmimi",
+  "created": "2025-07-10",
+  "lastActivity": "2026-01-03",
+  "linkedIssues": [],
+  "relatedPRs": [],
+  "kind": "feature",
+  "size": "+72/-1 in 5 files",
+  "recommendation": "needs-maintainer-decision",
+  "priority": "low",
+  "summary": "Makes `ParserOptions` (incl. css_modules `Config`, `Pattern`, `Segment`, `ParserFlags`) serde-serializable and includes `options` in `StyleSheet`'s serde output, so a deserialized stylesheet keeps its CSS modules config. Adds the `bitflags/serde` feature.",
+  "evidence": "No maintainer response (author pinged 2025-07-11). This changes the serialized shape of `StyleSheet` (new `options` field, with no `#[serde(default)]`, so previously serialized stylesheets would fail to deserialize) and adds new public serde surface. Based on a 2025 master; css_modules::Config has likely gained fields since, so it needs rebasing.",
+  "decision": "Should `StyleSheet`'s serde form include its `ParserOptions` (new public serde API and serialized-shape change), or should callers keep passing options separately after deserializing?",
+  "draft": null,
+  "confidence": "medium"
+}

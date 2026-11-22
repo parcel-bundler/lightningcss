@@ -1,0 +1,23 @@
+{
+  "pr": 1308,
+  "title": "Fix parsing of pseudo-elements and pseudo-classes after ::details-content",
+  "author": "rorshopping",
+  "created": "2026-08-12",
+  "lastActivity": "2026-09-18",
+  "linkedIssues": [
+    1244
+  ],
+  "relatedPRs": [
+    930,
+    1213
+  ],
+  "kind": "bugfix",
+  "size": "+305/-18 in 4 files",
+  "recommendation": "deep-review",
+  "priority": "medium",
+  "summary": "Models element-backed pseudo-elements (`::details-content`, `::picker()`) in the forked selectors parser, following upstream servo/stylo: pseudo-classes and pseudo-elements may follow them, `::marker` may follow `::before/::after`, and they may follow `::part()`. Fixes a strict-mode hard error on CSS that all major browsers accept.",
+  "evidence": "Master (574eee2): `::details-content::before{color:red}` fails with SelectorError(InvalidState) (the CLI panics on it). yisibl (member) review 2026-09-11 asked for `::details-content::before::marker` and `::part(foo)::details-content::before` and a comprehensive treatment; the author reworked it on 2026-09-16 to mirror upstream stylo and the Chromium CL, with a deliberate deviation (`::before::marker::marker` rejected). Not yet re-reviewed. Out of scope for the PR: it also adds `-C link-arg=--allow-undefined` to .cargo/config.toml to fix the wasm build on rustc >= 1.96 (should probably be split out or landed on master separately) and an unrelated rustfmt hunk. Check the HAS_PSEUDO flag change against the `:is()` lowering in rules/mod.rs.",
+  "decision": null,
+  "draft": null,
+  "confidence": "medium"
+}

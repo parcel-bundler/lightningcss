@@ -1,0 +1,20 @@
+{
+ "pr": 696,
+ "title": "minify selectors",
+ "author": "qsliu2017",
+ "created": "2024-03-09",
+ "lastActivity": "2024-03-09",
+ "linkedIssues": [
+  240
+ ],
+ "relatedPRs": [],
+ "kind": "perf",
+ "size": "+37/-0 in 3 files",
+ "recommendation": "deep-review",
+ "priority": "low",
+ "summary": "Removes duplicate selectors from a style rule's selector list (`.foo, .bar, .foo` -> `.foo, .bar`) in StyleRule::minify. Semantically safe (same specificity, first occurrence kept). But it serializes every selector into a String and allocates a HashSet for every style rule on the hot path, for a case the maintainer questioned in real code; and it runs before rule merging, so duplicates created by merging stay.",
+ "evidence": "master 574eee2 CLI: `a,a{color:red}` -> `a,a{color:red}`; `.a,.b{color:red}.a{color:red}` -> `.a,.b,.a{color:red}` (that duplicate comes from merging and this PR wouldn't remove it). devongovett on #240 (2022-07-31): \"Seems reasonable. When does this happen in real-world code though?\" No PR comments. The head is the author's fork master branch. Should skip lists of length 1 and compare selectors structurally rather than via to_css_string; a size-check would show whether it pays off.",
+ "decision": null,
+ "draft": null,
+ "confidence": "medium"
+}

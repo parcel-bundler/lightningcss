@@ -1,0 +1,18 @@
+{
+  "pr": 869,
+  "title": "feat(playground): add option to switch between parsers",
+  "author": "noahbald",
+  "created": "2024-12-12",
+  "lastActivity": "2026-01-03",
+  "linkedIssues": [],
+  "relatedPRs": [],
+  "kind": "feature",
+  "size": "+15/-2 in 2 files",
+  "recommendation": "deep-review",
+  "priority": "low",
+  "summary": "Adds a Parser select (style sheet vs style attribute) to the website playground and calls `transformStyleAttribute` when chosen. Small, website-only, and useful for debugging the attribute parser; master's playground has no such option.",
+  "evidence": "wasm exports `transformStyleAttribute` (wasm/index.mjs). Gaps seen in the diff: `reflectPlaygroundState` isn't updated, so the parser choice is saved but not restored from shared playground links; output panes for CSS modules/dependencies may misbehave since `transformStyleAttribute` returns no exports. No maintainer comments in ~2 years; a quick look rather than a full review is enough.",
+  "decision": null,
+  "draft": null,
+  "confidence": "medium"
+}

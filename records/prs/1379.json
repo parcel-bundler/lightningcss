@@ -1,0 +1,20 @@
+{
+ "pr": 1379,
+ "title": "Fix error recovery for name-only container queries",
+ "author": "daeshawnballard",
+ "created": "2026-10-19",
+ "lastActivity": "2026-10-19",
+ "linkedIssues": [
+  1370
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+93/-11 in 3 files",
+ "recommendation": "deep-review",
+ "priority": "medium",
+ "summary": "With errorRecovery, `@container name { }` (valid name-only query) emits a false `EndOfInput` warning and an extra space, because the condition is parsed first and its error recovery kicks in. The PR checks for name + exhausted prelude before parsing a condition. Small, targeted, with Rust and JS tests; PR is still marked draft.",
+ "evidence": "Master CLI /home/user/lightningcss/target/review/ref-574eee2/lightningcss (master 574eee2): `--minify --error-recovery` on `@container scroll-content { .foo { max-width: 100cqw; } }` prints `Unexpected end of input at a.css:0:27` and outputs `@container scroll-content  {.foo{max-width:100cqw}}` (double space). Only PR for #1370. No maintainer comments. Diff is a 6-line reorder in parser.rs `container` prelude. Note: the PR is a draft; check `@container name /* comment */ {` and nested cases (tests cover them).",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

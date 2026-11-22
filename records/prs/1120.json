@@ -1,0 +1,25 @@
+{
+ "pr": 1120,
+ "title": "refactor: keep css-modules cross-platform consistency",
+ "author": "Jungzl",
+ "created": "2026-01-07",
+ "lastActivity": "2026-01-07",
+ "linkedIssues": [
+  541
+ ],
+ "relatedPRs": [
+  1247,
+  1119,
+  1248,
+  1249
+ ],
+ "kind": "bugfix",
+ "size": "+20/-12 in 1 file",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Normalizes `\\` to `/` before hashing CSS module paths and adds a string-prefix fallback for relative paths. This changes generated class names for Windows users (and for some relative project_root setups on all platforms), so it's a user-visible hash change, not just a refactor. #1247 does the same normalization more simply.",
+ "evidence": "Master src/css_modules.rs hashes `diff_paths(...)` with OS separators, no normalization (#541: Windows CSS-module hashes differ, e.g. `.Ot1kIW_foo` vs `.EgL3uq_foo`). #1247 (cscnk52, 2026-05-23): same `replace(\"\\\\\", \"/\")` plus drops the is_absolute guard, 6/-7 lines. 1120's new `strip_prefix` branch changes hashes when project_root or the path is relative. No comments or reviews on either PR.",
+ "decision": "Are we OK changing CSS module hashes on Windows (normalizing separators so they match Linux and macOS), and if so, which PR: #1247 (minimal) or this one?",
+ "draft": null,
+ "confidence": "medium"
+}

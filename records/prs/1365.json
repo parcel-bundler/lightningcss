@@ -1,0 +1,24 @@
+{
+ "pr": 1365,
+ "title": "fix: keep transition and animation longhands after the shorthand they follow",
+ "author": "oddharsh",
+ "created": "2026-10-07",
+ "lastActivity": "2026-10-07",
+ "linkedIssues": [
+  1084,
+  572
+ ],
+ "relatedPRs": [
+  1209,
+  1306
+ ],
+ "kind": "bugfix",
+ "size": "+48/-0 in 4 files",
+ "recommendation": "deep-review",
+ "priority": "high",
+ "summary": "TransitionHandler/AnimationHandler buffer the shorthand, but untyped longhands (transition-behavior, animation-trigger) and the typed but unhandled animation-composition are pushed straight away, so they end up before the shorthand that resets them. The PR flushes the buffer before such longhands, the same approach as #1209 for font. Small, targeted fix for a cascade-breaking bug in a common modern pattern (transition-behavior: allow-discrete for popover/dialog animations).",
+ "evidence": "master 574eee2 CLI (target/review/base-574eee2/lightningcss; master-build.log was still empty): `.foo{transition:opacity 1s;transition-behavior:allow-discrete}` -> `.foo{transition-behavior:allow-discrete;transition:opacity 1s}`, and `animation:fade 1s;animation-composition:add` -> `animation-composition:add;animation:1s fade`, so the longhand is lost in the browser. #1084 has reactions and calls it critical. No maintainer comments on the PR yet. Review points: matching unknown names by prefix (`transition-`/`animation-`) is a heuristic; per the fully-parse philosophy, typed transition-behavior/animation-trigger properties may be the longer-term fix. Check the interaction with #1306 (animation-timeline) and #1209 (same flush pattern for font).",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

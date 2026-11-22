@@ -1,0 +1,20 @@
+{
+ "pr": 879,
+ "title": "Fix animation shorthand property without name output",
+ "author": "sapphi-red",
+ "created": "2024-12-27",
+ "lastActivity": "2024-12-27",
+ "linkedIssues": [
+  337
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+93/-40 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "medium",
+ "summary": "Fixes `animation` serialization when the name is `none`: master throws away every other component. The fix is still needed on master, but the PR also changes minified `animation: none` to `animation:1` and rewrites existing expectations (`none, none` -> `1,1`), which needs justification or reverting.",
+ "evidence": "master 574eee2 CLI: `.a{animation:2s linear infinite}` -> `.a{animation:none}` (duration, easing and iteration count dropped; observable once another rule sets animation-name, or via computed style). `animation:1s infinite` -> `animation:none`. No comments or reviews in two years; base is 9e04c01, so it may need a rebase. The `1` minification and the changed test outputs are a choice for the reviewer (CLAUDE.md: changed expectations need justification).",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

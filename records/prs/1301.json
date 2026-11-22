@@ -1,0 +1,20 @@
+{
+ "pr": 1301,
+ "title": "Strip a leading UTF-8 BOM when parsing a style sheet",
+ "author": "X-Coder264",
+ "created": "2026-07-31",
+ "lastActivity": "2026-07-31",
+ "linkedIssues": [
+  338
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+55/-0 in 3 files",
+ "recommendation": "deep-review",
+ "priority": "medium",
+ "summary": "A leading U+FEFF is tokenized as part of the first ident, so `BOM html{}` silently becomes a selector matching nothing and `BOM /*! */ html{}` or `BOM @charset` fails to parse. The PR strips it in StyleSheet::parse_with (per CSS Syntax 3.2 decode) and in the bundler before registering source content. Dart Sass compressed output with non-ASCII emits a BOM, and postcss >= 8.5.24 now preserves it, so this is hitting real builds.",
+ "evidence": "Master CLI (/home/user/lightningcss/target/review/ref-574eee2/lightningcss (master 574eee2)): `\\xEF\\xBB\\xBFhtml{color:red}` -> output still starts with the BOM glued to `html` (od shows 357 273 277 h t m l); `BOM/*! x */html{color:red}` -> parse error (CLI panics on the unwrap at main.rs:196). Issue #338 open since 2022 with several reporters; no maintainer comment. Author asks for decisions: BOM not re-emitted; napi/CLI/C source maps would be off by one column on line 1 for BOM input unless they strip too. Small, spec-backed.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

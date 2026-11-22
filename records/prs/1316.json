@@ -1,0 +1,22 @@
+{
+ "pr": 1316,
+ "title": "fix(supports): keep the vendor prefix on a feature query inside and/or",
+ "author": "oddharsh",
+ "created": "2026-08-26",
+ "lastActivity": "2026-11-08",
+ "linkedIssues": [
+  710
+ ],
+ "relatedPRs": [
+  1313
+ ],
+ "kind": "bugfix",
+ "size": "+28/-2 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "medium",
+ "summary": "The @supports merge pass shadows property_id with the unprefixed id, so a prefixed operand of and/or that matches nothing earlier is stored without its prefix (`-webkit-box-orient` -> `box-orient`), and the block silently never applies, or applies everywhere in a `not ... or` query. The one-line fix keeps the unprefixed id as the match key only. It's still broken on master. #1313 (same fix) was closed by its author in favour of this PR.",
+ "evidence": "master 574eee2 CLI (target/review/base-574eee2/lightningcss; master-build.log was still empty): `@supports (display:flex) and (-webkit-box-orient:vertical)` -> `@supports (display:flex) and (box-orient:vertical)`. `@supports (not selector(::-webkit-scrollbar)) or (-moz-appearance: none)` -> `... or (appearance:none)`. Open since 2024 (#710, regression in 1.24.1). Pre-existing problem the reviewer should look at: the merge also runs for `and`, e.g. master turns `@supports (-webkit-appearance:none) and (-moz-appearance:none)` into `((-webkit-appearance:none) or (appearance:none))`, which changes `and` into `or`. With this PR it becomes `((-webkit-appearance:none) or (-moz-appearance:none))`, still `or`. The merge should probably only apply to `or` lists. Also, the output keeps double parens `((-webkit-box-orient:vertical))`, which is valid but not minimal. No maintainer comment yet.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

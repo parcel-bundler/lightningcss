@@ -1,0 +1,18 @@
+{
+  "pr": 428,
+  "title": "look for `.node` files in sibling directory.",
+  "author": "nicksrandall",
+  "created": "2023-02-15",
+  "lastActivity": "2023-04-18",
+  "linkedIssues": [],
+  "relatedPRs": [],
+  "kind": "infra",
+  "size": "+5/-1 in 1 file",
+  "recommendation": "needs-maintainer-decision",
+  "priority": "low",
+  "summary": "Adds a third fallback in node/index.js to require `./lightningcss.<platform>.node` from the same directory, so a bundled lightningcss (esbuild copy loader, e.g. in AWS Lambda) can find a copied native addon. The diff no longer applies (index.js was restructured to `native = require(...)` and the WASM branch removed), but it's a 5-line change, so the real question is whether to support this layout at all.",
+  "evidence": "devongovett 2023-04-18 asked why and noted the .node file comes from the platform package; author explained the esbuild/Lambda use case the same day; no maintainer reply since. Current node/index.js tries `lightningcss-${parts}` then `../lightningcss.${parts}.node` only. No related issues in the index.",
+  "decision": "Should node/index.js add a fallback that loads `./lightningcss.<platform>.node` next to the bundled script, to support bundlers that copy the native addon (esbuild copy loader), or is installing the platform package the only supported layout?",
+  "draft": null,
+  "confidence": "medium"
+}

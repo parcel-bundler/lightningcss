@@ -1,0 +1,22 @@
+{
+ "pr": 1315,
+ "title": "Report CLI parse errors instead of panicking",
+ "author": "ChrisJr404",
+ "created": "2026-08-25",
+ "lastActivity": "2026-08-25",
+ "linkedIssues": [
+  578
+ ],
+ "relatedPRs": [
+  1020
+ ],
+ "kind": "bugfix",
+ "size": "+63/-19 in 2 files",
+ "recommendation": "trivial-merge",
+ "priority": "low",
+ "summary": "Replaces unwrap() on parse/bundle/minify/print/browserslist results in src/main.rs with a report_error helper that prints the error and exits 1, plus two CLI integration tests. CLI-only, mechanical, mirrors the existing css-modules pattern error handling.",
+ "evidence": "master 574eee2 CLI: `.cls { asd }` panics: \"thread 'main' panicked at src/main.rs:196:45: called `Result::unwrap()` on an `Err` value: Error { kind: EndOfInput ...\"`. No other PR for #578. Library code untouched; only exit code changes (101 panic -> 1). May textually conflict with #1020 (adjacent lines in main.rs); merge one then rebase the other.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

@@ -1,0 +1,20 @@
+{
+ "pr": 1268,
+ "title": "Add riscv64 (linux-gnu) prebuilt binary",
+ "author": "gounthar",
+ "created": "2026-06-05",
+ "lastActivity": "2026-11-19",
+ "linkedIssues": [
+  1267
+ ],
+ "relatedPRs": [],
+ "kind": "infra",
+ "size": "+39/-0 in 3 files",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Adds a cross-compiled riscv64gc-unknown-linux-gnu prebuilt to the release matrix and npm packaging, and now a QEMU-based test job. The maintainer doubted demand and testability; the author answered the testing point, so it is a pure product call.",
+ "evidence": "devongovett 2026-07-20: \"I'm not sure this has wide enough usage to take on officially. We also have no way to test that it works. What hardware are you running this on? Can you just compile it from source?\" Author replied (BPI-F3 hardware; building from source takes 53 min; offered RISE native runners) and on 2026-11-19 added a `test-riscv64` QEMU job (81/81 JS tests pass on fork). Another user tested on a SpacemiT K3. #1267 has 1 reaction.",
+ "decision": "Do we want to publish and maintain an official riscv64 Linux binary now that there is a QEMU test job, or keep it downstream?",
+ "draft": null,
+ "confidence": "high"
+}

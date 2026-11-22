@@ -1,0 +1,26 @@
+{
+ "pr": 1043,
+ "title": "Add lightningcss-wasm as a fallback",
+ "author": "omegametabroccolo",
+ "created": "2025-08-19",
+ "lastActivity": "2025-08-19",
+ "linkedIssues": [
+  950,
+  1163
+ ],
+ "relatedPRs": [
+  1217,
+  1264,
+  1268,
+  1258
+ ],
+ "kind": "feature",
+ "size": "+5/-1 in 1 file",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Makes node/index.js fall back to `require('lightningcss-wasm')` when no native binary is found, so lightningcss works on platforms without prebuilt binaries (OpenBSD, ppc64/s390x, etc.). It no longer applies (master's index.js now wraps `native.*` exports) and lightningcss-wasm is ESM with a different package shape, not a dependency of lightningcss.",
+ "evidence": "Master node/index.js: `native = require(`lightningcss-${...}`)` with a fallback to `../lightningcss.${...}.node`, then `module.exports.transform = wrap(native.transform)` (changed by #1170), so the PR conflicts. lightningcss-wasm is `type: module` (wasm-node.mjs) and would need to be installed separately. Related demand: #1163 (Node.js core CI on ppc64/s390x, sapphi-red unsure Devon wants s390x binaries), #1217, #1264, #1268, #1258 add more prebuilt targets; #950 (OpenBSD) closed. PR base is 9e04c01 (2024), when index.js still had a CSS_TRANSFORMER_WASM branch; that branch is gone on master.",
+ "decision": "Should `lightningcss` fall back to an optionally installed `lightningcss-wasm` on platforms without a prebuilt binary (as an alternative to adding more native targets like ppc64/s390x/riscv64), and if so with what packaging (optional peer dependency vs documented manual install)?",
+ "draft": null,
+ "confidence": "medium"
+}

@@ -1,0 +1,20 @@
+{
+ "pr": 1227,
+ "title": "Fix logical property shorthands with calc(var()) not being converted (#927)",
+ "author": "lukemartin",
+ "created": "2026-04-21",
+ "lastActivity": "2026-04-21",
+ "linkedIssues": [
+  927
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+193/-2 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "medium",
+ "summary": "Tailwind v4 emits `margin-block: calc(var(--spacing) * 0)` and `inset-inline: calc(...)`, which are kept as unparsed and never lowered to physical properties for old targets. The PR splits unparsed block/inline/inset shorthands into longhands when the value isn't a bare var(). Real user impact (Tailwind v4 + Chrome < 87 targets), but the single-value check looks too weak.",
+ "evidence": "Master CLI (/home/user/lightningcss/target/review/ref-574eee2/lightningcss (master 574eee2)) `--targets 'chrome 84'`: `.foo{margin-block:calc(var(--s) * 0);inset-inline:calc(var(--s) * 2.5)}` unchanged (not lowered), confirming #927. Code-reading concern for review: `is_single_value` only excludes a token list that is exactly `[Var]`, so `margin-block: 10px var(--x)` or `inset: var(--a) var(--b)` would be copied whole into `margin-top`/`top` etc., producing invalid declarations (each must be one top-level component, not containing a bare var()/env() that could expand to several values). Duplicated logic across three arms. No maintainer comments.",
+ "decision": null,
+ "draft": null,
+ "confidence": "medium"
+}

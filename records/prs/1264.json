@@ -1,0 +1,20 @@
+{
+  "pr": 1264,
+  "title": "Add OpenHarmony (OHOS) prebuilt binaries",
+  "author": "social4hyq",
+  "created": "2026-06-05",
+  "lastActivity": "2026-10-09",
+  "linkedIssues": [
+    1285
+  ],
+  "relatedPRs": [],
+  "kind": "infra",
+  "size": "+67/-1 in 3 files",
+  "recommendation": "needs-maintainer-decision",
+  "priority": "low",
+  "summary": "Adds an aarch64-unknown-linux-ohos prebuilt npm package, an `openharmony` branch in node/index.js and a release CI job using Boshen/setup-ohos-sdk. The maintainer questioned usage and testability; the author answered with download numbers from Rollup/Rolldown and an offer to maintain it.",
+  "evidence": "devongovett 2026-07-20: \"I'm not sure this has wide enough usage to take on officially. We also have no way to test that it works. What hardware are you running this on? Can you just compile it from source?\" Author replies 2026-07-21 and 2026-10-09: tested on HarmonyOS hardware; @rollup/rollup-openharmony-arm64 12.6M/month, rolldown 5.6M/month; offers to maintain the job; notes OHOS binaries may need signing via a newer @napi-rs/cli (v3), which lightningcss doesn't use yet. A user hit the missing binary via Vite 8 (#1285).",
+  "decision": "Will Lightning CSS ship an officially maintained OpenHarmony arm64 prebuilt (third-party SDK action in release CI, community-maintained), given Rollup/Rolldown already do?",
+  "draft": null,
+  "confidence": "high"
+}

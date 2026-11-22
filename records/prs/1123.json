@@ -1,0 +1,20 @@
+{
+ "pr": 1123,
+ "title": "Retain rules in nested declarations",
+ "author": "mischnic",
+ "created": "2026-01-08",
+ "lastActivity": "2026-01-08",
+ "linkedIssues": [
+  1049
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+46/-1 in 3 files",
+ "recommendation": "deep-review",
+ "priority": "high",
+ "summary": "When a style rule has nested rules, logical-property (and :dir/supports/dark) fallback rules generated while minifying get lost because the child handler context is discarded; the PR merges the child context back into the parent. Data loss bug hit by Tailwind + daisyUI (Next.js issue), PR by a team member.",
+ "evidence": "master 574eee2 CLI --targets 'chrome 80' on `.btn1{:where(&){width:unset} border-start-start-radius:10px}` outputs only `:where(.btn1){width:unset}` followed by blank lines; the border radius is silently dropped. #1049 has 8 reactions, labelled bug. No reviews yet. Review: the expected output in the new prefix_test ends with extra blank lines (empty rule printed?), and whether merging the child context could attach nested-rule logical rules to the parent selector.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

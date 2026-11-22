@@ -1,0 +1,20 @@
+{
+ "pr": 1143,
+ "title": "feat: minify colors in var() fallback values",
+ "author": "yisibl",
+ "created": "2026-01-29",
+ "lastActivity": "2026-03-16",
+ "linkedIssues": [
+  601
+ ],
+ "relatedPRs": [],
+ "kind": "feature",
+ "size": "+685/-96 in 4 files",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Parses named-color idents (and color functions) inside unparsed token lists, e.g. var() fallbacks and gradients that contain var(), into Color tokens, so `var(--c, white)` -> `var(--c,#fff)`. It's gated by a per-property whitelist and by whether the enclosing function is a color or image function. About 600 lines of TokenList plumbing for a size-only gain, and it changes tokens that JS visitors see (Ident -> Color).",
+ "evidence": "master 574eee2 CLI (target/review/base-574eee2/lightningcss; master-build.log was still empty): `#bar{color:var(--c, white)}` -> `#bar{color:var(--c,white)}` (as #601 describes). The diff changes existing test expectations and also edits test inputs: `.old-radial { radial-gradient(0 50%, ...) }` was renamed to `.old-webkit-radial` with a `-webkit-` input, and `.direction` likewise. A visitor test changes `blue` -> `#00f`. Leftover non-English comment (`// 允许解析颜色的函数`). The author (a repo member) pinged twice (2026-02-08, 2026-03-16) with no maintainer reply.",
+ "decision": "Is minifying color keywords inside unparsed/var() token lists worth ~600 lines of property-whitelisted token-list logic and a visible change to the tokens JS visitors receive?",
+ "draft": null,
+ "confidence": "medium"
+}

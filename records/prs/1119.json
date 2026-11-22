@@ -1,0 +1,24 @@
+{
+  "pr": 1119,
+  "title": "fix: normalize paths in js test cases for consistent handling on Windows",
+  "author": "Jungzl",
+  "created": "2026-01-07",
+  "lastActivity": "2026-01-07",
+  "linkedIssues": [
+    541
+  ],
+  "relatedPRs": [
+    544,
+    1120,
+    1247
+  ],
+  "kind": "tests",
+  "size": "+2/-2 in 1 file",
+  "recommendation": "trivial-merge",
+  "priority": "low",
+  "summary": "Test-only: normalizes the keys of the in-memory filesystem map in node/test/bundle.test.mjs, so the existing `inMemoryFs.get(path.normalize(file))` lookups match on Windows. A no-op on POSIX.",
+  "evidence": "Master node/test/bundle.test.mjs still builds the map with raw 'hello/world.css' keys (lines 44-47, 95-98) while looking up `path.normalize(file)` (lines 53, 104), which gives 'hello\\\\world.css' on Windows; these are the two failing tests listed in #541. On Linux/macOS `path.normalize` leaves the keys unchanged, so it can't break CI. Context lines still match master. (#544 tried the same thing in 2023 and was closed without comment.)",
+  "decision": null,
+  "draft": null,
+  "confidence": "high"
+}

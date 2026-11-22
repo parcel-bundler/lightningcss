@@ -1,0 +1,22 @@
+{
+  "pr": 561,
+  "title": "Alow manipulating `Selector` parts from consumer code",
+  "author": "phoenix-ru",
+  "created": "2023-08-14",
+  "lastActivity": "2026-01-03",
+  "linkedIssues": [
+    495
+  ],
+  "relatedPRs": [
+    485
+  ],
+  "kind": "feature",
+  "size": "+41/-0 in 1 file",
+  "recommendation": "needs-maintainer-decision",
+  "priority": "low",
+  "summary": "Adds public `Selector::insert_raw` / `insert_raw_multiple` to the forked selectors crate, inserting components at arbitrary raw indexes without recomputing specificity or flags, for the fervid Vue scoped-style transform.",
+  "evidence": "No maintainer response in over 3 years. The raw inserts leave the selector's cached specificity/flags (e.g. HAS_PSEUDO) stale, and `insert_raw_multiple` silently ignores an out-of-range index. Master already offers `iter_raw_parse_order_from` plus `impl From<Vec<Component>> for Selector` (rebuilds via SelectorBuilder, recomputing specificity), and `Selector::append`, which may cover the use case without a new unchecked API.",
+  "decision": "Add an unchecked public API for inserting raw selector components (stale specificity/flags), or close and point consumers to rebuilding via `Selector::from(Vec<Component>)`?",
+  "draft": null,
+  "confidence": "medium"
+}

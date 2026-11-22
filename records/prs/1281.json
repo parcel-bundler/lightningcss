@@ -1,0 +1,20 @@
+{
+  "pr": 1281,
+  "title": "fix: correct VendorPrefix for ::-ms-input-placeholder pseudo-element",
+  "author": "Bolt4243",
+  "created": "2026-06-18",
+  "lastActivity": "2026-06-18",
+  "linkedIssues": [],
+  "relatedPRs": [
+    1352
+  ],
+  "kind": "bugfix",
+  "size": "+15/-1 in 2 files",
+  "recommendation": "trivial-merge",
+  "priority": "low",
+  "summary": "`::-ms-input-placeholder` is parsed as Placeholder(VendorPrefix::Moz) (copy-paste error), so it is rewritten to `::-moz-placeholder`, a different selector. One-token fix to VendorPrefix::Ms plus round-trip tests. The pseudo-class table already maps `:-ms-input-placeholder` to Ms, confirming intent. Doesn't add any old-browser hack; it just stops corrupting input.",
+  "evidence": "Master: `input::-ms-input-placeholder{color:red}` -> `input::-moz-placeholder{color:red}`. src/selector.rs:291 still maps to Moz; line 169 (pseudo-class) uses Ms. #1352 touches the pseudo-class variants, not this line, so no conflict.",
+  "decision": null,
+  "draft": null,
+  "confidence": "high"
+}

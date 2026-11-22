@@ -1,0 +1,20 @@
+{
+ "pr": 1309,
+ "title": "Fix invalid selectors",
+ "author": "snowystinger",
+ "created": "2026-08-17",
+ "lastActivity": "2026-08-17",
+ "linkedIssues": [
+  1239
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+69/-2 in 3 files",
+ "recommendation": "deep-review",
+ "priority": "medium",
+ "summary": "Makes `:has()` unforgiving and disallows pseudo-elements inside it, so `:has(::before)`, `:has()` and `:not(:has(::backdrop))` become parse errors (warnings + dropped rule in errorRecovery), matching browsers. Today Lightning CSS silently rewrites them into different invalid or even valid selectors; it bit react-spectrum.",
+ "evidence": "master 574eee2 CLI: `video:not(:has(::backdrop)){color:red}` -> `video:not(:has()){color:red}`; `a:has(::before){color:red}` -> `a:has(:before){color:red}`; `foo:has()` passes through. Chromium 153: CSS.supports('selector(:has(::before))')=false, ':has()'=false, ':has(:before)'=false, 'a:has(b, ::before)'=false. Separate master bug in #1239 not covered by this PR: `a:is(::before)` -> `a:is()`, `b:where(::before, .x)` -> `b:where(.x)`. Small, focused change in selectors/parser.rs; no competing PR; no reviews. Per calibration, check upstream stylo selectors for the matching :has change.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

@@ -1,0 +1,22 @@
+{
+ "pr": 1020,
+ "title": "fix: ensure directories exist before building with `--sourcemap`",
+ "author": "goestav",
+ "created": "2025-06-28",
+ "lastActivity": "2026-01-03",
+ "linkedIssues": [
+  1019
+ ],
+ "relatedPRs": [
+  1315
+ ],
+ "kind": "bugfix",
+ "size": "+29/-0 in 2 files",
+ "recommendation": "trivial-merge",
+ "priority": "low",
+ "summary": "The CLI writes the .map file before creating the output directory, so `--sourcemap -o missing/dir/out.css` fails with ENOENT. The PR creates the parent directory first and adds a CLI test. Six-line CLI-only fix.",
+ "evidence": "master 574eee2 CLI: `lightningcss --sourcemap -o outd/x/out.css in.css` -> `Error: Os { code: 2, kind: NotFound, message: \"No such file or directory\" }`. Cause in src/main.rs: fs::write(map_filename) runs before the existing create_dir_all(output_file.parent()). A slightly cleaner alternative is moving that existing create_dir_all above the map write, but the PR is correct as is. Possible textual conflict with #1315 (adjacent lines).",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

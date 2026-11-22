@@ -1,0 +1,20 @@
+{
+  "pr": 1302,
+  "title": "Fix place-self/place-items collapsing non-equal values",
+  "author": "hdimer",
+  "created": "2026-07-31",
+  "lastActivity": "2026-07-31",
+  "linkedIssues": [
+    1182
+  ],
+  "relatedPRs": [],
+  "kind": "bugfix",
+  "size": "+98/-3 in 2 files",
+  "recommendation": "deep-review",
+  "priority": "high",
+  "summary": "PlaceSelf/PlaceItems ToCss drop the second value when they think the longhands are equal, but three arms compare wrongly (justify-self:auto always collapses; justify stretch compared against align normal). The minifier therefore silently changes justify-self/justify-items, a layout-changing output bug in common grid/flex CSS. Three-line fix with tests.",
+  "evidence": "Master: `.a{align-self:self-start;justify-self:auto}` -> `.a{place-self:self-start}` (justify-self becomes self-start); `.b{align-items:normal;justify-items:stretch}` -> `.b{place-items:normal}`; `.c{align-self:normal;justify-self:stretch}` -> `.c{place-self:normal}`. Only PR for #1182; no reviews. Reviewer should also check PlaceContent and the legacy/left/right justify-items values for the same pattern.",
+  "decision": null,
+  "draft": null,
+  "confidence": "high"
+}

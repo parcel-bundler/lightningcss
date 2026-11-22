@@ -1,0 +1,20 @@
+{
+ "pr": 1209,
+ "title": "Preserve ordering of `font-*` properties that follow a `font` shorthand",
+ "author": "samizdatco",
+ "created": "2026-04-06",
+ "lastActivity": "2026-04-20",
+ "linkedIssues": [
+  1207
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+58/-1 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "medium",
+ "summary": "FontHandler buffers the `font` shorthand but emits unknown font-* longhands (font-variant-numeric, font-kerning, ...) immediately, so they land before the shorthand and get reset by it. The PR flushes the pending shorthand before emitting such a property. Real rendering bug with a small, targeted fix.",
+ "evidence": "master 574eee2 CLI --minify: `.foo{font:12px serif;font-variant-numeric:oldstyle-nums;font-kerning:none}` -> `.foo{font-variant-numeric:oldstyle-nums;font-kerning:none;font:12px serif}` (longhands now reset by the shorthand). stof flagged the author's earlier 'discard longhands' optimization as unsafe (shorthand may be unsupported); author reverted it. No maintainer comments. Review: matches only CustomPropertyName::Unknown starting with 'font-'; check font-* longhands lightningcss does parse but FontHandler doesn't own (e.g. font-variant-caps handling, font-palette, font-feature-settings), and the flush interplay with prefixes/fallbacks.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

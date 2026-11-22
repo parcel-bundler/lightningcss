@@ -1,0 +1,18 @@
+{
+ "pr": 1025,
+ "title": "Add custom serialize_string function producing shorter representation",
+ "author": "mina86",
+ "created": "2025-07-09",
+ "lastActivity": "2026-11-13",
+ "linkedIssues": [],
+ "relatedPRs": [],
+ "kind": "perf",
+ "size": "+125/-31 in 18 files",
+ "recommendation": "deep-review",
+ "priority": "low",
+ "summary": "Adds a crate-local serialize::string that picks single or double quotes to minimise escapes, and drops the space after a hex escape when the next char isn't a hex digit. Most of the diff renames call sites to crate::serialize::*. A small size win (strings containing double quotes), recently rebased onto 4a1b083, and the author is frustrated about the wait (2026-11-13). Two problems found that a review must raise.",
+ "evidence": "(1) Correctness bug: hex_escape omits the terminating space unless the next byte is a hex digit, but CSS Syntax 'consume an escaped code point' also consumes one whitespace after a hex escape. So a control char followed by a real space (\"\\x01 b\") would serialize as `\"\\1 b\"`, and the space would be eaten on re-parse. Fix: also keep the space when the next byte is a space. (2) Cargo.toml adds `cssparser-macros = \"*\"`, and crates.io rejects wildcard dependency versions at publish. It needs a pinned version (or avoid match_byte). No maintainer comments. Quote-choice changes may alter many existing expected outputs, so check the test diff.",
+ "decision": null,
+ "draft": null,
+ "confidence": "medium"
+}

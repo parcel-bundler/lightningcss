@@ -1,0 +1,23 @@
+{
+ "pr": 1304,
+ "title": "Fix #1303: ::search-text:current selector parsing",
+ "author": "rvitaliy",
+ "created": "2026-08-05",
+ "lastActivity": "2026-08-05",
+ "linkedIssues": [
+  1303
+ ],
+ "relatedPRs": [
+  1307,
+  1213
+ ],
+ "kind": "bugfix",
+ "size": "+55/-4 in 3 files",
+ "recommendation": "deep-review",
+ "priority": "medium",
+ "summary": "Fixes a 1.33.0 regression where ::search-text:current and ::search-text:not(:current) are rejected, by adding an AFTER_SEARCH_TEXT parser state that allows only :current after ::search-text. Competes with #1307 (same fix, more generic trait method); review both together and merge one.",
+ "evidence": "master 574eee2 CLI: `::search-text:current{color:red}` panics/errors (regression vs 1.32.0, issue #1303 has 3 reactions). Chromium 153 probe: CSS.supports selector(::search-text:current)/(::search-text:not(:current)) = true, (::search-text:hover) = false. #1304 rejects ::search-text:hover (matches Chrome; master and #1307 accept it), #1307 keeps user-action pseudos allowed and adds tests in the selectors crate. #1304 deletes two selectors-crate asserts (moved to lib.rs tests). Per maintainer note, check upstream servo selectors for an equivalent.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

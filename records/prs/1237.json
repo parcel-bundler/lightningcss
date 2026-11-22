@@ -1,0 +1,24 @@
+{
+ "pr": 1237,
+ "title": "CSS modules: webpack/css-loader-compatible scoped-name hashing",
+ "author": "sciyoshi",
+ "created": "2026-05-05",
+ "lastActivity": "2026-05-18",
+ "linkedIssues": [
+  660,
+  503,
+  636,
+  351,
+  491
+ ],
+ "relatedPRs": [],
+ "kind": "feature",
+ "size": "+860/-148 in 7 files",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Adds webpack-style `[algo:hash:digest:length]` placeholders, md4/xxhash deps, and hash_prefix/hash_local_name config (Rust + JS API) to make scoped names byte-identical to css-loader. Large new public surface for a migration use case; the author offered to keep it in a fork. Currently has merge conflicts.",
+ "evidence": "devongovett 2026-05-17: \"Not necessarily opposed to adding these, but isn't the whole point of CSS modules that the scoped names are not predictable?\" plus inline review; author addressed comments 2026-05-18 (removed escapeScopedNames) and said: \"we're happy to keep it in a fork ... you can take only the pieces that feel useful\". mergeable_state=dirty. Changes Segment::Hash shape (public Rust API) and adds JS config fields. #660 (per-class [hash], 6 reactions) is the most-requested piece.",
+ "decision": "Do we want full css-loader hash parity in core (new md4/xxhash deps, Segment::Hash change, new JS options), only a subset such as per-local-name hashing (#660) and hash length, or none of it?",
+ "draft": null,
+ "confidence": "medium"
+}

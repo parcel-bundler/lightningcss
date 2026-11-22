@@ -1,0 +1,21 @@
+{
+ "pr": 1311,
+ "title": "Fix panic when generating color fallbacks for gradients using currentColor",
+ "author": "chuganzy",
+ "created": "2026-08-20",
+ "lastActivity": "2026-08-21",
+ "linkedIssues": [],
+ "relatedPRs": [
+  801,
+  722
+ ],
+ "kind": "bugfix",
+ "size": "+15/-1 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "high",
+ "summary": "A gradient list mixing an oklch() gradient with a currentColor (or system color) gradient panics when targets need color fallbacks. The one-line fix makes CssColor::get_fallback return currentColor/system colors unchanged, mirroring the earlier box-shadow fixes (#722, #801).",
+ "evidence": "Master CLI (/home/user/lightningcss/target/review/ref-574eee2/lightningcss (master 574eee2)) `--targets 'chrome 90'`: `.foo{background-image:linear-gradient(oklch(0% 0 0),oklch(100% 0 0)),linear-gradient(currentcolor,currentcolor)}` panics (backtrace through CssRuleList::minify); `linear-gradient(oklch(50% .2 30),Canvas)` also panics at color.rs:517 (`to_rgb().unwrap()`), which the PR's System arm also covers. Note: the author mentions a separate text-shadow PR that doesn't exist; `text-shadow:1px 1px oklch(50% .2 30),1px 1px currentcolor` still panics on master at text.rs:1502 and is NOT fixed by this PR (needs its own fix/issue). Check LightDark too.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

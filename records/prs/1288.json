@@ -1,0 +1,18 @@
+{
+ "pr": 1288,
+ "title": "chore: ignore jetbrains ide files",
+ "author": "intellild",
+ "created": "2026-06-26",
+ "lastActivity": "2026-11-03",
+ "linkedIssues": [],
+ "relatedPRs": [],
+ "kind": "infra",
+ "size": "+1/-0 in 1 file",
+ "recommendation": "trivial-merge",
+ "priority": "low",
+ "summary": "Adds `.idea` to .gitignore. One line that can't affect builds or output. The only question is a preference: kdy1 asked whether editor ignores belong in a personal global gitignore instead.",
+ "evidence": "Diff is just `+.idea` at the end of .gitignore. kdy1 (member) 2026-11-03: \"Not sure if this ignore should be per-project\". No maintainer comment. If the maintainer prefers a global gitignore for editor files, close it with a one-line note instead.",
+ "decision": null,
+ "draft": null,
+ "confidence": "medium"
+}

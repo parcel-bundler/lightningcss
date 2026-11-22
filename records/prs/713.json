@@ -1,0 +1,20 @@
+{
+ "pr": 713,
+ "title": "napi: fix build error in cargo-auditable",
+ "author": "JohnRTitor",
+ "created": "2024-04-06",
+ "lastActivity": "2024-05-25",
+ "linkedIssues": [
+  702
+ ],
+ "relatedPRs": [],
+ "kind": "infra",
+ "size": "+1/-1 in 1 file",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Changes napi/Cargo.toml `bundler = [\"dep:crossbeam-channel\", \"dep:rayon\"]` to use `\"rayon\"` so `cargo auditable` (used by default in Nixpkgs) can build. The maintainer believes the current manifest is correct and that this is a cargo-auditable bug; the change is harmless (it just also exposes an implicit `rayon` feature).",
+ "evidence": "devongovett 2024-05-25: \"Mainly that I don't understand the problem. AFAICT it is correct ... I don't know what `cargo-auditable` is but perhaps that has a bug?\" Author replied explaining cargo-auditable; no follow-up. Nixpkgs master still carries this exact patch for lightningcss 1.33.0 (`./0001-napi-fix-build-error-in-cargo-auditable.patch`, comment \"FIXME: remove when merged upstream\"). cargo-auditable changelog through 0.7.7 (2026-10-02) shows no fix for this. Master napi/Cargo.toml line 13 unchanged.",
+ "decision": "Accept a one-line Cargo.toml workaround for a cargo-auditable bug that Nixpkgs has been patching downstream since 2024, or close it and point them to report it to cargo-auditable?",
+ "draft": null,
+ "confidence": "medium"
+}

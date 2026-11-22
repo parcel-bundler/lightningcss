@@ -1,0 +1,21 @@
+{
+ "pr": 860,
+ "title": "Add support for global() function in CSS Modules animation names",
+ "author": "jantimon",
+ "created": "2024-11-27",
+ "lastActivity": "2024-12-19",
+ "linkedIssues": [
+  825,
+  863
+ ],
+ "relatedPRs": [],
+ "kind": "feature",
+ "size": "+11/-4 in 2 files",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Adds postcss-modules' `animation: global(name)` by having the unparsed-token serializer drop any `global(...)` function wrapper. The implementation can't land as is (it rewrites `global()` in every unparsed value, even without CSS modules, and works on raw tokens instead of the parsed animation-name), so the real question is whether to support this syntax at all.",
+ "evidence": "devongovett on #825 (2024-10-07): \"I think we probably will not support that syntax, but perhaps via a different one\" (re :global keyframe names), pointing to css-modules/css-modules#390. On #863 (2024-12-18) he pointed to that proposal's \"referencing an identifier\" section as \"a more general way\"; when told postcss had shipped global(), he replied \"Not sure. It was just a proposal. I was hoping to get consensus between implementations.\" No comments on the PR itself; 2 years old.",
+ "decision": "Should CSS modules support postcss's `global(name)` for animation names (implemented in the parsed AnimationName under css_modules), or only the css-modules proposal's identifier-reference syntax, in which case this PR is closed?",
+ "draft": null,
+ "confidence": "medium"
+}

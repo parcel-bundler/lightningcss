@@ -1,0 +1,23 @@
+{
+  "pr": 1217,
+  "title": "Add prebuilt binaries for ppc64le and s390x",
+  "author": "eelgaev",
+  "created": "2026-04-14",
+  "lastActivity": "2026-10-19",
+  "linkedIssues": [
+    1163,
+    1075
+  ],
+  "relatedPRs": [
+    1294
+  ],
+  "kind": "infra",
+  "size": "+65/-0 in 2 files",
+  "recommendation": "needs-maintainer-decision",
+  "priority": "medium",
+  "summary": "Cross-compiles ppc64le and s390x Linux GNU binaries in release CI and adds them to build-npm.js. Node.js core's CI (doc tooling via Vite) fails on these platforms because lightningcss has no binary, so there is concrete demand; the open question is whether to take on untestable, partly big-endian targets.",
+  "evidence": "No maintainer review on this PR. On #1163, ovflowd (Node.js) 2026-10-19 links failing node-test-commit-plinux/linuxone jobs (`Cannot find module '../lightningcss.linux-ppc64-gnu.node'` / s390x) and says Node must support these platforms; sapphi-red (member) 2026-10-20: no npm access, and unsure Devon wants prebuilt binaries, \"especially for s390x (which is big endian)\". IronBlood reported an occasional segfault at process exit running the JS tests on ppc64 (2026-10-20). devongovett declined the narrower #1294 on 2026-07-20 for usage/testability reasons.",
+  "decision": "Will Lightning CSS publish ppc64le and s390x Linux prebuilts (untested in CI, s390x big-endian) to unblock Node.js core's CI, or should those users rely on the WASM build / building from source?",
+  "draft": null,
+  "confidence": "high"
+}

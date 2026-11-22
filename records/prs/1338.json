@@ -1,0 +1,18 @@
+{
+ "pr": 1338,
+ "title": "fix: choose shorter quotes for minified URLs",
+ "author": "SyMind",
+ "created": "2026-09-08",
+ "lastActivity": "2026-10-29",
+ "linkedIssues": [],
+ "relatedPRs": [],
+ "kind": "perf",
+ "size": "+194/-3 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "low",
+ "summary": "When minifying, serializes url() strings with single quotes if that needs fewer escapes (e.g. SVG data URIs with double-quoted attributes). Pure size optimization with a hand-written single-quote serializer; well tested (round-trip over 2,744 combos), but escaping code is exactly where a minifier can silently break URLs, so it needs a careful review rather than a fast merge.",
+ "evidence": "master 574eee2 CLI --minify keeps `url(\"data:image/svg+xml,<svg width=\\\"1\\\" ...\")` with backslash-escaped quotes. No maintainer comments. Output-size only; no correctness bug fixed. Review focus: serialize_single_quoted_string writes raw `\"` and delegates the rest to CssStringWriter in slices - check hex-escape terminators across slice boundaries.",
+ "decision": null,
+ "draft": null,
+ "confidence": "medium"
+}

@@ -1,0 +1,23 @@
+{
+ "pr": 1307,
+ "title": "fix: accept :current after ::search-text pseudo-element",
+ "author": "rorshopping",
+ "created": "2026-08-12",
+ "lastActivity": "2026-08-12",
+ "linkedIssues": [
+  1303
+ ],
+ "relatedPRs": [
+  1304,
+  1213
+ ],
+ "kind": "bugfix",
+ "size": "+99/-1 in 3 files",
+ "recommendation": "deep-review",
+ "priority": "low",
+ "summary": "Since ::search-text became a known pseudo-element (#1213, 1.33.0), `::search-text:current` and `::search-text:not(:current)` are rejected with InvalidPseudoClassAfterPseudoElement. Adds a generic accepts_current_pseudo_class()/is_current() opt-in in the selectors fork. It competes with #1304 (earlier, by rvitaliy), which fixes the same issue and also rejects other pseudo-classes after ::search-text. Review both together and pick one.",
+ "evidence": "master 574eee2 CLI (target/review/base-574eee2/lightningcss; master-build.log was still empty): `::search-text:current{color:red}` -> error InvalidPseudoClassAfterPseudoElement (regression from 1.32.0). Chromium: CSS.supports('selector(::search-text:current)') = true, ':not(:current)' = true, '::search-text:hover' = false. Master accepts `::search-text:hover`, and so does #1307. #1304 makes it an error, which matches Chromium and the spec (\"Any unsupported combination of these pseudo-classes with ::search-text must be treated as invalid\"). #1304 also deletes two existing selectors-crate tests (`foo::search-text`, `:current::search-text`) and moves coverage to lib.rs. Neither PR has maintainer feedback. It's a niche, mostly Chrome-only feature, hence low priority. Per calibration, check upstream stylo selectors for how they handle highlight pseudos.",
+ "decision": null,
+ "draft": null,
+ "confidence": "medium"
+}

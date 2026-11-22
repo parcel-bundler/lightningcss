@@ -1,0 +1,21 @@
+{
+ "pr": 1334,
+ "title": "fix: deduplicate prefixes for unparsed text properties",
+ "author": "SyMind",
+ "created": "2026-09-08",
+ "lastActivity": "2026-09-08",
+ "linkedIssues": [],
+ "relatedPRs": [
+  1339,
+  1295
+ ],
+ "kind": "bugfix",
+ "size": "+223/-8 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "low",
+ "summary": "When text-decoration/text-emphasis values contain var(), Lightning CSS adds a duplicate `-webkit-` declaration on every minify pass. The PR merges prefix flags into the previous output declaration when it is the same unparsed property with identical tokens (only `dest.last_mut()`), which is exactly the simple approach the maintainer asked for in the sibling mask PR #1339.",
+ "evidence": "Master CLI (/home/user/lightningcss/target/review/ref-574eee2/lightningcss (master 574eee2)) `--targets 'safari 14.1'` on `.a{-webkit-text-decoration:underline var(--c);text-decoration:underline var(--c)}` -> `.a{-webkit-text-decoration:underline var(--c);-webkit-text-decoration:underline var(--c);text-decoration:underline var(--c)}` (duplicate). devongovett on #1339 (2026-09-27): \"check whether `dest.last_mut()` is an unparsed `mask-image` with the same token value and merge its prefix bits ... The current backward scan also introduces quadratic behavior\". #1334 already uses the last_mut approach. Output bloat only, no behavior change, so low priority; consider reviewing together with #1339/#1295 (same pattern, maybe a shared helper).",
+ "decision": null,
+ "draft": null,
+ "confidence": "medium"
+}

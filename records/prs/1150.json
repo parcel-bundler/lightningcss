@@ -1,0 +1,20 @@
+{
+  "pr": 1150,
+  "title": "Fix source location of list-style-image url location",
+  "author": "mischnic",
+  "created": "2026-02-13",
+  "lastActivity": "2026-02-13",
+  "linkedIssues": [
+    1149
+  ],
+  "relatedPRs": [],
+  "kind": "bugfix",
+  "size": "+30/-12 in 2 files",
+  "recommendation": "deep-review",
+  "priority": "low",
+  "summary": "Draft by a Parcel team member: adds `input.skip_whitespace()` in `Url::parse` before recording the location, fixing an off-by-one column for `list-style-image: url()` dependencies, and adds column assertions to test_dependencies. The author asks whether whitespace should be consumed by `Url` or by its container.",
+  "evidence": "Master node binding: `list-style-image:  url(missing2.png)` reports column 24 while cursor/background-image report 25, so the bug is still present. `background-image` works because the comma-separated list parser skips whitespace first; `list-style-image` is a single `Image` whose derived Parse doesn't. Since cssparser's `expect_url()` skips leading whitespace itself, recording the location after `skip_whitespace()` in `Url::parse` is consistent and likely the simplest correct fix. The PR's test notes a separate wrong column for string URLs in `image-set()` (TODO, +4). Still a draft; needs an answer to the author's question and un-drafting.",
+  "decision": null,
+  "draft": null,
+  "confidence": "medium"
+}

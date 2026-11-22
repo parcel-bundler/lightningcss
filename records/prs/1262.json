@@ -1,0 +1,22 @@
+{
+ "pr": 1262,
+ "title": "Allow using functions as patterns",
+ "author": "Delta-official",
+ "created": "2026-06-03",
+ "lastActivity": "2026-07-28",
+ "linkedIssues": [
+  491
+ ],
+ "relatedPRs": [
+  1237
+ ],
+ "kind": "feature",
+ "size": "+381/-163 in 8 files",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Lets cssModules.pattern be a JS object `{resolve(hash, path, local, contentHash?), contentHash}`. The Rust `Pattern` struct becomes an enum with an `Arc<dyn PatternProvider>` variant. Every generated name then does a blocking cross-thread call into JS. It's a breaking change to the public Rust API and a new JS API, so it needs a product decision before any review.",
+ "evidence": "Rust: `pub struct Pattern { segments }` -> `pub enum Pattern { Simple { segments }, Provider(Arc<dyn PatternProvider>) }`, and `Pattern::write` changes signature (breaking). The JS d.ts says `content_hash: boolean` but the napi code reads `contentHash`, so they don't match. The grid `[local]`-last check is skipped for providers (FIXME in the diff). No tests. It also includes unrelated rustfmt churn in selector.rs/bundler.rs, and the PR head is the fork's master branch. Related: #1237 (webpack-compatible hash patterns, where devongovett asked on 2026-05-17 \"isn't the whole point of CSS modules that the scoped names are not predictable?\"). #491 has no maintainer comment.",
+ "decision": "Should Lightning CSS accept a JS callback for CSS modules names (a breaking Rust Pattern API change, plus a synchronous JS round trip per identifier), or keep patterns string-only?",
+ "draft": null,
+ "confidence": "high"
+}

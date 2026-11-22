@@ -1,0 +1,20 @@
+{
+  "pr": 1314,
+  "title": "Error on nested @property and @position-try rules",
+  "author": "ChrisJr404",
+  "created": "2026-08-25",
+  "lastActivity": "2026-08-25",
+  "linkedIssues": [
+    962
+  ],
+  "relatedPRs": [],
+  "kind": "bugfix",
+  "size": "+50/-2 in 2 files",
+  "recommendation": "deep-review",
+  "priority": "medium",
+  "summary": "`@property` and `@position-try` preludes returned early in NestedRuleParser::parse_prelude, skipping the allowed_in_style_rule() check, so nesting them in a style rule was silently accepted (and emitted as invalid CSS when nesting is preserved). The PR lets them fall through to the check: error in strict mode, warning with errorRecovery. This matches exactly what the maintainer asked for in #962.",
+  "evidence": "Master: `.foo{ @property --a {...} color:red }` -> `.foo{@property --a{...}color:red}`, exit 0, with and without --error-recovery. devongovett on #962 (2025-04-19): 'they should probably both error unless errorRecovery is enabled in which case they should both warn. I don't think auto \"fixing\" errors is a good idea.' src/parser.rs:731-739 still has the early `return Ok(...)`. Only PR for #962. Reviewer: confirm @position-try is indeed not allowed nested per css-anchor-position, and that nesting inside @media inside a style rule is also caught.",
+  "decision": null,
+  "draft": null,
+  "confidence": "high"
+}

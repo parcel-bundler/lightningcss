@@ -1,0 +1,24 @@
+{
+  "pr": 1352,
+  "title": "fix: preserve legacy placeholder pseudo-classes",
+  "author": "maricastroc",
+  "created": "2026-09-24",
+  "lastActivity": "2026-09-24",
+  "linkedIssues": [
+    1351
+  ],
+  "relatedPRs": [
+    929,
+    1281,
+    492
+  ],
+  "kind": "bugfix",
+  "size": "+40/-2 in 2 files",
+  "recommendation": "deep-review",
+  "priority": "high",
+  "summary": "Stops parsing `:-moz-placeholder` and `:-ms-input-placeholder` as prefixed `:placeholder-shown` (mapping added in #929, v1.29.3). Those names are the legacy forms of `::placeholder`, so with modern targets the `:is()` lowering prints an unprefixed `:placeholder-shown` copy that styles the whole input in current browsers (Vite 8 report).",
+  "evidence": "Master (574eee2) --targets 'chrome 111': `a:-ms-input-placeholder, b:-ms-input-placeholder{color:red}` -> `:is(a:-ms-placeholder-shown,b:-ms-placeholder-shown){color:red}:is(a:placeholder-shown,b:placeholder-shown){color:red}`, which changes meaning in a modern browser. Related, not fixed by this PR: prefixing `a:placeholder-shown` for firefox 40 / ie 11 emits non-existent `:-moz-placeholder-shown` / `:-ms-placeholder-shown` (prefixes.rs PseudoClassPlaceholderShown + write_prefixed!); and open #1281 fixes `::-ms-input-placeholder` being rewritten to `::-moz-placeholder` (also reproduced on master). Review could consider handling these together or noting follow-ups. No maintainer comments.",
+  "decision": null,
+  "draft": null,
+  "confidence": "high"
+}

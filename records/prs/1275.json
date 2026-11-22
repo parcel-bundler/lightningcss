@@ -1,0 +1,20 @@
+{
+ "pr": 1275,
+ "title": "fix: restore declarations for incompatible selectors after rule merge",
+ "author": "PranavAchar01",
+ "created": "2026-06-09",
+ "lastActivity": "2026-08-01",
+ "linkedIssues": [
+  1260
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+42/-0 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "high",
+ "summary": "When a selector list is split for targets (e.g. `:has()`/`:focus-visible` unsupported) and the compatible part merges into the previous rule, merge_style_rules drains the declarations first, so the incompatible clones end up empty and are dropped: styles silently disappear. The PR snapshots the declarations before merging (only when incompatible selectors exist) and restores them on the clones.",
+ "evidence": "Master CLI (/home/user/lightningcss/target/review/ref-574eee2/lightningcss (master 574eee2)) `--targets 'chrome 104'`: `.a:last-child{border-bottom:none}.a:last-child,.a:has(+ .b){display:flex}` -> `.a:last-child{border-bottom:none;display:flex}` (`.a:has(+.b)` rule lost). Same with `:hover`/`:focus-visible` for chrome 85 per #1260. Only PR for #1260; no maintainer comments. Clone only happens on the rare split path, so no hot-path cost. Review: whether clones should use the pre-merge declarations after style.minify/update_prefix ordering, and logical/@supports overrides generated for clones.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

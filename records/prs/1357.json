@@ -1,0 +1,23 @@
+{
+ "pr": 1357,
+ "title": "fix: deserialize null as None in visitor results",
+ "author": "Juice-de-Orange",
+ "created": "2026-10-02",
+ "lastActivity": "2026-10-02",
+ "linkedIssues": [
+  1065,
+  1081
+ ],
+ "relatedPRs": [
+  1062
+ ],
+ "kind": "bugfix",
+ "size": "+97/-3 in 6 files",
+ "recommendation": "deep-review",
+ "priority": "high",
+ "summary": "Fixes the 1.30.2 visitor regression (#1065, #1081, ~29 reactions combined): after the switch to serde-content (#1062), a JS `null` deserializes as Value::Unit and fails on Option fields, so any visitor returning a node containing `var()` throws. The PR converts Unit to Option(None) recursively before deserializing in the Property, CssRule and napi ValueOrVec deserializers.",
+ "evidence": "repro.mjs: `StyleSheetExit(s){return s}` on `.foo{color:var(--color)}` -> 1.33.0: `ERROR: failed to deserialize; expected an object-like struct named Specifier, found ()`; 1.30.1: correct. Master has no null handling in src/serialization.rs (unchanged). Maintainer previously agreed #1065 is a high-priority regression (calibration log). Review points: the recursive null_to_none walks every buffered value (perf on large StyleSheetExit returns; it moves values, no clone), and the helper is duplicated in napi/src/transformer.rs; check whether a Unit could ever be legitimately expected (e.g. unit variants) and that it is applied at all deserialization entry points.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

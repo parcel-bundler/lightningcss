@@ -1,0 +1,20 @@
+{
+ "pr": 1218,
+ "title": "feat: Added support for container-type: anchored and @container anchored()",
+ "author": "lubomirblazekcz",
+ "created": "2026-04-15",
+ "lastActivity": "2026-10-26",
+ "linkedIssues": [
+  1176
+ ],
+ "relatedPRs": [],
+ "kind": "feature",
+ "size": "+786/-21 in 6 files",
+ "recommendation": "deep-review",
+ "priority": "high",
+ "summary": "Parses `container-type: anchored` (now as bitflags) and `@container anchored(fallback: ...)` with typed values reusing the position-try-fallbacks types. Released 1.33.0 errors on this syntax, which breaks `vite build` for users of anchored container queries; heavy demand, and the author says both maintainer review points are addressed.",
+ "evidence": "devongovett review 2026-05-17: use bitflags for ContainerType; parse the feature value with the `position-try-fallbacks` types instead of storing tokens. Author 2026-05-18/08-04 says both are addressed (f82ef9a, adc908c); threads still unresolved but outdated. #1176 has 21 reactions, PR 11; several 'please merge' pings (2026-06 to 2026-10); a user reports 1.33.0 fails with `Unexpected token Function(\"anchored\")`. Calibration (#1176): research spec status and other engines first, early draft goes behind a flag, verify errorRecovery passes it through; the AST change is fine.",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

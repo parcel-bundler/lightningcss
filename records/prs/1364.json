@@ -1,0 +1,23 @@
+{
+ "pr": 1364,
+ "title": "fix: check drop-shadow() and blur() compatibility in filter lists",
+ "author": "oddharsh",
+ "created": "2026-10-07",
+ "lastActivity": "2026-10-29",
+ "linkedIssues": [
+  1360
+ ],
+ "relatedPRs": [
+  1259,
+  1284
+ ],
+ "kind": "bugfix",
+ "size": "+29/-4 in 2 files",
+ "recommendation": "deep-review",
+ "priority": "medium",
+ "summary": "Implements IsCompatible for Filter/FilterList (drop-shadow color+lengths, blur length) so FallbackHandler keeps an earlier filter when a later one uses syntax the targets lack, matching what color/text-shadow already do. Small, well-tested, and the bug silently drops a working fallback.",
+ "evidence": "master 574eee2 CLI with --targets 'chrome 90' on `.foo{filter:blur(1px);filter:drop-shadow(0 0 2px oklch(25% .05 30))}` outputs only the drop-shadow declaration (Chrome 90 then gets no filter). kdy1 (member) posted a spec-based supportive review 2026-10-29. Touches the same FallbackHandler path as #1259 (backdrop-filter prefix fix, maintainer reviewing) - check the two compose. Worth checking: is_compatible also feeds rule merging, so oklch drop-shadow rules will stop merging for old targets (correct, but size impact).",
+ "decision": null,
+ "draft": null,
+ "confidence": "high"
+}

@@ -1,0 +1,18 @@
+{
+  "pr": 1122,
+  "title": "feat: support calc in <integer>",
+  "author": "yisibl",
+  "created": "2026-01-07",
+  "lastActivity": "2026-02-28",
+  "linkedIssues": [],
+  "relatedPRs": [],
+  "kind": "feature",
+  "size": "+564/-22 in 9 files",
+  "recommendation": "needs-maintainer-decision",
+  "priority": "low",
+  "summary": "Draft that makes `<integer>` accept calc() (z-index, order, steps(), repeat(), …), resolving and rounding it, and adds infinity/NaN handling, including serializing i32::MAX/MIN as calc(±1/0) and new division-by-zero semantics in Calc. To do so it turns the public `CSSInteger` from `type CSSInteger = i32` into a newtype struct, a breaking Rust API change touching several modules. Some expectations are questionable (e.g. `z-index:2147483647` -> `calc(1/0)`, f32 precision loss acknowledged in a TODO, an existing width test rewritten to margin).",
+  "evidence": "Master: `.foo{z-index:calc(1 + 2)}` -> `.foo{z-index:calc(1 + 2)}` (kept as is, not an error), and src/values/number.rs still has `// TODO: calc??`. No reviews or comments; draft since Jan 2026; no competing PR.",
+  "decision": "Is changing the public `CSSInteger` type from an `i32` alias to a newtype (breaking for Rust users) acceptable for calc() support in <integer>, or should calc be parsed as a number and rounded into the existing i32, leaving infinity/NaN handling to a separate PR?",
+  "draft": null,
+  "confidence": "medium"
+}

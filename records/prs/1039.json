@@ -1,0 +1,18 @@
+{
+ "pr": 1039,
+ "title": "Add selector name to PURE error message",
+ "author": "mischnic",
+ "created": "2025-08-11",
+ "lastActivity": "2025-08-11",
+ "linkedIssues": [],
+ "relatedPRs": [],
+ "kind": "feature",
+ "size": "+40/-14 in 4 files",
+ "recommendation": "deep-review",
+ "priority": "low",
+ "summary": "Draft from a Parcel team member: adds the offending selector to the `ImpureCSSModuleSelector` minify error so pure-CSS-modules users can see which selector failed. Small and useful, but it changes a public Rust enum variant and the serialized error data, and it reports the whole selector list (e.g. `div, .foo`) and drops `:global()` from the text (`.foo`).",
+ "evidence": "Master error.rs still has a unit variant `ImpureCSSModuleSelector` with a generic message. The PR is still a draft with no description, comments or reviews; the branch is in the main repo. The 2026-01-03 updated_at looks like a bulk touch. Review points: report only the impure selector, keep :global() in the text, and call out the Rust API change.",
+ "decision": null,
+ "draft": null,
+ "confidence": "medium"
+}

@@ -1,0 +1,20 @@
+{
+  "pr": 1363,
+  "title": "fix: keep caret, caret-color and caret-shape in source order",
+  "author": "oddharsh",
+  "created": "2026-10-07",
+  "lastActivity": "2026-10-07",
+  "linkedIssues": [
+    1362
+  ],
+  "relatedPRs": [],
+  "kind": "bugfix",
+  "size": "+31/-0 in 2 files",
+  "recommendation": "deep-review",
+  "priority": "low",
+  "summary": "FallbackHandler writes a later caret-color/caret back into the earlier slot, which reorders interleaved caret and caret-color/caret-shape declarations and changes which one wins. The PR forgets the other slot when a related property is seen, keeping source order at the cost of not deduplicating the earlier declaration. Small, plausible correctness fix; rare usage pattern, hence low priority.",
+  "evidence": "Master: `.a{caret-color:red;caret:auto;caret-color:blue}` -> `.a{caret-color:#00f;caret:auto}` (blue now overridden by caret:auto, so caret color becomes auto: wrong). `.b{caret:red;caret-color:blue;caret:green}` -> `.b{caret:green;caret-color:#00f}` (blue wins instead of green). Only PR for #1362; no comments or reviews. Reviewer should check the unparsed/var() paths and whether the handler needs similar logic for other shorthand/longhand pairs it manages.",
+  "decision": null,
+  "draft": null,
+  "confidence": "high"
+}

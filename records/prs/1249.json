@@ -1,0 +1,21 @@
+{
+ "pr": 1249,
+ "title": "chore: add test for cross-platform",
+ "author": "cscnk52",
+ "created": "2026-05-23",
+ "lastActivity": "2026-06-08",
+ "linkedIssues": [],
+ "relatedPRs": [
+  1247,
+  1248
+ ],
+ "kind": "infra",
+ "size": "+37/-28 in 6 files",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Runs the Rust, JS and WASM CI jobs on a ubuntu/macos/windows matrix, switches `cargo fmt` to `--check`, installs binaryen via a third-party action, and bundles unrelated rustfmt/unused-import cleanups. It expects Windows to fail until #1247/#1248 (both still open) land, and now conflicts with master's workflow (node 24, AST check, toolchain 1.96).",
+ "evidence": "Current .github/workflows/test.yml on master differs (node-version 24, `Check generated TypeScript types` step from #1407; rust-toolchain.toml now 1.96.0 vs PR's 1.92.0 + wasm target). #1247 (Windows hash stability) and #1248 (color rounding) are open. No maintainer comments (only CodSpeed bot).",
+ "decision": "Do you want CI to run all three jobs on macOS and Windows (about 3x CI minutes, and it requires merging #1247/#1248 first), or only e.g. the Rust tests on Windows, or not at all?",
+ "draft": null,
+ "confidence": "medium"
+}

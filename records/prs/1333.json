@@ -1,0 +1,18 @@
+{
+ "pr": 1333,
+ "title": "fix: factor shared custom properties in adjacent rules",
+ "author": "SyMind",
+ "created": "2026-09-08",
+ "lastActivity": "2026-11-03",
+ "linkedIssues": [],
+ "relatedPRs": [],
+ "kind": "perf",
+ "size": "+1350/-8 in 3 files",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Draft PR adding a new cross-rule optimization in CssRuleList::minify: extracts custom properties shared by adjacent rules into a combined-selector rule when it shrinks raw output, plus selector-compat and nesting-detection changes. Big, risky minifier transform with a cost/benefit trade-off (raw -12% on one theme file, brotli +67 B) that the maintainer should approve in principle before anyone does a full review.",
+ "evidence": "Still a draft. kdy1 (member) 2026-10-29 found a `revert-rule !important` counterexample reproduced in Chromium 156; author pushed 0a1bc67 'preserve rule boundaries for revert-rule' on 2026-11-03 (not re-verified here). Also touches selector compatibility for :host()/::slotted()/::cue() arguments and nesting detection inside :has(). Author notes output is not idempotent across passes. Calibration: maintainer weighs precision against complexity and perf on rule lists.",
+ "decision": "Do we want a 1.3k-line custom-property factoring pass in the rule minifier (raw size gains, compressed size neutral or worse), or is it out of scope given the complexity and risk?",
+ "draft": null,
+ "confidence": "medium"
+}

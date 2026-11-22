@@ -1,0 +1,20 @@
+{
+ "pr": 1216,
+ "title": "fix: error on `composes:` references to undefined classes",
+ "author": "Kenzo-Wada",
+ "created": "2026-04-14",
+ "lastActivity": "2026-04-14",
+ "linkedIssues": [
+  1215
+ ],
+ "relatedPRs": [],
+ "kind": "bugfix",
+ "size": "+250/-45 in 5 files",
+ "recommendation": "deep-review",
+ "priority": "medium",
+ "summary": "Adds PrinterErrorKind::MissingComposesName, an error after printing when a `composes:` name (same file, or a cross-file reference resolved by the bundler) has no export. Today such references silently produce a hashed class name with no styles. That fits the strict-by-default philosophy, but it will break builds that pass today, so release notes should call it out.",
+ "evidence": "#1215: `composes: historychevron` (wrong case) silently exports a dangling name. The PR rewrites an existing bundler test that expected the silent behavior (`composes: x from './b.css'` where b.css has no `.x`), so the expectation change is intentional. Review points: is a class whose only rule is removed by minify (e.g. empty `.b{}`) still in exports, or would that now error falsely; should errorRecovery turn this into a warning, as with other strict errors; a new public enum variant (PrinterErrorKind) and a new JS error message; the base is df63db2 (April), and css_modules.rs Pattern changed since, so it probably needs a rebase. No comments from anyone.",
+ "decision": null,
+ "draft": null,
+ "confidence": "medium"
+}

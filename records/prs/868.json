@@ -1,0 +1,20 @@
+{
+ "pr": 868,
+ "title": "feat: add path parsing to BasicShape",
+ "author": "noahbald",
+ "created": "2024-12-12",
+ "lastActivity": "2026-01-03",
+ "linkedIssues": [],
+ "relatedPRs": [
+  824
+ ],
+ "kind": "feature",
+ "size": "+109/-10 in 4 files",
+ "recommendation": "needs-maintainer-decision",
+ "priority": "low",
+ "summary": "Adds BasicShape::Path, parsed and optimized by the external crate oxvg_path 0.0.1-beta.4 (SVGO-style convertPathData), so `path(\"M 0 0 L 0 10\")` -> `path(\"M0 0v10\")`. Today path() passes through unchanged. Fully parsing path() fits the philosophy, but it brings in a beta third-party dependency whose types become part of the public AST, and the path rewriting runs at parse time even without minify.",
+ "evidence": "master 574eee2 CLI (target/review/base-574eee2/lightningcss; master-build.log was still empty): `clip-path:path(\"M 0 0 L 0 10\")` passes through unchanged (`.foo{clip-path:path(\"M 0 0 L 0 10\")}`). The PR is a re-open of #824 (closed by the author only to move off their fork's master). Base 9e04c01 (2023): it predates the cssparser 0.37 upgrade and the Cargo.lock changes, so it's heavily bitrotted. oxvg_path::Path would be exposed in the serde/jsonschema AST (node/ast.d.ts). No maintainer comments in either PR.",
+ "decision": "Do we want path() data parsed and rewritten via the external beta crate oxvg_path (exposed in the public AST), or should path() stay as a string until we have an in-tree parser?",
+ "draft": null,
+ "confidence": "medium"
+}

@@ -1,0 +1,23 @@
+{
+  "pr": 1247,
+  "title": "fix(test): fix hash is not stable on Windows",
+  "author": "cscnk52",
+  "created": "2026-05-23",
+  "lastActivity": "2026-05-28",
+  "linkedIssues": [
+    541
+  ],
+  "relatedPRs": [
+    1120,
+    1119
+  ],
+  "kind": "bugfix",
+  "size": "+6/-7 in 1 file",
+  "recommendation": "needs-maintainer-decision",
+  "priority": "low",
+  "summary": "Normalizes backslashes to `/` before hashing the source path for CSS module class names, and also drops the `path.is_absolute()` guard so relative paths are diffed against project_root too. Titled as a test fix, but it changes generated class names for real users.",
+  "evidence": "Master src/css_modules.rs still hashes `source.to_string_lossy()` unnormalized, so Windows and POSIX produce different hashes for the same project. The change alters every hashed class name for Windows users (and for relative-path inputs with a relative project_root on all platforms), i.e. a breaking output change for CSS modules consumers with persisted class names / SSR caches. #1120 (same root cause, open, also by a contributor) does the same normalization plus string-prefix stripping for relative paths. No maintainer comments on either.",
+  "decision": "Should CSS module hashes be made platform-independent (changing every hashed class name on Windows) in a minor release, and if so via #1247's minimal change or #1120's broader one?",
+  "draft": null,
+  "confidence": "medium"
+}
