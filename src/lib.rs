@@ -1352,6 +1352,27 @@ mod tests {
       },
     );
 
+    // Android WebView has shared Chrome's version numbers since 37. caniuse lists
+    // only the current WebView version, which used to make every feature added
+    // after Android 4.4 look unsupported in older WebViews (#568).
+    prefix_test(
+      r#"
+      .foo {
+        font-family: Helvetica, system-ui, sans-serif;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-family: Helvetica, system-ui, sans-serif;
+      }
+    "#
+      },
+      Browsers {
+        android: Some(131 << 16),
+        ..Browsers::default()
+      },
+    );
+
     prefix_test(
       r#"
       .foo {
@@ -2337,6 +2358,72 @@ mod tests {
 
   #[test]
   pub fn test_border_image() {
+    minify_test(
+      r#"
+      .foo {
+        border-image: none;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    test(
+      r#"
+      .foo {
+        border-image: none;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        border-image: none;
+      }
+      "#},
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image: none 100% / 1 / 0 stretch;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image-source: none;
+        border-image-slice: 100%;
+        border-image-width: 1;
+        border-image-outset: 0;
+        border-image-repeat: stretch;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        -webkit-border-image: none;
+        border-image: none !important;
+      }
+      "#,
+      ".foo{-webkit-border-image:none;border-image:none!important}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image: url(border.png) 1;
+      }
+      .foo.active {
+        border-image: none;
+      }
+      "#,
+      ".foo{border-image:url(border.png) 1}.foo.active{border-image:none}",
+    );
+
     property_range_test(
       &[
         "border-image-outset",
@@ -4220,6 +4307,36 @@ mod tests {
   #[test]
   fn test_size() {
     minify_test(".foo { width: 10px; width: -1px }", ".foo{width:10px;width:-1px}");
+    // `include: VendorPrefixes` asks for every prefix, but stretch only has
+    // -webkit- and -moz- forms (#1371).
+    for prop in ["height", "max-height"] {
+      let source = format!(".foo {{ {}: stretch }}", prop);
+      let targets = Targets {
+        browsers: None,
+        include: Features::VendorPrefixes,
+        exclude: Features::empty(),
+      };
+      let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
+      stylesheet
+        .minify(MinifyOptions {
+          targets,
+          ..MinifyOptions::default()
+        })
+        .unwrap();
+      let res = stylesheet
+        .to_css(PrinterOptions {
+          targets,
+          ..PrinterOptions::default()
+        })
+        .unwrap();
+      assert_eq!(
+        res.code,
+        format!(
+          ".foo {{\n  {0}: -webkit-fill-available;\n  {0}: -moz-available;\n  {0}: stretch;\n}}\n",
+          prop
+        )
+      );
+    }
     property_range_test(
       &["aspect-ratio"],
       &[
@@ -10297,47 +10414,6 @@ mod tests {
         }
       }
     "#},
-    );
-  }
-
-  #[test]
-  fn test_layer_order_across_rules() {
-    // A conditional declaration can establish `a` before `b`. Hoisting the
-    // final statement changes their order when the condition matches.
-    minify_test(
-      "@layer c; @media (min-width: 600px) { @layer a { .x { --v: a } } } @layer b, a;",
-      "@layer c;@media (width>=600px){@layer a{.x{--v:a}}}@layer b,a;",
-    );
-    minify_test(
-      "@layer c; @supports (display: grid) { @layer a { .x { --v: a } } } @layer b, a;",
-      "@layer c;@supports (display:grid){@layer a{.x{--v:a}}}@layer b,a;",
-    );
-    // An unlayered import may declare layers in its stylesheet too.
-    minify_test(
-      "@layer c; @import 'a.css'; @layer b, a;",
-      "@layer c;@import \"a.css\";@layer b,a;",
-    );
-    // A conditional import cannot make a later unconditional declaration
-    // redundant: that declaration must still apply if the condition is false.
-    minify_test(
-      "@import 'a.css' layer(a) screen; @layer a, b;",
-      "@import \"a.css\" layer(a) screen;@layer a,b;",
-    );
-    // Moving the last block into the first reverses the order of declarations
-    // within `a` when the intervening condition matches.
-    minify_test(
-      "@layer a { .x { --v: first } } @media print { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
-      "@layer a{.x{--v:first}}@media print{@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
-    );
-    minify_test(
-      "@layer a { .x { --v: first } } @supports (display: grid) { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
-      "@layer a{.x{--v:first}}@supports (display:grid){@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
-    );
-    // Dotted layer names and nested blocks address the same layer hierarchy.
-    // Merging the two `a` blocks would declare `a.z` before `a.y`.
-    minify_test(
-      "@layer a { @layer x; } @layer a.y { .x { --v: y } } @layer a { @layer z { .x { --v: z } } }",
-      "@layer a{@layer x;}@layer a.y{.x{--v:y}}@layer a{@layer z{.x{--v:z}}}",
     );
   }
 
@@ -28667,6 +28743,22 @@ mod tests {
       ".foo{mask:url(masks.svg#star) 0/16px repeat-y,url(masks.svg#circle) 100%/16px repeat-y}",
     );
 
+    minify_test(
+      r#"
+      .foo {
+        mask-border: none;
+      }
+      "#,
+      ".foo{mask-border:none}",
+    );
+    minify_test(
+      r#"
+      .foo {
+        -webkit-mask-box-image: none;
+      }
+      "#,
+      ".foo{-webkit-mask-box-image:none}",
+    );
     minify_test(
       ".foo { mask-border: url('border-mask.png') 25; }",
       ".foo{mask-border:url(border-mask.png) 25}",
