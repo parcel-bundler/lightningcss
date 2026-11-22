@@ -10,3 +10,13 @@ Maintainer verdicts on agent reviews. This is an eval set for the review skill: 
 | #1386 `@supports` in nested declarations | request changes (incomplete fix) | agrees | none |
 | #1380 `(min-width)` in a boolean context | needs maintainer decision | strict: error only for known features; error recovery: warning, keep the CSS as written | **Right:** identified the policy question and the Chromium behavior. The policy is now recorded in `CLAUDE.md`. |
 | #1418 (agent-written fix for #974) | correct; no size regression on S2 or the rest of the corpus; perf checked | open; to be revisited | **Noted:** "quite a bit more complicated than the initial patch". When writing fixes, weigh precision against complexity: show the simplest correct version first, and justify each extra piece of machinery with a measured need. |
+
+## Decision queue PR batch 2026-11-22
+
+Comments approved and posted for #1250, #1259, #1306, #1321, #1354, #1383, #1387, #1390; #1287 (needs-maintainer-decision) still pending. Maintainer edited three drafts before posting:
+- #1250, #1354: trimmed the opening and removed evidence about how it was verified (tool details, mapping counts); kept the concrete browser behavior and requests.
+- #1387: shortened.
+Maintainer notes:
+- For selector changes, check whether upstream servo/stylo selectors (the fork source) has related changes. Added to the skill.
+- Follow-up bugs already mentioned in a PR comment count as handled there; only file separate issues for ones that weren't.
+- size-check without targets missed #1287's growth; size-check now also runs with older targets.
