@@ -3,8 +3,9 @@ name: Update browser support data
 on:
   workflow_dispatch:
   schedule:
-    # Every Monday at 09:00 in San Francisco, including daylight saving time.
-    - cron: '0 9 * * 1'
+    # Every Monday at 09:17 in San Francisco, including daylight saving time
+    # (off the hour, when scheduled runs are less likely to be delayed).
+    - cron: '17 9 * * 1'
       timezone: America/Los_Angeles
 
 permissions:
@@ -38,10 +39,21 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: yarn install --frozen-lockfile
       - name: Update browser data dependencies
-        # Keep the declared ranges: newer MDN schemas may need script changes.
+        # Keep the declared ranges: a new major MDN schema may need script changes.
         run: yarn upgrade autoprefixer caniuse-lite @mdn/browser-compat-data
       - name: Generate browser support data
         run: node scripts/build-prefixes.js
+      - name: Summarize data changes
+        # Per feature and browser, what changed and what needs a human look
+        # (support moved later or removed, prefix ranges changed, known anomaly
+        # patterns). It exits 1 when something needs review; that should not
+        # stop the PR, so the exit code only selects the PR body's heading.
+        run: |
+          if node scripts/compat-diff.mjs > "$RUNNER_TEMP/compat-diff.md"; then
+            echo "COMPAT_REVIEW=no" >> "$GITHUB_ENV"
+          else
+            echo "COMPAT_REVIEW=yes" >> "$GITHUB_ENV"
+          fi
       # PRs created with GITHUB_TOKEN do not trigger pull_request workflows.
       - name: Validate generated data
         run: |
@@ -71,18 +83,28 @@ jobs:
           remote_head=$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)
           git push --force-with-lease="refs/heads/$branch:$remote_head" origin "HEAD:refs/heads/$branch"
 
+          body_file="$RUNNER_TEMP/browser-data-pr.md"
+          {
+            echo "Update Autoprefixer, caniuse-lite, and MDN browser compatibility data within the declared version ranges, then regenerate browser support tables and target definitions with \`scripts/build-prefixes.js\`."
+            echo
+            if [ "$COMPAT_REVIEW" = yes ]; then
+              echo "**Some changes need review** (see below)."
+            else
+              echo "No suspicious changes or new anomalies were found."
+            fi
+            echo
+            cat "$RUNNER_TEMP/compat-diff.md"
+            echo
+            echo "Validation: \`cargo test --locked --all-features\`, \`yarn build\`, \`yarn test\`, and \`yarn tsc\`."
+            echo
+            echo "Refs https://github.com/parcel-bundler/lightningcss/discussions/1241"
+          } > "$body_file"
+
           pr_number=$(gh pr list --head "$branch" --base "$BASE_BRANCH" --state open --json number --jq '.[0].number // empty')
           if [ -n "$pr_number" ]; then
+            gh pr edit "$pr_number" --body-file "$body_file"
             echo "Updated pull request #$pr_number."
             exit 0
           fi
 
-          body_file="$RUNNER_TEMP/browser-data-pr.md"
-          cat > "$body_file" <<'EOF'
-          Update Autoprefixer, caniuse-lite, and MDN browser compatibility data within the declared version ranges, then regenerate browser support tables and target definitions with `scripts/build-prefixes.js`.
-
-          Validation: `cargo test --locked --all-features`, `yarn build`, `yarn test`, and `yarn tsc`.
-
-          Refs https://github.com/parcel-bundler/lightningcss/discussions/1241
-          EOF
           gh pr create --base "$BASE_BRANCH" --head "$branch" --title 'chore: update browser support data' --body-file "$body_file"
