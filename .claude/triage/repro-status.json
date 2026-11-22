@@ -1,0 +1,185 @@
+{
+  "updated": "2026-11-22",
+  "results": {
+    "137: 137-repro-error.mjs": {
+      "master": "WRONG",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "137: 137-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "213: 213-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "436: 436-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "516: 516-repro-filename.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "516: 516-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "572: 572-repro-calc.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "572: 572-repro-height.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "572: 572-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "695: 695-repro-chrome-only.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "695: 695-repro-diffval.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "695: 695-repro-filter-prop.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "695: 695-repro-filter.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "695: 695-repro-notargets.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "695: 695-repro-order.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "695: 695-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "788: 788-repro-recovery.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "788: 788-repro.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "925: 925-repro-newer.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "925: 925-repro.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "949: 949-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1065: 1065-repro-function.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1065: 1065-repro-nulls.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "1065: 1065-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1072: 1072-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1081: 1081-repro-theme.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1081: 1081-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1176: 1176-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1319: 1319-repro-boundary.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "1319: 1319-repro-modern.mjs": {
+      "master": "correct",
+      "release": "correct",
+      "releaseVersion": "1.33.0"
+    },
+    "1397: 1397-repro-literal.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1397: 1397-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1401: 1401-repro-shift.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1401: 1401-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1403: 1403-repro-invalid.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    },
+    "1403: 1403-repro.mjs": {
+      "master": "WRONG",
+      "release": "WRONG",
+      "releaseVersion": "1.33.0"
+    }
+  }
+}
