@@ -72,12 +72,21 @@ Then apply the project philosophy from `CLAUDE.md`:
 - **An error on third-party CSS** that browsers would ignore is usually working as intended in strict mode. Point to `errorRecovery`, unless the error is wrong, i.e. it fires on valid CSS.
 - **Workarounds for bugs in very old browsers** are out of scope unless those browsers are still in real use.
 - **Draft or experimental features** go behind a draft flag, and only once at least one browser ships it or multiple engines are committed. Check MDN browser-compat-data (`node_modules/@mdn/browser-compat-data`) and caniuse.
-- **Spec-precise edge cases.** Note whether real stylesheets plausibly contain the case. A correct but exotic edge case is low priority.
+- **Spec-precise edge cases.** Ask whether real stylesheets plausibly contain the case. Many recent reports look like the output of someone asking an agent to find spec deviations. Typical signs: several filed together, edge cases like `calc(2000)` for `font-weight` or a property repeated in a `transition` list, and no real project mentioned. These are real bugs but low priority, and an extreme case nobody would write may simply be closed. Real-world evidence raises priority: a framework, a production site, reactions, duplicates.
+- **Features supported by a single browser** need care. A feature added early can later change syntax and leave us supporting both forms.
+  1. Confirm that `errorRecovery` passes the unknown syntax through unchanged with a warning. If it errors instead, that is a bug to fix now (turn the error into a warning), separate from adding the feature.
+  2. Research the spec's maturity: its status in the Editor's Draft, and open CSSWG issues on the syntax.
+  3. Research other engines' plans: `mozilla/standards-positions`, `WebKit/standards-positions`, Interop proposals, and implementation bugs in Gecko and WebKit.
+  4. Decide: an early draft without other engines committed goes behind a draft flag. Once other engines are implementing it or the spec is stable, it's a missing feature to implement. Status changes over time (`@function` started Chrome-only, and Safari is now implementing it), so check the current state rather than relying on old comments.
+- **Downstream tools.** Behavior in Vite, Next.js/Turbopack, Tailwind etc. changes too. Before attributing a problem to them, such as "Turbopack turns warnings into errors", check whether a current version still does it.
+- **CLI-only requests** (e.g. `--watch`) are low priority. Most usage goes through the npm package via other tools. Say a PR would be reviewed rather than queuing the work.
+- **Crashes from user error are still bugs.** Misuse should produce a clear error, never a panic.
 
 ### 5. Assess the fix
 
 - Which code is involved (file and function)?
 - Is there a general rule behind it, as opposed to a one-off case?
+- **AST and API impact.** Changing a Rust type is acceptable: the crate is alpha, so a version bump can contain breaking changes. For the JS visitor API and `node/ast.d.ts`, adding a new case to a union is not breaking, but changing the shape of existing values is a gray area. Prefer designs that keep the JS AST shape and call out any change.
 - Rough size: **small** (a few lines plus a test), **medium**, or **large** (design work).
 - Mark it `good first issue` only when it's small, well understood and isolated, and the repro and the fix location are known.
 
@@ -112,7 +121,7 @@ Write a JSON record and a short markdown summary to the path you were given, or 
 }
 ```
 
-**Umbrella issues** collect several cases, like #572. Add a `subcases` array to the record, each entry with its own status (fixed in a version, duplicate of #N, still open with its fix PR). Set the overall action to `keep-open` with a status comment, or `close` once every sub-case is tracked elsewhere.
+**Umbrella issues** collect several cases, like #572 and the many property-order reports in its comments. There's rarely one fix: each case has its own cause and lives in a different place. Typical causes are a new property we don't parse yet that a shorthand resets ("reset-only"), a bug in that shorthand's property handler, or wrong compat data. Triage each case separately: add a `subcases` array to the record, each entry with its own cause, code location and status (fixed in a version, duplicate of #N, still open with its fix PR). Set the overall action to `keep-open` with a status comment, or `close` once every sub-case is tracked elsewhere.
 
 **Severity** reflects impact *now*. For an issue that's already fixed in the latest release, use low and give the historical severity in `impact`.
 
@@ -129,6 +138,7 @@ Write a JSON record and a short markdown summary to the path you were given, or 
 - the conclusion first, then the evidence a reporter can check (versions, a minimal repro, a spec link);
 - the next step: a workaround, `errorRecovery`, the duplicate's number, or what information is needed;
 - no tool jargon, and no speaking for decisions the maintainer hasn't made;
+- for "works as intended" or "the data says otherwise", link the source (e.g. the MDN or caniuse entry) and ask where the reporter's information came from, rather than just asserting they're wrong;
 - when an open PR exists that the maintainer hasn't reviewed, mention it neutrally ("there's an open PR, #N, that addresses this"), never as accepted;
 - end with:
 
