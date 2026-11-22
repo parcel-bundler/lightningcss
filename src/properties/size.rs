@@ -307,7 +307,13 @@ impl SizeFallback {
       SizeFallback::MaxContent => crate::prefixes::Feature::MaxContent,
       SizeFallback::FitContent => crate::prefixes::Feature::FitContent,
     };
-    targets.prefixes(VendorPrefix::None, feature) - VendorPrefix::None
+    let prefixes = targets.prefixes(VendorPrefix::None, feature) - VendorPrefix::None;
+    match self {
+      // Only -webkit-fill-available and -moz-available exist, so drop any
+      // other prefix (e.g. from `include: Features::VendorPrefixes`).
+      SizeFallback::Stretch => prefixes & (VendorPrefix::WebKit | VendorPrefix::Moz),
+      _ => prefixes,
+    }
   }
 
   #[inline(never)]
