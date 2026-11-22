@@ -66,6 +66,7 @@ CSS has many non-obvious rules, so reasoning alone is not evidence that a transf
   - a synthetic one (`scripts/size-corpus.py`): Tailwind-style, component bundles and atomic CSS;
   - a pinned real-world one (`scripts/real-corpus.json`, fetched from npm by `scripts/fetch-corpus.mjs`): react-spectrum S2's atomic CSS, Radix Themes, Bootstrap, Bulma, Primer, Pico, animate.css, Open Props and Font Awesome.
 - `node scripts/repro.mjs repro.mjs [--range A..B] [--bisect]` runs an issue repro (JS API) against the local build and published npm releases (cached in `target/review/npm`), groups identical outputs, and bisects to the release where behavior changed.
+- `node scripts/compat-diff.mjs [--base REF]` summarizes what regenerating browser data (`scripts/build-prefixes.js`) changed in `src/compat.rs`/`src/prefixes.rs`: per feature and browser, before and after, with suspicious changes and known anomaly patterns (Android WebView far behind Chrome, prefix ranges capped at the latest version) flagged.
 - `node scripts/fetch-issues.mjs` builds a local index of all issues and PRs at `target/review/issues.jsonl` for duplicate searches.
 - Chromium is at `/opt/pw-browsers/chromium` in cloud sessions (`CHROME_PATH` overrides). Puppeteer is a dev dependency.
 
