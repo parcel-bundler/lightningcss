@@ -32516,6 +32516,45 @@ mod tests {
   }
 
   #[test]
+  fn test_unresolved_color_alpha_custom_property() {
+    minify_test(
+      ".foo { --x: rgb(0 0 0 / rgb(0 0 0 / var(--a))) }",
+      ".foo{--x:rgb(0 0 0/rgb(0 0 0/var(--a)))}",
+    );
+    minify_test(
+      ".foo { --x: hsl(0 0% 0% / hsl(0 0% 0% / var(--a))) }",
+      ".foo{--x:hsl(0 0% 0%/hsl(0 0% 0%/var(--a)))}",
+    );
+
+    // An error in the alpha token list must not parse the arguments again as a
+    // generic function. Each nesting level would double the parse time.
+    let depth = 40;
+    for prefix in ["rgb(0 0 0 / ", "hsl(0 0% 0% / "] {
+      let source = format!(".foo{{--x:{}var(--a) ]{}}}", prefix.repeat(depth), ")".repeat(depth));
+      assert!(StyleSheet::parse(&source, ParserOptions::default()).is_err());
+    }
+
+    // The alpha token list counts toward the nesting limit. The parser stops at the
+    // limit, but a debug build needs more than the default test stack to reach it.
+    let source = format!(".foo{{--x:{}0{}}}", "rgb(0 0 0 / ".repeat(600), ")".repeat(600));
+    let is_depth_error = std::thread::Builder::new()
+      .stack_size(64 * 1024 * 1024)
+      .spawn(move || {
+        matches!(
+          StyleSheet::parse(&source, ParserOptions::default()),
+          Err(Error {
+            kind: ParserError::MaximumNestingDepth,
+            ..
+          })
+        )
+      })
+      .unwrap()
+      .join()
+      .unwrap();
+    assert!(is_depth_error);
+  }
+
+  #[test]
   fn test_print_color_adjust() {
     prefix_test(
       ".foo { print-color-adjust: exact; }",
