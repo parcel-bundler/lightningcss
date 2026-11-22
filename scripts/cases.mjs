@@ -110,7 +110,7 @@ async function main() {
       case '--verbose': opts.verbose = true; break;
       case '--json': opts.json = true; break;
       case '-h': case '--help':
-        console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n\n')[1].replace(/^\/\/ ?/gm, ''));
+        console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n\n')[0].replace(/^#!.*\n/, '').replace(/^\/\/ ?/gm, ''));
         process.exit(0);
       default:
         if (a.startsWith('--')) throw new Error(`Unknown option ${a}`);

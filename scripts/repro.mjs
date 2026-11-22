@@ -24,7 +24,10 @@
 // to undefined to test a missing filename). Warnings are appended to the
 // output as a comment. Errors become the output "ERROR: <message>", so check()
 // can test for them. Note: releases are built with panic = 'abort', so a Rust
-// panic shows as CRASH there but as ERROR in the local debug build.
+// panic shows as CRASH there but as ERROR in the local debug build. The local
+// binding is a debug build, roughly 10x slower than releases: don't compare
+// timings across them. Each process has a 60 s timeout; for performance
+// repros, time inside run() with small inputs and a generous budget.
 //
 // Versions:
 //   local    the repo's Node binding (build: PATH=node_modules/.bin:$PATH node scripts/build.js)
@@ -54,6 +57,7 @@ if (process.argv[2] === '--child') {
     let lightningcss = (await import(pathToFileURL(pkg).href)).default;
     let mod = await import(pathToFileURL(repro).href);
     let cases = mod.cases ?? [{name: 'default', css: mod.css, options: mod.options, run: mod.run, check: mod.check}];
+    if (process.env.LCSS_REPRO_CASE) cases = cases.filter(c => c.name === process.env.LCSS_REPRO_CASE);
     let require = createRequire(path.join(ROOT, 'package.json'));
     results = [];
     for (let c of cases) {
@@ -130,24 +134,44 @@ function packageDir(version) {
   return entry;
 }
 
-function runOnce(pkg, repro) {
-  let child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--child', pkg, repro], {encoding: 'utf8', timeout: 60000});
+function runChild(pkg, repro, caseName) {
+  let env = caseName ? {...process.env, LCSS_REPRO_CASE: caseName} : process.env;
+  let child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--child', pkg, repro], {encoding: 'utf8', timeout: 60000, env});
   try {
     return JSON.parse(child.stdout);
   } catch {
     let msg = (child.stderr || child.error?.message || 'no output').trim().split('\n').slice(-3).join(' ');
-    return [{name: '*', output: `CRASH: ${msg}`, check: null}];
+    return [{name: caseName || '*', output: `CRASH: ${msg}`, check: caseName ? false : null}];
   }
 }
 
-function runVersion(version, repro, repeat) {
+let caseNamesCache;
+async function caseNames(repro) {
+  caseNamesCache ??= await import(pathToFileURL(repro).href).then(m => (m.cases || []).map(c => c.name), () => []);
+  return caseNamesCache;
+}
+
+// A release panic aborts the whole process. When that happens, re-run each
+// case in its own process so one crashing case doesn't hide the others; the
+// crashing case itself counts as check() = false.
+async function runOnce(pkg, repro) {
+  let results = runChild(pkg, repro);
+  if (results.length === 1 && results[0].name === '*') {
+    let names = await caseNames(repro);
+    if (names.length > 1) return names.flatMap(name => runChild(pkg, repro, name));
+  }
+  return results;
+}
+
+async function runVersion(version, repro, repeat) {
   let pkg;
   try {
     pkg = packageDir(version);
   } catch (err) {
     return [{version, name: '*', output: `INSTALL ERROR: ${err.message}`, check: null}];
   }
-  let runs = Array.from({length: repeat}, () => runOnce(pkg, repro));
+  let runs = [];
+  for (let i = 0; i < repeat; i++) runs.push(await runOnce(pkg, repro));
   return runs[0].map((r, i) => {
     let distinct = new Set(runs.map(run => run[i]?.output));
     return {version, ...r, distinct: repeat > 1 ? distinct.size : undefined};
@@ -168,7 +192,7 @@ async function main() {
       case '--repeat': opts.repeat = Number(argv[++i]); break;
       case '--json': opts.json = true; break;
       case '-h': case '--help':
-        console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n\n')[1].replace(/^\/\/ ?/gm, ''));
+        console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n\n')[0].replace(/^#!.*\n/, '').replace(/^\/\/ ?/gm, ''));
         process.exit(0);
       default: opts.repro = path.resolve(argv[i]);
     }
@@ -176,8 +200,8 @@ async function main() {
   if (!opts.repro) throw new Error('Usage: node scripts/repro.mjs REPRO.mjs [--versions ...] [--range A..B] [--bisect] (see --help)');
 
   let byVersion = new Map();
-  let run = (v) => {
-    if (!byVersion.has(v)) byVersion.set(v, runVersion(v, opts.repro, opts.repeat));
+  let run = async (v) => {
+    if (!byVersion.has(v)) byVersion.set(v, await runVersion(v, opts.repro, opts.repeat));
     return byVersion.get(v);
   };
 
@@ -185,16 +209,16 @@ async function main() {
   let list = opts.versions ?? (opts.range
     ? releases(opts.range).reverse()
     : ['local', ...(opts.all ? releases().reverse() : releases().slice(-opts.latest).reverse())]);
-  for (let v of binary ? ['local'] : list) run(v);
+  for (let v of binary ? ['local'] : list) await run(v);
 
   // Changes in check() between consecutive releases, per case.
   let transitions = [];
   let bisect = null;
   let rel = releases(opts.range);
   if (binary) {
-    let pick = (v) => run(v).find(r => r.check !== null && (!opts.caseName || r.name === opts.caseName));
+    let pick = async (v) => (await run(v)).find(r => r.check !== null && (!opts.caseName || r.name === opts.caseName));
     let lo = 0, hi = rel.length - 1;
-    let first = pick(rel[lo])?.check, last = pick(rel[hi])?.check;
+    let first = (await pick(rel[lo]))?.check, last = (await pick(rel[hi]))?.check;
     if (first == null || last == null) {
       bisect = 'check() missing, or the oldest/newest release failed to load';
     } else if (first === last) {
@@ -202,7 +226,7 @@ async function main() {
     } else {
       while (hi - lo > 1) {
         let mid = (lo + hi) >> 1;
-        if (pick(rel[mid])?.check === first) lo = mid; else hi = mid;
+        if ((await pick(rel[mid]))?.check === first) lo = mid; else hi = mid;
       }
       bisect = `check() changed from ${first} to ${!first} between ${rel[lo]} and ${rel[hi]} (assuming a single change). Commits: git log --oneline v${rel[lo]}..v${rel[hi]} (if those tags exist; otherwise search commit messages for the version)`;
     }

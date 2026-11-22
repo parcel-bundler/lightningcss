@@ -40,7 +40,7 @@ for (let i = 0; i < argv.length; i++) {
   }
 }
 if (!exprs.length || argv.includes('--help') || argv.includes('-h')) {
-  console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n\n')[1].replace(/^\/\/ ?/gm, ''));
+  console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n\n')[0].replace(/^#!.*\n/, '').replace(/^\/\/ ?/gm, ''));
   process.exit(2);
 }
 

@@ -1,0 +1,2 @@
+.a{transition:opacity 1s;transition-property:none,width}
+.b{transition:width 1s;transition:none 1s,width 2s}
