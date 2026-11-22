@@ -28,6 +28,10 @@ Lightning CSS merges, deduplicates and moves rules. That is only safe if no rule
 ## 2. Order and buffering inside a declaration block
 
 - Handlers buffer declarations and flush later. A buffered value must not move past an unparsed value, a `var()` value, a CSS-wide keyword (`inherit`, `initial`, `unset`, `revert`, `revert-layer`) or `all` (22a8b6f, d7aeff3 → 60622a1, open #1387, #1391). Probe: `width:var(--w);width:200px`, `all:unset;background:var(--x)`.
+- **An unparsed value must not replace an earlier valid declaration** unless it contains `var()` or `env()`. Without those, it may be invalid at parse time, in which case the browser ignores it and keeps the earlier one (the fallback).
+  - The fallback handler in `prefix_handler.rs` (color, fill, stroke, filter, text-shadow, caret-color, …) treats any unparsed value as valid.
+  - `color:red;color:bananas` becomes `color:bananas`, and `color:#0003;color:color-mix(…currentColor…)` loses its fallback for old targets. Both have been wrong since 1.21.0 (#1392, #1404).
+  - Probe: `color:red;color:bananas`.
 - **Combining longhands into a shorthand resets other longhands.** For example, `font` resets `font-variant-*`, `font-kerning`, `line-height` and more; `border` resets `border-image`; `background` resets `background-size`, `-origin`, `-clip` and others. Combining is only safe when every longhand of the shorthand is known. Probe: `.a{font-kerning:none; font:12px serif}` compared with the reverse order.
 - **`!important` and normal declarations** are separate buckets; never merge across them.
 - **Fallback chains are intentional.** `color: red; color: oklch(…)` must keep the first declaration when targets lack support for the second. Without targets, removing the earlier declaration is fine only if the later one is known to be valid everywhere.
