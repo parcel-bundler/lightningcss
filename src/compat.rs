@@ -3019,12 +3019,17 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.samsung {
+          if version < 1966080 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.android {
           if version < 9043968 {
             return false;
           }
         }
-        if browsers.ie.is_some() || browsers.samsung.is_some() {
+        if browsers.ie.is_some() {
           return false;
         }
       }
@@ -3485,8 +3490,23 @@ impl Feature {
         }
       }
       Feature::AccentSystemColor => {
+        if let Some(version) = browsers.chrome {
+          if version < 9764864 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 9764864 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.firefox {
           if version < 6750208 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 8716288 {
             return false;
           }
         }
@@ -3500,13 +3520,7 @@ impl Feature {
             return false;
           }
         }
-        if browsers.android.is_some()
-          || browsers.chrome.is_some()
-          || browsers.edge.is_some()
-          || browsers.ie.is_some()
-          || browsers.opera.is_some()
-          || browsers.samsung.is_some()
-        {
+        if browsers.android.is_some() || browsers.ie.is_some() || browsers.samsung.is_some() {
           return false;
         }
       }
@@ -3695,6 +3709,11 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.samsung {
+          if version < 2031616 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.android {
           if version < 9437184 {
             return false;
@@ -3704,7 +3723,6 @@ impl Feature {
           || browsers.ie.is_some()
           || browsers.ios_saf.is_some()
           || browsers.safari.is_some()
-          || browsers.samsung.is_some()
         {
           return false;
         }
@@ -5533,17 +5551,33 @@ impl Feature {
         }
       }
       Feature::SymbolsListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 10158080 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 10158080 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.firefox {
           if version < 2293760 {
             return false;
           }
         }
-        if browsers.android.is_some()
-          || browsers.chrome.is_some()
-          || browsers.edge.is_some()
-          || browsers.ie.is_some()
+        if let Some(version) = browsers.opera {
+          if version < 6815744 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 10158080 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some()
           || browsers.ios_saf.is_some()
-          || browsers.opera.is_some()
           || browsers.safari.is_some()
           || browsers.samsung.is_some()
         {
