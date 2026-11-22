@@ -38,7 +38,9 @@
 // consecutive releases is listed. --bisect binary-searches instead (fewer
 // runs; assumes one change, so prefer --range when a case flipped repeatedly).
 // --repeat N runs each version N times in separate processes and reports how
-// many distinct outputs each case produced (for nondeterminism).
+// many distinct outputs each case produced and how many runs passed check()
+// (for nondeterminism). A repro can also export `repeat = N` to always need N
+// processes; a case then counts as correct only if every run passes.
 
 import fs from 'fs';
 import path from 'path';
@@ -170,11 +172,19 @@ async function runVersion(version, repro, repeat) {
   } catch (err) {
     return [{version, name: '*', output: `INSTALL ERROR: ${err.message}`, check: null}];
   }
+  // A repro can require several processes (export const repeat = N), e.g. for
+  // bugs that depend on the per-process hash seed.
+  let declared = await import(pathToFileURL(repro).href).then(m => Number(m.repeat) || 1, () => 1);
+  repeat = Math.max(repeat, declared);
   let runs = [];
   for (let i = 0; i < repeat; i++) runs.push(await runOnce(pkg, repro));
   return runs[0].map((r, i) => {
-    let distinct = new Set(runs.map(run => run[i]?.output));
-    return {version, ...r, distinct: repeat > 1 ? distinct.size : undefined};
+    let same = runs.map(run => run.find(x => x.name === r.name)).filter(Boolean);
+    let distinct = new Set(same.map(x => x.output));
+    // Correct only if every run is correct.
+    let check = r.check === null ? null : same.every(x => x.check === true);
+    let passed = r.check === null ? undefined : same.filter(x => x.check === true).length;
+    return {version, ...r, check, passed, runs: repeat, distinct: repeat > 1 ? distinct.size : undefined};
   });
 }
 
@@ -262,7 +272,9 @@ async function main() {
       if (!groups.has(r.output)) groups.set(r.output, {output: r.output, check: r.check, versions: [], distinct: []});
       let g = groups.get(r.output);
       g.versions.push(r.version);
-      if (r.distinct > 1) g.distinct.push(`${r.version}: ${r.distinct} distinct outputs in ${opts.repeat} runs`);
+      if (r.distinct > 1 || (r.runs > 1 && r.passed !== undefined && r.passed > 0 && r.passed < r.runs)) {
+        g.distinct.push(`${r.version}: ${r.distinct} distinct outputs, check passed in ${r.passed ?? '?'} of ${r.runs} runs`);
+      }
     }
     for (let g of groups.values()) {
       let status = g.check === null ? '' : g.check ? '  [check: correct]' : '  [check: WRONG]';

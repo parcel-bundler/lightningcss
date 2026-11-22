@@ -3,7 +3,9 @@
 // pops change/remove the rule it points at, so lookups go wrong
 // nondeterministically. Amplify with many distinct copies in ONE rule list
 // (each nested block is its own list, so the copies must share a parent) and
-// run with --repeat N. check() = true means no rule/declaration lost.
+// run in several processes (the hash seed is per process, so repeating inside
+// one process doesn't help). check() = true means no rule/declaration lost.
+export const repeat = 8;
 const N = 300;
 
 // Dropped-rule pattern from the issue comment, N distinct copies, top level.
