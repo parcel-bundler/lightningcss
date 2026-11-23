@@ -9,3 +9,8 @@
 - From #1357 (pre-existing, unverified by me): a stylesheet returned unchanged from a JS visitor prints `100%` as `100.0%` (also 1.30.1).
 - From #1357 (pre-existing): Rule visitor cost grows superlinearly with nesting depth: 200 trees nested 30 deep took 66 s on master. Script: pr1357/bench.cjs.
 - From #1374 (pre-existing): declarations directly in @scope are dropped; already tracked in #1165.
+- From #1309 (pre-existing): `:nth-child(2 of ::before)` serializes as `:nth-child(2 of )` (invalid output). `of S` parsed forgivingly; upstream stylo parses it unforgivingly; Chromium keeps `2 of .a, ::before` oddly. Needs checking before filing.
+- From #1309: selectors crate `test_parsing` fails on master on `::details-content` (is it run in CI?).
+- From #1308 (pre-existing, low): `x-a::part(foo):has(div)` / `::details-content:has(div)` serialize as `:has()` (argument lost). Chromium rejects the input anyway (CSS.supports false), so output is invalid either way; ideally strict mode should error. Related to #1309's missing "no :has() after pseudo-element" check.
+- From #1308 (pre-existing): `::slotted(div)::details-content` errors; Chrome and Gecko accept it (valid_after_slotted).
+- From #879 (pre-existing): non-default animation-timeline dropped when animation-name is none: `.a{animation:1s;animation-timeline:scroll()}` loses scroll() (master and PR). Check against #1306 once merged.
