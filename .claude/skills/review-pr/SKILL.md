@@ -167,7 +167,13 @@ What you couldn't check and why (old-browser behavior, WPT fixtures, etc.).
 
 The report above is internal: it is for the maintainer, and it holds all the evidence. A comment on the PR is a different, much shorter document. Draft it separately, show it to the maintainer, and post only the text they approve.
 
-- **Tone.** Keep it friendly, and thank the contributor briefly. It reads as coming from the maintainer, so don't announce verdicts like "request changes" or "needs maintainer decision". Never approve or say the PR is ready to merge; the maintainer decides.
+- **Tone.** Keep it friendly, and thank the contributor briefly. It reads as coming from the maintainer, so don't announce verdicts like "request changes" or "needs maintainer decision". Don't say the PR is ready to merge in the text; the maintainer decides.
+- **Posting (only after the maintainer approves the item in the decision queue).** Apply the GitHub action that matches the verdict, with the comment as its body, not a plain comment:
+  - merge → submit an `APPROVE` review (`pull_request_review_write`, method `create`, event `APPROVE`). Never merge; the maintainer does.
+  - request-changes → submit a `REQUEST_CHANGES` review.
+  - close (superseded, stale, out of scope, already fixed) → post the comment, then close the PR.
+  - needs-maintainer-decision, or a nudge to the author → submit a `COMMENT` review.
+  - recommend-merge items without a comment → an `APPROVE` review with no body.
 - **Length.** Aim for 100–250 words. Put the most important point first, and leave nits out unless they are cheap and clearly useful.
 - **Each point** gets one or two sentences of what's wrong, a minimal repro (input, current output, what it should be) and a suggested direction. Name the concrete type or function where a better fix belongs.
 - **Speak in browser terms, not tool terms.** Write "in Chrome this element ends up red instead of blue", not "NOT EQUIVALENT (2686 diffs)". Leave out internal tooling, edge-case tables, confidence labels and build hashes.
