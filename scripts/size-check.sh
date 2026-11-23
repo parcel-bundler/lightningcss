@@ -6,7 +6,7 @@
 #
 # Usage: scripts/size-check.sh [--no-real] BASE_BIN NEW_BIN [extra.css...] [-- cli args]
 # By default every file runs in two configs: `--minify` (no targets) and
-# `--minify` with older targets (chrome 100, safari 15, firefox 100), since
+# `--minify` with older targets (chrome 80, safari 13, firefox 78), since
 # lowering and fallbacks only happen with targets. `-- cli args` replaces both
 # with a single config. Prints a markdown table per config. Times are the best of 3
 # runs on this machine; treat differences under ~10% as noise.
@@ -41,7 +41,7 @@ if [[ ${#custom[@]} -gt 0 ]]; then
   configs=("$(IFS='|'; echo "${custom[*]}")")
 else
   # Arguments separated by '|' so target queries can contain spaces.
-  configs=("--minify" "--minify|--targets|chrome 100|--targets|safari 15|--targets|firefox 100")
+  configs=("--minify" "--minify|--targets|chrome 80|--targets|safari 13|--targets|firefox 78")
 fi
 for config in "${configs[@]}"; do
 IFS='|' read -r -a args <<< "$config"
