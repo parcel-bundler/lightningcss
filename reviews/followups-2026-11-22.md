@@ -14,3 +14,8 @@
 - From #1308 (pre-existing, low): `x-a::part(foo):has(div)` / `::details-content:has(div)` serialize as `:has()` (argument lost). Chromium rejects the input anyway (CSS.supports false), so output is invalid either way; ideally strict mode should error. Related to #1309's missing "no :has() after pseudo-element" check.
 - From #1308 (pre-existing): `::slotted(div)::details-content` errors; Chrome and Gecko accept it (valid_after_slotted).
 - From #879 (pre-existing): non-default animation-timeline dropped when animation-name is none: `.a{animation:1s;animation-timeline:scroll()}` loses scroll() (master and PR). Check against #1306 once merged.
+- From #909 (pre-existing): unparsable `composes` values (`composes: 1a`, `composes: from`) leak into output silently, no error in strict mode (should error per strict-by-default).
+- From #909 (pre-existing): minified output keeps a trailing `;` where `composes` was removed: `._x_foo{color:red;}`.
+- Tooling: build-pr.sh --on-master fails with 'unrelated histories' for PRs whose merge base is older than the depth-200 shallow fetch (#696). Add a deepen/unshallow fallback.
+- From #1025/#1338 (pre-existing): quotes inside custom property values are rewritten (`'a'` -> `"a"`), observable via getPropertyValue in Chromium.
+- From #1025/#1338 (pre-existing): font-family strings lose leading/trailing spaces.
