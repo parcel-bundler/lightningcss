@@ -9074,13 +9074,10 @@ mod tests {
     for _ in 0..depth {
       value = format!("calc({} - 1px)", value);
     }
-    let mut expected = "var(--x)".to_string();
-    for _ in 0..depth {
-      expected = format!("calc({} - 1px)", expected);
-    }
+    // The value can't be simplified, so it is output unchanged.
     minify_test(
       &format!(".foo {{ width: {} }}", value),
-      &format!(".foo{{width:{}}}", expected),
+      &format!(".foo{{width:{}}}", value),
     );
     minify_test(
       ".foo { width: max(calc(min(var(--x), 1px) * 2), 1px) }",
