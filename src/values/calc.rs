@@ -659,7 +659,15 @@ impl<
     let is_math_function =
       matches!(input.next(), Ok(Token::Function(f)) if MathFunctionName::from_name(f).is_some());
     input.reset(&state);
-    match input.try_parse(Self::parse) {
+    // An error in a math function is returned below without trying anything else, so there is no
+    // need to rewind. Rewinding would make each enclosing block tokenize the failed function again
+    // when it skips its remaining tokens.
+    let res = if is_math_function {
+      Self::parse(input)
+    } else {
+      input.try_parse(Self::parse)
+    };
+    match res {
       Ok(Calc::Function(f)) => {
         return Ok(match *f {
           MathFunction::Calc(c) => c,
@@ -864,20 +872,53 @@ impl<
     // atan2 supports arguments of any <number>, <dimension>, or <percentage>, even ones that wouldn't
     // normally be supported by V. The only requirement is that the arguments be of the same type.
     // Try parsing with each type, and return the first one that parses successfully.
-    if let Ok(v) = input.try_parse(|input| Calc::<Length>::parse_atan2_args(input, &|_| None)) {
-      return Ok(v);
+    //
+    //
+    // Every attempt re-parses the arguments, including nested atan2() calls, so nested atan2()
+    // would take exponential time. The <length>, <percentage>, <angle> and <time> attempts don't
+    // depend on V or parse_ident, so their result only depends on where the arguments start.
+    // Memoize it so that each nested atan2() runs them at most once.
+    let _scope = Atan2Scope::enter();
+    let key = input.position().byte_index();
+    let cached = ATAN2_CACHE.with(|cache| cache.borrow().results.get(&key).cloned());
+    let (typed, end) = match cached {
+      Some(cached) => cached,
+      None => {
+        let start = input.state();
+        let typed = {
+          let _attempt = Atan2TypedAttempt::enter();
+          input
+            .try_parse(|input| Calc::<Length>::parse_atan2_args(input, &|_| None))
+            .or_else(|_| input.try_parse(|input| Calc::<Percentage>::parse_atan2_args(input, &|_| None)))
+            .or_else(|_| input.try_parse(|input| Calc::<Angle>::parse_atan2_args(input, &|_| None)))
+            .or_else(|_| input.try_parse(|input| Calc::<Time>::parse_atan2_args(input, &|_| None)))
+            .ok()
+        };
+        if typed.is_none() {
+          // Also remember where the arguments end, so that a failed atan2() can be skipped
+          // without tokenizing its arguments again (see below).
+          skip_atan2_args(input);
+        }
+        let end = input.state();
+        input.reset(&start);
+        ATAN2_CACHE.with(|cache| cache.borrow_mut().results.insert(key, (typed.clone(), end.clone())));
+        (typed, end)
+      }
+    };
+
+    if let Some(angle) = typed {
+      input.reset(&end);
+      return Ok(angle);
     }
 
-    if let Ok(v) = input.try_parse(|input| Calc::<Percentage>::parse_atan2_args(input, &|_| None)) {
-      return Ok(v);
-    }
-
-    if let Ok(v) = input.try_parse(|input| Calc::<Angle>::parse_atan2_args(input, &|_| None)) {
-      return Ok(v);
-    }
-
-    if let Ok(v) = input.try_parse(|input| Calc::<Time>::parse_atan2_args(input, &|_| None)) {
-      return Ok(v);
+    // Inside a typed attempt of an enclosing atan2(), parse_ident always returns None. The
+    // <number> attempt below then can't succeed: it would have to parse only numbers, and the
+    // <length> attempt above parses those the same way. Its error is discarded by the enclosing
+    // attempt, so skip it. Return the error at the end of the arguments, otherwise the parser
+    // would tokenize the rest of this block (including nested blocks) again to skip it.
+    if ATAN2_CACHE.with(|cache| cache.borrow().typed_attempts > 0) {
+      input.reset(&end);
+      return Err(input.new_custom_error(ParserError::InvalidValue));
     }
 
     Calc::<CSSNumber>::parse_atan2_args(input, &|v| {
@@ -935,6 +976,88 @@ impl<
     };
 
     Ok(Self::apply_map(&sum, f32::sqrt))
+  }
+}
+
+/// Memoized typed attempts of `Calc::parse_atan2`, keyed by the byte position of the arguments.
+/// Positions are only meaningful within one input, so this is cleared when the outermost atan2()
+/// is done.
+#[derive(Default)]
+struct Atan2Cache {
+  /// Number of atan2() calls being parsed.
+  depth: usize,
+  /// Number of typed atan2() attempts in progress.
+  typed_attempts: usize,
+  /// The result of the typed attempts and the parser state after the arguments.
+  results: std::collections::HashMap<usize, (Option<Angle>, ParserState)>,
+}
+
+thread_local! {
+  static ATAN2_CACHE: std::cell::RefCell<Atan2Cache> = std::cell::RefCell::new(Atan2Cache::default());
+}
+
+/// Consumes the rest of the input, jumping over nested atan2() arguments whose end is already
+/// known, so that skipping nested atan2() calls takes linear time.
+fn skip_atan2_args<'i, 't>(input: &mut Parser<'i, 't>) {
+  loop {
+    let is_atan2 = match input.next() {
+      Ok(Token::Function(name)) => name.eq_ignore_ascii_case("atan2"),
+      Ok(Token::ParenthesisBlock | Token::SquareBracketBlock | Token::CurlyBracketBlock) => false,
+      Ok(_) => continue,
+      Err(_) => break,
+    };
+    let _ = input.parse_nested_block(|input| -> Result<(), ParseError<'i, ()>> {
+      let end = if is_atan2 {
+        let key = input.position().byte_index();
+        ATAN2_CACHE.with(|cache| cache.borrow().results.get(&key).map(|(_, end)| end.clone()))
+      } else {
+        None
+      };
+      match end {
+        Some(end) => input.reset(&end),
+        None => skip_atan2_args(input),
+      }
+      Ok(())
+    });
+  }
+}
+
+/// Marks an atan2() being parsed, and clears the cache when the outermost one is done (also on
+/// unwinding).
+struct Atan2Scope;
+
+impl Atan2Scope {
+  fn enter() -> Self {
+    ATAN2_CACHE.with(|cache| cache.borrow_mut().depth += 1);
+    Atan2Scope
+  }
+}
+
+impl Drop for Atan2Scope {
+  fn drop(&mut self) {
+    ATAN2_CACHE.with(|cache| {
+      let mut cache = cache.borrow_mut();
+      cache.depth -= 1;
+      if cache.depth == 0 {
+        cache.results.clear();
+      }
+    });
+  }
+}
+
+/// Marks a typed atan2() attempt in progress. Its parse_ident always returns None.
+struct Atan2TypedAttempt;
+
+impl Atan2TypedAttempt {
+  fn enter() -> Self {
+    ATAN2_CACHE.with(|cache| cache.borrow_mut().typed_attempts += 1);
+    Atan2TypedAttempt
+  }
+}
+
+impl Drop for Atan2TypedAttempt {
+  fn drop(&mut self) {
+    ATAN2_CACHE.with(|cache| cache.borrow_mut().typed_attempts -= 1);
   }
 }
 
