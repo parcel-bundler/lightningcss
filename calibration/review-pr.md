@@ -33,3 +33,9 @@ Approved with edits:
 Changed verdicts:
 - #1275 merge -> request changes: "Would be nice to avoid the clones if we can." Extra clones/copies in a fix are a design problem, not a nit; and always measure perf when a fix adds cloning (maintainer asked "did you measure perf?").
 - #1365 rejected: "The real fix is to actually parse the property so it doesn't parse as a custom property." A workaround for untyped properties (Property::Custom) is a hack even when it works; recommend adding the typed property instead (fully-parse philosophy). Applies equally to #1209 and #1363.
+
+## Decision queue PR batch 2026-11-24 (2)
+
+Approved as drafted (request changes): #1025, #1123 (minor edit), #1227, #1245, #1275 (redraft), #1311, #1314, #1316, #1334, #1363/#1365 (typed-property redrafts). Approved (approve): #1307, #1309, #909.
+- #1218: draft flag wanted: "a flag would make sense since WebKit and Mozilla have not given positions yet." Rule: new syntax implemented only in Chrome, with no position from WebKit/Mozilla, goes behind a `drafts` option. Asked whether errorRecovery passes unknown container queries through: it does (verified on master and 1.33.0 via the #1176 repro); new syntax should keep passing through unmodified when opted in.
+- All 8 follow-up cards approved; the original PRs were already merged by then.
