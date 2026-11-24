@@ -6942,16 +6942,24 @@ mod tests {
     );
 
     minify_test(
-        ".foo{font-family:named-font,named-font}",
-        ".foo{font-family:named-font}",
+      ".foo{font-family:named-font,named-font}",
+      ".foo{font-family:named-font}",
     );
     minify_test(
-        ".foo{font-family:monospace,monospace}",
-        ".foo{font-family:monospace,monospace}",
+      ".foo{font-family:monospace,monospace}",
+      ".foo{font-family:monospace,monospace}",
     );
     minify_test(
-        ".foo{font-family:monospace,monospace;font-size:16px}",
-        ".foo{font-family:monospace,monospace;font-size:16px}",
+      ".foo{font-family:monospace,monospace;font-size:16px}",
+      ".foo{font-family:monospace,monospace;font-size:16px}",
+    );
+    minify_test(
+      ".foo{font-family:monospace, monospace, monospace}",
+      ".foo{font-family:monospace,monospace}",
+    );
+    minify_test(
+      ".foo{font:1em monospace, monospace}",
+      ".foo{font:1em monospace,monospace}",
     );
 
     prefix_test(
@@ -11278,6 +11286,52 @@ mod tests {
       },
     );
 
+    minify_test(
+      ".foo:-ms-input-placeholder {color: red}",
+      ".foo:-ms-input-placeholder{color:red}",
+    );
+    minify_test(".foo:-moz-placeholder {color: red}", ".foo:-moz-placeholder{color:red}");
+    // Autoprefixer's legacy pair must not be merged into one selector list: a browser that
+    // doesn't know one of the pseudo-classes would drop the whole rule.
+    minify_test(
+      ".a:-moz-placeholder{color:red}.a:-ms-input-placeholder{color:red}",
+      ".a:-moz-placeholder{color:red}.a:-ms-input-placeholder{color:red}",
+    );
+
+    prefix_test(
+      r#"
+      .foo:-ms-input-placeholder, .bar:-ms-input-placeholder {
+        color: red;
+      }
+    "#,
+      indoc! {r#"
+      :is(.foo:-ms-input-placeholder, .bar:-ms-input-placeholder) {
+        color: red;
+      }
+    "#},
+      Browsers {
+        chrome: Some(111 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo:-moz-placeholder, .bar:-moz-placeholder {
+        color: red;
+      }
+    "#,
+      indoc! {r#"
+      :is(.foo:-moz-placeholder, .bar:-moz-placeholder) {
+        color: red;
+      }
+    "#},
+      Browsers {
+        chrome: Some(111 << 16),
+        ..Browsers::default()
+      },
+    );
+
     prefix_test(
       r#"
       .foo::file-selector-button {
@@ -13043,8 +13097,14 @@ mod tests {
       ".foo { animation: foo 0s 3s infinite }",
       ".foo{animation:0s 3s infinite foo}",
     );
-    minify_test(".foo { animation: foo 3s --test }", ".foo{animation:3s foo;animation-timeline:--test}");
-    minify_test(".foo { animation: foo 3s scroll() }", ".foo{animation:3s foo;animation-timeline:scroll()}");
+    minify_test(
+      ".foo { animation: foo 3s --test }",
+      ".foo{animation:3s foo;animation-timeline:--test}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s scroll() }",
+      ".foo{animation:3s foo;animation-timeline:scroll()}",
+    );
     minify_test(
       ".foo { animation: foo 3s scroll(block) }",
       ".foo{animation:3s foo;animation-timeline:scroll()}",
@@ -25922,6 +25982,21 @@ mod tests {
   }
 
   #[test]
+  fn test_bom() {
+    // A leading BOM is removed while decoding the input byte stream, so it is
+    // not part of the first token: https://drafts.csswg.org/css-syntax/#input-byte-stream
+    minify_test("\u{feff}html { color: red }", "html{color:red}");
+    minify_test(
+      "\u{feff}/*! license */ html { color: red }",
+      "/*! license */\nhtml{color:red}",
+    );
+    minify_test("\u{feff}@charset \"UTF-8\"; html { color: red }", "html{color:red}");
+    minify_test("\u{feff}@import \"foo.css\";", "@import \"foo.css\";");
+    // Only a leading BOM is stripped, elsewhere it is an ordinary character.
+    minify_test("html { content: \"\u{feff}\" }", "html{content:\"\u{feff}\"}");
+  }
+
+  #[test]
   fn test_style_attr() {
     attr_test("color: yellow; flex: 1 1 auto", "color: #ff0; flex: auto", false, None);
     attr_test("color: yellow; flex: 1 1 auto", "color:#ff0;flex:auto", true, None);
@@ -29986,6 +30061,47 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    // A later filter whose color the targets lack keeps the earlier one as its fallback,
+    // as `color` and `text-shadow` do.
+    for property in ["filter", "backdrop-filter"] {
+      prefix_test(
+        &format!(".foo {{ {property}: blur(1px); {property}: drop-shadow(0 0 2px oklch(25% .05 30)) }}"),
+        &format!(".foo {{\n  {property}: blur(1px);\n  {property}: drop-shadow(0 0 2px oklch(25% .05 30));\n}}\n"),
+        Browsers {
+          chrome: Some(90 << 16),
+          ..Browsers::default()
+        },
+      );
+    }
+
+    // Chrome 90 supports neither `cqw` units nor `oklch()`, so the earlier filter is kept.
+    prefix_test(
+      ".a{filter:blur(1px);filter:blur(1cqw)}",
+      indoc! {r#"
+        .a {
+          filter: blur(1px);
+          filter: blur(1cqw);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".a{filter:grayscale(1);filter:grayscale(1) drop-shadow(0 0 2px oklch(25% .05 30))}",
+      indoc! {r#"
+        .a {
+          filter: grayscale();
+          filter: grayscale() drop-shadow(0 0 2px oklch(25% .05 30));
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -31755,6 +31871,60 @@ mod tests {
   }
 
   #[test]
+  fn test_error_recovery_preserves_declarations() {
+    let cases = [
+      (
+        ".a{color:red;width:1px;@keyframes k{from{opacity:0}}height:2px}",
+        ".a{color:red;width:1px;height:2px}",
+        1,
+      ),
+      (
+        ".a{color:red!important;@font-face{font-family:x}width:1px!important;height:2px}",
+        ".a{height:2px;color:red!important;width:1px!important}",
+        1,
+      ),
+      (".a{@keyframes k{}color:red;width:1px}", ".a{color:red;width:1px}", 1),
+      (".a{color:red;width:1px;@keyframes k{}}", ".a{color:red;width:1px}", 1),
+      (
+        ".a{color:red;@font-face{}width:1px!important;@keyframes k{}height:2px}",
+        ".a{color:red;height:2px;width:1px!important}",
+        2,
+      ),
+      (
+        ".a{color:red;@keyframes k{}width:1px}.b{height:2px}",
+        ".a{color:red;width:1px}.b{height:2px}",
+        1,
+      ),
+      (".a{color:red;*zoom:1;width:1px}", ".a{color:red;width:1px}", 1),
+      (
+        ".a{color:red;@media print{color:red;@font-face{}width:1px}height:2px}",
+        ".a{color:red;@media print{color:red;width:1px}height:2px}",
+        1,
+      ),
+    ];
+
+    for (source, expected, warning_count) in cases {
+      let warnings = Arc::new(RwLock::new(Vec::new()));
+      minify_test_with_options(
+        source,
+        expected,
+        ParserOptions {
+          error_recovery: true,
+          warnings: Some(warnings.clone()),
+          ..ParserOptions::default()
+        },
+      );
+      assert_eq!(warnings.read().unwrap().len(), warning_count, "{source}");
+      assert!(StyleSheet::parse(source, ParserOptions::default()).is_err(), "{source}");
+    }
+
+    minify_test(
+      ".a{color:red;@media print{width:1px}height:2px}",
+      ".a{color:red;@media print{width:1px}height:2px}",
+    );
+  }
+
+  #[test]
   fn test_invalid() {
     error_test(
       ".a{color: hsla(120, 62.32%;}",
@@ -32866,13 +33036,22 @@ mod tests {
       ".foo { unicode-bidi: normal; unicode-bidi: var(--x, normal) }",
       ".foo{unicode-bidi:normal;unicode-bidi:var(--x,normal)}",
     );
-    minify_test(
-      ".foo { direction: var(--x); direction: rtl }",
-      ".foo{direction:var(--x);direction:rtl}",
-    );
+    minify_test(".foo { direction: var(--x); direction: rtl }", ".foo{direction:rtl}");
     minify_test(
       ".foo { direction: rtl; direction: var(--x); direction: ltr }",
-      ".foo{direction:var(--x);direction:ltr}",
+      ".foo{direction:ltr}",
+    );
+    minify_test(
+      ".foo { unicode-bidi: var(--x); unicode-bidi: var(--y); unicode-bidi: isolate }",
+      ".foo{unicode-bidi:isolate}",
+    );
+    minify_test(
+      ".foo { direction: var(--x) !important; direction: rtl }",
+      ".foo{direction:rtl;direction:var(--x)!important}",
+    );
+    minify_test(
+      ".foo { direction: var(--x); all: unset; direction: rtl }",
+      ".foo{all:unset;direction:rtl}",
     );
     minify_test(
       ".foo { direction: rtl; direction: var(--x); all: revert-layer }",
