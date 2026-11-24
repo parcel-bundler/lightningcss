@@ -1,0 +1,173 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 21fadf94..eff1fbac 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -11510,6 +11510,89 @@ mod tests {
+       },
+     );
+ 
++    // Regression: incompatible selectors must not be dropped when the compatible
++    // selector portion is merged into a preceding rule. (#1260)
++    prefix_test(
++      r#"
++      .a:last-child {
++        border-bottom: none;
++      }
++
++      .a:last-child,
++      .a:has(+ .b) {
++        display: flex;
++      }
++      "#,
++      indoc! {r#"
++      .a:last-child {
++        border-bottom: none;
++        display: flex;
++      }
++
++      .a:has( + .b) {
++        display: flex;
++      }
++      "#},
++      Browsers {
++        chrome: Some(104 << 16),
++        ..Browsers::default()
++      },
++    );
++
++    prefix_test(
++      r#"
++      .a:hover {
++        color: blue;
++      }
++
++      .a:hover, .a:focus-visible {
++        color: red;
++      }
++      "#,
++      indoc! {r#"
++      .a:hover {
++        color: red;
++      }
++
++      .a:focus-visible {
++        color: red;
++      }
++      "#},
++      Browsers {
++        chrome: Some(85 << 16),
++        ..Browsers::default()
++      },
++    );
++
++    prefix_test(
++      r#"
++      .x {
++        color: red;
++      }
++
++      .a:focus-visible, .b:has(+ .c) {
++        color: red;
++      }
++      "#,
++      indoc! {r#"
++      .x {
++        color: red;
++      }
++
++      .a:focus-visible {
++        color: red;
++      }
++
++      .b:has( + .c) {
++        color: red;
++      }
++      "#},
++      Browsers {
++        chrome: Some(85 << 16),
++        ..Browsers::default()
++      },
++    );
++
+     nesting_test_with_targets(
+       r#"
+       .foo {
+diff --git a/src/rules/mod.rs b/src/rules/mod.rs
+index 5dd2fc6d..5b9e57a8 100644
+--- a/src/rules/mod.rs
++++ b/src/rules/mod.rs
+@@ -776,9 +776,45 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
+ 
+           style.update_prefix(context);
+ 
++          // Create rules for incompatible selectors before attempting a merge, because
++          // merge_style_rules may move the declarations of this rule into the previous one.
++          // If no selector is compatible, this rule is not output, so the last split rule
++          // takes its declarations and nested rules instead of copying them.
++          let last_incompatible = incompatible.len().wrapping_sub(1);
++          let take_original = style.selectors.0.is_empty();
++          let incompatible_rules = incompatible
++            .into_iter()
++            .enumerate()
++            .map(|(i, selector)| {
++              let (declarations, nested) = if take_original && i == last_incompatible {
++                (
++                  std::mem::take(&mut style.declarations),
++                  std::mem::replace(&mut style.rules, CssRuleList(vec![])),
++                )
++              } else {
++                (style.declarations.clone(), style.rules.clone())
++              };
++              let mut clone = StyleRule {
++                selectors: SelectorList::new(smallvec![selector]),
++                declarations,
++                rules: nested,
++                vendor_prefix: style.vendor_prefix,
++                loc: style.loc,
++              };
++              clone.update_prefix(context);
++
++              // Also add rules for logical properties and @supports overrides.
++              let supports = context.handler_context.get_supports_rules(&clone);
++              let logical = context.handler_context.get_additional_rules(&clone);
++              (clone, logical, supports)
++            })
++            .collect::<Vec<_>>();
++
+           // Attempt to merge the new rule with the last rule we added.
+           let mut merged = false;
+-          if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
++          if style.selectors.0.is_empty() {
++            // Nothing left to merge.
++          } else if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
+             if merge_style_rules(style, last_style_rule, context) {
+               // If that was successful, then the last rule has been updated to include the
+               // selectors/declarations of the new rule. This might mean that we can merge it
+@@ -800,26 +836,10 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
+             }
+           }
+ 
+-          // Create additional rules for logical properties, @supports overrides, and incompatible selectors.
++          // Create additional rules for logical properties and @supports overrides.
+           let supports = context.handler_context.get_supports_rules(&style);
+           let logical = context.handler_context.get_additional_rules(&style);
+ 
+-          let incompatible_rules = incompatible
+-            .into_iter()
+-            .map(|selector| {
+-              // Create a clone of the rule with only the one incompatible selector.
+-              let list = SelectorList::new(smallvec![selector]);
+-              let mut clone = style.clone();
+-              clone.selectors = list;
+-              clone.update_prefix(context);
+-
+-              // Also add rules for logical properties and @supports overrides.
+-              let supports = context.handler_context.get_supports_rules(&clone);
+-              let logical = context.handler_context.get_additional_rules(&clone);
+-              (clone, logical, supports)
+-            })
+-            .collect::<Vec<_>>();
+-
+           context.handler_context.reset();
+ 
+           // If the rule has nested rules, and we have extra rules to insert such as for logical properties,
