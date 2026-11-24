@@ -186,4 +186,6 @@ The report above is internal: it is for the maintainer, and it holds all the evi
 
 If you find a better approach, prototype it in a copy of the worktree (with its own `CARGO_TARGET_DIR`) and include the diff and its measurements. A concrete alternative is much more useful than "this could be more precise".
 
+**Blocking vs follow-up.** Split every requested change into *blocking* (correctness, missing coverage of the bug class, failing CI, design problems such as extra copies or quadratic work) and *follow-up* (optional, mechanical polish: extra tests, small refactors, comments). Blocking items go in the public comment. Follow-up items may be mentioned briefly as optional, and are also listed separately in the queue item (`followups`), so they can be done in a small follow-up PR from this repo after merge instead of blocking the author. See "Follow-ups" in the `triage` branch README.
+
 Write the report to the path you were given, or to the scratchpad. Maintainer verdicts on past reviews are in `calibration/review-pr.md` on the `triage` branch (`node scripts/triage-dir.mjs` prints its checkout); read it first, and record new verdicts there. Report outcomes faithfully: if something was skipped or inconclusive, say so; never round "probably fine" up to "verified".
