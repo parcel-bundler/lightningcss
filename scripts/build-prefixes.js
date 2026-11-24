@@ -335,6 +335,7 @@ let mdnFeatures = {
   lightDark: mdn.css.types.color['light-dark'].__compat.support,
   accentSystemColor: mdn.css.types.color['system-color'].accentcolor_accentcolortext.__compat.support,
   animationTimelineShorthand: mdn.css.properties.animation['animation-timeline_included'].__compat.support,
+  transitionBehaviorShorthand: mdn.css.properties.transition['transition-behavior'].__compat.support,
   viewTransition: mdn.css.selectors['view-transition'].__compat.support,
   detailsContent: mdn.css.selectors['details-content'].__compat.support,
   targetText: mdn.css.selectors['target-text'].__compat.support,

@@ -11823,14 +11823,31 @@ mod tests {
 
   #[test]
   fn test_transitions() {
-    // A longhand without a typed property keeps its place relative to the shorthand.
     minify_test(
-      ".foo { transition: opacity 1s; transition-behavior: allow-discrete }",
-      ".foo{transition:opacity 1s;transition-behavior:allow-discrete}",
+      ".foo { transition: opacity 1s allow-discrete }",
+      ".foo{transition:opacity 1s allow-discrete}",
     );
     minify_test(
+      ".foo { transition: opacity 1s allow-discrete, display 1s }",
+      ".foo{transition:opacity 1s allow-discrete,display 1s}",
+    );
+    minify_test(".foo { transition: opacity 1s normal }", ".foo{transition:opacity 1s}");
+    minify_test(
+      ".foo { transition-behavior: allow-discrete }",
+      ".foo{transition-behavior:allow-discrete}",
+    );
+    minify_test(
+      ".foo { transition: opacity 1s; transition-behavior: allow-discrete }",
+      ".foo{transition:opacity 1s allow-discrete}",
+    );
+    // The shorthand resets transition-behavior.
+    minify_test(
       ".foo { transition-behavior: allow-discrete; transition: opacity 1s }",
-      ".foo{transition-behavior:allow-discrete;transition:opacity 1s}",
+      ".foo{transition:opacity 1s}",
+    );
+    minify_test(
+      ".foo { transition: opacity 1s; transition-behavior: var(--behavior) }",
+      ".foo{transition:opacity 1s;transition-behavior:var(--behavior)}",
     );
     property_range_test(&["transition-delay"], &[("-1s", Some("-1s"))]);
     property_range_test(
@@ -12611,6 +12628,96 @@ mod tests {
       },
       Browsers {
         safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        transition: opacity 1s;
+        transition-behavior: allow-discrete;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        transition: opacity 1s allow-discrete;
+      }
+    "#},
+      Browsers {
+        chrome: Some(117 << 16),
+        firefox: Some(129 << 16),
+        safari: Some((17 << 16) | (4 << 8)),
+        ..Browsers::default()
+      },
+    );
+    // Older browsers drop a `transition` that contains `allow-discrete`.
+    prefix_test(
+      r#"
+      .foo {
+        transition: opacity 1s;
+        transition-behavior: allow-discrete;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        transition: opacity 1s;
+        transition-behavior: allow-discrete;
+      }
+    "#},
+      Browsers {
+        chrome: Some(116 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        transition: opacity 1s allow-discrete;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        -webkit-transition: opacity 1s;
+        transition: opacity 1s;
+        transition-behavior: allow-discrete;
+      }
+    "#},
+      Browsers {
+        safari: Some(6 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        transition: margin-inline-start 1s allow-discrete;
+      }
+    "#,
+      indoc! {r#"
+      .foo:not(:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi))) {
+        transition: margin-left 1s;
+        transition-behavior: allow-discrete;
+      }
+
+      .foo:not(:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi))) {
+        transition: margin-left 1s;
+        transition-behavior: allow-discrete;
+      }
+
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition: margin-right 1s;
+        transition-behavior: allow-discrete;
+      }
+
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition: margin-right 1s;
+        transition-behavior: allow-discrete;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(8 << 16),
         ..Browsers::default()
       },
     );
