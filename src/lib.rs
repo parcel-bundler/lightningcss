@@ -28372,6 +28372,36 @@ mod tests {
         ..Browsers::default()
       },
     );
+    minify_test(
+      ".foo { backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur) }",
+      ".foo{backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}",
+    );
+    minify_test(
+      ".foo { -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur) }",
+      ".foo{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}",
+    );
+    minify_test(
+      ".foo { filter: var(--filter); -webkit-filter: blur(5px) }",
+      ".foo{filter:var(--filter);-webkit-filter:blur(5px)}",
+    );
+    minify_test(
+      ".foo { backdrop-filter: blur(5px); -webkit-backdrop-filter: var(--first); -webkit-backdrop-filter: var(--blur) }",
+      ".foo{backdrop-filter:blur(5px);-webkit-backdrop-filter:var(--blur)}",
+    );
+    prefix_test(
+      ".foo { backdrop-filter: var(--standard); -webkit-backdrop-filter: var(--webkit) }",
+      indoc! { r#"
+        .foo {
+          backdrop-filter: var(--standard);
+          -webkit-backdrop-filter: var(--webkit);
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        chrome: Some(120 << 16),
+        ..Browsers::default()
+      },
+    );
 
     prefix_test(
       ".foo { filter: drop-shadow(16px 16px 20px lab(40% 56.6 39)) }",
