@@ -6953,6 +6953,14 @@ mod tests {
         ".foo{font-family:monospace,monospace;font-size:16px}",
         ".foo{font-family:monospace,monospace;font-size:16px}",
     );
+    minify_test(
+      ".foo{font-family:monospace, monospace, monospace}",
+      ".foo{font-family:monospace,monospace}",
+    );
+    minify_test(
+      ".foo{font:1em monospace, monospace}",
+      ".foo{font:1em monospace,monospace}",
+    );
 
     prefix_test(
       r#"
@@ -11283,6 +11291,12 @@ mod tests {
       ".foo:-ms-input-placeholder{color:red}",
     );
     minify_test(".foo:-moz-placeholder {color: red}", ".foo:-moz-placeholder{color:red}");
+    // Autoprefixer's legacy pair must not be merged into one selector list: a browser that
+    // doesn't know one of the pseudo-classes would drop the whole rule.
+    minify_test(
+      ".a:-moz-placeholder{color:red}.a:-ms-input-placeholder{color:red}",
+      ".a:-moz-placeholder{color:red}.a:-ms-input-placeholder{color:red}",
+    );
 
     prefix_test(
       r#"
@@ -30054,6 +30068,34 @@ mod tests {
         },
       );
     }
+
+    // Chrome 90 supports neither `cqw` units nor `oklch()`, so the earlier filter is kept.
+    prefix_test(
+      ".a{filter:blur(1px);filter:blur(1cqw)}",
+      indoc! {r#"
+        .a {
+          filter: blur(1px);
+          filter: blur(1cqw);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".a{filter:grayscale(1);filter:grayscale(1) drop-shadow(0 0 2px oklch(25% .05 30))}",
+      indoc! {r#"
+        .a {
+          filter: grayscale();
+          filter: grayscale() drop-shadow(0 0 2px oklch(25% .05 30));
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
