@@ -32988,13 +32988,22 @@ mod tests {
       ".foo { unicode-bidi: normal; unicode-bidi: var(--x, normal) }",
       ".foo{unicode-bidi:normal;unicode-bidi:var(--x,normal)}",
     );
-    minify_test(
-      ".foo { direction: var(--x); direction: rtl }",
-      ".foo{direction:var(--x);direction:rtl}",
-    );
+    minify_test(".foo { direction: var(--x); direction: rtl }", ".foo{direction:rtl}");
     minify_test(
       ".foo { direction: rtl; direction: var(--x); direction: ltr }",
-      ".foo{direction:var(--x);direction:ltr}",
+      ".foo{direction:ltr}",
+    );
+    minify_test(
+      ".foo { unicode-bidi: var(--x); unicode-bidi: var(--y); unicode-bidi: isolate }",
+      ".foo{unicode-bidi:isolate}",
+    );
+    minify_test(
+      ".foo { direction: var(--x) !important; direction: rtl }",
+      ".foo{direction:rtl;direction:var(--x)!important}",
+    );
+    minify_test(
+      ".foo { direction: var(--x); all: unset; direction: rtl }",
+      ".foo{all:unset;direction:rtl}",
     );
     minify_test(
       ".foo { direction: rtl; direction: var(--x); all: revert-layer }",

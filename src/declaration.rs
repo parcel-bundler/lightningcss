@@ -646,15 +646,16 @@ impl<'i> DeclarationHandler<'i> {
     // The `all` property resets all properies except `unicode-bidi`, `direction`, and custom properties.
     // https://drafts.csswg.org/css-cascade-5/#all-shorthand
     // Their declarations are kept in source order, so an unparsed value (e.g. `var()`) stays after
-    // the earlier declarations it overrides. A parsed value replaces the parsed values before it.
+    // the earlier declarations it overrides. A parsed value overrides every earlier declaration of
+    // the property, including unparsed ones, so it replaces them all.
     match property {
       Property::UnicodeBidi(_) => {
-        self.unicode_bidi.retain(|decl| matches!(decl, Property::Unparsed(_)));
+        self.unicode_bidi.clear();
         self.unicode_bidi.push(property.clone());
         true
       }
       Property::Direction(_) => {
-        self.direction.retain(|decl| matches!(decl, Property::Unparsed(_)));
+        self.direction.clear();
         self.direction.push(property.clone());
         true
       }
