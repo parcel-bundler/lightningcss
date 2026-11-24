@@ -7,6 +7,6 @@
  "blockingForAuthor": [
   "Rebase onto master (conflict in build-prefixes.js after #1420): left to the author."
  ],
- "state": "approved",
- "followupPr": null
+ "state": "open",
+ "followupPr": 1430
 }
