@@ -659,7 +659,15 @@ impl<
     let is_math_function =
       matches!(input.next(), Ok(Token::Function(f)) if MathFunctionName::from_name(f).is_some());
     input.reset(&state);
-    match input.try_parse(Self::parse) {
+    // An error in a math function is returned below without trying anything else, so there is no
+    // need to rewind. Rewinding would make each enclosing block tokenize the failed function again
+    // when it skips its remaining tokens.
+    let res = if is_math_function {
+      Self::parse(input)
+    } else {
+      input.try_parse(Self::parse)
+    };
+    match res {
       Ok(Calc::Function(f)) => {
         return Ok(match *f {
           MathFunction::Calc(c) => c,
@@ -863,38 +871,14 @@ impl<
   ) -> Result<Angle, ParseError<'i, ParserError<'i>>> {
     // atan2 supports arguments of any <number>, <dimension>, or <percentage>, even ones that wouldn't
     // normally be supported by V. The only requirement is that the arguments be of the same type.
-    // Try parsing with each type, and return the first one that parses successfully.
-    if let Ok(v) = input.try_parse(|input| Calc::<Length>::parse_atan2_args(input, &|_| None)) {
-      return Ok(v);
-    }
-
-    if let Ok(v) = input.try_parse(|input| Calc::<Percentage>::parse_atan2_args(input, &|_| None)) {
-      return Ok(v);
-    }
-
-    if let Ok(v) = input.try_parse(|input| Calc::<Angle>::parse_atan2_args(input, &|_| None)) {
-      return Ok(v);
-    }
-
-    if let Ok(v) = input.try_parse(|input| Calc::<Time>::parse_atan2_args(input, &|_| None)) {
-      return Ok(v);
-    }
-
-    Calc::<CSSNumber>::parse_atan2_args(input, &|v| {
-      parse_ident(v).and_then(|v| match v {
-        Calc::Number(v) => Some(Calc::Number(v)),
-        _ => None,
-      })
-    })
-  }
-
-  fn parse_atan2_args<'t>(
-    input: &mut Parser<'i, 't>,
-    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
-  ) -> Result<Angle, ParseError<'i, ParserError<'i>>> {
-    let a = Calc::<V>::parse_sum(input, parse_ident)?;
+    // Parse them once with leaves of any of these types, then check that the types match.
+    let parse_ident = |v: &str| match parse_ident(v) {
+      Some(Calc::Number(v)) => Some(Calc::Number(v)),
+      _ => None,
+    };
+    let a = Calc::<Atan2Arg>::parse_sum(input, &parse_ident)?;
     input.expect_comma()?;
-    let b = Calc::<V>::parse_sum(input, parse_ident)?;
+    let b = Calc::<Atan2Arg>::parse_sum(input, &parse_ident)?;
 
     match (&a, &b) {
       (Calc::Value(a), Calc::Value(b)) => {
@@ -935,6 +919,160 @@ impl<
     };
 
     Ok(Self::apply_map(&sum, f32::sqrt))
+  }
+}
+
+/// A leaf in the arguments of `atan2()`, which can be of any of these types as long as both arguments
+/// have the same type. Each leaf keeps its own type, so the arguments are parsed only once, rather
+/// than once per type (which took exponential time for nested `atan2()`).
+#[derive(Debug, Clone, PartialEq)]
+enum Atan2Arg {
+  Length(Length),
+  Percentage(Percentage),
+  Angle(Angle),
+  Time(Time),
+  /// A sum of values of different types, which is invalid. `AddInternal::add` can't fail.
+  Mixed,
+}
+
+/// Matches two `Atan2Arg`s of the same type, binding their values and the variant's constructor.
+macro_rules! match_same_type {
+  ($a: expr, $b: expr, |$x: ident, $y: ident, $wrap: ident| $body: expr, $otherwise: expr) => {
+    match ($a, $b) {
+      (Atan2Arg::Length($x), Atan2Arg::Length($y)) => {
+        let $wrap = Atan2Arg::Length;
+        $body
+      }
+      (Atan2Arg::Percentage($x), Atan2Arg::Percentage($y)) => {
+        let $wrap = Atan2Arg::Percentage;
+        $body
+      }
+      (Atan2Arg::Angle($x), Atan2Arg::Angle($y)) => {
+        let $wrap = Atan2Arg::Angle;
+        $body
+      }
+      (Atan2Arg::Time($x), Atan2Arg::Time($y)) => {
+        let $wrap = Atan2Arg::Time;
+        $body
+      }
+      _ => $otherwise,
+    }
+  };
+}
+
+impl<'i> Parse<'i> for Atan2Arg {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(v) = input.try_parse(Length::parse) {
+      return Ok(Atan2Arg::Length(v));
+    }
+    if let Ok(v) = input.try_parse(Percentage::parse) {
+      return Ok(Atan2Arg::Percentage(v));
+    }
+    if let Ok(v) = input.try_parse(Angle::parse) {
+      return Ok(Atan2Arg::Angle(v));
+    }
+    Ok(Atan2Arg::Time(Time::parse(input)?))
+  }
+}
+
+impl std::ops::Mul<f32> for Atan2Arg {
+  type Output = Self;
+
+  fn mul(self, other: f32) -> Self {
+    match self {
+      Atan2Arg::Length(v) => Atan2Arg::Length(v * other),
+      Atan2Arg::Percentage(v) => Atan2Arg::Percentage(v * other),
+      Atan2Arg::Angle(v) => Atan2Arg::Angle(v * other),
+      Atan2Arg::Time(v) => Atan2Arg::Time(v * other),
+      Atan2Arg::Mixed => Atan2Arg::Mixed,
+    }
+  }
+}
+
+impl AddInternal for Atan2Arg {
+  fn add(self, other: Self) -> Self {
+    match_same_type!(self, other, |a, b, wrap| wrap(AddInternal::add(a, b)), Atan2Arg::Mixed)
+  }
+}
+
+impl TryOp for Atan2Arg {
+  fn try_op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Option<Self> {
+    match_same_type!(self, rhs, |a, b, wrap| a.try_op(b, op).map(wrap), None)
+  }
+
+  fn try_op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> Option<T> {
+    match_same_type!(self, rhs, |a, b, _wrap| a.try_op_to(b, op), None)
+  }
+}
+
+impl TryMap for Atan2Arg {
+  fn try_map<F: FnOnce(f32) -> f32>(&self, op: F) -> Option<Self> {
+    match self {
+      Atan2Arg::Length(v) => v.try_map(op).map(Atan2Arg::Length),
+      Atan2Arg::Percentage(v) => v.try_map(op).map(Atan2Arg::Percentage),
+      Atan2Arg::Angle(v) => v.try_map(op).map(Atan2Arg::Angle),
+      Atan2Arg::Time(v) => v.try_map(op).map(Atan2Arg::Time),
+      Atan2Arg::Mixed => None,
+    }
+  }
+}
+
+impl TrySign for Atan2Arg {
+  fn try_sign(&self) -> Option<f32> {
+    match self {
+      Atan2Arg::Length(v) => v.try_sign(),
+      Atan2Arg::Percentage(v) => v.try_sign(),
+      Atan2Arg::Angle(v) => v.try_sign(),
+      Atan2Arg::Time(v) => v.try_sign(),
+      Atan2Arg::Mixed => None,
+    }
+  }
+}
+
+impl std::cmp::PartialOrd for Atan2Arg {
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    match_same_type!(self, other, |a, b, _wrap| a.partial_cmp(b), None)
+  }
+}
+
+impl Into<Calc<Atan2Arg>> for Atan2Arg {
+  fn into(self) -> Calc<Atan2Arg> {
+    match self {
+      // Like `Into<Calc<Length>>`, unwrap a sum that `Length::add` simplified to a single value.
+      Atan2Arg::Length(Length::Calc(c)) => match *c {
+        Calc::Value(v) => Calc::Value(Box::new(Atan2Arg::Length(*v))),
+        c => Calc::Value(Box::new(Atan2Arg::Length(Length::Calc(Box::new(c))))),
+      },
+      v => Calc::Value(Box::new(v)),
+    }
+  }
+}
+
+impl TryFrom<Calc<Atan2Arg>> for Atan2Arg {
+  type Error = ();
+
+  fn try_from(calc: Calc<Atan2Arg>) -> Result<Self, ()> {
+    match calc {
+      Calc::Value(v) => Ok(*v),
+      _ => Err(()),
+    }
+  }
+}
+
+impl From<Angle> for Atan2Arg {
+  fn from(angle: Angle) -> Self {
+    Atan2Arg::Angle(angle)
+  }
+}
+
+impl TryFrom<Atan2Arg> for Angle {
+  type Error = ();
+
+  fn try_from(v: Atan2Arg) -> Result<Self, ()> {
+    match v {
+      Atan2Arg::Angle(v) => Ok(v),
+      _ => Err(()),
+    }
   }
 }
 
