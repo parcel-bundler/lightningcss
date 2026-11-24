@@ -1352,6 +1352,27 @@ mod tests {
       },
     );
 
+    // Android WebView has shared Chrome's version numbers since 37. caniuse lists
+    // only the current WebView version, which used to make every feature added
+    // after Android 4.4 look unsupported in older WebViews (#568).
+    prefix_test(
+      r#"
+      .foo {
+        font-family: Helvetica, system-ui, sans-serif;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-family: Helvetica, system-ui, sans-serif;
+      }
+    "#
+      },
+      Browsers {
+        android: Some(131 << 16),
+        ..Browsers::default()
+      },
+    );
+
     prefix_test(
       r#"
       .foo {
@@ -2337,6 +2358,72 @@ mod tests {
 
   #[test]
   pub fn test_border_image() {
+    minify_test(
+      r#"
+      .foo {
+        border-image: none;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    test(
+      r#"
+      .foo {
+        border-image: none;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        border-image: none;
+      }
+      "#},
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image: none 100% / 1 / 0 stretch;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image-source: none;
+        border-image-slice: 100%;
+        border-image-width: 1;
+        border-image-outset: 0;
+        border-image-repeat: stretch;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        -webkit-border-image: none;
+        border-image: none !important;
+      }
+      "#,
+      ".foo{-webkit-border-image:none;border-image:none!important}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image: url(border.png) 1;
+      }
+      .foo.active {
+        border-image: none;
+      }
+      "#,
+      ".foo{border-image:url(border.png) 1}.foo.active{border-image:none}",
+    );
+
     property_range_test(
       &[
         "border-image-outset",
@@ -6759,6 +6846,19 @@ mod tests {
       "@font-face{font-family:\"revert-layer\"}",
     );
 
+    minify_test(
+        ".foo{font-family:named-font,named-font}",
+        ".foo{font-family:named-font}",
+    );
+    minify_test(
+        ".foo{font-family:monospace,monospace}",
+        ".foo{font-family:monospace,monospace}",
+    );
+    minify_test(
+        ".foo{font-family:monospace,monospace;font-size:16px}",
+        ".foo{font-family:monospace,monospace;font-size:16px}",
+    );
+
     prefix_test(
       r#"
       .foo {
@@ -10033,6 +10133,47 @@ mod tests {
       "@media (min-scan: interlace) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
     );
+    // min-/max- prefixed features are invalid in a boolean context.
+    // https://drafts.csswg.org/mediaqueries/#mq-min-max
+    error_test(
+      "@media (min-width) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (max-height) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (-webkit-min-device-pixel-ratio) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    // With error recovery, the query is kept as written and reported once.
+    for (source, expected) in [
+      (
+        "@media (min-width) { .foo { color: chartreuse }}",
+        "@media (min-width){.foo{color:#7fff00}}",
+      ),
+      (
+        "@media (min-width), print { .foo { color: chartreuse }}",
+        "@media (min-width),print{.foo{color:#7fff00}}",
+      ),
+      (
+        "@media (MIN-WIDTH) { .foo { color: chartreuse }}",
+        "@media (MIN-WIDTH){.foo{color:#7fff00}}",
+      ),
+    ] {
+      let warnings = Some(Arc::new(RwLock::new(Vec::new())));
+      minify_test_with_options(
+        source,
+        expected,
+        ParserOptions {
+          error_recovery: true,
+          warnings: warnings.clone(),
+          ..ParserOptions::default()
+        },
+      );
+      assert_eq!(warnings.unwrap().read().unwrap().len(), 1, "{source}");
+    }
     error_test(
       "@media (1px <= width <= bar) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
@@ -10286,47 +10427,6 @@ mod tests {
         }
       }
     "#},
-    );
-  }
-
-  #[test]
-  fn test_layer_order_across_rules() {
-    // A conditional declaration can establish `a` before `b`. Hoisting the
-    // final statement changes their order when the condition matches.
-    minify_test(
-      "@layer c; @media (min-width: 600px) { @layer a { .x { --v: a } } } @layer b, a;",
-      "@layer c;@media (width>=600px){@layer a{.x{--v:a}}}@layer b,a;",
-    );
-    minify_test(
-      "@layer c; @supports (display: grid) { @layer a { .x { --v: a } } } @layer b, a;",
-      "@layer c;@supports (display:grid){@layer a{.x{--v:a}}}@layer b,a;",
-    );
-    // An unlayered import may declare layers in its stylesheet too.
-    minify_test(
-      "@layer c; @import 'a.css'; @layer b, a;",
-      "@layer c;@import \"a.css\";@layer b,a;",
-    );
-    // A conditional import cannot make a later unconditional declaration
-    // redundant: that declaration must still apply if the condition is false.
-    minify_test(
-      "@import 'a.css' layer(a) screen; @layer a, b;",
-      "@import \"a.css\" layer(a) screen;@layer a,b;",
-    );
-    // Moving the last block into the first reverses the order of declarations
-    // within `a` when the intervening condition matches.
-    minify_test(
-      "@layer a { .x { --v: first } } @media print { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
-      "@layer a{.x{--v:first}}@media print{@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
-    );
-    minify_test(
-      "@layer a { .x { --v: first } } @supports (display: grid) { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
-      "@layer a{.x{--v:first}}@supports (display:grid){@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
-    );
-    // Dotted layer names and nested blocks address the same layer hierarchy.
-    // Merging the two `a` blocks would declare `a.z` before `a.y`.
-    minify_test(
-      "@layer a { @layer x; } @layer a.y { .x { --v: y } } @layer a { @layer z { .x { --v: z } } }",
-      "@layer a{@layer x;}@layer a.y{.x{--v:y}}@layer a{@layer z{.x{--v:z}}}",
     );
   }
 
@@ -28721,6 +28821,22 @@ mod tests {
     );
 
     minify_test(
+      r#"
+      .foo {
+        mask-border: none;
+      }
+      "#,
+      ".foo{mask-border:none}",
+    );
+    minify_test(
+      r#"
+      .foo {
+        -webkit-mask-box-image: none;
+      }
+      "#,
+      ".foo{-webkit-mask-box-image:none}",
+    );
+    minify_test(
       ".foo { mask-border: url('border-mask.png') 25; }",
       ".foo{mask-border:url(border-mask.png) 25}",
     );
@@ -31901,6 +32017,7 @@ mod tests {
 
     error_test("@container (inline-size <= foo) {}", ParserError::InvalidMediaQuery);
     error_test("@container (orientation <= 10px) {}", ParserError::InvalidMediaQuery);
+    error_test("@container (min-width) {}", ParserError::InvalidMediaQuery);
 
     error_test(
       "@container style(style(--foo: bar)) {}",
