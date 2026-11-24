@@ -70,7 +70,6 @@ mod tests {
   use indexmap::IndexMap;
   use indoc::indoc;
   use pretty_assertions::assert_eq;
-  use std::collections::HashMap;
   use std::sync::{Arc, RwLock};
 
   #[track_caller]
@@ -31541,6 +31540,7 @@ mod tests {
   fn test_substitute_vars() {
     use crate::properties::custom::TokenList;
     use crate::traits::ParseWithOptions;
+    use std::collections::HashMap;
 
     fn test(property: Property, vars: HashMap<&str, &str>, expected: &str) {
       if let Property::Unparsed(unparsed) = property {
