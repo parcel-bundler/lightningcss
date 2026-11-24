@@ -7,6 +7,6 @@
  "blockingForAuthor": [
   "`cargo fmt` (CI fails until fixed): left to the author for now."
  ],
- "state": "waiting-for-merge",
- "followupPr": null
+ "state": "open",
+ "followupPr": 1426
 }

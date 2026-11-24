@@ -7,6 +7,6 @@
   "Separate fix: nested `atan2()` is still exponential (parse_atan2 retries each argument type); 10 levels with var() take ~8 s."
  ],
  "blockingForAuthor": [],
- "state": "waiting-for-merge",
+ "state": "approved",
  "followupPr": null
 }

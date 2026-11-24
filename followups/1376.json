@@ -6,6 +6,6 @@
   "Decide whether the analogous-set rule (spec April 2026; Chromium 153 doesn't implement it yet) should stay unflagged."
  ],
  "blockingForAuthor": [],
- "state": "waiting-for-merge",
+ "state": "approved",
  "followupPr": null
 }

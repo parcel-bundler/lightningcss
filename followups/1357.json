@@ -6,6 +6,6 @@
   "Upstream: propose `Value::Unit => visitor.visit_unit()` in serde-content's `deserialize_option`; once released, drop the pass."
  ],
  "blockingForAuthor": [],
- "state": "waiting-for-merge",
+ "state": "approved",
  "followupPr": null
 }

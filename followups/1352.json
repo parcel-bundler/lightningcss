@@ -5,6 +5,6 @@
   "Add a `minify_test` for the no-targets `:-moz-placeholder` / `:-ms-input-placeholder` pair (rule-merging path)."
  ],
  "blockingForAuthor": [],
- "state": "waiting-for-merge",
- "followupPr": null
+ "state": "open",
+ "followupPr": 1426
 }
