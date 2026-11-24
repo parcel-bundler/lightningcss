@@ -167,7 +167,7 @@ What you couldn't check and why (old-browser behavior, WPT fixtures, etc.).
 
 The report above is internal: it is for the maintainer, and it holds all the evidence. A comment on the PR is a different, much shorter document. Draft it separately, show it to the maintainer, and post only the text they approve.
 
-- **Tone.** Keep it friendly, and thank the contributor briefly. It reads as coming from the maintainer, so don't announce verdicts like "request changes" or "needs maintainer decision". Don't say the PR is ready to merge in the text; the maintainer decides.
+- **Tone.** Keep it friendly, and thank the contributor briefly. It reads as coming from the maintainer, so don't announce verdicts like "request changes" or "needs maintainer decision". Don't say the PR is ready to merge in the text; the maintainer decides. Comments are posted from the maintainer's account, so never refer to "the maintainer" in the third person (write "we'd rather…", or just state the request).
 - **Posting (only after the maintainer approves the item in the decision queue).** Apply the GitHub action that matches the verdict, with the comment as its body, not a plain comment:
   - merge → submit an `APPROVE` review (`pull_request_review_write`, method `create`, event `APPROVE`). Never merge; the maintainer does.
   - request-changes → submit a `REQUEST_CHANGES` review.
