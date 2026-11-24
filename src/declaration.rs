@@ -8,9 +8,8 @@ use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
-use crate::properties::custom::{CustomProperty, CustomPropertyName};
+use crate::properties::custom::{CustomProperty, CustomPropertyName, UnparsedProperty};
 use crate::properties::masking::MaskHandler;
-use crate::properties::text::{Direction, UnicodeBidi};
 use crate::properties::{
   align::AlignHandler,
   animation::AnimationHandler,
@@ -568,8 +567,8 @@ pub(crate) struct DeclarationHandler<'i> {
   color_scheme: ColorSchemeHandler,
   fallback: FallbackHandler,
   prefix: PrefixHandler,
-  direction: Option<Direction>,
-  unicode_bidi: Option<UnicodeBidi>,
+  direction: DeclarationList<'i>,
+  unicode_bidi: DeclarationList<'i>,
   custom_properties: IndexMap<DashedIdent<'i>, usize>,
   decls: DeclarationList<'i>,
 }
@@ -646,13 +645,31 @@ impl<'i> DeclarationHandler<'i> {
   fn handle_all(&mut self, property: &Property<'i>) -> bool {
     // The `all` property resets all properies except `unicode-bidi`, `direction`, and custom properties.
     // https://drafts.csswg.org/css-cascade-5/#all-shorthand
+    // Their declarations are kept in source order, so an unparsed value (e.g. `var()`) stays after
+    // the earlier declarations it overrides. A parsed value replaces the parsed values before it.
     match property {
-      Property::UnicodeBidi(bidi) => {
-        self.unicode_bidi = Some(*bidi);
+      Property::UnicodeBidi(_) => {
+        self.unicode_bidi.retain(|decl| matches!(decl, Property::Unparsed(_)));
+        self.unicode_bidi.push(property.clone());
         true
       }
-      Property::Direction(direction) => {
-        self.direction = Some(*direction);
+      Property::Direction(_) => {
+        self.direction.retain(|decl| matches!(decl, Property::Unparsed(_)));
+        self.direction.push(property.clone());
+        true
+      }
+      Property::Unparsed(UnparsedProperty {
+        property_id: PropertyId::UnicodeBidi,
+        ..
+      }) => {
+        self.unicode_bidi.push(property.clone());
+        true
+      }
+      Property::Unparsed(UnparsedProperty {
+        property_id: PropertyId::Direction,
+        ..
+      }) => {
+        self.direction.push(property.clone());
         true
       }
       Property::All(keyword) => {
@@ -693,12 +710,8 @@ impl<'i> DeclarationHandler<'i> {
   }
 
   pub fn finalize(&mut self, context: &mut PropertyHandlerContext<'i, '_>) {
-    if let Some(direction) = std::mem::take(&mut self.direction) {
-      self.decls.push(Property::Direction(direction));
-    }
-    if let Some(unicode_bidi) = std::mem::take(&mut self.unicode_bidi) {
-      self.decls.push(Property::UnicodeBidi(unicode_bidi));
-    }
+    self.decls.extend(std::mem::take(&mut self.direction));
+    self.decls.extend(std::mem::take(&mut self.unicode_bidi));
 
     self.background.finalize(&mut self.decls, context);
     self.border.finalize(&mut self.decls, context);
