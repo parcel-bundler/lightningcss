@@ -212,8 +212,17 @@ impl<'i> Filter<'i> {
 }
 
 impl IsCompatible for Filter<'_> {
-  fn is_compatible(&self, _browsers: Browsers) -> bool {
-    true
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      Filter::Blur(len) => len.is_compatible(browsers),
+      Filter::DropShadow(shadow) => {
+        shadow.color.is_compatible(browsers)
+          && shadow.x_offset.is_compatible(browsers)
+          && shadow.y_offset.is_compatible(browsers)
+          && shadow.blur.is_compatible(browsers)
+      }
+      _ => true,
+    }
   }
 }
 
@@ -408,8 +417,11 @@ impl<'i> FallbackValues for FilterList<'i> {
 }
 
 impl IsCompatible for FilterList<'_> {
-  fn is_compatible(&self, _browsers: Browsers) -> bool {
-    true
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      FilterList::None => true,
+      FilterList::Filters(filters) => filters.iter().all(|filter| filter.is_compatible(browsers)),
+    }
   }
 }
 
