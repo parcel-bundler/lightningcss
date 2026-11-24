@@ -15100,6 +15100,19 @@ mod tests {
       "@supports (display: -webkit-box) and (-webkit-box-orient: vertical) and (-webkit-line-clamp: 3) { .a { color: red } }",
       "@supports (display:-webkit-box) and ((-webkit-box-orient:vertical)) and (-webkit-line-clamp:3){.a{color:red}}",
     );
+    // Prefixed declarations only merge inside `or`. Inside `and` the merge would print an `or`.
+    minify_test(
+      "@supports (-webkit-appearance: none) and (-moz-appearance: none) { .a { color: red } }",
+      "@supports ((-webkit-appearance:none)) and ((-moz-appearance:none)){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (backdrop-filter: blur(1px)) and (-webkit-backdrop-filter: blur(1px)) { .a { color: red } }",
+      "@supports (backdrop-filter:blur(1px)) and ((-webkit-backdrop-filter:blur(1px))){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (not selector(::-webkit-scrollbar)) or (-moz-appearance: none) { .a { color: red } }",
+      "@supports (not selector(::-webkit-scrollbar)) or ((-moz-appearance:none)){.a{color:red}}",
+    );
     test(
       r#"
       @supports (foo: bar) {
