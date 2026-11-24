@@ -19,3 +19,6 @@
 - Tooling: build-pr.sh --on-master fails with 'unrelated histories' for PRs whose merge base is older than the depth-200 shallow fetch (#696). Add a deepen/unshallow fallback.
 - From #1025/#1338 (pre-existing): quotes inside custom property values are rewritten (`'a'` -> `"a"`), observable via getPropertyValue in Chromium.
 - From #1025/#1338 (pre-existing): font-family strings lose leading/trailing spaces.
+- From #1383 re-review (pre-existing): nested `rgb(from light-dark(red, blue) r g b / ...)` grows exponentially in time and output: 16 levels turn 656 bytes into 3 MB.
+- From #1236 re-review (pre-existing): runs of adjacent rules with identical declarations (`.c0{margin:0}.c1{margin:0}...`) are quadratic: 5.2G instructions at 20k rules.
+- From #1365 re-review (pre-existing): `transition: normal normal 1s` serializes as `transition:normal 1s`, which changes the transition property from a literal `normal` to `all`. Fix in Transition::to_css.
