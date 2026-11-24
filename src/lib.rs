@@ -12725,18 +12725,19 @@ mod tests {
 
   #[test]
   fn test_animation() {
-    // A longhand without a typed property keeps its place relative to the shorthand.
+    minify_test(".foo { animation-composition: add }", ".foo{animation-composition:add}");
     minify_test(
       ".foo { animation: fade 1s; animation-composition: add }",
       ".foo{animation:1s fade;animation-composition:add}",
     );
+    // Chrome doesn't reset animation-composition from the shorthand, so it stays before it.
     minify_test(
       ".foo { animation-composition: add; animation: fade 1s }",
       ".foo{animation-composition:add;animation:1s fade}",
     );
     minify_test(
-      ".foo { animation: fade 1s; animation-trigger: once view() }",
-      ".foo{animation:1s fade;animation-trigger:once view()}",
+      ".foo { animation: fade 1s; animation-composition: add; animation: spin 2s }",
+      ".foo{animation:1s fade;animation-composition:add;animation:2s spin}",
     );
     property_range_test(&["animation-delay"], &[("-1s", Some("-1s"))]);
     property_range_test(
