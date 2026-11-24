@@ -5767,6 +5767,69 @@ mod tests {
       },
     );
 
+    // justify-self: auto is not equivalent to a self-position align-self, so the
+    // shorthand must keep both values. https://github.com/parcel-bundler/lightningcss/issues/1182
+    test(
+      r#"
+      .foo {
+        align-self: self-start;
+        justify-self: auto;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: self-start auto;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        align-self: auto;
+        justify-self: auto;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: auto;
+      }
+    "#
+      },
+    );
+
+    // Likewise, justify-self: stretch only collapses when align-self is stretch.
+    test(
+      r#"
+      .foo {
+        align-self: normal;
+        justify-self: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: normal stretch;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        align-self: stretch;
+        justify-self: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: stretch;
+      }
+    "#
+      },
+    );
+
     test(
       r#"
       .foo {
@@ -5777,6 +5840,38 @@ mod tests {
       indoc! {r#"
       .foo {
         place-items: center;
+      }
+    "#
+      },
+    );
+
+    // place-items has the same rule: justify-items: stretch only collapses when
+    // align-items is stretch.
+    test(
+      r#"
+      .foo {
+        align-items: normal;
+        justify-items: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-items: normal stretch;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        align-items: stretch;
+        justify-items: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-items: stretch;
       }
     "#
       },
@@ -6844,6 +6939,19 @@ mod tests {
     minify_test(
       "@font-face { font-family: 'revert-layer'; }",
       "@font-face{font-family:\"revert-layer\"}",
+    );
+
+    minify_test(
+        ".foo{font-family:named-font,named-font}",
+        ".foo{font-family:named-font}",
+    );
+    minify_test(
+        ".foo{font-family:monospace,monospace}",
+        ".foo{font-family:monospace,monospace}",
+    );
+    minify_test(
+        ".foo{font-family:monospace,monospace;font-size:16px}",
+        ".foo{font-family:monospace,monospace;font-size:16px}",
     );
 
     prefix_test(
@@ -8942,6 +9050,29 @@ mod tests {
       width: calc(var(--test) - 2px);
     }
     "#},
+    );
+  }
+
+  #[test]
+  fn test_calc_nested_var_parse_time() {
+    // Each nesting level used to be parsed twice when a var() made the math
+    // function fail to parse, so parsing time doubled with every level.
+    let depth = 40;
+    let mut value = "var(--x)".to_string();
+    for _ in 0..depth {
+      value = format!("calc({} - 1px)", value);
+    }
+    let mut expected = "var(--x)".to_string();
+    for _ in 0..depth {
+      expected = format!("calc({} - 1px)", expected);
+    }
+    minify_test(
+      &format!(".foo {{ width: {} }}", value),
+      &format!(".foo{{width:{}}}", expected),
+    );
+    minify_test(
+      ".foo { width: max(calc(min(var(--x), 1px) * 2), 1px) }",
+      ".foo{width:max(calc(min(var(--x), 1px) * 2), 1px)}",
     );
   }
 
@@ -12912,43 +13043,43 @@ mod tests {
       ".foo { animation: foo 0s 3s infinite }",
       ".foo{animation:0s 3s infinite foo}",
     );
-    minify_test(".foo { animation: foo 3s --test }", ".foo{animation:3s foo --test}");
-    minify_test(".foo { animation: foo 3s scroll() }", ".foo{animation:3s foo scroll()}");
+    minify_test(".foo { animation: foo 3s --test }", ".foo{animation:3s foo;animation-timeline:--test}");
+    minify_test(".foo { animation: foo 3s scroll() }", ".foo{animation:3s foo;animation-timeline:scroll()}");
     minify_test(
       ".foo { animation: foo 3s scroll(block) }",
-      ".foo{animation:3s foo scroll()}",
+      ".foo{animation:3s foo;animation-timeline:scroll()}",
     );
     minify_test(
       ".foo { animation: foo 3s scroll(root inline) }",
-      ".foo{animation:3s foo scroll(root inline)}",
+      ".foo{animation:3s foo;animation-timeline:scroll(root inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s scroll(inline root) }",
-      ".foo{animation:3s foo scroll(root inline)}",
+      ".foo{animation:3s foo;animation-timeline:scroll(root inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s scroll(inline nearest) }",
-      ".foo{animation:3s foo scroll(inline)}",
+      ".foo{animation:3s foo;animation-timeline:scroll(inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(block) }",
-      ".foo{animation:3s foo view()}",
+      ".foo{animation:3s foo;animation-timeline:view()}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline) }",
-      ".foo{animation:3s foo view(inline)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline 10px 10px) }",
-      ".foo{animation:3s foo view(inline 10px)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline 10px)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline 10px 12px) }",
-      ".foo{animation:3s foo view(inline 10px 12px)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline 10px 12px)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline auto auto) }",
-      ".foo{animation:3s foo view(inline)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline)}",
     );
     minify_test(".foo { animation: foo 3s auto }", ".foo{animation:3s foo}");
     minify_test(".foo { animation-composition: add }", ".foo{animation-composition:add}");
@@ -13063,7 +13194,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: 90ms ease-in-out .1s 2 alternate forwards foo scroll();
+        animation: 90ms ease-in-out .1s 2 alternate forwards foo;
+        animation-timeline: scroll();
       }
     "#},
     );
@@ -13228,13 +13360,48 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: .2s ease-in-out bar scroll();
+        animation: .2s ease-in-out bar;
+        animation-timeline: scroll();
       }
     "#},
       Browsers {
         chrome: Some(120 << 16),
         ..Browsers::default()
       },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        animation: parallax 1ms linear both;
+        animation-timeline: view();
+        animation-range: exit 0% exit 100%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: 1ms linear both parallax;
+        animation-timeline: view();
+        animation-range: exit;
+      }
+    "#},
+      Browsers {
+        chrome: Some(115 << 16),
+        ..Browsers::default()
+      },
+    );
+    test(
+      r#"
+      .foo {
+        animation: parallax 1ms linear both;
+        animation-timeline: view();
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: 1ms linear both parallax;
+        animation-timeline: view();
+      }
+    "#},
     );
     prefix_test(
       r#"
@@ -14013,6 +14180,70 @@ mod tests {
         transform: translateX(20px);
       }
       "#},
+    );
+  }
+
+  #[test]
+  fn test_zero_translate3d() {
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, 0);
+        }
+      "},
+      ".foo{transform:translate(0)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0px, -0%, 0em);
+        }
+      "},
+      ".foo{transform:translate(0)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0%, 0px, -0px);
+        }
+      "},
+      ".foo{transform:translate(0%)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(calc(1px - 1px), 0, 0) rotate(30deg);
+        }
+      "},
+      ".foo{transform:translate(0)rotate(30deg)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          -webkit-transform: translate3d(0, 0, 0);
+        }
+      "},
+      ".foo{-webkit-transform:translate(0)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, var(--z));
+        }
+      "},
+      ".foo{transform:translate3d(0, 0, var(--z))}",
+    );
+    test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, 0);
+        }
+      "},
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, 0);
+        }
+      "},
     );
   }
 
@@ -18171,6 +18402,34 @@ mod tests {
     "#},
       Browsers {
         safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    minify_test(
+      ".foo { position: static; position: var(--x, static) }",
+      ".foo{position:static;position:var(--x,static)}",
+    );
+    minify_test(
+      ".foo { position: var(--x, static); position: static }",
+      ".foo{position:var(--x,static);position:static}",
+    );
+    prefix_test(
+      r#"
+      .foo {
+        position: sticky;
+        position: var(--x, sticky);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        position: -webkit-sticky;
+        position: sticky;
+        position: var(--x, sticky);
+      }
+    "#},
+      Browsers {
+        safari: Some(8 << 16),
         ..Browsers::default()
       },
     );
@@ -32598,6 +32857,30 @@ mod tests {
     minify_test(
       ".foo { direction: rtl; all: revert-layer; direction: ltr }",
       ".foo{all:revert-layer;direction:ltr}",
+    );
+    minify_test(
+      ".foo { direction: ltr; direction: var(--x, ltr) }",
+      ".foo{direction:ltr;direction:var(--x,ltr)}",
+    );
+    minify_test(
+      ".foo { unicode-bidi: normal; unicode-bidi: var(--x, normal) }",
+      ".foo{unicode-bidi:normal;unicode-bidi:var(--x,normal)}",
+    );
+    minify_test(
+      ".foo { direction: var(--x); direction: rtl }",
+      ".foo{direction:var(--x);direction:rtl}",
+    );
+    minify_test(
+      ".foo { direction: rtl; direction: var(--x); direction: ltr }",
+      ".foo{direction:var(--x);direction:ltr}",
+    );
+    minify_test(
+      ".foo { direction: rtl; direction: var(--x); all: revert-layer }",
+      ".foo{all:revert-layer;direction:rtl;direction:var(--x)}",
+    );
+    minify_test(
+      ".foo { unicode-bidi: var(--x); all: revert-layer }",
+      ".foo{all:revert-layer;unicode-bidi:var(--x)}",
     );
     minify_test(".foo { background: var(--foo); all: unset; }", ".foo{all:unset}");
     minify_test(
