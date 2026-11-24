@@ -32171,10 +32171,7 @@ b\0 c');
     );
   }
 
-  #[test]
-  fn test_url_quote_roundtrip() {
-    use crate::values::url::Url;
-
+  fn do_test_each_string(test: fn(&str)) {
     // Exercise escape boundaries on both sides of quotes, including a literal
     // backslash followed by a hex digit and non-ASCII text.
     let parts = [
@@ -32183,21 +32180,40 @@ b\0 c');
     for a in parts {
       for b in parts {
         for c in parts {
-          let value = format!("\"\"{a}{b}{c}\"\"");
-          let url = Url {
-            url: value.as_str().into(),
-            loc: crate::dependencies::Location { line: 1, column: 1 },
-          };
-          let serialized = url
-            .to_css_string(PrinterOptions {
-              minify: true,
-              ..Default::default()
-            })
-            .unwrap();
-          assert_eq!(Url::parse_string(&serialized).unwrap(), url);
+          let value = [a, b, c].concat();
+          test(&value);
         }
       }
     }
+  }
+
+  #[test]
+  fn test_url_quote_roundtrip() {
+    use crate::values::url::Url;
+    do_test_each_string(|value| {
+      let url = Url {
+        url: format!("\"\"{value}\"\"").into(),
+        loc: crate::dependencies::Location { line: 1, column: 1 },
+      };
+      let serialized = url
+        .to_css_string(PrinterOptions {
+          minify: true,
+          ..Default::default()
+        })
+        .unwrap();
+      assert_eq!(Url::parse_string(&serialized).unwrap(), url, "input: {value:?}");
+    });
+  }
+
+  #[test]
+  fn test_string_roundtrip() {
+    do_test_each_string(|value| {
+      let mut css = String::new();
+      crate::serialize::string(value, &mut css).unwrap();
+      let mut input = cssparser::ParserInput::new(&css);
+      let got = cssparser::Parser::new(&mut input).expect_string_cloned().unwrap();
+      assert_eq!(got, value, "input: {value:?}");
+    });
   }
 
   #[test]
