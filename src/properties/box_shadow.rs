@@ -208,7 +208,7 @@ impl BoxShadowHandler {
           let rgb = box_shadows
             .iter()
             .map(|shadow| BoxShadow {
-              color: shadow.color.to_rgb().unwrap_or_else(|_| shadow.color.clone()),
+              color: shadow.color.get_fallback(ColorFallbackKind::RGB),
               ..shadow.clone()
             })
             .collect();
@@ -225,7 +225,7 @@ impl BoxShadowHandler {
           let p3 = box_shadows
             .iter()
             .map(|shadow| BoxShadow {
-              color: shadow.color.to_p3().unwrap_or_else(|_| shadow.color.clone()),
+              color: shadow.color.get_fallback(ColorFallbackKind::P3),
               ..shadow.clone()
             })
             .collect();
@@ -236,7 +236,7 @@ impl BoxShadowHandler {
           let lab = box_shadows
             .iter()
             .map(|shadow| BoxShadow {
-              color: shadow.color.to_lab().unwrap_or_else(|_| shadow.color.clone()),
+              color: shadow.color.get_fallback(ColorFallbackKind::LAB),
               ..shadow.clone()
             })
             .collect();

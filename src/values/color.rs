@@ -509,15 +509,17 @@ impl CssColor {
 
   /// Returns a fallback color for the given fallback type.
   pub fn get_fallback(&self, kind: ColorFallbackKind) -> CssColor {
-    if matches!(self, CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::System(_)) {
-      return self.clone();
-    }
-
-    match kind {
-      ColorFallbackKind::RGB => self.to_rgb().unwrap(),
-      ColorFallbackKind::P3 => self.to_p3().unwrap(),
-      ColorFallbackKind::LAB => self.to_lab().unwrap(),
-      _ => unreachable!(),
+    match self {
+      CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::Float(_) | CssColor::System(_) => self.clone(),
+      CssColor::LightDark(light, dark) => {
+        CssColor::LightDark(Box::new(light.get_fallback(kind)), Box::new(dark.get_fallback(kind)))
+      }
+      _ => match kind {
+        ColorFallbackKind::RGB => self.to_rgb().unwrap(),
+        ColorFallbackKind::P3 => self.to_p3().unwrap(),
+        ColorFallbackKind::LAB => self.to_lab().unwrap(),
+        _ => unreachable!(),
+      },
     }
   }
 
@@ -582,15 +584,15 @@ impl FallbackValues for CssColor {
 
     let mut res = Vec::new();
     if fallbacks.contains(ColorFallbackKind::RGB) {
-      res.push(self.to_rgb().unwrap());
+      res.push(self.get_fallback(ColorFallbackKind::RGB));
     }
 
     if fallbacks.contains(ColorFallbackKind::P3) {
-      res.push(self.to_p3().unwrap());
+      res.push(self.get_fallback(ColorFallbackKind::P3));
     }
 
     if fallbacks.contains(ColorFallbackKind::LAB) {
-      *self = self.to_lab().unwrap();
+      *self = self.get_fallback(ColorFallbackKind::LAB);
     }
 
     res

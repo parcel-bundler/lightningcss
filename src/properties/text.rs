@@ -1493,7 +1493,7 @@ impl FallbackValues for SmallVec<[TextShadow; 1]> {
       let rgb = self
         .iter()
         .map(|shadow| TextShadow {
-          color: shadow.color.to_rgb().unwrap(),
+          color: shadow.color.get_fallback(ColorFallbackKind::RGB),
           ..shadow.clone()
         })
         .collect();
@@ -1504,7 +1504,7 @@ impl FallbackValues for SmallVec<[TextShadow; 1]> {
       let p3 = self
         .iter()
         .map(|shadow| TextShadow {
-          color: shadow.color.to_p3().unwrap(),
+          color: shadow.color.get_fallback(ColorFallbackKind::P3),
           ..shadow.clone()
         })
         .collect();
@@ -1513,7 +1513,7 @@ impl FallbackValues for SmallVec<[TextShadow; 1]> {
 
     if fallbacks.contains(ColorFallbackKind::LAB) {
       for shadow in self.iter_mut() {
-        shadow.color = shadow.color.to_lab().unwrap();
+        shadow.color = shadow.color.get_fallback(ColorFallbackKind::LAB);
       }
     }
 
