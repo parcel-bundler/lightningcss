@@ -924,7 +924,10 @@ impl<'i> FontHandler<'i> {
     let variant_caps = std::mem::take(&mut self.variant_caps);
 
     if let Some(family) = &mut family {
-      if family.iter().all(|f| matches!(f, FontFamily::Generic(GenericFontFamily::Monospace))) {
+      if family
+        .iter()
+        .all(|f| matches!(f, FontFamily::Generic(GenericFontFamily::Monospace)))
+      {
         // Browsers have a different default size for monospace, typically 13px instead of 16px.
         // This is often undesired. You can avoid it by including another name in the stack,
         // so `font-family: monospace, monospace` is a common workaround.

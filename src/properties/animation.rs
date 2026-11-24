@@ -960,8 +960,7 @@ impl<'i> AnimationHandler<'i> {
             // fold it in when targets are known to support it.
             || context.targets.browsers.map_or(true, |browsers| {
               !crate::compat::Feature::AnimationTimelineShorthand.is_compatible(browsers)
-            }))
-        {
+            })) {
           Some(Property::AnimationTimeline(timelines.clone().into_owned()))
         } else {
           None
