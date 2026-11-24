@@ -1,0 +1,10 @@
+{
+ "pr": 1387,
+ "title": "Follow-up for #1387: position/direction/unicode-bidi order with var()",
+ "items": [
+  "In `handle_all`, replace the `retain` with `self.direction.clear()` (and same for unicode-bidi) before the push: linear instead of quadratic on interleaved declarations, and drops dead declarations; update the affected test expectation."
+ ],
+ "blockingForAuthor": [],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}

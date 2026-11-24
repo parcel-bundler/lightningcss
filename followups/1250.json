@@ -1,0 +1,12 @@
+{
+ "pr": 1250,
+ "title": "Follow-up for #1250: Keep `font-family: monospace, monospace` (normalize.css)",
+ "items": [
+  "Tests for `font: 1em monospace, monospace` and `monospace, monospace, monospace` (should become `monospace,monospace`), so the shorthand path is covered."
+ ],
+ "blockingForAuthor": [
+  "`cargo fmt` (CI fails until fixed): left to the author for now."
+ ],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}

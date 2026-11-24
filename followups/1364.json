@@ -1,0 +1,10 @@
+{
+ "pr": 1364,
+ "title": "Follow-up for #1364: filter / backdrop-filter compatibility",
+ "items": [
+  "Tests: `.a{filter:blur(1px);filter:blur(1cqw)}` and `.a{filter:grayscale(1);filter:grayscale(1) drop-shadow(0 0 2px oklch(25% .05 30))}` with chrome 90 both keep the earlier declaration."
+ ],
+ "blockingForAuthor": [],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}

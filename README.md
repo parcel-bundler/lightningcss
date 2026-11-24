@@ -34,3 +34,13 @@ Only items the maintainer approved are executed, with the edited text if there i
 - PR, needs-maintainer-decision or author nudge: `COMMENT` review.
 - PR, recommend merge without a comment: `APPROVE` review with no body.
 - Decision items: act on the maintainer's note.
+
+## Follow-ups (nits we fix ourselves)
+
+Reviews split requested changes into blocking ones (correctness, failing CI; the author fixes them) and optional, mechanical ones (missing tests, small refactors, comments). Optional ones the author doesn't pick up become a follow-up:
+
+- `followups/<pr>.json`: `{pr, title, items, blockingForAuthor, state, followupPr}`; `state` is `waiting-for-merge`, `approved`, `open` (our PR is up), `done` or `dropped`.
+- A queue card ("Follow-ups") per record. Approving it means: once the original PR has merged, open a small PR from a `claude/followup-<pr>` branch in this repo with those items, linking the original. At most 3 follow-up PRs open at once.
+- The weekly re-check lists records whose PR has merged since the last run, so approved ones can be opened.
+- If a small blocking fix (e.g. `cargo fmt`) is all that stops a good PR and the author has gone quiet, the alternative is a replacement PR from this repo containing the author's commits (authorship kept) plus the fix; close the original with thanks. Only with the maintainer's approval on the card.
+- Never push to contributors' forks.

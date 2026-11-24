@@ -1,0 +1,12 @@
+{
+ "pr": 1390,
+ "title": "Follow-up for #1390: Nested math functions with var() in linear time",
+ "items": [
+  "Let `parse_with` report \"not a math function\" itself instead of duplicating the name list in `is_math_function_name`.",
+  "Deduplicate the string construction in the new test.",
+  "Separate fix: nested `atan2()` is still exponential (parse_atan2 retries each argument type); 10 levels with var() take ~8 s."
+ ],
+ "blockingForAuthor": [],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}

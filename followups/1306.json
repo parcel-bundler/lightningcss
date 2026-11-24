@@ -1,0 +1,12 @@
+{
+ "pr": 1306,
+ "title": "Follow-up for #1306: animation-timeline not folded into animation",
+ "items": [
+  "Optional: a small `withoutPartial(support)` helper in `scripts/build-prefixes.js` for the three copied \"drop partial_implementation\" blocks."
+ ],
+ "blockingForAuthor": [
+  "Rebase onto master (conflict in build-prefixes.js after #1420): left to the author."
+ ],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}

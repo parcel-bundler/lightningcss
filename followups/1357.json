@@ -1,0 +1,11 @@
+{
+ "pr": 1357,
+ "title": "Follow-up for #1357: Visitor null -> None",
+ "items": [
+  "Comment on `null_to_none` noting it erases all units (no unit-typed AST values exist today).",
+  "Upstream: propose `Value::Unit => visitor.visit_unit()` in serde-content's `deserialize_option`; once released, drop the pass."
+ ],
+ "blockingForAuthor": [],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}

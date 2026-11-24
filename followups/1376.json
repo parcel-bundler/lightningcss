@@ -1,0 +1,11 @@
+{
+ "pr": 1376,
+ "title": "Follow-up for #1376: color-mix() missing components",
+ "items": [
+  "Emit the analogous-component categories from `define_colorspace!` instead of matching on `channels()` name tuples.",
+  "Decide whether the analogous-set rule (spec April 2026; Chromium 153 doesn't implement it yet) should stay unflagged."
+ ],
+ "blockingForAuthor": [],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}

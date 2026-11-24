@@ -1,0 +1,11 @@
+{
+ "pr": 1302,
+ "title": "Follow-up for #1302: place-self / place-items collapsing",
+ "items": [
+  "Factor the parse-side \"copy the first value\" mapping into helpers (`PlaceSelf::default_justify`, likewise `PlaceItems`/`PlaceContent`); use them in `parse` and in `to_css` (write the second value only when it differs), removing the hand-written `is_equal` matches.",
+  "Add a `minify_test` with the exact input from #1182."
+ ],
+ "blockingForAuthor": [],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}
