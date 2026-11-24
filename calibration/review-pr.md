@@ -39,3 +39,7 @@ Changed verdicts:
 Approved as drafted (request changes): #1025, #1123 (minor edit), #1227, #1245, #1275 (redraft), #1311, #1314, #1316, #1334, #1363/#1365 (typed-property redrafts). Approved (approve): #1307, #1309, #909.
 - #1218: draft flag wanted: "a flag would make sense since WebKit and Mozilla have not given positions yet." Rule: new syntax implemented only in Chrome, with no position from WebKit/Mozilla, goes behind a `drafts` option. Asked whether errorRecovery passes unknown container queries through: it does (verified on master and 1.33.0 via the #1176 repro); new syntax should keep passing through unmodified when opted in.
 - All 8 follow-up cards approved; the original PRs were already merged by then.
+
+## CI notes 2026-11-24
+- CodSpeed failed on every PR from Nov 3 because ubuntu-latest moved to Ubuntu 26.04 and CodSpeedHQ/action@v4 (runner 4.19.1) rejects it ("Unsupported system"). Fixed by #1429 (action@v5). When a check fails on every PR including master pushes, look at the infrastructure (runner image, action versions) before the PR.
+- Master's `cargo fmt --check` was broken by unformatted merges (fixed in #1426). Reviews should require `cargo fmt` before approving, since merged PRs that skip it break CI for everyone.
