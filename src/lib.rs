@@ -5783,6 +5783,10 @@ mod tests {
     "#
       },
     );
+    minify_test(
+      ".column-4 > * { align-self: self-start; justify-self: auto; }",
+      ".column-4>*{place-self:self-start auto}",
+    );
 
     test(
       r#"
