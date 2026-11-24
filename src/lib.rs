@@ -1352,6 +1352,27 @@ mod tests {
       },
     );
 
+    // Android WebView has shared Chrome's version numbers since 37. caniuse lists
+    // only the current WebView version, which used to make every feature added
+    // after Android 4.4 look unsupported in older WebViews (#568).
+    prefix_test(
+      r#"
+      .foo {
+        font-family: Helvetica, system-ui, sans-serif;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-family: Helvetica, system-ui, sans-serif;
+      }
+    "#
+      },
+      Browsers {
+        android: Some(131 << 16),
+        ..Browsers::default()
+      },
+    );
+
     prefix_test(
       r#"
       .foo {
@@ -1993,26 +2014,26 @@ mod tests {
       .foo:not(:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi))) {
         border-left-color: #b32323;
         border-left-color: lab(40% 56.6 39);
-        border-right-color: #ee00be;
+        border-right-color: #f000c0;
         border-right-color: lch(50.998% 135.363 338);
       }
 
       .foo:not(:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi))) {
         border-left-color: #b32323;
         border-left-color: lab(40% 56.6 39);
-        border-right-color: #ee00be;
+        border-right-color: #f000c0;
         border-right-color: lch(50.998% 135.363 338);
       }
 
       .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
-        border-left-color: #ee00be;
+        border-left-color: #f000c0;
         border-left-color: lch(50.998% 135.363 338);
         border-right-color: #b32323;
         border-right-color: lab(40% 56.6 39);
       }
 
       .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
-        border-left-color: #ee00be;
+        border-left-color: #f000c0;
         border-left-color: lch(50.998% 135.363 338);
         border-right-color: #b32323;
         border-right-color: lab(40% 56.6 39);
@@ -2036,13 +2057,13 @@ mod tests {
         border-left-color: #b32323;
         border-left-color: color(display-p3 .643308 .192455 .167712);
         border-left-color: lab(40% 56.6 39);
-        border-right-color: #ee00be;
+        border-right-color: #f000c0;
         border-right-color: color(display-p3 .972962 -.362078 .804206);
         border-right-color: lch(50.998% 135.363 338);
       }
 
       .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
-        border-left-color: #ee00be;
+        border-left-color: #f000c0;
         border-left-color: color(display-p3 .972962 -.362078 .804206);
         border-left-color: lch(50.998% 135.363 338);
         border-right-color: #b32323;
@@ -2337,6 +2358,72 @@ mod tests {
 
   #[test]
   pub fn test_border_image() {
+    minify_test(
+      r#"
+      .foo {
+        border-image: none;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    test(
+      r#"
+      .foo {
+        border-image: none;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        border-image: none;
+      }
+      "#},
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image: none 100% / 1 / 0 stretch;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image-source: none;
+        border-image-slice: 100%;
+        border-image-width: 1;
+        border-image-outset: 0;
+        border-image-repeat: stretch;
+      }
+      "#,
+      ".foo{border-image:none}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        -webkit-border-image: none;
+        border-image: none !important;
+      }
+      "#,
+      ".foo{-webkit-border-image:none;border-image:none!important}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-image: url(border.png) 1;
+      }
+      .foo.active {
+        border-image: none;
+      }
+      "#,
+      ".foo{border-image:url(border.png) 1}.foo.active{border-image:none}",
+    );
+
     property_range_test(
       &[
         "border-image-outset",
@@ -2627,9 +2714,9 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
-        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
+        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff)) 60;
+        -webkit-border-image: -webkit-linear-gradient(top, #ff0b0c, #766eff) 60;
+        border-image: linear-gradient(#ff0b0c, #766eff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -2648,10 +2735,10 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
-        -moz-border-image: -moz-linear-gradient(top, #ff0f0e, #7773ff) 60;
-        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
+        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff)) 60;
+        -webkit-border-image: -webkit-linear-gradient(top, #ff0b0c, #766eff) 60;
+        -moz-border-image: -moz-linear-gradient(top, #ff0b0c, #766eff) 60;
+        border-image: linear-gradient(#ff0b0c, #766eff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -2671,9 +2758,9 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 60;
-        border-image: -moz-linear-gradient(top, #ff0f0e, #7773ff) 60;
-        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: -webkit-linear-gradient(top, #ff0b0c, #766eff) 60;
+        border-image: -moz-linear-gradient(top, #ff0b0c, #766eff) 60;
+        border-image: linear-gradient(#ff0b0c, #766eff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -2693,8 +2780,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image-source: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-        border-image-source: linear-gradient(#ff0f0e, #7773ff);
+        border-image-source: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+        border-image-source: linear-gradient(#ff0b0c, #766eff);
         border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
       }
     "#
@@ -2713,7 +2800,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: linear-gradient(#ff0f0e, #7773ff) var(--foo);
+        border-image: linear-gradient(#ff0b0c, #766eff) var(--foo);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -4220,6 +4307,36 @@ mod tests {
   #[test]
   fn test_size() {
     minify_test(".foo { width: 10px; width: -1px }", ".foo{width:10px;width:-1px}");
+    // `include: VendorPrefixes` asks for every prefix, but stretch only has
+    // -webkit- and -moz- forms (#1371).
+    for prop in ["height", "max-height"] {
+      let source = format!(".foo {{ {}: stretch }}", prop);
+      let targets = Targets {
+        browsers: None,
+        include: Features::VendorPrefixes,
+        exclude: Features::empty(),
+      };
+      let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
+      stylesheet
+        .minify(MinifyOptions {
+          targets,
+          ..MinifyOptions::default()
+        })
+        .unwrap();
+      let res = stylesheet
+        .to_css(PrinterOptions {
+          targets,
+          ..PrinterOptions::default()
+        })
+        .unwrap();
+      assert_eq!(
+        res.code,
+        format!(
+          ".foo {{\n  {0}: -webkit-fill-available;\n  {0}: -moz-available;\n  {0}: stretch;\n}}\n",
+          prop
+        )
+      );
+    }
     property_range_test(
       &["aspect-ratio"],
       &[
@@ -5043,7 +5160,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: #af5cae linear-gradient(#c65d07, #00807c);
+        background: #af5cae linear-gradient(#c65d07, #00817d);
         background: lab(51.5117% 43.3777 -29.0443) linear-gradient(lab(52.2319% 40.1449 59.9171), lab(47.7776% -34.2947 -7.65904));
       }
     "#
@@ -5650,6 +5767,73 @@ mod tests {
       },
     );
 
+    // justify-self: auto is not equivalent to a self-position align-self, so the
+    // shorthand must keep both values. https://github.com/parcel-bundler/lightningcss/issues/1182
+    test(
+      r#"
+      .foo {
+        align-self: self-start;
+        justify-self: auto;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: self-start auto;
+      }
+    "#
+      },
+    );
+    minify_test(
+      ".column-4 > * { align-self: self-start; justify-self: auto; }",
+      ".column-4>*{place-self:self-start auto}",
+    );
+
+    test(
+      r#"
+      .foo {
+        align-self: auto;
+        justify-self: auto;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: auto;
+      }
+    "#
+      },
+    );
+
+    // Likewise, justify-self: stretch only collapses when align-self is stretch.
+    test(
+      r#"
+      .foo {
+        align-self: normal;
+        justify-self: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: normal stretch;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        align-self: stretch;
+        justify-self: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-self: stretch;
+      }
+    "#
+      },
+    );
+
     test(
       r#"
       .foo {
@@ -5660,6 +5844,38 @@ mod tests {
       indoc! {r#"
       .foo {
         place-items: center;
+      }
+    "#
+      },
+    );
+
+    // place-items has the same rule: justify-items: stretch only collapses when
+    // align-items is stretch.
+    test(
+      r#"
+      .foo {
+        align-items: normal;
+        justify-items: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-items: normal stretch;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        align-items: stretch;
+        justify-items: stretch;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        place-items: stretch;
       }
     "#
       },
@@ -6727,6 +6943,27 @@ mod tests {
     minify_test(
       "@font-face { font-family: 'revert-layer'; }",
       "@font-face{font-family:\"revert-layer\"}",
+    );
+
+    minify_test(
+      ".foo{font-family:named-font,named-font}",
+      ".foo{font-family:named-font}",
+    );
+    minify_test(
+      ".foo{font-family:monospace,monospace}",
+      ".foo{font-family:monospace,monospace}",
+    );
+    minify_test(
+      ".foo{font-family:monospace,monospace;font-size:16px}",
+      ".foo{font-family:monospace,monospace;font-size:16px}",
+    );
+    minify_test(
+      ".foo{font-family:monospace, monospace, monospace}",
+      ".foo{font-family:monospace,monospace}",
+    );
+    minify_test(
+      ".foo{font:1em monospace, monospace}",
+      ".foo{font:1em monospace,monospace}",
     );
 
     prefix_test(
@@ -8829,6 +9066,29 @@ mod tests {
   }
 
   #[test]
+  fn test_calc_nested_var_parse_time() {
+    // Each nesting level used to be parsed twice when a var() made the math
+    // function fail to parse, so parsing time doubled with every level.
+    let depth = 40;
+    let mut value = "var(--x)".to_string();
+    for _ in 0..depth {
+      value = format!("calc({} - 1px)", value);
+    }
+    let mut expected = "var(--x)".to_string();
+    for _ in 0..depth {
+      expected = format!("calc({} - 1px)", expected);
+    }
+    minify_test(
+      &format!(".foo {{ width: {} }}", value),
+      &format!(".foo{{width:{}}}", expected),
+    );
+    minify_test(
+      ".foo { width: max(calc(min(var(--x), 1px) * 2), 1px) }",
+      ".foo{width:max(calc(min(var(--x), 1px) * 2), 1px)}",
+    );
+  }
+
+  #[test]
   fn test_trig() {
     minify_test(".foo { width: calc(2px * pi); }", ".foo{width:6.28319px}");
     minify_test(".foo { width: calc(2px / pi); }", ".foo{width:.63662px}");
@@ -10003,6 +10263,47 @@ mod tests {
       "@media (min-scan: interlace) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
     );
+    // min-/max- prefixed features are invalid in a boolean context.
+    // https://drafts.csswg.org/mediaqueries/#mq-min-max
+    error_test(
+      "@media (min-width) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (max-height) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (-webkit-min-device-pixel-ratio) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    // With error recovery, the query is kept as written and reported once.
+    for (source, expected) in [
+      (
+        "@media (min-width) { .foo { color: chartreuse }}",
+        "@media (min-width){.foo{color:#7fff00}}",
+      ),
+      (
+        "@media (min-width), print { .foo { color: chartreuse }}",
+        "@media (min-width),print{.foo{color:#7fff00}}",
+      ),
+      (
+        "@media (MIN-WIDTH) { .foo { color: chartreuse }}",
+        "@media (MIN-WIDTH){.foo{color:#7fff00}}",
+      ),
+    ] {
+      let warnings = Some(Arc::new(RwLock::new(Vec::new())));
+      minify_test_with_options(
+        source,
+        expected,
+        ParserOptions {
+          error_recovery: true,
+          warnings: warnings.clone(),
+          ..ParserOptions::default()
+        },
+      );
+      assert_eq!(warnings.unwrap().read().unwrap().len(), 1, "{source}");
+    }
     error_test(
       "@media (1px <= width <= bar) { .foo { color: chartreuse }}",
       ParserError::InvalidMediaQuery,
@@ -10256,47 +10557,6 @@ mod tests {
         }
       }
     "#},
-    );
-  }
-
-  #[test]
-  fn test_layer_order_across_rules() {
-    // A conditional declaration can establish `a` before `b`. Hoisting the
-    // final statement changes their order when the condition matches.
-    minify_test(
-      "@layer c; @media (min-width: 600px) { @layer a { .x { --v: a } } } @layer b, a;",
-      "@layer c;@media (width>=600px){@layer a{.x{--v:a}}}@layer b,a;",
-    );
-    minify_test(
-      "@layer c; @supports (display: grid) { @layer a { .x { --v: a } } } @layer b, a;",
-      "@layer c;@supports (display:grid){@layer a{.x{--v:a}}}@layer b,a;",
-    );
-    // An unlayered import may declare layers in its stylesheet too.
-    minify_test(
-      "@layer c; @import 'a.css'; @layer b, a;",
-      "@layer c;@import \"a.css\";@layer b,a;",
-    );
-    // A conditional import cannot make a later unconditional declaration
-    // redundant: that declaration must still apply if the condition is false.
-    minify_test(
-      "@import 'a.css' layer(a) screen; @layer a, b;",
-      "@import \"a.css\" layer(a) screen;@layer a,b;",
-    );
-    // Moving the last block into the first reverses the order of declarations
-    // within `a` when the intervening condition matches.
-    minify_test(
-      "@layer a { .x { --v: first } } @media print { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
-      "@layer a{.x{--v:first}}@media print{@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
-    );
-    minify_test(
-      "@layer a { .x { --v: first } } @supports (display: grid) { @layer a { .x { --v: middle } } } @layer a { .x { --v: last } }",
-      "@layer a{.x{--v:first}}@supports (display:grid){@layer a{.x{--v:middle}}}@layer a{.x{--v:last}}",
-    );
-    // Dotted layer names and nested blocks address the same layer hierarchy.
-    // Merging the two `a` blocks would declare `a.z` before `a.y`.
-    minify_test(
-      "@layer a { @layer x; } @layer a.y { .x { --v: y } } @layer a { @layer z { .x { --v: z } } }",
-      "@layer a{@layer x;}@layer a.y{.x{--v:y}}@layer a{@layer z{.x{--v:z}}}",
     );
   }
 
@@ -11026,6 +11286,52 @@ mod tests {
         chrome: Some(45 << 16),
         firefox: Some(45 << 16),
         ie: Some(11 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    minify_test(
+      ".foo:-ms-input-placeholder {color: red}",
+      ".foo:-ms-input-placeholder{color:red}",
+    );
+    minify_test(".foo:-moz-placeholder {color: red}", ".foo:-moz-placeholder{color:red}");
+    // Autoprefixer's legacy pair must not be merged into one selector list: a browser that
+    // doesn't know one of the pseudo-classes would drop the whole rule.
+    minify_test(
+      ".a:-moz-placeholder{color:red}.a:-ms-input-placeholder{color:red}",
+      ".a:-moz-placeholder{color:red}.a:-ms-input-placeholder{color:red}",
+    );
+
+    prefix_test(
+      r#"
+      .foo:-ms-input-placeholder, .bar:-ms-input-placeholder {
+        color: red;
+      }
+    "#,
+      indoc! {r#"
+      :is(.foo:-ms-input-placeholder, .bar:-ms-input-placeholder) {
+        color: red;
+      }
+    "#},
+      Browsers {
+        chrome: Some(111 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo:-moz-placeholder, .bar:-moz-placeholder {
+        color: red;
+      }
+    "#,
+      indoc! {r#"
+      :is(.foo:-moz-placeholder, .bar:-moz-placeholder) {
+        color: red;
+      }
+    "#},
+      Browsers {
+        chrome: Some(111 << 16),
         ..Browsers::default()
       },
     );
@@ -12925,43 +13231,49 @@ mod tests {
       ".foo { animation: foo 0s 3s infinite }",
       ".foo{animation:0s 3s infinite foo}",
     );
-    minify_test(".foo { animation: foo 3s --test }", ".foo{animation:3s foo --test}");
-    minify_test(".foo { animation: foo 3s scroll() }", ".foo{animation:3s foo scroll()}");
+    minify_test(
+      ".foo { animation: foo 3s --test }",
+      ".foo{animation:3s foo;animation-timeline:--test}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s scroll() }",
+      ".foo{animation:3s foo;animation-timeline:scroll()}",
+    );
     minify_test(
       ".foo { animation: foo 3s scroll(block) }",
-      ".foo{animation:3s foo scroll()}",
+      ".foo{animation:3s foo;animation-timeline:scroll()}",
     );
     minify_test(
       ".foo { animation: foo 3s scroll(root inline) }",
-      ".foo{animation:3s foo scroll(root inline)}",
+      ".foo{animation:3s foo;animation-timeline:scroll(root inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s scroll(inline root) }",
-      ".foo{animation:3s foo scroll(root inline)}",
+      ".foo{animation:3s foo;animation-timeline:scroll(root inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s scroll(inline nearest) }",
-      ".foo{animation:3s foo scroll(inline)}",
+      ".foo{animation:3s foo;animation-timeline:scroll(inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(block) }",
-      ".foo{animation:3s foo view()}",
+      ".foo{animation:3s foo;animation-timeline:view()}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline) }",
-      ".foo{animation:3s foo view(inline)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline 10px 10px) }",
-      ".foo{animation:3s foo view(inline 10px)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline 10px)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline 10px 12px) }",
-      ".foo{animation:3s foo view(inline 10px 12px)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline 10px 12px)}",
     );
     minify_test(
       ".foo { animation: foo 3s view(inline auto auto) }",
-      ".foo{animation:3s foo view(inline)}",
+      ".foo{animation:3s foo;animation-timeline:view(inline)}",
     );
     minify_test(".foo { animation: foo 3s auto }", ".foo{animation:3s foo}");
     minify_test(".foo { animation-composition: add }", ".foo{animation-composition:add}");
@@ -13076,7 +13388,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: 90ms ease-in-out .1s 2 alternate forwards foo scroll();
+        animation: 90ms ease-in-out .1s 2 alternate forwards foo;
+        animation-timeline: scroll();
       }
     "#},
     );
@@ -13241,13 +13554,48 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: .2s ease-in-out bar scroll();
+        animation: .2s ease-in-out bar;
+        animation-timeline: scroll();
       }
     "#},
       Browsers {
         chrome: Some(120 << 16),
         ..Browsers::default()
       },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        animation: parallax 1ms linear both;
+        animation-timeline: view();
+        animation-range: exit 0% exit 100%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: 1ms linear both parallax;
+        animation-timeline: view();
+        animation-range: exit;
+      }
+    "#},
+      Browsers {
+        chrome: Some(115 << 16),
+        ..Browsers::default()
+      },
+    );
+    test(
+      r#"
+      .foo {
+        animation: parallax 1ms linear both;
+        animation-timeline: view();
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        animation: 1ms linear both parallax;
+        animation-timeline: view();
+      }
+    "#},
     );
     prefix_test(
       r#"
@@ -14026,6 +14374,70 @@ mod tests {
         transform: translateX(20px);
       }
       "#},
+    );
+  }
+
+  #[test]
+  fn test_zero_translate3d() {
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, 0);
+        }
+      "},
+      ".foo{transform:translate(0)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0px, -0%, 0em);
+        }
+      "},
+      ".foo{transform:translate(0)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0%, 0px, -0px);
+        }
+      "},
+      ".foo{transform:translate(0%)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(calc(1px - 1px), 0, 0) rotate(30deg);
+        }
+      "},
+      ".foo{transform:translate(0)rotate(30deg)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          -webkit-transform: translate3d(0, 0, 0);
+        }
+      "},
+      ".foo{-webkit-transform:translate(0)}",
+    );
+    minify_test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, var(--z));
+        }
+      "},
+      ".foo{transform:translate3d(0, 0, var(--z))}",
+    );
+    test(
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, 0);
+        }
+      "},
+      indoc! {"
+        .foo {
+          transform: translate3d(0, 0, 0);
+        }
+      "},
     );
   }
 
@@ -14924,7 +15336,7 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: linear-gradient(#ff0f0e, #7773ff);
+          background: linear-gradient(#ff0b0c, #766eff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -14938,7 +15350,7 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: linear-gradient(#ff0f0e, #7773ff);
+          background: linear-gradient(#ff0b0c, #766eff);
           background: linear-gradient(color(display-p3 1 .0000153435 -.00000303562), color(display-p3 .440289 .28452 1.23485));
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -14954,8 +15366,8 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          background: linear-gradient(#ff0f0e, #7773ff);
+          background: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          background: linear-gradient(#ff0b0c, #766eff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -14969,9 +15381,9 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          background: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          background: linear-gradient(#ff0f0e, #7773ff);
+          background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff));
+          background: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          background: linear-gradient(#ff0b0c, #766eff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -15011,7 +15423,7 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: linear-gradient(#ff0f0e, #7773ff);
+          background-image: linear-gradient(#ff0b0c, #766eff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -15025,7 +15437,7 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: linear-gradient(#ff0f0e, #7773ff);
+          background-image: linear-gradient(#ff0b0c, #766eff);
           background-image: linear-gradient(color(display-p3 1 .0000153435 -.00000303562), color(display-p3 .440289 .28452 1.23485));
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -15041,8 +15453,8 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          background-image: linear-gradient(#ff0f0e, #7773ff);
+          background-image: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          background-image: linear-gradient(#ff0b0c, #766eff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -15056,9 +15468,9 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          background-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          background-image: linear-gradient(#ff0f0e, #7773ff);
+          background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff));
+          background-image: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          background-image: linear-gradient(#ff0b0c, #766eff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -15644,7 +16056,7 @@ mod tests {
       indoc! {r#"@font-palette-values --Cooler {
       font-family: Handover Sans;
       base-palette: 3;
-      override-colors: 1 #2b0c09, 3 #ee00be;
+      override-colors: 1 #2b0c09, 3 #f000c0;
       override-colors: 1 #2b0c09, 3 lch(50.998% 135.363 338);
     }
     "#},
@@ -15662,7 +16074,7 @@ mod tests {
       indoc! {r#"@font-palette-values --Cooler {
       font-family: Handover Sans;
       base-palette: 3;
-      override-colors: 1 var(--foo), 3 #ee00be;
+      override-colors: 1 var(--foo), 3 #f000c0;
     }
 
     @supports (color: lab(0% 0 0)) {
@@ -17496,8 +17908,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-text-decoration: underline #ee00be;
-        text-decoration: underline #ee00be;
+        -webkit-text-decoration: underline #f000c0;
+        text-decoration: underline #f000c0;
         -webkit-text-decoration: underline lch(50.998% 135.363 338);
         text-decoration: underline lch(50.998% 135.363 338);
       }
@@ -17517,9 +17929,9 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-text-decoration-color: #ee00be;
-        -moz-text-decoration-color: #ee00be;
-        text-decoration-color: #ee00be;
+        -webkit-text-decoration-color: #f000c0;
+        -moz-text-decoration-color: #f000c0;
+        text-decoration-color: #f000c0;
         -webkit-text-decoration-color: lch(50.998% 135.363 338);
         -moz-text-decoration-color: lch(50.998% 135.363 338);
         text-decoration-color: lch(50.998% 135.363 338);
@@ -17540,7 +17952,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        text-decoration: #ee00be var(--style);
+        text-decoration: #f000c0 var(--style);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -17887,8 +18299,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-text-emphasis: filled #ee00be;
-        text-emphasis: filled #ee00be;
+        -webkit-text-emphasis: filled #f000c0;
+        text-emphasis: filled #f000c0;
         -webkit-text-emphasis: filled lch(50.998% 135.363 338);
         text-emphasis: filled lch(50.998% 135.363 338);
       }
@@ -17908,8 +18320,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-text-emphasis-color: #ee00be;
-        text-emphasis-color: #ee00be;
+        -webkit-text-emphasis-color: #f000c0;
+        text-emphasis-color: #f000c0;
         -webkit-text-emphasis-color: lch(50.998% 135.363 338);
         text-emphasis-color: lch(50.998% 135.363 338);
       }
@@ -17929,7 +18341,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        text-emphasis: #ee00be var(--style);
+        text-emphasis: #f000c0 var(--style);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -18184,6 +18596,34 @@ mod tests {
     "#},
       Browsers {
         safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    minify_test(
+      ".foo { position: static; position: var(--x, static) }",
+      ".foo{position:static;position:var(--x,static)}",
+    );
+    minify_test(
+      ".foo { position: var(--x, static); position: static }",
+      ".foo{position:var(--x,static);position:static}",
+    );
+    prefix_test(
+      r#"
+      .foo {
+        position: sticky;
+        position: var(--x, sticky);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        position: -webkit-sticky;
+        position: sticky;
+        position: var(--x, sticky);
+      }
+    "#},
+      Browsers {
+        safari: Some(8 << 16),
         ..Browsers::default()
       },
     );
@@ -18745,7 +19185,7 @@ mod tests {
       ".foo { caret-color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          caret-color: #ee00be;
+          caret-color: #f000c0;
           caret-color: color(display-p3 .972962 -.362078 .804206);
           caret-color: lch(50.998% 135.363 338);
         }
@@ -18761,7 +19201,7 @@ mod tests {
       ".foo { caret: lch(50.998% 135.363 338) block }",
       indoc! { r#"
         .foo {
-          caret: #ee00be block;
+          caret: #f000c0 block;
           caret: color(display-p3 .972962 -.362078 .804206) block;
           caret: lch(50.998% 135.363 338) block;
         }
@@ -18777,7 +19217,7 @@ mod tests {
       ".foo { caret: lch(50.998% 135.363 338) var(--foo) }",
       indoc! { r#"
         .foo {
-          caret: #ee00be var(--foo);
+          caret: #f000c0 var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -18906,9 +19346,9 @@ mod tests {
       ".foo { list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          list-style-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          list-style-image: linear-gradient(#ff0f0e, #7773ff);
+          list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff));
+          list-style-image: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          list-style-image: linear-gradient(#ff0b0c, #766eff);
           list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -18922,7 +19362,7 @@ mod tests {
       ".foo { list-style: \"★\" linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style: linear-gradient(#ff0f0e, #7773ff) "★";
+          list-style: linear-gradient(#ff0b0c, #766eff) "★";
           list-style: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) "★";
         }
       "#},
@@ -18936,7 +19376,7 @@ mod tests {
       ".foo { list-style: var(--foo) linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style: var(--foo) linear-gradient(#ff0f0e, #7773ff);
+          list-style: var(--foo) linear-gradient(#ff0b0c, #766eff);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -19781,7 +20221,7 @@ mod tests {
       ".foo { background-color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          background-color: #ee00be;
+          background-color: #f000c0;
           background-color: color(display-p3 .972962 -.362078 .804206);
           background-color: lch(50.998% 135.363 338);
         }
@@ -19797,7 +20237,7 @@ mod tests {
       ".foo { color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          color: #ee00be;
+          color: #f000c0;
           color: color(display-p3 .972962 -.362078 .804206);
           color: lch(50.998% 135.363 338);
         }
@@ -19805,6 +20245,62 @@ mod tests {
       Browsers {
         chrome: Some(90 << 16),
         safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { color: lab(98.2504% -7.697 88.7581) }",
+      indoc! { r#"
+        .foo {
+          color: #fffc44;
+          color: lab(98.2504% -7.697 88.7581);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { color: color(prophoto-rgb 0.9784 0.9925 0.3037) }",
+      indoc! { r#"
+        .foo {
+          color: #ffff6d;
+          color: color(prophoto-rgb .9784 .9925 .3037);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { color: lch(94.4698% 111.9227 117.6737deg) }",
+      indoc! { r#"
+        .foo {
+          color: #b0ff00;
+          color: lch(94.4698% 111.923 117.674);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { color: oklch(99.995% .01 0) }",
+      indoc! { r#"
+        .foo {
+          color: #fffcff;
+          color: lab(99.8686% 3.37896 .0330329);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
         ..Browsers::default()
       },
     );
@@ -20439,7 +20935,7 @@ mod tests {
     test("rgb(from rgb(from rgb(255 0 0 / 0.8) g b r) r g b)", "#00fc");
 
     // Testing non-sRGB origin colors to see gamut mapping.
-    test("rgb(from color(display-p3 0 1 0) r g b / alpha)", "#00f942"); // Naive clip based mapping would give rgb(0, 255, 0).
+    test("rgb(from color(display-p3 0 1 0) r g b / alpha)", "#00fb29"); // Naive clip based mapping would give rgb(0, 255, 0).
     test("rgb(from lab(100% 104.3 -50.9) r g b)", "#fff"); // Naive clip based mapping would give rgb(255, 150, 255).
     test("rgb(from lab(0% 104.3 -50.9) r g b)", "#2a0022"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black.
     test("rgb(from lch(100% 116 334) r g b)", "#fff"); // Naive clip based mapping would give rgb(255, 150, 255).
@@ -20601,7 +21097,7 @@ mod tests {
     test("hsl(from hsl(from rebeccapurple h s l) h s l)", "rgb(102, 51, 153)");
 
     // Testing non-sRGB origin colors to see gamut mapping.
-    test("hsl(from color(display-p3 0 1 0) h s l / alpha)", "rgb(0, 249, 66)"); // Naive clip based mapping would give rgb(0, 255, 0).
+    test("hsl(from color(display-p3 0 1 0) h s l / alpha)", "rgb(0, 251, 41)"); // Naive clip based mapping would give rgb(0, 255, 0).
     test("hsl(from lab(100% 104.3 -50.9) h s l)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
     test("hsl(from lab(0% 104.3 -50.9) h s l)", "rgb(42, 0, 34)"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
     test("hsl(from lch(100% 116 334) h s l)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
@@ -20748,7 +21244,7 @@ mod tests {
     test("hwb(from hwb(from rebeccapurple h w b) h w b)", "rgb(102, 51, 153)");
 
     // Testing non-sRGB origin colors to see gamut mapping.
-    test("hwb(from color(display-p3 0 1 0) h w b / alpha)", "rgb(0, 249, 66)"); // Naive clip based mapping would give rgb(0, 255, 0).
+    test("hwb(from color(display-p3 0 1 0) h w b / alpha)", "rgb(0, 251, 41)"); // Naive clip based mapping would give rgb(0, 255, 0).
     test("hwb(from lab(100% 104.3 -50.9) h w b)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
     test("hwb(from lab(0% 104.3 -50.9) h w b)", "rgb(42, 0, 34)"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
     test("hwb(from lch(100% 116 334) h w b)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
@@ -22227,7 +22723,7 @@ mod tests {
       ".foo { color: alpha(from color(display-p3 1 0 0) / 0.5) }",
       indoc! { r#"
         .foo {
-          color: #ff0f0e80;
+          color: #ff0b0c80;
           color: color(display-p3 1 0 0 / .5);
         }
       "#},
@@ -22601,7 +23097,7 @@ mod tests {
 
     minify_test(
       ".foo { color: color-mix(in hsl, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%) }",
-      &canonicalize("rgb(0, 249, 66)"),
+      &canonicalize("rgb(0, 251, 41)"),
     ); // Naive clip based mapping would give rgb(0, 255, 0).
     minify_test(
       ".foo { color: color-mix(in hsl, lab(100% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }",
@@ -22802,7 +23298,7 @@ mod tests {
 
     minify_test(
       ".foo { color: color-mix(in hwb, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%) }",
-      &canonicalize("rgb(0, 249, 66)"),
+      &canonicalize("rgb(0, 251, 41)"),
     ); // Naive clip based mapping would give rgb(0, 255, 0).
     minify_test(
       ".foo { color: color-mix(in hwb, lab(100% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }",
@@ -25167,7 +25663,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        --foo: #00f942;
+        --foo: #00fb29;
       }
 
       @supports (color: color(display-p3 0 0 0)) {
@@ -25230,7 +25726,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        --foo: #00f942;
+        --foo: #00fb29;
       }
 
       @supports (color: color(display-p3 0 0 0)) {
@@ -25254,7 +25750,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        --foo: #00f942;
+        --foo: #00fb29;
       }
 
       @supports (color: color(display-p3 0 0 0)) {
@@ -25347,7 +25843,7 @@ mod tests {
         }
 
         to {
-          --custom: #ee00be;
+          --custom: #f000c0;
         }
       }
 
@@ -25421,7 +25917,7 @@ mod tests {
         }
 
         to {
-          --custom: #ee00be;
+          --custom: #f000c0;
         }
       }
 
@@ -25536,7 +26032,7 @@ mod tests {
         }
 
         to {
-          --custom: #ee00be;
+          --custom: #f000c0;
           opacity: 1;
         }
       }
@@ -25617,6 +26113,21 @@ mod tests {
       }
     "#},
     )
+  }
+
+  #[test]
+  fn test_bom() {
+    // A leading BOM is removed while decoding the input byte stream, so it is
+    // not part of the first token: https://drafts.csswg.org/css-syntax/#input-byte-stream
+    minify_test("\u{feff}html { color: red }", "html{color:red}");
+    minify_test(
+      "\u{feff}/*! license */ html { color: red }",
+      "/*! license */\nhtml{color:red}",
+    );
+    minify_test("\u{feff}@charset \"UTF-8\"; html { color: red }", "html{color:red}");
+    minify_test("\u{feff}@import \"foo.css\";", "@import \"foo.css\";");
+    // Only a leading BOM is stripped, elsewhere it is an ordinary character.
+    minify_test("html { content: \"\u{feff}\" }", "html{content:\"\u{feff}\"}");
   }
 
   #[test]
@@ -28701,6 +29212,22 @@ mod tests {
     );
 
     minify_test(
+      r#"
+      .foo {
+        mask-border: none;
+      }
+      "#,
+      ".foo{mask-border:none}",
+    );
+    minify_test(
+      r#"
+      .foo {
+        -webkit-mask-box-image: none;
+      }
+      "#,
+      ".foo{-webkit-mask-box-image:none}",
+    );
+    minify_test(
       ".foo { mask-border: url('border-mask.png') 25; }",
       ".foo{mask-border:url(border-mask.png) 25}",
     );
@@ -28862,7 +29389,7 @@ mod tests {
       ".foo { fill: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          fill: #ee00be;
+          fill: #f000c0;
           fill: color(display-p3 .972962 -.362078 .804206);
           fill: lch(50.998% 135.363 338);
         }
@@ -28878,7 +29405,7 @@ mod tests {
       ".foo { stroke: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          stroke: #ee00be;
+          stroke: #f000c0;
           stroke: color(display-p3 .972962 -.362078 .804206);
           stroke: lch(50.998% 135.363 338);
         }
@@ -28894,7 +29421,7 @@ mod tests {
       ".foo { fill: url(#foo) lch(50.998% 135.363 338) }",
       indoc! { r##"
         .foo {
-          fill: url("#foo") #ee00be;
+          fill: url("#foo") #f000c0;
           fill: url("#foo") color(display-p3 .972962 -.362078 .804206);
           fill: url("#foo") lch(50.998% 135.363 338);
         }
@@ -28910,7 +29437,7 @@ mod tests {
       ".foo { fill: var(--url) lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          fill: var(--url) #ee00be;
+          fill: var(--url) #f000c0;
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -28950,10 +29477,10 @@ mod tests {
       ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          -webkit-mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          -webkit-mask-image: -webkit-linear-gradient(top, #ff0f0e, #7773ff);
-          -webkit-mask-image: linear-gradient(#ff0f0e, #7773ff);
-          mask-image: linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff));
+          -webkit-mask-image: -webkit-linear-gradient(top, #ff0b0c, #766eff);
+          -webkit-mask-image: linear-gradient(#ff0b0c, #766eff);
+          mask-image: linear-gradient(#ff0b0c, #766eff);
           -webkit-mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
           mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -28968,8 +29495,8 @@ mod tests {
       ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          -webkit-mask-image: linear-gradient(#ff0f0e, #7773ff);
-          mask-image: linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: linear-gradient(#ff0b0c, #766eff);
+          mask-image: linear-gradient(#ff0b0c, #766eff);
           -webkit-mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
           mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -29012,10 +29539,10 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
-          -webkit-mask: -webkit-linear-gradient(top, #ff0f0e, #7773ff) 40px 20px;
-          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
-          mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff)) 40px 20px;
+          -webkit-mask: -webkit-linear-gradient(top, #ff0b0c, #766eff) 40px 20px;
+          -webkit-mask: linear-gradient(#ff0b0c, #766eff) 40px 20px;
+          mask: linear-gradient(#ff0b0c, #766eff) 40px 20px;
           -webkit-mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
           mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
         }
@@ -29030,8 +29557,8 @@ mod tests {
       ".foo { mask: -webkit-linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
-          -webkit-mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0b0c), to(#766eff)) 40px 20px;
+          -webkit-mask: -webkit-linear-gradient(#ff0b0c, #766eff) 40px 20px;
         }
       "#},
       Browsers {
@@ -29044,8 +29571,8 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px var(--foo) }",
       indoc! { r#"
         .foo {
-          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
-          mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
+          -webkit-mask: linear-gradient(#ff0b0c, #766eff) 40px var(--foo);
+          mask: linear-gradient(#ff0b0c, #766eff) 40px var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -29154,10 +29681,10 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 25% 75% / cover no-repeat content-box padding-box;
+          -webkit-mask: linear-gradient(#ff0b0c, #766eff) 25% 75% / cover no-repeat content-box padding-box;
           -webkit-mask-composite: source-out;
           -webkit-mask-source-type: luminance;
-          mask: linear-gradient(#ff0f0e, #7773ff) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
+          mask: linear-gradient(#ff0b0c, #766eff) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
           -webkit-mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25% 75% / cover no-repeat content-box padding-box;
           -webkit-mask-composite: source-out;
           -webkit-mask-source-type: luminance;
@@ -29247,8 +29774,8 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask-box-image: linear-gradient(#ff0f0e, #7773ff) 25 / 35px / 12px space;
-          mask-border: linear-gradient(#ff0f0e, #7773ff) 25 / 35px / 12px space luminance;
+          -webkit-mask-box-image: linear-gradient(#ff0b0c, #766eff) 25 / 35px / 12px space;
+          mask-border: linear-gradient(#ff0b0c, #766eff) 25 / 35px / 12px space luminance;
           -webkit-mask-box-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25 / 35px / 12px space;
           mask-border: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25 / 35px / 12px space luminance;
         }
@@ -29267,8 +29794,8 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask-box-image-source: linear-gradient(#ff0f0e, #7773ff);
-          mask-border-source: linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-box-image-source: linear-gradient(#ff0b0c, #766eff);
+          mask-border-source: linear-gradient(#ff0b0c, #766eff);
           -webkit-mask-box-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
           mask-border-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -29367,8 +29894,8 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask-box-image: linear-gradient(#ff0f0e, #7773ff) var(--foo);
-          mask-border: linear-gradient(#ff0f0e, #7773ff) var(--foo);
+          -webkit-mask-box-image: linear-gradient(#ff0b0c, #766eff) var(--foo);
+          mask-border: linear-gradient(#ff0b0c, #766eff) var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -29665,6 +30192,47 @@ mod tests {
       "#},
       Browsers {
         chrome: Some(4 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // A later filter whose color the targets lack keeps the earlier one as its fallback,
+    // as `color` and `text-shadow` do.
+    for property in ["filter", "backdrop-filter"] {
+      prefix_test(
+        &format!(".foo {{ {property}: blur(1px); {property}: drop-shadow(0 0 2px oklch(25% .05 30)) }}"),
+        &format!(".foo {{\n  {property}: blur(1px);\n  {property}: drop-shadow(0 0 2px oklch(25% .05 30));\n}}\n"),
+        Browsers {
+          chrome: Some(90 << 16),
+          ..Browsers::default()
+        },
+      );
+    }
+
+    // Chrome 90 supports neither `cqw` units nor `oklch()`, so the earlier filter is kept.
+    prefix_test(
+      ".a{filter:blur(1px);filter:blur(1cqw)}",
+      indoc! {r#"
+        .a {
+          filter: blur(1px);
+          filter: blur(1cqw);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".a{filter:grayscale(1);filter:grayscale(1) drop-shadow(0 0 2px oklch(25% .05 30))}",
+      indoc! {r#"
+        .a {
+          filter: grayscale();
+          filter: grayscale() drop-shadow(0 0 2px oklch(25% .05 30));
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
         ..Browsers::default()
       },
     );
@@ -31437,6 +32005,60 @@ mod tests {
   }
 
   #[test]
+  fn test_error_recovery_preserves_declarations() {
+    let cases = [
+      (
+        ".a{color:red;width:1px;@keyframes k{from{opacity:0}}height:2px}",
+        ".a{color:red;width:1px;height:2px}",
+        1,
+      ),
+      (
+        ".a{color:red!important;@font-face{font-family:x}width:1px!important;height:2px}",
+        ".a{height:2px;color:red!important;width:1px!important}",
+        1,
+      ),
+      (".a{@keyframes k{}color:red;width:1px}", ".a{color:red;width:1px}", 1),
+      (".a{color:red;width:1px;@keyframes k{}}", ".a{color:red;width:1px}", 1),
+      (
+        ".a{color:red;@font-face{}width:1px!important;@keyframes k{}height:2px}",
+        ".a{color:red;height:2px;width:1px!important}",
+        2,
+      ),
+      (
+        ".a{color:red;@keyframes k{}width:1px}.b{height:2px}",
+        ".a{color:red;width:1px}.b{height:2px}",
+        1,
+      ),
+      (".a{color:red;*zoom:1;width:1px}", ".a{color:red;width:1px}", 1),
+      (
+        ".a{color:red;@media print{color:red;@font-face{}width:1px}height:2px}",
+        ".a{color:red;@media print{color:red;width:1px}height:2px}",
+        1,
+      ),
+    ];
+
+    for (source, expected, warning_count) in cases {
+      let warnings = Arc::new(RwLock::new(Vec::new()));
+      minify_test_with_options(
+        source,
+        expected,
+        ParserOptions {
+          error_recovery: true,
+          warnings: Some(warnings.clone()),
+          ..ParserOptions::default()
+        },
+      );
+      assert_eq!(warnings.read().unwrap().len(), warning_count, "{source}");
+      assert!(StyleSheet::parse(source, ParserOptions::default()).is_err(), "{source}");
+    }
+
+    minify_test(
+      ".a{color:red;@media print{width:1px}height:2px}",
+      ".a{color:red;@media print{width:1px}height:2px}",
+    );
+  }
+
+  #[test]
   fn test_invalid() {
     error_test(
       ".a{color: hsla(120, 62.32%;}",
@@ -31881,6 +32503,7 @@ mod tests {
 
     error_test("@container (inline-size <= foo) {}", ParserError::InvalidMediaQuery);
     error_test("@container (orientation <= 10px) {}", ParserError::InvalidMediaQuery);
+    error_test("@container (min-width) {}", ParserError::InvalidMediaQuery);
 
     error_test(
       "@container style(style(--foo: bar)) {}",
@@ -32088,7 +32711,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        color: env(--brand-color, #00f942);
+        color: env(--brand-color, #00fb29);
       }
 
       @supports (color: color(display-p3 0 0 0)) {
@@ -32538,6 +33161,39 @@ mod tests {
     minify_test(
       ".foo { direction: rtl; all: revert-layer; direction: ltr }",
       ".foo{all:revert-layer;direction:ltr}",
+    );
+    minify_test(
+      ".foo { direction: ltr; direction: var(--x, ltr) }",
+      ".foo{direction:ltr;direction:var(--x,ltr)}",
+    );
+    minify_test(
+      ".foo { unicode-bidi: normal; unicode-bidi: var(--x, normal) }",
+      ".foo{unicode-bidi:normal;unicode-bidi:var(--x,normal)}",
+    );
+    minify_test(".foo { direction: var(--x); direction: rtl }", ".foo{direction:rtl}");
+    minify_test(
+      ".foo { direction: rtl; direction: var(--x); direction: ltr }",
+      ".foo{direction:ltr}",
+    );
+    minify_test(
+      ".foo { unicode-bidi: var(--x); unicode-bidi: var(--y); unicode-bidi: isolate }",
+      ".foo{unicode-bidi:isolate}",
+    );
+    minify_test(
+      ".foo { direction: var(--x) !important; direction: rtl }",
+      ".foo{direction:rtl;direction:var(--x)!important}",
+    );
+    minify_test(
+      ".foo { direction: var(--x); all: unset; direction: rtl }",
+      ".foo{all:unset;direction:rtl}",
+    );
+    minify_test(
+      ".foo { direction: rtl; direction: var(--x); all: revert-layer }",
+      ".foo{all:revert-layer;direction:rtl;direction:var(--x)}",
+    );
+    minify_test(
+      ".foo { unicode-bidi: var(--x); all: revert-layer }",
+      ".foo{all:revert-layer;unicode-bidi:var(--x)}",
     );
     minify_test(".foo { background: var(--foo); all: unset; }", ".foo{all:unset}");
     minify_test(

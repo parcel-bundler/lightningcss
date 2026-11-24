@@ -251,30 +251,33 @@ define_shorthand! {
   }
 }
 
+impl PlaceContent {
+  /// The justify-content value implied when the second value of `place-content` is omitted.
+  fn default_justify(align: &AlignContent) -> JustifyContent {
+    // The second value is assigned to justify-content; if omitted, it is copied
+    // from the first value, unless that value is a <baseline-position> in which
+    // case it is defaulted to start.
+    match align {
+      AlignContent::BaselinePosition(_) => JustifyContent::ContentPosition {
+        overflow: None,
+        value: ContentPosition::Start,
+      },
+      AlignContent::Normal => JustifyContent::Normal,
+      AlignContent::ContentDistribution(value) => JustifyContent::ContentDistribution(value.clone()),
+      AlignContent::ContentPosition { overflow, value } => JustifyContent::ContentPosition {
+        overflow: overflow.clone(),
+        value: value.clone(),
+      },
+    }
+  }
+}
+
 impl<'i> Parse<'i> for PlaceContent {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignContent::parse(input)?;
-    let justify = match input.try_parse(JustifyContent::parse) {
-      Ok(j) => j,
-      Err(_) => {
-        // The second value is assigned to justify-content; if omitted, it is copied
-        // from the first value, unless that value is a <baseline-position> in which
-        // case it is defaulted to start.
-        match align {
-          AlignContent::BaselinePosition(_) => JustifyContent::ContentPosition {
-            overflow: None,
-            value: ContentPosition::Start,
-          },
-          AlignContent::Normal => JustifyContent::Normal,
-          AlignContent::ContentDistribution(value) => JustifyContent::ContentDistribution(value.clone()),
-          AlignContent::ContentPosition { overflow, value } => JustifyContent::ContentPosition {
-            overflow: overflow.clone(),
-            value: value.clone(),
-          },
-        }
-      }
-    };
-
+    let justify = input
+      .try_parse(JustifyContent::parse)
+      .unwrap_or_else(|_| PlaceContent::default_justify(&align));
     Ok(PlaceContent { align, justify })
   }
 }
@@ -285,18 +288,11 @@ impl ToCss for PlaceContent {
     W: std::fmt::Write,
   {
     self.align.to_css(dest)?;
-    let is_equal = match self.justify {
-      JustifyContent::Normal if self.align == AlignContent::Normal => true,
-      JustifyContent::ContentDistribution(d) if matches!(self.align, AlignContent::ContentDistribution(d2) if d == d2) => {
-        true
-      }
-      JustifyContent::ContentPosition { overflow: o, value: c } if matches!(self.align, AlignContent::ContentPosition { overflow: o2, value: c2 } if o == o2 && c == c2) => {
-        true
-      }
-      _ => false,
-    };
-
-    if !is_equal {
+    // A lone baseline value relies on the "defaulted to start" rule. Keep writing both
+    // values in that case, as before, rather than depend on every engine implementing it.
+    if matches!(self.align, AlignContent::BaselinePosition(_))
+      || self.justify != PlaceContent::default_justify(&self.align)
+    {
       dest.write_str(" ")?;
       self.justify.to_css(dest)?;
     }
@@ -476,26 +472,29 @@ define_shorthand! {
   }
 }
 
+impl PlaceSelf {
+  /// The justify-self value implied when the second value of `place-self` is omitted.
+  fn default_justify(align: &AlignSelf) -> JustifySelf {
+    // The second value is assigned to justify-self; if omitted, it is copied from the first value.
+    match align {
+      AlignSelf::Auto => JustifySelf::Auto,
+      AlignSelf::Normal => JustifySelf::Normal,
+      AlignSelf::Stretch => JustifySelf::Stretch,
+      AlignSelf::BaselinePosition(p) => JustifySelf::BaselinePosition(p.clone()),
+      AlignSelf::SelfPosition { overflow, value } => JustifySelf::SelfPosition {
+        overflow: overflow.clone(),
+        value: value.clone(),
+      },
+    }
+  }
+}
+
 impl<'i> Parse<'i> for PlaceSelf {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignSelf::parse(input)?;
-    let justify = match input.try_parse(JustifySelf::parse) {
-      Ok(j) => j,
-      Err(_) => {
-        // The second value is assigned to justify-self; if omitted, it is copied from the first value.
-        match &align {
-          AlignSelf::Auto => JustifySelf::Auto,
-          AlignSelf::Normal => JustifySelf::Normal,
-          AlignSelf::Stretch => JustifySelf::Stretch,
-          AlignSelf::BaselinePosition(p) => JustifySelf::BaselinePosition(p.clone()),
-          AlignSelf::SelfPosition { overflow, value } => JustifySelf::SelfPosition {
-            overflow: overflow.clone(),
-            value: value.clone(),
-          },
-        }
-      }
-    };
-
+    let justify = input
+      .try_parse(JustifySelf::parse)
+      .unwrap_or_else(|_| PlaceSelf::default_justify(&align));
     Ok(PlaceSelf { align, justify })
   }
 }
@@ -506,20 +505,7 @@ impl ToCss for PlaceSelf {
     W: std::fmt::Write,
   {
     self.align.to_css(dest)?;
-    let is_equal = match &self.justify {
-      JustifySelf::Auto => true,
-      JustifySelf::Normal => self.align == AlignSelf::Normal,
-      JustifySelf::Stretch => self.align == AlignSelf::Normal,
-      JustifySelf::BaselinePosition(p) if matches!(&self.align, AlignSelf::BaselinePosition(p2) if p == p2) => {
-        true
-      }
-      JustifySelf::SelfPosition { overflow: o, value: c } if matches!(&self.align, AlignSelf::SelfPosition  { overflow: o2, value: c2 } if o == o2 && c == c2) => {
-        true
-      }
-      _ => false,
-    };
-
-    if !is_equal {
+    if self.justify != PlaceSelf::default_justify(&self.align) {
       dest.write_str(" ")?;
       self.justify.to_css(dest)?;
     }
@@ -746,25 +732,28 @@ define_shorthand! {
   }
 }
 
+impl PlaceItems {
+  /// The justify-items value implied when the second value of `place-items` is omitted.
+  fn default_justify(align: &AlignItems) -> JustifyItems {
+    // The second value is assigned to justify-items; if omitted, it is copied from the first value.
+    match align {
+      AlignItems::Normal => JustifyItems::Normal,
+      AlignItems::Stretch => JustifyItems::Stretch,
+      AlignItems::BaselinePosition(p) => JustifyItems::BaselinePosition(p.clone()),
+      AlignItems::SelfPosition { overflow, value } => JustifyItems::SelfPosition {
+        overflow: overflow.clone(),
+        value: value.clone(),
+      },
+    }
+  }
+}
+
 impl<'i> Parse<'i> for PlaceItems {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignItems::parse(input)?;
-    let justify = match input.try_parse(JustifyItems::parse) {
-      Ok(j) => j,
-      Err(_) => {
-        // The second value is assigned to justify-items; if omitted, it is copied from the first value.
-        match &align {
-          AlignItems::Normal => JustifyItems::Normal,
-          AlignItems::Stretch => JustifyItems::Stretch,
-          AlignItems::BaselinePosition(p) => JustifyItems::BaselinePosition(p.clone()),
-          AlignItems::SelfPosition { overflow, value } => JustifyItems::SelfPosition {
-            overflow: overflow.clone(),
-            value: value.clone(),
-          },
-        }
-      }
-    };
-
+    let justify = input
+      .try_parse(JustifyItems::parse)
+      .unwrap_or_else(|_| PlaceItems::default_justify(&align));
     Ok(PlaceItems { align, justify })
   }
 }
@@ -775,19 +764,7 @@ impl ToCss for PlaceItems {
     W: std::fmt::Write,
   {
     self.align.to_css(dest)?;
-    let is_equal = match &self.justify {
-      JustifyItems::Normal => self.align == AlignItems::Normal,
-      JustifyItems::Stretch => self.align == AlignItems::Normal,
-      JustifyItems::BaselinePosition(p) if matches!(&self.align, AlignItems::BaselinePosition(p2) if p == p2) => {
-        true
-      }
-      JustifyItems::SelfPosition { overflow: o, value: c } if matches!(&self.align, AlignItems::SelfPosition { overflow: o2, value: c2 } if o == o2 && c == c2) => {
-        true
-      }
-      _ => false,
-    };
-
-    if !is_equal {
+    if self.justify != PlaceItems::default_justify(&self.align) {
       dest.write_str(" ")?;
       self.justify.to_css(dest)?;
     }

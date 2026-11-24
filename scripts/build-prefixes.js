@@ -248,6 +248,14 @@ for (let feature of cssFeatures) {
     }
   }
 
+  // caniuse lists Android WebView 2.1-4.4.4 and then only the current version,
+  // so any feature added after 4.4 appears to need the latest WebView, and that
+  // threshold moves up with every data update (#568). WebView 37+ shares
+  // Chrome's engine and version numbers, so derive it from Chrome instead.
+  if (browserMap.android != null && browserMap.android > parseVersion('4.4.4') && browserMap.chrome != null) {
+    browserMap.android = Math.max(browserMap.chrome, parseVersion('37'));
+  }
+
   let name = (cssFeatureMappings[feature] || feature).replace(/^css-/, '');
   addValue(compat, browserMap, name);
 }
@@ -333,8 +341,24 @@ let mdnFeatures = {
   fontWeightNumber: mdn.css.properties['font-weight'].number.__compat.support,
   fontStretchPercentage: mdn.css.properties['font-stretch'].percentage.__compat.support,
   lightDark: mdn.css.types.color['light-dark'].__compat.support,
-  accentSystemColor: mdn.css.types.color['system-color'].accentcolor_accentcolortext.__compat.support,
-  animationTimelineShorthand: mdn.css.properties.animation['animation-timeline_included'].__compat.support,
+  // @mdn/browser-compat-data 8.1 split `accentcolor_accentcolortext` into
+  // separate keys; the two keywords shipped together.
+  accentSystemColor: (mdn.css.types.color['system-color'].accentcolor_accentcolortext ??
+    mdn.css.types.color['system-color'].accentcolor).__compat.support,
+  animationTimelineShorthand: Object.fromEntries(
+    Object.entries(mdn.css.properties.animation['animation-timeline_included'].__compat.support)
+      .map(([browser, value]) => {
+        // Chrome/Edge 115+ only support animation-timeline as a reset-only sub-property
+        // of the animation shorthand, so it cannot be set via the shorthand yet.
+        if (Array.isArray(value)) {
+          value = value.filter(v => !v.partial_implementation)
+        } else if (value.partial_implementation) {
+          value = { version_added: false };
+        }
+
+        return [browser, value];
+      })
+  ),
   transitionBehaviorShorthand: mdn.css.properties.transition['transition-behavior'].__compat.support,
   viewTransition: mdn.css.selectors['view-transition'].__compat.support,
   detailsContent: mdn.css.selectors['details-content'].__compat.support,
