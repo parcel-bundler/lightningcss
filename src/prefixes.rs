@@ -96,6 +96,7 @@ pub enum Feature {
   Hyphens,
   ImageRendering,
   ImageSet,
+  InitialLetter,
   InlineFlex,
   InlineGrid,
   Isolate,
@@ -1291,7 +1292,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 458752 {
+          if version >= 458752 && version <= 1705472 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1301,7 +1302,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 393472 && version <= 1705216 {
+          if version >= 393472 && version <= 1705472 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -2194,6 +2195,18 @@ impl Feature {
         }
         if let Some(version) = browsers.samsung {
           if version >= 262144 && version <= 1835008 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+      }
+      Feature::InitialLetter => {
+        if let Some(version) = browsers.ios_saf {
+          if version >= 589824 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 590080 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
