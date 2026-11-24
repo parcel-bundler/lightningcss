@@ -25,6 +25,15 @@ pub use crate::parser::{ParserFlags, ParserOptions};
 pub use crate::printer::PrinterOptions;
 pub use crate::printer::PseudoClasses;
 
+/// Strips a leading UTF-8 byte order mark, which is removed while decoding the
+/// input byte stream rather than being part of the CSS syntax.
+///
+/// https://drafts.csswg.org/css-syntax/#input-byte-stream
+#[inline]
+pub(crate) fn strip_bom(code: &str) -> &str {
+  code.strip_prefix('\u{feff}').unwrap_or(code)
+}
+
 /// A CSS style sheet, representing a `.css` file or inline `<style>` element.
 ///
 /// Style sheets can be parsed from a string, constructed from scratch,
@@ -148,6 +157,7 @@ where
     mut options: ParserOptions<'i>,
     at_rule_parser: &mut P,
   ) -> Result<Self, Error<ParserError<'i>>> {
+    let code = strip_bom(code);
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let mut license_comments = Vec::new();
@@ -289,7 +299,7 @@ where
     }
 
     if let Some(config) = &self.options.css_modules {
-      let mut references = HashMap::new();
+      let mut references = CssModuleReferences::new();
       printer.css_module = Some(CssModule::new(
         config,
         &self.sources,

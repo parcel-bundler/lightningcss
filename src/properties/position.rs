@@ -1,6 +1,7 @@
 //! CSS properties related to positioning.
 
-use super::Property;
+use super::custom::UnparsedProperty;
+use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
@@ -98,8 +99,8 @@ impl<'i> PropertyHandler<'i> for PositionHandler {
   fn handle_property(
     &mut self,
     property: &Property<'i>,
-    _: &mut DeclarationList<'i>,
-    _: &mut PropertyHandlerContext<'i, '_>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     if let Property::Position(position) = property {
       if let (Some(Position::Sticky(cur)), Position::Sticky(new)) = (&mut self.position, position) {
@@ -108,6 +109,18 @@ impl<'i> PropertyHandler<'i> for PositionHandler {
         self.position = Some(position.clone());
       }
 
+      return true;
+    }
+
+    if matches!(
+      property,
+      Property::Unparsed(UnparsedProperty {
+        property_id: PropertyId::Position,
+        ..
+      })
+    ) {
+      self.finalize(dest, context);
+      dest.push(property.clone());
       return true;
     }
 
