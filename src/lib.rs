@@ -6942,16 +6942,16 @@ mod tests {
     );
 
     minify_test(
-        ".foo{font-family:named-font,named-font}",
-        ".foo{font-family:named-font}",
+      ".foo{font-family:named-font,named-font}",
+      ".foo{font-family:named-font}",
     );
     minify_test(
-        ".foo{font-family:monospace,monospace}",
-        ".foo{font-family:monospace,monospace}",
+      ".foo{font-family:monospace,monospace}",
+      ".foo{font-family:monospace,monospace}",
     );
     minify_test(
-        ".foo{font-family:monospace,monospace;font-size:16px}",
-        ".foo{font-family:monospace,monospace;font-size:16px}",
+      ".foo{font-family:monospace,monospace;font-size:16px}",
+      ".foo{font-family:monospace,monospace;font-size:16px}",
     );
     minify_test(
       ".foo{font-family:monospace, monospace, monospace}",
@@ -13097,8 +13097,14 @@ mod tests {
       ".foo { animation: foo 0s 3s infinite }",
       ".foo{animation:0s 3s infinite foo}",
     );
-    minify_test(".foo { animation: foo 3s --test }", ".foo{animation:3s foo;animation-timeline:--test}");
-    minify_test(".foo { animation: foo 3s scroll() }", ".foo{animation:3s foo;animation-timeline:scroll()}");
+    minify_test(
+      ".foo { animation: foo 3s --test }",
+      ".foo{animation:3s foo;animation-timeline:--test}",
+    );
+    minify_test(
+      ".foo { animation: foo 3s scroll() }",
+      ".foo{animation:3s foo;animation-timeline:scroll()}",
+    );
     minify_test(
       ".foo { animation: foo 3s scroll(block) }",
       ".foo{animation:3s foo;animation-timeline:scroll()}",
