@@ -22,3 +22,14 @@ Maintainer notes:
 - For selector changes, check whether upstream servo/stylo selectors (the fork source) has related changes. Added to the skill.
 - Follow-up bugs already mentioned in a PR comment count as handled there; only file separate issues for ones that weren't.
 - size-check without targets missed #1287's growth; size-check now also runs with older targets.
+
+## Decision queue PR batch 2026-11-24
+
+Approved as drafted: #1301, #1302, #1352, #1357, #1364 (approving reviews); #1339 closed in favor of #1295.
+Approved with edits:
+- #1374: removed the optional nit about the Node test pinning `loc` column. Keep optional test-assertion nits out unless they matter.
+- #1376: removed the request to add a default body to the new required `Interpolate` trait method. "Not worried about breaking the Rust API for now while in alpha." Don't flag Rust API breaks as blockers during the 1.0 alpha; JS API/AST changes still matter. Maintainer asked when the spec changed: answer spec-history questions in the summary up front.
+- #1304 (still pending): removed "so quickly" from the thank-you.
+Changed verdicts:
+- #1275 merge -> request changes: "Would be nice to avoid the clones if we can." Extra clones/copies in a fix are a design problem, not a nit; and always measure perf when a fix adds cloning (maintainer asked "did you measure perf?").
+- #1365 rejected: "The real fix is to actually parse the property so it doesn't parse as a custom property." A workaround for untyped properties (Property::Custom) is a hack even when it works; recommend adding the typed property instead (fully-parse philosophy). Applies equally to #1209 and #1363.
