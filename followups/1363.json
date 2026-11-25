@@ -1,0 +1,11 @@
+{
+ "pr": 1363,
+ "title": "Follow-up for #1363: Move caret into a dedicated property handler",
+ "items": [
+  "Replace the macro-generated fallback handling of `caret` / `caret-color` / `caret-animation` / `caret-shape` with a dedicated `CaretHandler` (like the other shorthand handlers), so it owns ordering and resets instead of the slot-clearing in prefix_handler.rs.",
+  "Merge longhands into the `caret` shorthand when the targets support it (no engine ships the shorthand yet, so this needs a compat feature and stays longhand-only for current browsers)."
+ ],
+ "blockingForAuthor": [],
+ "state": "approved",
+ "followupPr": null
+}

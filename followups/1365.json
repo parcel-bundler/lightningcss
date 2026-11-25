@@ -1,0 +1,10 @@
+{
+ "pr": 1365,
+ "title": "Follow-up for #1365: transition: normal normal 1s",
+ "items": [
+  "Transition::to_css: when transition-property is an unknown name equal (ASCII case-insensitively) to `normal` or `allow-discrete`, write the behavior keyword before the property so it round-trips. `transition: normal normal 1s` currently becomes `transition:normal 1s`, which browsers read as `all 1s`; the same happens on master when longhands fold. Add tests in test_transitions."
+ ],
+ "blockingForAuthor": [],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}

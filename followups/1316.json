@@ -1,0 +1,11 @@
+{
+ "pr": 1316,
+ "title": "Follow-up for #1316: @supports serialization",
+ "items": [
+  "Don't print redundant inner parentheses for a single-prefix declaration (`((-moz-appearance:none))`): add them in SupportsCondition::to_css only when more than one prefix is set.",
+  "Optional: dedupe exact duplicates inside `and` (rare, 0 bytes on the corpus)."
+ ],
+ "blockingForAuthor": [],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}

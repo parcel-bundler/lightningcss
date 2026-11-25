@@ -1,0 +1,11 @@
+{
+ "pr": 1259,
+ "title": "Follow-up for #1259: FallbackHandler prefix pairs",
+ "items": [
+  "Color fallbacks (get_fallbacks) for a second declaration with a different prefix; currently only the first gets them.",
+  "Size: prune the unneeded `-webkit-` from same-value `var()` prefix pairs when targets don't need it (parsed pairs already are)."
+ ],
+ "blockingForAuthor": [],
+ "state": "waiting-for-merge",
+ "followupPr": null
+}
