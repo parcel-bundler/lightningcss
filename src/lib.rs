@@ -15373,6 +15373,76 @@ mod tests {
       },
     );
 
+    prefix_test(
+      ".foo { background-image: linear-gradient(oklch(0% 0 0), oklch(100% 0 0)), linear-gradient(currentcolor, currentcolor); }",
+      indoc! { r#"
+        .foo {
+          background-image: linear-gradient(#000, #fff), linear-gradient(currentColor, currentColor);
+          background-image: linear-gradient(lab(0% 0 0), lab(100% 0 0)), linear-gradient(currentColor, currentColor);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { background-image: linear-gradient(oklch(0% 0 0), light-dark(currentcolor, red)); }",
+      indoc! { r#"
+        .foo {
+          background-image: linear-gradient(#000, var(--lightningcss-light, currentColor) var(--lightningcss-dark, red));
+          background-image: linear-gradient(lab(0% 0 0), var(--lightningcss-light, currentColor) var(--lightningcss-dark, red));
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { color: light-dark(currentcolor, oklch(0% 0 0)); }",
+      indoc! { r#"
+        .foo {
+          color: var(--lightningcss-light, currentColor) var(--lightningcss-dark, #000);
+          color: var(--lightningcss-light, currentColor) var(--lightningcss-dark, lab(0% 0 0));
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { text-shadow: 1px 1px oklch(0% 0 0), 1px 1px currentcolor; }",
+      indoc! { r#"
+        .foo {
+          text-shadow: 1px 1px #000, 1px 1px;
+          text-shadow: 1px 1px lab(0% 0 0), 1px 1px;
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { box-shadow: 1px 1px light-dark(currentcolor, oklch(0% 0 0)); }",
+      indoc! { r#"
+        .foo {
+          box-shadow: 1px 1px var(--lightningcss-light, currentColor) var(--lightningcss-dark, #000);
+          box-shadow: 1px 1px var(--lightningcss-light, currentColor) var(--lightningcss-dark, lab(0% 0 0));
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
     // Test cases from https://github.com/postcss/autoprefixer/blob/541295c0e6dd348db2d3f52772b59cd403c59d29/test/cases/gradient.css
     prefix_test(
       r#"
