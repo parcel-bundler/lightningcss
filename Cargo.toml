@@ -88,6 +88,7 @@ schemars = { version = "0.8.19", features = [
   "indexmap2",
 ], optional = true }
 static-self = { version = "0.1.2", path = "static-self", optional = true }
+libm = "0.2.16"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = [
