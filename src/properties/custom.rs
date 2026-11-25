@@ -26,6 +26,7 @@ use crate::values::url::Url;
 use crate::visitor::Visit;
 use cssparser::color::parse_hash_color;
 use cssparser::*;
+use std::cell::Cell;
 
 use super::AnimationName;
 #[cfg(feature = "serde")]
@@ -378,8 +379,8 @@ impl<'i> TokenList<'i> {
           let f = f.into();
           if let Some(color) = try_parse_color_token(&f, &state, input) {
             tokens.push(TokenOrValue::Color(color));
-          } else if let Ok(color) = input.try_parse(|input| UnresolvedColor::parse(&f, input, options)) {
-            tokens.push(TokenOrValue::UnresolvedColor(color));
+          } else if let Some(value) = UnresolvedColor::parse(&f, input, options, depth)? {
+            tokens.push(value);
           } else if f == "url" {
             input.reset(&state);
             tokens.push(TokenOrValue::Url(Url::parse(input)?));
@@ -470,7 +471,7 @@ fn try_parse_color_token<'i, 't>(
   input: &mut Parser<'i, 't>,
 ) -> Option<CssColor> {
   match_ignore_ascii_case! { &*f,
-    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" => {
+    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" | "color-mix" | "light-dark" | "alpha" => {
       let s = input.state();
       input.reset(&state);
       if let Ok(color) = CssColor::parse(input) {
@@ -1503,13 +1504,32 @@ impl<'i> LightDarkColor for UnresolvedColor<'i> {
 }
 
 impl<'i> UnresolvedColor<'i> {
+  /// Parses the block of the function `f` as an unresolved color.
+  ///
+  /// Returns `Ok(None)` and resets the input when the block is not one of the color
+  /// forms, so the caller can parse it as a generic function. A `light-dark()` without
+  /// a comma gives a generic function directly, because its arguments are already parsed.
+  ///
+  /// An error inside an argument token list is returned and not treated as "not a color".
+  /// A generic function parses the same tokens and fails in the same way, so a fallback
+  /// does no useful work. With nested functions, each fallback also doubles the parse time.
   fn parse<'t>(
     f: &CowArcStr<'i>,
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'i>,
-  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    depth: usize,
+  ) -> Result<Option<TokenOrValue<'i>>, ParseError<'i, ParserError<'i>>> {
+    let state = input.state();
+    let in_arguments = Cell::new(false);
+    let parse_arguments = |input: &mut Parser<'i, '_>| {
+      TokenList::parse(input, options, depth + 1).map_err(|err| {
+        in_arguments.set(true);
+        err
+      })
+    };
+
     let mut parser = ComponentParser::new(false);
-    match_ignore_ascii_case! { &*f,
+    let result = match_ignore_ascii_case! { &*f,
       "rgb" => {
         input.parse_nested_block(|input| {
           parser.parse_relative::<RGB, _, _>(input, |input, parser| {
@@ -1518,10 +1538,10 @@ impl<'i> UnresolvedColor<'i> {
               return Err(input.new_custom_error(ParserError::InvalidValue))
             }
             input.expect_delim('/')?;
-            let alpha = TokenList::parse(input, options, 0)?;
+            let alpha = parse_arguments(input)?;
             Ok(UnresolvedColor::RGB { r, g, b, alpha })
           })
-        })
+        }).map(TokenOrValue::UnresolvedColor)
       },
       "hsl" => {
         input.parse_nested_block(|input| {
@@ -1531,22 +1551,35 @@ impl<'i> UnresolvedColor<'i> {
               return Err(input.new_custom_error(ParserError::InvalidValue))
             }
             input.expect_delim('/')?;
-            let alpha = TokenList::parse(input, options, 0)?;
+            let alpha = parse_arguments(input)?;
             Ok(UnresolvedColor::HSL { h, s, l, alpha })
           })
-        })
+        }).map(TokenOrValue::UnresolvedColor)
       },
       "light-dark" => {
         input.parse_nested_block(|input| {
-          let light = input.parse_until_before(Delimiter::Comma, |input|
-            TokenList::parse(input, options, 0)
-          )?;
-          input.expect_comma()?;
-          let dark = TokenList::parse(input, options, 0)?;
-          Ok(UnresolvedColor::LightDark { light, dark })
+          let light = input.parse_until_before(Delimiter::Comma, parse_arguments)?;
+          if input.try_parse(|input| input.expect_comma()).is_err() {
+            // Without a comma, the light value holds all of the arguments.
+            return Ok(TokenOrValue::Function(Function {
+              name: Ident(f.clone()),
+              arguments: light,
+            }));
+          }
+          let dark = parse_arguments(input)?;
+          Ok(TokenOrValue::UnresolvedColor(UnresolvedColor::LightDark { light, dark }))
         })
       },
-      _ => Err(input.new_custom_error(ParserError::InvalidValue))
+      _ => return Ok(None)
+    };
+
+    match result {
+      Ok(value) => Ok(Some(value)),
+      Err(err) if in_arguments.get() => Err(err),
+      Err(_) => {
+        input.reset(&state);
+        Ok(None)
+      }
     }
   }
 

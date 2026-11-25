@@ -106,10 +106,7 @@ pub enum ResolveResult {
   /// An external URL.
   External(String),
   /// A file path.
-  #[cfg_attr(
-    any(feature = "serde", feature = "nodejs"),
-    serde(untagged)
-  )]
+  #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(untagged))]
   File(PathBuf),
 }
 
@@ -442,6 +439,10 @@ where
         Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index)))
       },
     })?;
+
+    // Strip the BOM here as well as in the parser, so that the source content
+    // registered for source maps matches the code the parser sees.
+    let code = crate::stylesheet::strip_bom(code);
 
     let mut opts = self.options.clone();
     let filename = file.to_str().unwrap();
@@ -1064,6 +1065,32 @@ mod tests {
       res.insert(name.clone(), classes);
     }
     res
+  }
+
+  #[test]
+  fn test_bom() {
+    // A leading BOM is stripped from every file, not just the entry.
+    let res = bundle(
+      TestProvider {
+        map: fs! {
+          "/a.css": "\u{feff}@import \"b.css\";\n.a { color: red }",
+          "/b.css": "\u{feff}.b { color: green }"
+        },
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
+      .b {
+        color: green;
+      }
+
+      .a {
+        color: red;
+      }
+    "#}
+    );
   }
 
   #[test]

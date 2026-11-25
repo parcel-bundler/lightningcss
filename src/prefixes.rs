@@ -96,6 +96,7 @@ pub enum Feature {
   Hyphens,
   ImageRendering,
   ImageSet,
+  InitialLetter,
   InlineFlex,
   InlineGrid,
   Isolate,
@@ -118,6 +119,8 @@ pub enum Feature {
   MaskImage,
   MaskOrigin,
   MaskPosition,
+  MaskPositionX,
+  MaskPositionY,
   MaskRepeat,
   MaskSize,
   MaxContent,
@@ -1289,7 +1292,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 458752 {
+          if version >= 458752 && version <= 1705472 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1299,7 +1302,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 393472 {
+          if version >= 393472 && version <= 1705472 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1442,6 +1445,8 @@ impl Feature {
       | Feature::MaskBorderSource
       | Feature::Mask
       | Feature::MaskPosition
+      | Feature::MaskPositionX
+      | Feature::MaskPositionY
       | Feature::MaskSize
       | Feature::MaskBorder
       | Feature::MaskBorderOutset
@@ -2190,6 +2195,18 @@ impl Feature {
         }
         if let Some(version) = browsers.samsung {
           if version >= 262144 && version <= 1835008 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+      }
+      Feature::InitialLetter => {
+        if let Some(version) = browsers.ios_saf {
+          if version >= 589824 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 590080 {
             prefixes |= VendorPrefix::WebKit;
           }
         }

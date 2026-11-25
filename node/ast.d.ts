@@ -102,6 +102,10 @@ export type Rule<D = Declaration, M = MediaQuery> = | {
     value: ViewTransitionRule;
   }
 | {
+    type: "position-try";
+    value: PositionTryRule<D>;
+  }
+| {
     type: "ignored";
   }
 | {
@@ -2136,6 +2140,9 @@ export type PropertyId =
       property: "caret-color";
     }
   | {
+      property: "caret-animation";
+    }
+  | {
       property: "caret-shape";
     }
   | {
@@ -2342,6 +2349,9 @@ export type PropertyId =
   | {
       property: "backdrop-filter";
       vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mix-blend-mode";
     }
   | {
       property: "z-index";
@@ -3108,35 +3118,35 @@ export type Declaration =
     }
   | {
       property: "padding-top";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-bottom";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-left";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-right";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-block-start";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-block-end";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-inline-start";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-inline-end";
-      value: LengthPercentageOrAuto;
+      value: DimensionPercentageFor_LengthValue;
     }
   | {
       property: "padding-block";
@@ -3557,6 +3567,10 @@ export type Declaration =
       value: ColorOrAuto;
     }
   | {
+      property: "caret-animation";
+      value: CaretAnimation;
+    }
+  | {
       property: "caret-shape";
       value: CaretShape;
     }
@@ -3826,6 +3840,10 @@ export type Declaration =
       property: "backdrop-filter";
       value: FilterList;
       vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mix-blend-mode";
+      value: BlendMode;
     }
   | {
       property: "z-index";
@@ -5782,6 +5800,31 @@ export type Translate =
     z: Length;
   };
 /**
+ * A value for the [rotate](https://drafts.csswg.org/css-transforms-2/#propdef-rotate) property.
+ */
+export type Rotate =
+  | "none"
+  | {
+      xyz: {
+        /**
+         * The angle of rotation.
+         */
+        angle: Angle;
+        /**
+         * Rotation around the x axis.
+         */
+        x: number;
+        /**
+         * Rotation around the y axis.
+         */
+        y: number;
+        /**
+         * Rotation around the z axis.
+         */
+        z: number;
+      };
+    };
+/**
  * A value for the [scale](https://drafts.csswg.org/css-transforms-2/#propdef-scale) property.
  */
 export type Scale =
@@ -6001,6 +6044,10 @@ export type ColorOrAuto =
       type: "color";
       value: CssColor;
     };
+/**
+ * A value for the [caret-animation](https://drafts.csswg.org/css-ui-4/#caret-animation) property.
+ */
+export type CaretAnimation = "auto" | "manual";
 /**
  * A value for the [caret-shape](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-shape) property.
  */
@@ -6420,6 +6467,28 @@ export type Filter =
       value: Url;
     };
 /**
+ * A [`<blend-mode>`](https://www.w3.org/TR/compositing-1/#ltblendmodegt) value.
+ */
+export type BlendMode =
+  | "normal"
+  | "multiply"
+  | "screen"
+  | "overlay"
+  | "darken"
+  | "lighten"
+  | "color-dodge"
+  | "color-burn"
+  | "hard-light"
+  | "soft-light"
+  | "difference"
+  | "exclusion"
+  | "hue"
+  | "saturation"
+  | "color"
+  | "luminosity"
+  | "plus-darker"
+  | "plus-lighter";
+/**
  * A value for the [z-index](https://drafts.csswg.org/css2/#z-index) property.
  */
 export type ZIndex =
@@ -6449,7 +6518,7 @@ export type ContainerNameList =
  * A value for the [view-transition-name](https://drafts.csswg.org/css-view-transitions-1/#view-transition-name-prop) property.
  */
 export type ViewTransitionName =
-  "none" | "auto" | String;
+  "none" | "auto" | "match-element" | String;
 /**
  * The `none` keyword, or a space-separated list of custom idents.
  */
@@ -6904,12 +6973,22 @@ export type PseudoElement =
       kind: "target-text";
     }
   | {
+      kind: "search-text";
+    }
+  | {
       kind: "selection";
       vendorPrefix: VendorPrefix;
     }
   | {
       kind: "placeholder";
       vendorPrefix: VendorPrefix;
+    }
+  | {
+      kind: "highlight-function";
+      /**
+       * A custom highlight name.
+       */
+      name: String;
     }
   | {
       kind: "marker";
@@ -8668,11 +8747,11 @@ export interface PaddingBlock {
   /**
    * The block end value.
    */
-  blockEnd: LengthPercentageOrAuto;
+  blockEnd: DimensionPercentageFor_LengthValue;
   /**
    * The block start value.
    */
-  blockStart: LengthPercentageOrAuto;
+  blockStart: DimensionPercentageFor_LengthValue;
 }
 /**
  * A value for the [padding-inline](https://drafts.csswg.org/css-logical/#propdef-padding-inline) shorthand property.
@@ -8681,11 +8760,11 @@ export interface PaddingInline {
   /**
    * The inline end value.
    */
-  inlineEnd: LengthPercentageOrAuto;
+  inlineEnd: DimensionPercentageFor_LengthValue;
   /**
    * The inline start value.
    */
-  inlineStart: LengthPercentageOrAuto;
+  inlineStart: DimensionPercentageFor_LengthValue;
 }
 /**
  * A value for the [padding](https://drafts.csswg.org/css-box-4/#propdef-padding) shorthand property.
@@ -8694,19 +8773,19 @@ export interface Padding {
   /**
    * The bottom value.
    */
-  bottom: LengthPercentageOrAuto;
+  bottom: DimensionPercentageFor_LengthValue;
   /**
    * The left value.
    */
-  left: LengthPercentageOrAuto;
+  left: DimensionPercentageFor_LengthValue;
   /**
    * The right value.
    */
-  right: LengthPercentageOrAuto;
+  right: DimensionPercentageFor_LengthValue;
   /**
    * The top value.
    */
-  top: LengthPercentageOrAuto;
+  top: DimensionPercentageFor_LengthValue;
 }
 /**
  * A value for the [scroll-margin-block](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-margin-block) shorthand property.
@@ -8969,27 +9048,6 @@ export interface Matrix3DForFloat {
   m44: number;
 }
 /**
- * A value for the [rotate](https://drafts.csswg.org/css-transforms-2/#propdef-rotate) property.
- */
-export interface Rotate {
-  /**
-   * The angle of rotation.
-   */
-  angle: Angle;
-  /**
-   * Rotation around the x axis.
-   */
-  x: number;
-  /**
-   * Rotation around the y axis.
-   */
-  y: number;
-  /**
-   * Rotation around the z axis.
-   */
-  z: number;
-}
-/**
  * A value for the [text-transform](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property) property.
  */
 export interface TextTransform {
@@ -9130,6 +9188,10 @@ export interface CursorImage {
  * A value for the [caret](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret) shorthand property.
  */
 export interface Caret {
+  /**
+   * The caret animation.
+   */
+  animation: CaretAnimation;
   /**
    * The caret color.
    */
@@ -9877,6 +9939,23 @@ export interface ViewTransitionRule {
    * Declarations in the `@view-transition` rule.
    */
   properties: ViewTransitionProperty[];
+}
+/**
+ * A [@position-try](https://drafts.csswg.org/css-anchor-position-1/#position-try) rule.
+ */
+export interface PositionTryRule<D = Declaration> {
+  /**
+   * Declarations in the `@position-try` rule.
+   */
+  declarations: DeclarationBlock<D>;
+  /**
+   * The location of the rule in the source file.
+   */
+  loc: Location2;
+  /**
+   * The name of the position-try fallback.
+   */
+  name: String;
 }
 /**
  * An unknown at-rule, stored as raw tokens.

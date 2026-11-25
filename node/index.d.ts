@@ -255,6 +255,8 @@ export interface BundleAsyncOptions<C extends CustomAtRules> extends BundleOptio
   resolver?: Resolver;
 }
 
+type MaybePromise<T> = T | Promise<T>;
+
 /** Custom resolver to use when loading CSS files. */
 export interface Resolver {
   /** Read the given file and return its contents as a string. */
@@ -264,13 +266,13 @@ export interface Resolver {
    * Resolve the given CSS import specifier from the provided originating file to a
    * path which gets passed to `read()`.
    */
-  resolve?: (specifier: string, originatingFile: string) => string | Promise<string>;
+  resolve?: (specifier: string, originatingFile: string) => MaybePromise<string | { external: string }>;
 }
 
 export interface Drafts {
   /** Whether to enable @custom-media rules. */
   customMedia?: boolean
-  /** 
+  /**
    * Whether to enable the scroll navigation controls.
    * https://drafts.csswg.org/css-overflow-5/#scroll-navigation
    */
