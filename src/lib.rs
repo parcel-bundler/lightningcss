@@ -30099,6 +30099,24 @@ mod tests {
         ..Browsers::default()
       },
     );
+    minify_test(
+      r#"
+        .foo {
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+      "#,
+      ".foo{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}",
+    );
+    minify_test(
+      r#"
+        .foo {
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(20px);
+        }
+      "#,
+      ".foo{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(20px)}",
+    );
     prefix_test(
       r#"
       .foo {
@@ -30128,6 +30146,36 @@ mod tests {
       "#},
       Browsers {
         chrome: Some(20 << 16),
+        ..Browsers::default()
+      },
+    );
+    minify_test(
+      ".foo { backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur) }",
+      ".foo{backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}",
+    );
+    minify_test(
+      ".foo { -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur) }",
+      ".foo{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}",
+    );
+    minify_test(
+      ".foo { filter: var(--filter); -webkit-filter: blur(5px) }",
+      ".foo{filter:var(--filter);-webkit-filter:blur(5px)}",
+    );
+    minify_test(
+      ".foo { backdrop-filter: blur(5px); -webkit-backdrop-filter: var(--first); -webkit-backdrop-filter: var(--blur) }",
+      ".foo{backdrop-filter:blur(5px);-webkit-backdrop-filter:var(--blur)}",
+    );
+    prefix_test(
+      ".foo { backdrop-filter: var(--standard); -webkit-backdrop-filter: var(--webkit) }",
+      indoc! { r#"
+        .foo {
+          backdrop-filter: var(--standard);
+          -webkit-backdrop-filter: var(--webkit);
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        chrome: Some(120 << 16),
         ..Browsers::default()
       },
     );
