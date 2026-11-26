@@ -1,0 +1,95 @@
+{
+  "_comment": "Pinned real-world CSS for size and equivalence checks. Fetched from npm by scripts/fetch-corpus.mjs into target/review/real-corpus (not committed). Bump versions deliberately; sizes are compared base vs new build, so absolute changes don't matter.",
+  "corpus": [
+    {
+      "name": "react-spectrum-s2",
+      "package": "@react-spectrum/s2",
+      "version": "1.8.2",
+      "files": [
+        "dist/private/*.css"
+      ],
+      "why": "atomic CSS from style macros: one @layer block per atom group, dotted sublayers, a layer statement per file"
+    },
+    {
+      "name": "radix-themes",
+      "package": "@radix-ui/themes",
+      "version": "3.3.0",
+      "files": [
+        "styles.css"
+      ],
+      "why": "large component library with custom properties and color tokens"
+    },
+    {
+      "name": "bootstrap",
+      "package": "bootstrap",
+      "version": "5.3.9",
+      "files": [
+        "dist/css/bootstrap.css"
+      ],
+      "why": "classic component framework"
+    },
+    {
+      "name": "bulma",
+      "package": "bulma",
+      "version": "1.0.4",
+      "files": [
+        "css/bulma.css"
+      ],
+      "why": "framework with heavy custom property use"
+    },
+    {
+      "name": "primer",
+      "package": "@primer/css",
+      "version": "22.3.3",
+      "files": [
+        "dist/primer.css"
+      ],
+      "why": "GitHub's design system"
+    },
+    {
+      "name": "pico",
+      "package": "@picocss/pico",
+      "version": "2.1.1",
+      "files": [
+        "css/pico.css"
+      ],
+      "why": "classless framework, :where() and color-scheme"
+    },
+    {
+      "name": "animate",
+      "package": "animate.css",
+      "version": "4.1.1",
+      "files": [
+        "animate.css"
+      ],
+      "why": "many @keyframes"
+    },
+    {
+      "name": "open-props",
+      "package": "open-props",
+      "version": "1.7.23",
+      "files": [
+        "open-props.min.css"
+      ],
+      "why": "thousands of custom properties"
+    },
+    {
+      "name": "fontawesome",
+      "package": "@fortawesome/fontawesome-free",
+      "version": "7.3.1",
+      "files": [
+        "css/all.css"
+      ],
+      "why": "huge selector lists, @font-face, escapes"
+    },
+    {
+      "name": "normalize",
+      "package": "normalize.css",
+      "version": "8.0.1",
+      "files": [
+        "normalize.css"
+      ],
+      "why": "ubiquitous reset; uses `font-family: monospace, monospace` (#1221)"
+    }
+  ]
+}
