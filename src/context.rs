@@ -161,11 +161,20 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     }
 
     if let Some(entry) = self.supports.iter_mut().find(|supports| condition == supports.condition) {
-      if self.is_important {
-        entry.important_declarations.push(property);
+      let declarations = if self.is_important {
+        &mut entry.important_declarations
       } else {
-        entry.declarations.push(property);
+        &mut entry.declarations
+      };
+
+      // Apply the same prefix merging as the main declaration list to generated fallbacks.
+      if let Property::Unparsed(unparsed) = &property {
+        if unparsed.merge_prefixes_into_last(declarations) {
+          return;
+        }
       }
+
+      declarations.push(property);
     } else {
       let mut important_declarations = Vec::new();
       let mut declarations = Vec::new();

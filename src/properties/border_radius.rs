@@ -198,9 +198,9 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
           PropertyId::BorderEndStartRadius => logical_property!(end_start),
           _ => {
             self.flush(dest, context);
-            dest.push(Property::Unparsed(
-              val.get_prefixed(context.targets, Feature::BorderRadius),
-            ));
+            val
+              .get_prefixed(context.targets, Feature::BorderRadius)
+              .push_merging_prefixes(dest);
           }
         }
       }

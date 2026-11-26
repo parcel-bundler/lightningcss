@@ -18250,6 +18250,218 @@ mod tests {
   }
 
   #[test]
+  fn test_unparsed_text_decoration_prefixes() {
+    let targets = Browsers {
+      safari: Some((14 << 16) | (1 << 8)),
+      ..Browsers::default()
+    };
+    let expected = indoc! {"
+      .link {
+        -webkit-text-decoration: underline var(--accent);
+        text-decoration: underline var(--accent);
+      }
+    "};
+
+    for source in [
+      indoc! {"
+        .link {
+          text-decoration: underline var(--accent);
+        }
+      "},
+      indoc! {"
+        .link {
+          -webkit-text-decoration: underline var(--accent);
+          text-decoration: underline var(--accent);
+        }
+      "},
+      indoc! {"
+        .link {
+          -webkit-text-decoration: underline var(--accent);
+          -webkit-text-decoration: underline var(--accent);
+          text-decoration: underline var(--accent);
+        }
+      "},
+      indoc! {"
+        .link {
+          -webkit-text-decoration: underline var(--accent);
+          /* An ordinary comment does not prevent deduplication. */
+          text-decoration: underline var(--accent);
+        }
+      "},
+    ] {
+      prefix_test(source, expected, targets);
+    }
+
+    // A prefixed declaration after the unprefixed one is not merged, since
+    // `-webkit-text-decoration` has a different grammar and must stay the last declaration.
+    prefix_test(
+      indoc! {"
+        .link {
+          text-decoration: underline var(--accent);
+          -webkit-text-decoration: underline var(--accent);
+        }
+      "},
+      indoc! {"
+        .link {
+          -webkit-text-decoration: underline var(--accent);
+          text-decoration: underline var(--accent);
+          -webkit-text-decoration: underline var(--accent);
+        }
+      "},
+      targets,
+    );
+
+    let important = indoc! {"
+      .link {
+        -webkit-text-decoration: underline var(--accent) !important;
+        text-decoration: underline var(--accent) !important;
+      }
+    "};
+    prefix_test(important, important, targets);
+
+    let fallback = indoc! {"
+      .link {
+        -webkit-text-decoration: underline var(--accent, red);
+        text-decoration: underline var(--accent, red);
+      }
+    "};
+    prefix_test(fallback, fallback, targets);
+
+    // Explicit prefixes are retained even if the targets do not require them.
+    prefix_test(
+      expected,
+      expected,
+      Browsers {
+        chrome: Some(120 << 16),
+        ..Browsers::default()
+      },
+    );
+    test(expected, expected);
+  }
+
+  #[test]
+  fn test_unparsed_text_prefix_boundaries() {
+    let targets = Browsers {
+      safari: Some((14 << 16) | (1 << 8)),
+      ..Browsers::default()
+    };
+
+    for source in [
+      // Different values must retain their vendor-specific fallbacks.
+      indoc! {"
+        .link {
+          -webkit-text-decoration: var(--old);
+          -webkit-text-decoration: var(--new);
+          text-decoration: var(--new);
+        }
+      "},
+      // Normal and important declarations must not be merged.
+      indoc! {"
+        .link {
+          -webkit-text-decoration: var(--decoration);
+          -webkit-text-decoration: var(--decoration) !important;
+          text-decoration: var(--decoration) !important;
+        }
+      "},
+      // An intervening parsed longhand prevents moving the later shorthand.
+      indoc! {"
+        .link {
+          -webkit-text-decoration: var(--decoration);
+          text-decoration: var(--decoration);
+          text-decoration-color: red;
+          -webkit-text-decoration: var(--decoration);
+          text-decoration: var(--decoration);
+        }
+      "},
+      // An unparsed longhand is also a barrier, even with identical tokens.
+      indoc! {"
+        .link {
+          -webkit-text-decoration: var(--value);
+          text-decoration: var(--value);
+          -webkit-text-decoration-color: var(--value);
+          text-decoration-color: var(--value);
+          -webkit-text-decoration: var(--value);
+          text-decoration: var(--value);
+        }
+      "},
+      // Declarations are not merged across rule or conditional boundaries.
+      indoc! {"
+        .link {
+          -webkit-text-decoration: var(--decoration);
+          text-decoration: var(--decoration);
+        }
+
+        @media print {
+          .link {
+            -webkit-text-decoration: var(--decoration);
+            text-decoration: var(--decoration);
+          }
+        }
+      "},
+    ] {
+      prefix_test(source, source, targets);
+    }
+
+    // Prefix-only input must not acquire an unprefixed declaration.
+    let prefixed = indoc! {"
+      .link {
+        -webkit-text-decoration: var(--decoration);
+      }
+    "};
+    prefix_test(prefixed, prefixed, targets);
+  }
+
+  #[test]
+  fn test_unparsed_text_longhand_prefixes() {
+    let source = indoc! {"
+      .link {
+        -webkit-text-decoration-line: var(--value);
+        text-decoration-line: var(--value);
+        -webkit-text-decoration-style: var(--value);
+        text-decoration-style: var(--value);
+        -webkit-text-decoration-color: var(--value);
+        text-decoration-color: var(--value);
+        text-decoration-thickness: var(--value);
+      }
+    "};
+    prefix_test(
+      source,
+      source,
+      Browsers {
+        safari: Some(12 << 16),
+        ..Browsers::default()
+      },
+    );
+  }
+
+  #[test]
+  fn test_unparsed_text_emphasis_prefixes() {
+    let targets = Browsers {
+      chrome: Some(80 << 16),
+      ..Browsers::default()
+    };
+    let source = indoc! {"
+      .label {
+        -webkit-text-emphasis: filled var(--mark);
+        text-emphasis: filled var(--mark);
+      }
+    "};
+    prefix_test(source, source, targets);
+
+    let longhands = indoc! {"
+      .label {
+        -webkit-text-emphasis-style: var(--value);
+        text-emphasis-style: var(--value);
+        -webkit-text-emphasis-color: var(--value);
+        text-emphasis-color: var(--value);
+        -webkit-text-emphasis-position: var(--value);
+        text-emphasis-position: var(--value);
+      }
+    "};
+    prefix_test(longhands, longhands, targets);
+  }
+
+  #[test]
   fn test_text_emphasis() {
     minify_test(".foo { text-emphasis-style: none }", ".foo{text-emphasis-style:none}");
     minify_test(
@@ -29850,6 +30062,133 @@ mod tests {
       },
     );
 
+    // Authored `-webkit-mask` + `mask` pairs with identical values merge their prefixes
+    // rather than producing a duplicate `-webkit-mask`.
+    prefix_test(
+      r#"
+        .foo {
+          -webkit-mask: var(--a);
+          mask: var(--a);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask: var(--a);
+          mask: var(--a);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // A prefixed declaration after the unprefixed one is not merged: that would move the
+    // unprefixed declaration last, so it would win over the authored last declaration.
+    prefix_test(
+      r#"
+        .foo {
+          mask: var(--a);
+          -webkit-mask: var(--a);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask: var(--a);
+          mask: var(--a);
+          -webkit-mask: var(--a);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    minify_test(
+      ".foo { mask: var(--a); -webkit-mask: var(--a) }",
+      ".foo{mask:var(--a);-webkit-mask:var(--a)}",
+    );
+
+    // Exact duplicates are absorbed.
+    minify_test(
+      ".foo { -webkit-mask: var(--a); -webkit-mask: var(--a) }",
+      ".foo{-webkit-mask:var(--a)}",
+    );
+
+    // Fallbacks generated for authored pairs are also merged in the @supports rule.
+    prefix_test(
+      r#"
+        .foo {
+          -webkit-mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
+          mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask: linear-gradient(#ff0b0c, #766eff) 40px var(--foo);
+          mask: linear-gradient(#ff0b0c, #766eff) 40px var(--foo);
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            -webkit-mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
+            mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Merging only applies to adjacent declarations: an intervening declaration could be
+    // overridden by the later shorthand, so the duplicate must be preserved.
+    prefix_test(
+      r#"
+        .foo {
+          -webkit-mask: var(--a);
+          mask-image: var(--b);
+          mask: var(--a);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask: var(--a);
+          -webkit-mask-image: var(--b);
+          mask-image: var(--b);
+          -webkit-mask: var(--a);
+          mask: var(--a);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Different values do not merge.
+    prefix_test(
+      r#"
+        .foo {
+          -webkit-mask: var(--a);
+          mask: var(--b);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask: var(--a);
+          -webkit-mask: var(--b);
+          mask: var(--b);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
     prefix_test(
       ".foo { mask: url(masks.svg#star) luminance }",
       indoc! { r#"
@@ -30250,6 +30589,154 @@ mod tests {
     );
     let property = Property::parse_string("color-interpolation".into(), "sRGB", ParserOptions::default()).unwrap();
     assert_eq!(property, Property::ColorInterpolation(svg::ColorInterpolation::SRGB));
+  }
+
+  #[test]
+  fn test_unparsed_prefix_duplicates() {
+    // Handlers that add vendor prefixes to unparsed values (e.g. containing var()) merge them
+    // into an identical, adjacent authored prefixed declaration instead of producing a
+    // duplicate. See also the mask tests in test_svg and test_unparsed_text_decoration_prefixes.
+    for (prefixed, unprefixed, targets) in [
+      (
+        "-webkit-transform: var(--v)",
+        "transform: var(--v)",
+        Browsers {
+          safari: Some(8 << 16),
+          ..Browsers::default()
+        },
+      ),
+      (
+        "-webkit-transition: var(--v)",
+        "transition: var(--v)",
+        Browsers {
+          safari: Some(6 << 16),
+          ..Browsers::default()
+        },
+      ),
+      (
+        "-webkit-animation: var(--v)",
+        "animation: var(--v)",
+        Browsers {
+          safari: Some(8 << 16),
+          ..Browsers::default()
+        },
+      ),
+      (
+        "-webkit-border-radius: var(--v)",
+        "border-radius: var(--v)",
+        Browsers {
+          safari: Some(4 << 16),
+          ..Browsers::default()
+        },
+      ),
+      (
+        "-webkit-border-image: var(--v)",
+        "border-image: var(--v)",
+        Browsers {
+          safari: Some(5 << 16),
+          ..Browsers::default()
+        },
+      ),
+      (
+        "-webkit-mask-box-image: var(--v)",
+        "mask-border: var(--v)",
+        Browsers {
+          chrome: Some(90 << 16),
+          ..Browsers::default()
+        },
+      ),
+      (
+        "-webkit-text-emphasis: var(--v)",
+        "text-emphasis: var(--v)",
+        Browsers {
+          chrome: Some(80 << 16),
+          ..Browsers::default()
+        },
+      ),
+    ] {
+      // The unprefixed declaration alone gets the prefix added.
+      let pair = format!(".foo {{\n  {};\n  {};\n}}\n", prefixed, unprefixed);
+      prefix_test(&format!(".foo {{ {} }}", unprefixed), &pair, targets);
+
+      // An authored pair is unchanged, rather than gaining a duplicate prefixed declaration.
+      prefix_test(&pair, &pair, targets);
+
+      // A prefixed declaration after the unprefixed one is not merged: that would move the
+      // unprefixed declaration last, so it would win over the authored last declaration.
+      let reversed = format!(".foo {{\n  {0};\n  {1};\n  {0};\n}}\n", prefixed, unprefixed);
+      prefix_test(&format!(".foo {{ {}; {} }}", unprefixed, prefixed), &reversed, targets);
+      prefix_test(&reversed, &reversed, targets);
+    }
+  }
+
+  #[test]
+  fn test_mask_image_prefix_duplicates() {
+    let targets = Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    };
+
+    for (source, expected) in [
+      (
+        ".foo { -webkit-mask-image: var(--image); mask-image: var(--image) }",
+        indoc! { r#"
+          .foo {
+            -webkit-mask-image: var(--image);
+            mask-image: var(--image);
+          }
+        "#},
+      ),
+      (
+        ".foo { mask-image: var(--first); mask-image: var(--second) }",
+        indoc! { r#"
+          .foo {
+            -webkit-mask-image: var(--first);
+            mask-image: var(--first);
+            -webkit-mask-image: var(--second);
+            mask-image: var(--second);
+          }
+        "#},
+      ),
+      (
+        ".foo { mask-image: var(--image); mask-position: center; -webkit-mask-image: var(--image) }",
+        indoc! { r#"
+          .foo {
+            -webkit-mask-image: var(--image);
+            mask-image: var(--image);
+            -webkit-mask-position: center;
+            mask-position: center;
+            -webkit-mask-image: var(--image);
+          }
+        "#},
+      ),
+      (
+        ".foo { mask-image: var(--image) !important; -webkit-mask-image: var(--image) }",
+        indoc! { r#"
+          .foo {
+            -webkit-mask-image: var(--image);
+            -webkit-mask-image: var(--image) !important;
+            mask-image: var(--image) !important;
+          }
+        "#},
+      ),
+    ] {
+      prefix_test(source, expected, targets);
+      prefix_test(expected, expected, targets);
+    }
+
+    prefix_test(
+      ".foo { -webkit-mask-image: var(--image); mask-image: var(--image) }",
+      indoc! { r#"
+        .foo {
+          -webkit-mask-image: var(--image);
+          mask-image: var(--image);
+        }
+      "#},
+      Browsers {
+        chrome: Some(130 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]

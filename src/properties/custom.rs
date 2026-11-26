@@ -166,6 +166,48 @@ impl<'i> UnparsedProperty<'i> {
     clone
   }
 
+  /// Merges the vendor prefixes of duplicate declarations. If the last declaration in
+  /// `declarations` is the same property as `self` with an identical value, merges the prefixes
+  /// of the two declarations into that declaration and returns `true`, meaning `self` was
+  /// absorbed and must not be appended. Returns `false` if the caller should append `self`.
+  ///
+  /// Only properties that can have a vendor prefix are merged. The prefix sets may also be
+  /// identical, so exact duplicate declarations of those properties are absorbed. Only
+  /// the last declaration is considered: merging across an intervening declaration could change
+  /// the cascade (e.g. a longhand reset by a later shorthand), so callers must first flush any
+  /// buffered declarations that could affect cascade ordering.
+  ///
+  /// No merge happens when the last declaration includes the unprefixed property and `self`
+  /// does not. Merging would print the prefixed form before the unprefixed one, so the
+  /// unprefixed declaration would win instead of the authored last one. That matters where the
+  /// prefixed property has a different grammar (e.g. `-webkit-text-decoration`).
+  pub(crate) fn merge_prefixes_into_last(&self, declarations: &mut [super::Property<'i>]) -> bool {
+    use crate::vendor_prefix::VendorPrefix;
+    if let Some(super::Property::Unparsed(last)) = declarations.last_mut() {
+      let prefixes = self.property_id.prefix();
+      let last_prefixes = last.property_id.prefix();
+      if !last_prefixes.is_empty()
+        && !prefixes.is_empty()
+        && (prefixes.contains(VendorPrefix::None) || !last_prefixes.contains(VendorPrefix::None))
+        && last.property_id.with_prefix(VendorPrefix::empty())
+          == self.property_id.with_prefix(VendorPrefix::empty())
+        && last.value == self.value
+      {
+        last.property_id.add_prefix(prefixes);
+        return true;
+      }
+    }
+    false
+  }
+
+  /// Appends `self` to `declarations`, first merging its vendor prefixes into the last
+  /// declaration if possible (see [`merge_prefixes_into_last`](Self::merge_prefixes_into_last)).
+  pub(crate) fn push_merging_prefixes(self, declarations: &mut Vec<super::Property<'i>>) {
+    if !self.merge_prefixes_into_last(declarations) {
+      declarations.push(super::Property::Unparsed(self));
+    }
+  }
+
   /// Returns a new UnparsedProperty with the same value and the given property id.
   pub fn with_property_id(&self, property_id: PropertyId<'i>) -> UnparsedProperty<'i> {
     UnparsedProperty {

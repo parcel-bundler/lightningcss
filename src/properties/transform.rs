@@ -1777,12 +1777,13 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
         ) =>
       {
         self.flush(dest, context);
-        let prop = if matches!(val.property_id, PropertyId::Transform(_)) {
-          Property::Unparsed(val.get_prefixed(context.targets, Feature::Transform))
+        if matches!(val.property_id, PropertyId::Transform(_)) {
+          val
+            .get_prefixed(context.targets, Feature::Transform)
+            .push_merging_prefixes(dest);
         } else {
-          property.clone()
-        };
-        dest.push(prop)
+          dest.push(property.clone())
+        }
       }
       _ => return false,
     }
