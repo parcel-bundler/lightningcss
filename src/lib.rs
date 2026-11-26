@@ -9086,6 +9086,51 @@ mod tests {
   }
 
   #[test]
+  fn test_atan2_nested_parse_time() {
+    // atan2() tries its arguments as each type in turn, and each attempt used to parse
+    // nested atan2() calls again, so parsing time grew exponentially with the depth.
+    let nest = |inner: &str, wrap: &dyn Fn(&str) -> String| {
+      let mut value = inner.to_string();
+      for _ in 0..40 {
+        value = wrap(&value);
+      }
+      value
+    };
+    let first = |v: &str| format!("atan2({}, 1deg)", v);
+    let second = |v: &str| format!("atan2(1deg, {})", v);
+    let sin = |v: &str| format!("atan2(sin({}) * 1deg, 1deg)", v);
+    let calc = |v: &str| format!("atan2(calc({} * 2), 1deg)", v);
+
+    minify_test(
+      &format!(".foo {{ rotate: {} }}", nest("1deg", &first)),
+      ".foo{rotate:89.3588deg}",
+    );
+    minify_test(
+      &format!(".foo {{ rotate: {} }}", nest("1deg", &second)),
+      ".foo{rotate:3.71163deg}",
+    );
+    minify_test(
+      &format!(".foo {{ rotate: {} }}", nest("1", &sin)),
+      ".foo{rotate:8.93967deg}",
+    );
+
+    // With a var(), the value can't be simplified, so it is output unchanged.
+    for wrap in [&first as &dyn Fn(&str) -> String, &second, &sin, &calc] {
+      let value = nest("var(--x)", wrap);
+      minify_test(
+        &format!(".foo {{ rotate: {} }}", value),
+        &format!(".foo{{rotate:{}}}", value),
+      );
+    }
+
+    let value = nest("r", &|v: &str| format!("atan2(sin({}), g)", v));
+    minify_test(
+      &format!(".foo {{ color: rgb(from red calc(255 * sin({})) g b) }}", value),
+      &format!(".foo{{color:rgb(from red calc(255 * sin({})) g b)}}", value),
+    );
+  }
+
+  #[test]
   fn test_trig() {
     minify_test(".foo { width: calc(2px * pi); }", ".foo{width:6.28319px}");
     minify_test(".foo { width: calc(2px / pi); }", ".foo{width:.63662px}");
@@ -9143,6 +9188,46 @@ mod tests {
     minify_test(".foo { rotate: atan2(-1, 1)", ".foo{rotate:-45deg}");
     // incompatible units
     minify_test(".foo { rotate: atan2(1px, -1vw)", ".foo{rotate:atan2(1px, -1vw)}");
+    minify_test(
+      ".foo { rotate: atan2(calc(1px + 1em - 1em), 2px)",
+      ".foo{rotate:26.5651deg}",
+    );
+    // nested
+    minify_test(".foo { rotate: atan2(atan2(1px, 1px), 1deg)", ".foo{rotate:88.727deg}");
+    minify_test(".foo { rotate: atan2(1deg, atan2(1px, 1px))", ".foo{rotate:1.27303deg}");
+    minify_test(
+      ".foo { rotate: atan2(calc(atan2(1, 1) * 2), 1deg)",
+      ".foo{rotate:89.3634deg}",
+    );
+    minify_test(".foo { rotate: atan2(sin(atan2(1, 1)), 1)", ".foo{rotate:35.2644deg}");
+    minify_test(
+      ".foo { rotate: atan2(1px, atan2(1px, 1px))",
+      ".foo{rotate:atan2(1px, atan2(1px, 1px))}",
+    );
+    minify_test(
+      ".foo { rotate: atan2(atan2(var(--x), 1px), 1deg)",
+      ".foo{rotate:atan2(atan2(var(--x), 1px), 1deg)}",
+    );
+    minify_test(
+      ".foo { rotate: atan2(1deg, atan2(1px, var(--x)))",
+      ".foo{rotate:atan2(1deg, atan2(1px, var(--x)))}",
+    );
+    // relative color channels are only allowed as numbers
+    minify_test(".foo { color: hsl(from red atan2(s, l) s l)", ".foo{color:#f0ff00}");
+    // ... but can be multiplied by a dimension
+    minify_test(
+      ".foo { color: hsl(from red atan2(s * 1px, 1px) s l)",
+      ".foo{color:#82ff00}",
+    );
+    // a number can't be added to a length, even if the length cancels out
+    minify_test(
+      ".foo { rotate: atan2(1 + 1px - 1px, 1)",
+      ".foo{rotate:atan2(1 + 1px - 1px, 1)}",
+    );
+    minify_test(
+      ".foo { rotate: atan2(1px + 1deg, 1px)",
+      ".foo{rotate:atan2(1px + 1deg, 1px)}",
+    );
 
     minify_test(".foo { transform: rotate(acos(1)) }", ".foo{transform:rotate(0)}");
     minify_test(".foo { transform: rotate(atan(0)) }", ".foo{transform:rotate(0)}");
@@ -27813,7 +27898,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
@@ -27842,7 +27927,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
