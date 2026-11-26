@@ -6,6 +6,8 @@
   "Optional: dedupe exact duplicates inside `and` (rare, 0 bytes on the corpus)."
  ],
  "blockingForAuthor": [],
- "state": "waiting-for-merge",
- "followupPr": null
+ "state": "ready-held",
+ "followupPr": null,
+ "branch": "claude/followup-1259-1316",
+ "note": "Branch pushed; PR held until one of #1434/#1435/#1436 merges (3-open cap)."
 }
