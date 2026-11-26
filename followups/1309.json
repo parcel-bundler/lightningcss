@@ -1,7 +1,12 @@
 {
  "pr": 1309,
  "title": "Follow-up for #1309: reject nested :has() and :has() after pseudo-elements",
- "items": [],
+ "items": [
+  "Reject nested :has() (DISALLOW_RELATIVE_SELECTOR, inherited through :is/:where/:not), as upstream stylo does.",
+  "Reject :has() after a pseudo-element (state intersects AFTER_PSEUDO).",
+  "Specific error messages instead of 'Invalid state' (NestedHas, PseudoElementInHas).",
+  "Don't serialize :nth-child(2 of ::before) as the invalid '2 of '."
+ ],
  "blockingForAuthor": [],
  "state": "open",
  "followupPr": 1436
