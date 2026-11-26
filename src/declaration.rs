@@ -30,7 +30,7 @@ use crate::properties::{
   text::TextDecorationHandler,
   transform::TransformHandler,
   transition::TransitionHandler,
-  ui::ColorSchemeHandler,
+  ui::{CaretHandler, ColorSchemeHandler},
 };
 use crate::properties::{Property, PropertyId};
 use crate::selector::SelectorList;
@@ -565,6 +565,7 @@ pub(crate) struct DeclarationHandler<'i> {
   mask: MaskHandler<'i>,
   container: ContainerHandler<'i>,
   color_scheme: ColorSchemeHandler,
+  caret: CaretHandler,
   fallback: FallbackHandler,
   prefix: PrefixHandler,
   direction: DeclarationList<'i>,
@@ -604,6 +605,7 @@ impl<'i> DeclarationHandler<'i> {
       || self.mask.handle_property(property, &mut self.decls, context)
       || self.container.handle_property(property, &mut self.decls, context)
       || self.color_scheme.handle_property(property, &mut self.decls, context)
+      || self.caret.handle_property(property, &mut self.decls, context)
       || self.fallback.handle_property(property, &mut self.decls, context)
       || self.prefix.handle_property(property, &mut self.decls, context)
       || self.handle_all(property)
@@ -739,6 +741,7 @@ impl<'i> DeclarationHandler<'i> {
     self.mask.finalize(&mut self.decls, context);
     self.container.finalize(&mut self.decls, context);
     self.color_scheme.finalize(&mut self.decls, context);
+    self.caret.finalize(&mut self.decls, context);
     self.fallback.finalize(&mut self.decls, context);
     self.prefix.finalize(&mut self.decls, context);
     self.custom_properties.clear();

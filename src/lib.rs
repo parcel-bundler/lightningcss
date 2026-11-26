@@ -19031,6 +19031,54 @@ mod tests {
       ".foo { caret: red; caret-animation: manual; caret: green }",
       ".foo{caret:red;caret-animation:manual;caret:green}",
     );
+    // No browser supports the `caret` shorthand yet, so longhands are not merged into it and it
+    // is not expanded into them, even with targets.
+    minify_test(
+      ".foo { caret-color: red; caret-animation: manual; caret-shape: block }",
+      ".foo{caret-color:red;caret-animation:manual;caret-shape:block}",
+    );
+    minify_test(
+      ".foo { caret: red manual; caret-shape: block }",
+      ".foo{caret:red manual;caret-shape:block}",
+    );
+    minify_test(
+      ".foo { caret-shape: block; caret: red manual }",
+      ".foo{caret-shape:block;caret:red manual}",
+    );
+    prefix_test(
+      ".foo { caret-color: red; caret-animation: manual; caret-shape: block }",
+      indoc! { r#"
+        .foo {
+          caret-color: red;
+          caret-animation: manual;
+          caret-shape: block;
+        }
+      "#},
+      Browsers {
+        chrome: Some(144 << 16),
+        ..Browsers::default()
+      },
+    );
+    minify_test(
+      ".foo { caret-shape: bar; caret-shape: block }",
+      ".foo{caret-shape:block}",
+    );
+    minify_test(
+      ".foo { caret-animation: manual; caret-animation: auto }",
+      ".foo{caret-animation:auto}",
+    );
+    minify_test(
+      ".foo { caret-color: red !important; caret-color: blue; caret-shape: bar !important; caret-shape: block }",
+      ".foo{caret-color:#00f;caret-shape:block;caret-color:red!important;caret-shape:bar!important}",
+    );
+    minify_test(
+      ".foo { caret-color: red; all: unset; caret-shape: bar }",
+      ".foo{all:unset;caret-shape:bar}",
+    );
+    minify_test(
+      ".foo { caret-shape: bar; caret-shape: var(--s); caret-color: red }",
+      ".foo{caret-shape:bar;caret-shape:var(--s);caret-color:red}",
+    );
     minify_test(".foo { user-select: none }", ".foo{user-select:none}");
     minify_test(".foo { -webkit-user-select: none }", ".foo{-webkit-user-select:none}");
     minify_test(".foo { accent-color: auto }", ".foo{accent-color:auto}");
@@ -19175,6 +19223,35 @@ mod tests {
         chrome: Some(85 << 16),
         firefox: Some(80 << 16),
         edge: Some(85 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // A `caret` shorthand is not a fallback for `caret-color`, but an earlier `caret-color` is.
+    prefix_test(
+      ".foo { caret: red; caret-color: lab(50% 20 30) }",
+      indoc! { r#"
+        .foo {
+          caret: red;
+          caret-color: #a16945;
+          caret-color: lab(50% 20 30);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { caret-color: red; caret-color: lab(50% 20 30) }",
+      indoc! { r#"
+        .foo {
+          caret-color: red;
+          caret-color: lab(50% 20 30);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
         ..Browsers::default()
       },
     );
@@ -27813,7 +27890,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
@@ -27842,7 +27919,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
