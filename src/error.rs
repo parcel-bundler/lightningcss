@@ -252,6 +252,12 @@ pub enum SelectorError<'i> {
   UnexpectedSelectorAfterPseudoElement(
     #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
   ),
+
+  /// A `:has()` selector was nested inside another `:has()`.
+  NestedHas,
+
+  /// A pseudo-element was found inside `:has()`.
+  PseudoElementInHas,
 }
 
 impl<'i> fmt::Display for SelectorError<'i> {
@@ -285,6 +291,8 @@ impl<'i> fmt::Display for SelectorError<'i> {
           "Pseudo-elements like '::before' or '::after' can't be followed by selectors like '{token:?}'"
         )
       },
+      NestedHas => write!(f, ":has() cannot be nested inside another :has()"),
+      PseudoElementInHas => write!(f, "Pseudo-elements are not allowed inside :has()"),
     }
   }
 }
@@ -328,6 +336,8 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
       SelectorParseErrorKind::UnexpectedSelectorAfterPseudoElement(t) => {
         SelectorError::UnexpectedSelectorAfterPseudoElement(t.into())
       }
+      SelectorParseErrorKind::NestedHas => SelectorError::NestedHas,
+      SelectorParseErrorKind::PseudoElementInHas => SelectorError::PseudoElementInHas,
     }
   }
 }

@@ -137,6 +137,9 @@ bitflags! {
         const AFTER_WEBKIT_SCROLLBAR = 1 << 8;
         const AFTER_VIEW_TRANSITION = 1 << 9;
         const AFTER_UNKNOWN_PSEUDO_ELEMENT = 1 << 10;
+
+        /// Whether we explicitly disallow relative selectors (i.e. `:has()`).
+        const DISALLOW_RELATIVE_SELECTOR = 1 << 11;
     }
 }
 
@@ -180,6 +183,17 @@ impl SelectorParsingState {
   fn allows_combinators(self) -> bool {
     !self.intersects(Self::DISALLOW_COMBINATORS)
   }
+
+  /// The error for a pseudo-element that is not allowed in this state.
+  fn disallowed_pseudo_error<'i>(self) -> SelectorParseErrorKind<'i> {
+    // DISALLOW_PSEUDOS is always set within :has(), so any pseudo-element
+    // there is invalid because of the :has().
+    if self.intersects(Self::DISALLOW_RELATIVE_SELECTOR) {
+      SelectorParseErrorKind::PseudoElementInHas
+    } else {
+      SelectorParseErrorKind::InvalidState
+    }
+  }
 }
 
 pub type SelectorParseError<'i> = ParseError<'i, SelectorParseErrorKind<'i>>;
@@ -208,6 +222,8 @@ pub enum SelectorParseErrorKind<'i> {
   ExplicitNamespaceUnexpectedToken(Token<'i>),
   ClassNeedsIdent(Token<'i>),
   UnexpectedSelectorAfterPseudoElement(Token<'i>),
+  NestedHas,
+  PseudoElementInHas,
 }
 
 macro_rules! with_all_bounds {
@@ -2838,7 +2854,22 @@ where
   P: Parser<'i, Impl = Impl>,
   Impl: SelectorImpl<'i>,
 {
-  let mut child_state = *state | SelectorParsingState::DISALLOW_PSEUDOS;
+  // https://drafts.csswg.org/selectors-4/#relational:
+  //
+  //     The :has() pseudo-class cannot be nested; :has() is not valid within
+  //     :has(). Also, unless explicitly defined as a :has-allowed
+  //     pseudo-element, pseudo-elements are not valid selectors within :has().
+  //
+  // :has() is also not valid after a pseudo-element (it is not a user action
+  // pseudo-class).
+  if state.intersects(SelectorParsingState::DISALLOW_RELATIVE_SELECTOR) {
+    return Err(input.new_custom_error(SelectorParseErrorKind::NestedHas));
+  }
+  if state.intersects(SelectorParsingState::AFTER_PSEUDO) {
+    return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+  }
+  let mut child_state =
+    *state | SelectorParsingState::DISALLOW_PSEUDOS | SelectorParsingState::DISALLOW_RELATIVE_SELECTOR;
   let inner = SelectorList::parse_relative_with_state(
     parser,
     input,
@@ -2927,13 +2958,32 @@ where
   // https://github.com/w3c/csswg-drafts/issues/8285
   let mut child_state =
     state | SelectorParsingState::SKIP_DEFAULT_NAMESPACE | SelectorParsingState::DISALLOW_PSEUDOS;
-  let selectors = SelectorList::parse_with_state(
+  let start = input.state();
+  let selectors = match SelectorList::parse_with_state(
     parser,
     input,
     &mut child_state,
-    ParseErrorRecovery::IgnoreInvalidSelector,
+    ParseErrorRecovery::DiscardList,
     NestingRequirement::None,
-  )?;
+  ) {
+    Ok(selectors) => selectors,
+    Err(err) => {
+      // Invalid selectors are dropped from the list, but an empty list is
+      // invalid: `:nth-child(2 of )` is not a valid selector.
+      input.reset(&start);
+      let selectors = SelectorList::parse_with_state(
+        parser,
+        input,
+        &mut child_state,
+        ParseErrorRecovery::IgnoreInvalidSelector,
+        NestingRequirement::None,
+      )?;
+      if selectors.0.is_empty() {
+        return Err(err);
+      }
+      selectors
+    }
+  };
   Ok(Component::NthOf(NthOfSelectorData::new(
     nth_data,
     selectors.0.into_vec().into_boxed_slice(),
@@ -3028,12 +3078,12 @@ where
       let is_pseudo_element = !is_single_colon || is_css2_pseudo_element(&name);
       if is_pseudo_element {
         if !state.allows_pseudos() {
-          return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+          return Err(input.new_custom_error(state.disallowed_pseudo_error()));
         }
         let pseudo_element = if is_functional {
           if P::parse_part(parser) && name.eq_ignore_ascii_case("part") {
             if !state.allows_part() {
-              return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+              return Err(input.new_custom_error(state.disallowed_pseudo_error()));
             }
             let names = input.parse_nested_block(|input| {
               let mut result = Vec::with_capacity(1);
@@ -3047,7 +3097,7 @@ where
           }
           if P::parse_slotted(parser) && name.eq_ignore_ascii_case("slotted") {
             if !state.allows_slotted() {
-              return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+              return Err(input.new_custom_error(state.disallowed_pseudo_error()));
             }
             let selector =
               input.parse_nested_block(|input| parse_inner_compound_selector(parser, input, state))?;
@@ -3937,6 +3987,20 @@ pub mod tests {
     assert!(parse("foo:has()").is_err());
     assert!(parse("foo:has(slot=\"selection\")").is_err());
     assert!(parse(":has(slot=\"selection\")").is_err());
+    assert!(parse("foo:has(bar:has(baz))").is_err());
+    assert!(parse("foo:has(:not(:has(baz)))").is_err());
+    // The test parser uses unforgiving :is(), so the nested :has() fails the whole list.
+    assert!(parse("foo:has(:is(:has(baz)))").is_err());
+    assert!(parse("foo::before:has(bar)").is_err());
+    assert!(parse("foo:has(bar) baz:has(qux)").is_ok());
+    assert!(parse("li:nth-child(2 of ::before)").is_err());
+    assert!(parse("li:nth-child(2 of )").is_err());
+    assert!(parse_ns_expected(
+      "li:nth-child(2 of .a, ::before)",
+      &DummyParser::default(),
+      Some("li:nth-child(2 of .a)")
+    )
+    .is_ok());
 
     assert!(parse("foo::details-content").is_ok());
     assert!(parse("foo::target-text").is_ok());

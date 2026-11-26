@@ -110,7 +110,7 @@ test('throws on an invalid pseudo-element inside :has()', () => {
   }
 
   assert.ok(error, 'expected transform to throw');
-  assert.equal(error.message, 'Invalid state');
+  assert.equal(error.message, 'Pseudo-elements are not allowed inside :has()');
 });
 
 test('throws on an empty or malformed :has()', () => {
@@ -141,7 +141,7 @@ test('drops the rule and warns for an invalid :has() when error recovery is enab
 
   assert.equal(res.code.toString(), 'a{color:green}');
   assert.equal(res.warnings.length, 1);
-  assert.equal(res.warnings[0].message, 'Invalid state');
+  assert.equal(res.warnings[0].message, 'Pseudo-elements are not allowed inside :has()');
 });
 
 test('error recovery preserves declarations before invalid nested rules', () => {

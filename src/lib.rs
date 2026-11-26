@@ -7344,6 +7344,24 @@ mod tests {
       ":nth-child(1 of li.important) {width: 20px}",
       ":nth-child(1 of li.important){width:20px}",
     );
+    // An `of` list where every selector is invalid is an error, rather than
+    // the invalid `:nth-child(2 of )`.
+    error_test(
+      "li:nth-child(2 of ::before) {width: 20px}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+    error_test(
+      "li:nth-child(2 of ) {width: 20px}",
+      ParserError::SelectorError(SelectorError::EmptySelector),
+    );
+    assert_eq!(
+      error_recovery_test("li:nth-child(2 of ::before) {width: 20px}").len(),
+      1
+    );
+    minify_test(
+      "li:nth-child(2 of .a, ::before) {width: 20px}",
+      "li:nth-child(2 of .a){width:20px}",
+    );
     minify_test(
       ":nth-last-child(even of li.important) {width: 20px}",
       ":nth-last-child(2n of li.important){width:20px}",
@@ -7482,10 +7500,22 @@ mod tests {
     minify_test("a:has(:visited) {color:red}", "a:has(:visited){color:red}");
     error_test(
       "a:has(::before) {color:red}",
-      ParserError::SelectorError(SelectorError::InvalidState),
+      ParserError::SelectorError(SelectorError::PseudoElementInHas),
     );
     error_test(
       "video:not(:has(::backdrop)) {color:red}",
+      ParserError::SelectorError(SelectorError::PseudoElementInHas),
+    );
+    error_test(
+      "a:has(.x::part(y)) {color:red}",
+      ParserError::SelectorError(SelectorError::PseudoElementInHas),
+    );
+    error_test(
+      "a:has(::slotted(y)) {color:red}",
+      ParserError::SelectorError(SelectorError::PseudoElementInHas),
+    );
+    error_test(
+      "a:not(::before) {color:red}",
       ParserError::SelectorError(SelectorError::InvalidState),
     );
     error_test("foo:has() {color:red}", ParserError::EndOfInput);
@@ -7493,6 +7523,34 @@ mod tests {
       "foo:has(slot=\"selection\") {color:red}",
       ParserError::UnexpectedToken(Token::Delim('=')),
     );
+    // :has() is not valid within :has(), even through :is()/:where()/:not().
+    for source in [
+      ".a:has(.x:has(i)) {color:red}",
+      ".a:has(> .x, .y:has(i)) {color:red}",
+      ".a:has(:not(:has(i))) {color:red}",
+    ] {
+      error_test(source, ParserError::SelectorError(SelectorError::NestedHas));
+      assert_eq!(error_recovery_test(source).len(), 1);
+    }
+    // :is() and :where() are forgiving, so only the nested :has() is dropped.
+    minify_test(".a:has(:is(:has(c))) {color:red}", ".a:has(:is()){color:red}");
+    minify_test(
+      ".a:has(:where(.b, :has(c))) {color:red}",
+      ".a:has(:where(.b)){color:red}",
+    );
+    minify_test(".a:is(:has(.b:has(c)), .d) {color:red}", ".a.d{color:red}");
+    minify_test(".a:has(.b) .c:has(.d) {color:red}", ".a:has(.b) .c:has(.d){color:red}");
+    minify_test(":is(.a:has(.b)) :has(.c) {color:red}", ".a:has(.b) :has(.c){color:red}");
+    // :has() is not valid after a pseudo-element.
+    for source in [
+      ".a::before:has(:hover) {color:red}",
+      ".a::before:has(.x) {color:red}",
+      "x-a::part(foo):has(div) {color:red}",
+      "::slotted(x):has(a) {color:red}",
+    ] {
+      error_test(source, ParserError::SelectorError(SelectorError::InvalidState));
+      assert_eq!(error_recovery_test(source).len(), 1);
+    }
     for element in [
       "-webkit-scrollbar",
       "-webkit-scrollbar-button",
@@ -27997,7 +28055,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
@@ -28026,7 +28084,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
