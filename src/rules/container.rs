@@ -199,7 +199,7 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
   #[inline]
   fn parse_feature<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let feature = QueryFeature::parse_with_options(input, options)?;
     Ok(Self::Feature(feature))
@@ -217,7 +217,7 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
 
   fn parse_style_query<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
       if let Ok(res) =
@@ -232,7 +232,7 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
 
   fn parse_scroll_state_query<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
       if let Ok(res) =
@@ -261,7 +261,7 @@ impl<'i> QueryCondition<'i> for ScrollStateQuery<'i> {
   #[inline]
   fn parse_feature<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let feature = QueryFeature::parse_with_options(input, options)?;
     Ok(Self::Feature(feature))
@@ -290,7 +290,7 @@ impl<'i> QueryCondition<'i> for StyleQuery<'i> {
   #[inline]
   fn parse_feature<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let property_id = PropertyId::parse(input)?;
     if input.try_parse(|input| input.expect_colon()).is_ok() {
@@ -325,7 +325,7 @@ impl<'i> QueryCondition<'i> for StyleQuery<'i> {
 impl<'i> ParseWithOptions<'i> for ContainerCondition<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input
       .try_parse(|input| {

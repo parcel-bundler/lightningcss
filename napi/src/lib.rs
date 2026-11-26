@@ -137,9 +137,9 @@ mod bundle {
 
     // This is pretty silly, but works around a rust limitation that you cannot
     // explicitly annotate lifetime bounds on closures.
-    fn annotate<'i, 'o, F>(f: F) -> F
+    fn annotate<'i, F>(f: F) -> F
     where
-      F: FnOnce(&mut StyleSheet<'i, 'o, AtRule<'i>>) -> napi::Result<()>,
+      F: FnOnce(&mut StyleSheet<'i, AtRule<'i>>) -> napi::Result<()>,
     {
       f
     }
@@ -234,7 +234,7 @@ mod bundle {
   }
 
   struct VisitMessage {
-    stylesheet: &'static mut StyleSheet<'static, 'static, AtRule<'static>>,
+    stylesheet: &'static mut StyleSheet<'static, AtRule<'static>>,
     tx: Sender<napi::Result<String>>,
   }
 
@@ -394,10 +394,9 @@ mod bundle {
                 // SAFETY: we immediately lock the thread until we get a response,
                 // so stylesheet cannot be dropped in that time.
                 stylesheet: unsafe {
-                  std::mem::transmute::<
-                    &'_ mut StyleSheet<'_, '_, AtRule>,
-                    &'static mut StyleSheet<'static, 'static, AtRule>,
-                  >(stylesheet)
+                  std::mem::transmute::<&'_ mut StyleSheet<'_, AtRule>, &'static mut StyleSheet<'static, AtRule>>(
+                    stylesheet,
+                  )
                 },
                 tx: channel.0.clone(),
               };
@@ -451,9 +450,9 @@ mod bundle {
 
     // This is pretty silly, but works around a rust limitation that you cannot
     // explicitly annotate lifetime bounds on closures.
-    fn annotate<'i, 'o, F>(f: F) -> F
+    fn annotate<'i, F>(f: F) -> F
     where
-      F: FnOnce(&mut StyleSheet<'i, 'o, AtRule<'i>>) -> napi::Result<()>,
+      F: FnOnce(&mut StyleSheet<'i, AtRule<'i>>) -> napi::Result<()>,
     {
       f
     }
@@ -667,6 +666,8 @@ impl<'a> Into<PseudoClasses<'a>> for &'a OwnedPseudoClasses {
 struct Drafts {
   #[serde(default)]
   custom_media: bool,
+  #[serde(default)]
+  scroll_navigation_controls: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -699,6 +700,10 @@ fn compile<'i>(
   let res = {
     let mut flags = ParserFlags::empty();
     flags.set(ParserFlags::CUSTOM_MEDIA, matches!(drafts, Some(d) if d.custom_media));
+    flags.set(
+      ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+      matches!(drafts, Some(d) if d.scroll_navigation_controls),
+    );
     flags.set(
       ParserFlags::DEEP_SELECTOR_COMBINATOR,
       matches!(non_standard, Some(v) if v.deep_selector_combinator),
@@ -809,12 +814,7 @@ fn compile<'i>(
 }
 
 #[cfg(feature = "bundler")]
-fn compile_bundle<
-  'i,
-  'o,
-  P: SourceProvider,
-  F: FnOnce(&mut StyleSheet<'i, 'o, AtRule<'i>>) -> napi::Result<()>,
->(
+fn compile_bundle<'i, 'o, P: SourceProvider, F: FnOnce(&mut StyleSheet<'i, AtRule<'i>>) -> napi::Result<()>>(
   fs: &'i P,
   config: &'o BundleConfig,
   visit: Option<F>,
@@ -834,6 +834,10 @@ fn compile_bundle<
     let non_standard = config.non_standard.as_ref();
     let mut flags = ParserFlags::empty();
     flags.set(ParserFlags::CUSTOM_MEDIA, matches!(drafts, Some(d) if d.custom_media));
+    flags.set(
+      ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+      matches!(drafts, Some(d) if d.scroll_navigation_controls),
+    );
     flags.set(
       ParserFlags::DEEP_SELECTOR_COMBINATOR,
       matches!(non_standard, Some(v) if v.deep_selector_combinator),

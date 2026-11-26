@@ -11,7 +11,7 @@ use crate::error::ParserError;
 use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
-use crate::rules::CssRuleList;
+use crate::rules::{CssRule, CssRuleList};
 use crate::selector::{
   downlevel_selectors, get_prefix, is_compatible, is_pure_css_modules_selector, is_unused, SelectorList,
 };
@@ -147,28 +147,27 @@ impl<'i, T> StyleRule<'i, T> {
   }
 
   /// Returns a hash of this rule for use when deduplicating.
-  /// Includes the selectors and properties.
+  /// Includes the selectors, properties, and importance.
   #[inline]
   pub(crate) fn hash_key(&self) -> u64 {
     let mut hasher = ahash::AHasher::default();
     self.selectors.hash(&mut hasher);
-    for (property, _) in self.declarations.iter() {
+    for (property, important) in self.declarations.iter() {
       property.property_id().hash(&mut hasher);
+      important.hash(&mut hasher);
     }
     hasher.finish()
   }
 
   /// Returns whether this rule is a duplicate of another rule.
-  /// This means it has the same selectors and properties.
+  /// This means it has the same selectors, properties, and importance.
   #[inline]
   pub(crate) fn is_duplicate(&self, other_rule: &StyleRule<'i, T>) -> bool {
     self.declarations.len() == other_rule.declarations.len()
       && self.selectors == other_rule.selectors
-      && self
-        .declarations
-        .iter()
-        .zip(other_rule.declarations.iter())
-        .all(|((a, _), (b, _))| a.property_id() == b.property_id())
+      && self.declarations.iter().zip(other_rule.declarations.iter()).all(
+        |((a, a_important), (b, b_important))| a_important == b_important && a.property_id() == b.property_id(),
+      )
   }
 
   pub(crate) fn update_prefix(&mut self, context: &mut MinifyContext<'_, 'i>) {
@@ -246,8 +245,11 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
   {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
     let supports_nesting = self.rules.0.is_empty() || !should_compile!(dest.targets.current, Nesting);
+    let must_preserve_rule = |rule: &CssRule<'i, T>| matches!(rule, CssRule::Unknown(_));
+    let has_preserved_rules = !supports_nesting && self.rules.0.iter().any(must_preserve_rule);
+    let has_hoisted_rules = !supports_nesting && self.rules.0.iter().any(|rule| !must_preserve_rule(rule));
     let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();
-    let has_declarations = supports_nesting || len > 0 || self.rules.0.is_empty();
+    let has_declarations = supports_nesting || len > 0 || self.rules.0.is_empty() || has_preserved_rules;
 
     if has_declarations {
       #[cfg(feature = "sourcemap")]
@@ -262,7 +264,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
 
       self.declarations.to_css_declarations(
         dest,
-        supports_nesting && !self.rules.0.is_empty(),
+        (supports_nesting && !self.rules.0.is_empty()) || has_preserved_rules,
         &self.selectors,
         self.loc.source_index,
       )?;
@@ -270,8 +272,8 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
 
     macro_rules! newline {
       () => {
-        if !dest.minify && (supports_nesting || len > 0) && !self.rules.0.is_empty() {
-          if len > 0 {
+        if !dest.minify && (supports_nesting || len > 0 || has_preserved_rules) && !self.rules.0.is_empty() {
+          if len > 0 || has_preserved_rules {
             dest.write_char('\n')?;
           }
           dest.newline()?;
@@ -289,15 +291,41 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
       };
     }
 
-    // Write nested rules after the parent.
+    // Write nested rules after the parent, except unknown at-rules, which must remain in the style block.
     if supports_nesting {
       newline!();
       self.rules.to_css(dest)?;
       end!();
     } else {
+      let mut first = true;
+      for rule in self.rules.0.iter().filter(|rule| must_preserve_rule(rule)) {
+        if !dest.minify || first {
+          dest.newline()?;
+        }
+        rule.to_css(dest)?;
+        first = false;
+      }
       end!();
-      newline!();
-      dest.with_context(&self.selectors, |dest| self.rules.to_css(dest))?;
+
+      if has_hoisted_rules {
+        newline!();
+        dest.with_context(&self.selectors, |dest| {
+          let mut first = true;
+          for rule in self.rules.0.iter().filter(|rule| !must_preserve_rule(rule)) {
+            if first {
+              first = false;
+            } else {
+              if !dest.minify {
+                dest.write_char('\n')?;
+              }
+              dest.newline()?;
+            }
+            rule.to_css(dest)?;
+          }
+
+          Ok::<(), PrinterError>(())
+        })?;
+      }
     }
 
     Ok(())

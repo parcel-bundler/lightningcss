@@ -78,7 +78,7 @@ impl<'i> AtRuleParser<'i> for TestAtRuleParser {
     &mut self,
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
-    _options: &ParserOptions<'_, 'i>,
+    _options: &ParserOptions<'i>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     let location = input.current_source_location();
     match_ignore_ascii_case! {&*name,
@@ -100,7 +100,7 @@ impl<'i> AtRuleParser<'i> for TestAtRuleParser {
     &mut self,
     prelude: Self::Prelude,
     _start: &ParserState,
-    _options: &ParserOptions<'_, 'i>,
+    _options: &ParserOptions<'i>,
     _is_nested: bool,
   ) -> Result<Self::AtRule, ()> {
     match prelude {
@@ -114,7 +114,7 @@ impl<'i> AtRuleParser<'i> for TestAtRuleParser {
     prelude: Self::Prelude,
     _start: &ParserState,
     input: &mut Parser<'i, 't>,
-    _options: &ParserOptions<'_, 'i>,
+    _options: &ParserOptions<'i>,
     _is_nested: bool,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
     match prelude {

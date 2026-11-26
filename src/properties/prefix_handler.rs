@@ -91,14 +91,38 @@ macro_rules! define_fallbacks {
 
     impl<'i> PropertyHandler<'i> for FallbackHandler {
       fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) -> bool {
+        // `caret` sets `caret-color`, `caret-animation` and `caret-shape`, so they must keep their
+        // source order. Seeing one forgets the slot of the other, so a later declaration of it is
+        // appended instead of written back ahead of the one in between.
         match property {
+          Property::Caret(..) => self.caret_color = None,
+          Property::CaretColor(..) | Property::CaretAnimation(..) | Property::CaretShape(..) => self.caret = None,
+          Property::Unparsed(val) => match val.property_id {
+            PropertyId::Caret => self.caret_color = None,
+            PropertyId::CaretColor | PropertyId::CaretAnimation | PropertyId::CaretShape => self.caret = None,
+            _ => {}
+          },
+          _ => {}
+        }
+
+        let (property, index) = match property {
           $(
             Property::$name(val $(, mut $p)?) => {
+              let index = pastey::paste! { &mut self.[<$name:snake>] };
               let mut val = val.clone();
               $(
                 $p = context.targets.prefixes($p, Feature::$name);
+                if let Some(i) = *index {
+                  if let Some(Property::$name(cur, prefixes)) = dest.get_mut(i) {
+                    if *cur == val {
+                      *prefixes |= $p;
+                      *prefixes = context.targets.prefixes(*prefixes, Feature::$name);
+                      return true;
+                    }
+                  }
+                }
               )?
-              if pastey::paste! { self.[<$name:snake>] }.is_none() {
+              if index.is_none() {
                 let fallbacks = val.get_fallbacks(context.targets);
                 #[allow(unused_variables)]
                 let has_fallbacks = !fallbacks.is_empty();
@@ -111,14 +135,11 @@ macro_rules! define_fallbacks {
                     $p = VendorPrefix::None;
                   }
                 )?
+              } else if matches!(context.targets.browsers, Some(targets) if !val.is_compatible(targets)) {
+                // Keep the previous declaration as a fallback.
+                *index = None;
               }
-
-              if pastey::paste! { self.[<$name:snake>] }.is_none() || matches!(context.targets.browsers, Some(targets) if !val.is_compatible(targets)) {
-                pastey::paste! { self.[<$name:snake>] = Some(dest.len()) };
-                dest.push(Property::$name(val $(, $p)?));
-              } else if let Some(index) = pastey::paste! { self.[<$name:snake>] } {
-                dest[index] = Property::$name(val $(, $p)?);
-              }
+              (Property::$name(val $(, $p)?), index)
             }
           )+
           Property::Unparsed(val) => {
@@ -145,18 +166,30 @@ macro_rules! define_fallbacks {
               _ => return false
             };
 
-            // Unparsed properties are always "valid", meaning they always override previous declarations.
             context.add_unparsed_fallbacks(&mut unparsed);
-            if let Some(index) = *index {
-              dest[index] = Property::Unparsed(unparsed);
-            } else {
-              *index = Some(dest.len());
-              dest.push(Property::Unparsed(unparsed));
-            }
+            (Property::Unparsed(unparsed), index)
           }
           _ => return false
+        };
+
+        if let Some(i) = *index {
+          let previous = &mut dest[i];
+          let remaining = previous.property_id().prefix() - property.property_id().prefix();
+          if remaining.is_empty() {
+            *previous = property;
+            return true;
+          }
+
+          // Keep the previous value for prefixes the new declaration does not override.
+          match previous {
+            $( $( Property::$name(_, $p) => *$p = remaining, )? )+
+            Property::Unparsed(val) => val.property_id = val.property_id.with_prefix(remaining),
+            _ => unreachable!(),
+          }
         }
 
+        *index = Some(dest.len());
+        dest.push(property);
         true
       }
 

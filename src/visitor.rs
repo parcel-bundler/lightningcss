@@ -154,7 +154,7 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule> {
 
   /// Visits a stylesheet.
   #[inline]
-  fn visit_stylesheet<'o>(&mut self, stylesheet: &mut StyleSheet<'i, 'o, T>) -> Result<(), Self::Error> {
+  fn visit_stylesheet<'o>(&mut self, stylesheet: &mut StyleSheet<'i, T>) -> Result<(), Self::Error> {
     stylesheet.visit_children(self)
   }
 

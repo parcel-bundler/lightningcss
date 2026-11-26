@@ -33,11 +33,11 @@ pub struct FontFeatureValuesRule<'i> {
 }
 
 impl<'i> FontFeatureValuesRule<'i> {
-  pub(crate) fn parse<'t, 'o>(
+  pub(crate) fn parse<'t>(
     family_names: Vec<FamilyName<'i>>,
     input: &mut Parser<'i, 't>,
     loc: Location,
-    options: &ParserOptions<'o, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut rules = IndexMap::new();
     let mut rule_parser = FontFeatureValuesRuleParser {
@@ -64,17 +64,17 @@ impl<'i> FontFeatureValuesRule<'i> {
   }
 }
 
-struct FontFeatureValuesRuleParser<'a, 'o, 'i> {
+struct FontFeatureValuesRuleParser<'a, 'i> {
   rules: &'a mut IndexMap<FontFeatureSubruleType, FontFeatureSubrule<'i>>,
-  options: &'a ParserOptions<'o, 'i>,
+  options: &'a ParserOptions<'i>,
 }
 
-impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for FontFeatureValuesRuleParser<'a, 'o, 'i> {
+impl<'a, 'i> cssparser::DeclarationParser<'i> for FontFeatureValuesRuleParser<'a, 'i> {
   type Declaration = ();
   type Error = ParserError<'i>;
 }
 
-impl<'a, 'o, 'i> cssparser::AtRuleParser<'i> for FontFeatureValuesRuleParser<'a, 'o, 'i> {
+impl<'a, 'i> cssparser::AtRuleParser<'i> for FontFeatureValuesRuleParser<'a, 'i> {
   type Prelude = FontFeatureSubruleType;
   type AtRule = ();
   type Error = ParserError<'i>;
@@ -135,13 +135,13 @@ impl<'a, 'o, 'i> cssparser::AtRuleParser<'i> for FontFeatureValuesRuleParser<'a,
   }
 }
 
-impl<'a, 'o, 'i> QualifiedRuleParser<'i> for FontFeatureValuesRuleParser<'a, 'o, 'i> {
+impl<'a, 'i> QualifiedRuleParser<'i> for FontFeatureValuesRuleParser<'a, 'i> {
   type Prelude = ();
   type QualifiedRule = ();
   type Error = ParserError<'i>;
 }
 
-impl<'a, 'o, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for FontFeatureValuesRuleParser<'a, 'o, 'i> {
+impl<'a, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for FontFeatureValuesRuleParser<'a, 'i> {
   fn parse_declarations(&self) -> bool {
     false
   }
@@ -288,6 +288,7 @@ impl<'a, 'i> cssparser::DeclarationParser<'i> for FontFeatureDeclarationParser<'
     &mut self,
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
+    _declaration_start: &ParserState,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     let mut indices = SmallVec::new();
     loop {

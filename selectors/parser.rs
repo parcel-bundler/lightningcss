@@ -3932,6 +3932,8 @@ pub mod tests {
 
     assert!(parse("foo::details-content").is_ok());
     assert!(parse("foo::target-text").is_ok());
+    assert!(parse("foo::search-text").is_ok());
+    assert!(parse(":current::search-text").is_ok());
 
     assert!(parse("::highlight").is_err());
     assert!(parse("::highlight()").is_err());

@@ -14,7 +14,10 @@ pub(crate) fn format_source_location_context(source: &str, loc: &ErrorLocation) 
   }
 
   if line_idx >= lines.len() {
-    output.push_str(&format!("\n  (line is out of range; source has {} line(s))", lines.len()));
+    output.push_str(&format!(
+      "\n  (line is out of range; source has {} line(s))",
+      lines.len()
+    ));
     return output;
   }
 

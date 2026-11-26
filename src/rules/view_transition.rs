@@ -76,8 +76,9 @@ impl<'i> cssparser::DeclarationParser<'i> for ViewTransitionDeclarationParser {
   fn parse_value<'t>(
     &mut self,
     name: CowRcStr<'i>,
-    input: &mut cssparser::Parser<'i, 't>,
-  ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
+    input: &mut Parser<'i, 't>,
+    _declaration_start: &ParserState,
+  ) -> Result<Self::Declaration, ParseError<'i, Self::Error>> {
     let state = input.state();
     match_ignore_ascii_case! { &name,
       "navigation" => {

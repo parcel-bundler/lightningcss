@@ -63,7 +63,7 @@ pub struct PseudoClasses<'a> {
 ///
 /// `Printer` also includes helper functions that assist with writing output
 /// that respects options such as `minify`, and `css_modules`.
-pub struct Printer<'a, 'b, 'c, W> {
+pub struct Printer<'a, 'c, W> {
   pub(crate) sources: Option<&'c Vec<String>>,
   dest: &'a mut W,
   #[cfg(feature = "sourcemap")]
@@ -82,14 +82,14 @@ pub struct Printer<'a, 'b, 'c, W> {
   /// the vendor prefix of whatever is being printed.
   pub(crate) vendor_prefix: VendorPrefix,
   pub(crate) in_calc: bool,
-  pub(crate) css_module: Option<CssModule<'a, 'b, 'c>>,
+  pub(crate) css_module: Option<CssModule<'a, 'c>>,
   pub(crate) dependencies: Option<Vec<Dependency>>,
   pub(crate) remove_imports: bool,
   pub(crate) pseudo_classes: Option<PseudoClasses<'a>>,
-  context: Option<&'a StyleContext<'a, 'b>>,
+  context: Option<&'a StyleContext<'a, 'c>>,
 }
 
-impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
+impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
   /// Create a new Printer wrapping the given destination.
   pub fn new(dest: &'a mut W, options: PrinterOptions<'a>) -> Self {
     Printer {
@@ -141,7 +141,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
   /// NOTE: Is is assumed that the string does not contain any newline characters.
   /// If such a string is written, it will break source maps.
   pub fn write_str(&mut self, s: &str) -> Result<(), PrinterError> {
-    self.col += s.len() as u32;
+    self.col += utf16_len(s) as u32;
     self.dest.write_str(s)?;
     Ok(())
   }
@@ -160,7 +160,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
       }
     }
 
-    self.col += (s.len() - last_line_start) as u32;
+    self.col += utf16_len(&s[last_line_start..]) as u32;
     self.dest.write_str(s)?;
     Ok(())
   }
@@ -171,7 +171,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
       self.line += 1;
       self.col = 0;
     } else {
-      self.col += 1;
+      self.col += c.len_utf16() as u32;
     }
     self.dest.write_char(c)?;
     Ok(())
@@ -290,7 +290,10 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
   pub fn write_ident(&mut self, ident: &str, handle_css_module: bool) -> Result<(), PrinterError> {
     if handle_css_module {
       if let Some(css_module) = &mut self.css_module {
-        let dest = &mut self.dest;
+        let mut dest = IdentifierWriter {
+          dest: &mut self.dest,
+          col: &mut self.col,
+        };
         let mut first = true;
         css_module.config.pattern.write(
           &css_module.hashes[self.loc.source_index as usize],
@@ -302,12 +305,11 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
             ""
           },
           |s| {
-            self.col += s.len() as u32;
             if first {
               first = false;
-              serialize_identifier(s, dest)
+              serialize_identifier(s, &mut dest)
             } else {
-              serialize_name(s, dest)
+              serialize_name(s, &mut dest)
             }
           },
         )?;
@@ -326,7 +328,10 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
 
     match &mut self.css_module {
       Some(css_module) if css_module.config.dashed_idents => {
-        let dest = &mut self.dest;
+        let mut dest = IdentifierWriter {
+          dest: &mut self.dest,
+          col: &mut self.col,
+        };
         css_module.config.pattern.write(
           &css_module.hashes[self.loc.source_index as usize],
           &css_module.sources[self.loc.source_index as usize],
@@ -336,10 +341,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
           } else {
             ""
           },
-          |s| {
-            self.col += s.len() as u32;
-            serialize_name(s, dest)
-          },
+          |s| serialize_name(s, &mut dest),
         )?;
 
         if is_declaration {
@@ -366,7 +368,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     }
   }
 
-  pub(crate) fn with_context<T, U, F: FnOnce(&mut Printer<'a, 'b, 'c, W>) -> Result<T, U>>(
+  pub(crate) fn with_context<T, U, F: FnOnce(&mut Printer<'a, 'c, W>) -> Result<T, U>>(
     &mut self,
     selectors: &SelectorList,
     f: F,
@@ -385,7 +387,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     res
   }
 
-  pub(crate) fn with_cleared_context<T, U, F: FnOnce(&mut Printer<'a, 'b, 'c, W>) -> Result<T, U>>(
+  pub(crate) fn with_cleared_context<T, U, F: FnOnce(&mut Printer<'a, 'c, W>) -> Result<T, U>>(
     &mut self,
     f: F,
   ) -> Result<T, U> {
@@ -395,7 +397,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     res
   }
 
-  pub(crate) fn with_parent_context<T, U, F: FnOnce(&mut Printer<'a, 'b, 'c, W>) -> Result<T, U>>(
+  pub(crate) fn with_parent_context<T, U, F: FnOnce(&mut Printer<'a, 'c, W>) -> Result<T, U>>(
     &mut self,
     f: F,
   ) -> Result<T, U> {
@@ -408,14 +410,114 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     res
   }
 
-  pub(crate) fn context(&self) -> Option<&'a StyleContext<'a, 'b>> {
+  pub(crate) fn context(&self) -> Option<&'a StyleContext<'a, 'c>> {
     self.context.clone()
   }
 }
 
-impl<'a, 'b, 'c, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, 'b, 'c, W> {
+impl<'a, 'c, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, 'c, W> {
   fn write_str(&mut self, s: &str) -> std::fmt::Result {
-    self.col += s.len() as u32;
+    self.col += utf16_len(s) as u32;
     self.dest.write_str(s)
+  }
+}
+
+// CSS module pattern segments must be counted after escaping, which can expand identifiers.
+struct IdentifierWriter<'a, W> {
+  dest: &'a mut W,
+  col: &'a mut u32,
+}
+
+impl<W: std::fmt::Write> std::fmt::Write for IdentifierWriter<'_, W> {
+  fn write_str(&mut self, s: &str) -> std::fmt::Result {
+    *self.col += utf16_len(s) as u32;
+    self.dest.write_str(s)
+  }
+}
+
+fn utf16_len(s: &str) -> usize {
+  // Each non-continuation byte starts one scalar. Four-byte scalars need a second UTF-16 code unit.
+  s.bytes().map(|b| usize::from(b & 0xc0 != 0x80) + usize::from(b >= 0xf0)).sum()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_utf16_len_counts_code_units() {
+    for (s, expected) in [("", 0), ("ascii", 5), ("é", 1), ("❯", 1), ("😀", 2), ("aé❯😀", 5)] {
+      assert_eq!(utf16_len(s), expected, "{s:?}");
+    }
+  }
+
+  #[test]
+  fn test_writes_advance_utf16_columns_and_reset_at_newlines() {
+    let mut output = String::new();
+    let mut printer = Printer::new(&mut output, PrinterOptions::default());
+    printer.write_str("é❯😀").unwrap();
+    assert_eq!((printer.line, printer.col), (0, 4));
+    printer.write_char('😀').unwrap();
+    assert_eq!((printer.line, printer.col), (0, 6));
+    std::fmt::Write::write_str(&mut printer, "é😀").unwrap();
+    assert_eq!((printer.line, printer.col), (0, 9));
+    printer.write_str_with_newlines("é😀").unwrap();
+    assert_eq!((printer.line, printer.col), (0, 12));
+    printer.write_str_with_newlines("é\n😀\né😀").unwrap();
+    assert_eq!((printer.line, printer.col), (2, 3));
+    printer.write_str_with_newlines("😀\n").unwrap();
+    assert_eq!((printer.line, printer.col), (3, 0));
+    printer.write_char('😀').unwrap();
+    printer.write_char('\n').unwrap();
+    assert_eq!((printer.line, printer.col), (4, 0));
+  }
+
+  #[test]
+  #[cfg(feature = "sourcemap")]
+  fn test_source_map_matches_columns_after_unicode_and_identifier_escapes() {
+    use crate::stylesheet::{MinifyOptions, ParserOptions, StyleSheet};
+
+    for (source, css_modules, expected) in [
+      (
+        ".a { content: 'é❯😀'; }\n.b { color: red; }",
+        false,
+        ".a{content:\"é❯😀\"}.b{color:red}",
+      ),
+      (
+        ".\\31 é😀 { --\\+❯😀: 1; }\n.b { color: red; }",
+        true,
+        ".\\31 é😀{--\\+❯😀:1}.b{color:red}",
+      ),
+    ] {
+      let mut stylesheet = StyleSheet::parse(
+        source,
+        ParserOptions {
+          css_modules: css_modules.then(|| crate::css_modules::Config {
+            pattern: crate::css_modules::Pattern::parse("[local]").unwrap(),
+            dashed_idents: true,
+            ..Default::default()
+          }),
+          ..Default::default()
+        },
+      )
+      .unwrap();
+      stylesheet.minify(MinifyOptions::default()).unwrap();
+      let mut map = SourceMap::new("/");
+      let output = stylesheet
+        .to_css(PrinterOptions {
+          minify: true,
+          source_map: Some(&mut map),
+          ..Default::default()
+        })
+        .unwrap()
+        .code;
+      assert_eq!(output, expected);
+
+      let column = expected[..expected.find(".b").unwrap()].encode_utf16().count() as u32;
+      let mapping = map.find_closest_mapping(0, column).unwrap();
+      assert_eq!((mapping.generated_line, mapping.generated_column), (0, column));
+      let original = mapping.original.unwrap();
+      assert_eq!((original.original_line, original.original_column), (1, 0));
+    }
   }
 }

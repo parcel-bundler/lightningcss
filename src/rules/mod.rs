@@ -50,6 +50,7 @@ pub mod media;
 pub mod namespace;
 pub mod nesting;
 pub mod page;
+pub mod position_try;
 pub mod property;
 pub mod scope;
 pub mod starting_style;
@@ -92,6 +93,7 @@ use media::MediaRule;
 use namespace::NamespaceRule;
 use nesting::{NestedDeclarationsRule, NestingRule};
 use page::PageRule;
+use position_try::PositionTryRule;
 use scope::ScopeRule;
 use smallvec::{smallvec, SmallVec};
 use starting_style::StartingStyleRule;
@@ -184,6 +186,8 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   StartingStyle(StartingStyleRule<'i, R>),
   /// A `@view-transition` rule.
   ViewTransition(ViewTransitionRule<'i>),
+  /// A `@position-try` rule.
+  PositionTry(PositionTryRule<'i>),
   /// A placeholder for a rule that was removed.
   Ignored,
   /// An unknown at-rule.
@@ -245,7 +249,8 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
     }
 
     let partial = deserializer.deserialize_map(CssRuleVisitor)?;
-    let deserializer = serde_content::Deserializer::new(partial.content).coerce_numbers();
+    let deserializer =
+      serde_content::Deserializer::new(crate::serialization::null_to_none(partial.content)).coerce_numbers();
 
     match partial.rule_type.as_ref() {
       "media" => {
@@ -353,6 +358,11 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
           ViewTransitionRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(CssRule::ViewTransition(rule))
       }
+      "position-try" => {
+        let rule =
+          PositionTryRule::deserialize(deserializer).map_err(|e| serde::de::Error::custom(e.to_string()))?;
+        Ok(CssRule::PositionTry(rule))
+      }
       "ignored" => Ok(CssRule::Ignored),
       "unknown" => {
         let rule =
@@ -397,6 +407,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
       CssRule::Container(container) => container.to_css(dest),
       CssRule::Scope(scope) => scope.to_css(dest),
       CssRule::ViewTransition(rule) => rule.to_css(dest),
+      CssRule::PositionTry(rule) => rule.to_css(dest),
       CssRule::Unknown(unknown) => unknown.to_css(dest),
       CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError {
         kind: PrinterErrorKind::FmtError,
@@ -411,7 +422,7 @@ impl<'i> CssRule<'i, DefaultAtRule> {
   /// Parse a single rule.
   pub fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Self::parse_with(input, options, &mut DefaultAtRuleParser)
   }
@@ -419,7 +430,7 @@ impl<'i> CssRule<'i, DefaultAtRule> {
   /// Parse a single rule from a string.
   pub fn parse_string(
     input: &'i str,
-    options: ParserOptions<'_, 'i>,
+    options: ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Self::parse_string_with(input, options, &mut DefaultAtRuleParser)
   }
@@ -429,7 +440,7 @@ impl<'i, T> CssRule<'i, T> {
   /// Parse a single rule.
   pub fn parse_with<'t, P: AtRuleParser<'i, AtRule = T>>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     at_rule_parser: &mut P,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut rules = CssRuleList(Vec::new());
@@ -440,7 +451,7 @@ impl<'i, T> CssRule<'i, T> {
   /// Parse a single rule from a string.
   pub fn parse_string_with<P: AtRuleParser<'i, AtRule = T>>(
     input: &'i str,
-    options: ParserOptions<'_, 'i>,
+    options: ParserOptions<'i>,
     at_rule_parser: &mut P,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
@@ -462,7 +473,7 @@ impl<'i> CssRuleList<'i, DefaultAtRule> {
   /// Parse a rule list.
   pub fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Self::parse_with(input, options, &mut DefaultAtRuleParser)
   }
@@ -471,7 +482,7 @@ impl<'i> CssRuleList<'i, DefaultAtRule> {
   /// Resulting declarations are returned in a nested style rule.
   pub fn parse_style_block<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     is_nested: bool,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Self::parse_style_block_with(input, options, &mut DefaultAtRuleParser, is_nested)
@@ -482,7 +493,7 @@ impl<'i, T> CssRuleList<'i, T> {
   /// Parse a rule list with a custom at rule parser.
   pub fn parse_with<'t, P: AtRuleParser<'i, AtRule = T>>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     at_rule_parser: &mut P,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     parse_rule_list(input, options, at_rule_parser)
@@ -492,7 +503,7 @@ impl<'i, T> CssRuleList<'i, T> {
   /// Resulting declarations are returned in a nested style rule.
   pub fn parse_style_block_with<'t, P: AtRuleParser<'i, AtRule = T>>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     at_rule_parser: &mut P,
     is_nested: bool,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
@@ -531,11 +542,68 @@ pub(crate) struct MinifyContext<'a, 'i> {
 }
 
 impl<'i, T: Clone> CssRuleList<'i, T> {
+  fn coalesce_adjacent_conditional_rules(&mut self) {
+    // Merge adjacent conditional rules before minifying their contents. Otherwise,
+    // long runs of identical @media/@supports/@container rules repeatedly re-minify
+    // the accumulated rule list as each block is appended.
+    if self.0.len() < 2
+      || !self.0.windows(2).any(|rules| match (&rules[0], &rules[1]) {
+        (CssRule::Media(a), CssRule::Media(b)) => a.query == b.query,
+        (CssRule::Supports(a), CssRule::Supports(b)) => a.condition == b.condition,
+        (CssRule::Container(a), CssRule::Container(b)) => a.name == b.name && a.condition == b.condition,
+        _ => false,
+      })
+    {
+      return;
+    }
+
+    let mut rules = Vec::with_capacity(self.0.len());
+    for rule in std::mem::take(&mut self.0) {
+      match rule {
+        CssRule::Media(mut media) => {
+          if let Some(CssRule::Media(last_rule)) = rules.last_mut() {
+            if last_rule.query == media.query {
+              last_rule.rules.0.append(&mut media.rules.0);
+              continue;
+            }
+          }
+
+          rules.push(CssRule::Media(media));
+        }
+        CssRule::Supports(mut supports) => {
+          if let Some(CssRule::Supports(last_rule)) = rules.last_mut() {
+            if last_rule.condition == supports.condition {
+              last_rule.rules.0.append(&mut supports.rules.0);
+              continue;
+            }
+          }
+
+          rules.push(CssRule::Supports(supports));
+        }
+        CssRule::Container(mut container) => {
+          if let Some(CssRule::Container(last_rule)) = rules.last_mut() {
+            if last_rule.name == container.name && last_rule.condition == container.condition {
+              last_rule.rules.0.append(&mut container.rules.0);
+              continue;
+            }
+          }
+
+          rules.push(CssRule::Container(container));
+        }
+        rule => rules.push(rule),
+      }
+    }
+
+    self.0 = rules;
+  }
+
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
     parent_is_unused: bool,
   ) -> Result<(), MinifyError> {
+    self.coalesce_adjacent_conditional_rules();
+
     let mut keyframe_rules = HashMap::new();
     let mut layer_rules = HashMap::new();
     let mut has_layers = false;
@@ -873,6 +941,11 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             continue;
           } else {
             font_feature_values_rules.push(rules.len());
+          }
+        }
+        CssRule::PositionTry(rule) => {
+          if context.unused_symbols.contains(rule.name.0.as_ref()) {
+            continue;
           }
         }
         CssRule::Property(property) => {
