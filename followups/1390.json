@@ -8,6 +8,6 @@
  ],
  "blockingForAuthor": [],
  "state": "open",
- "followupPr": 1430,
+ "followupPr": 1434,
  "note": "cleanups merged in #1430; atan2 linear-time prototype on claude/proto-atan2-single-parse awaiting maintainer review"
 }
