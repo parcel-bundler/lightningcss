@@ -1,5 +1,6 @@
 //! The `@supports` rule.
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 use super::Location;
@@ -230,7 +231,13 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
         if conditions.is_empty() {
           conditions.push(in_parens.clone());
           if let SupportsCondition::Declaration { property_id, value } = &in_parens {
-            seen_declarations.insert((property_id.with_prefix(VendorPrefix::None), value.clone()), 0);
+            // Matched without the prefix inside `or` (merged below), exactly inside `and`.
+            let property_id = if expected_type == Some(2) {
+              property_id.with_prefix(VendorPrefix::None)
+            } else {
+              property_id.clone()
+            };
+            seen_declarations.insert((property_id, value.clone()), 0);
           }
         }
 
@@ -255,6 +262,14 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
               }
             } else {
               seen_declarations.insert(key, conditions.len());
+              conditions.push(SupportsCondition::Declaration { property_id, value });
+            }
+          }
+          // `(a) and (a)` is `(a)`: drop exact duplicates.
+          SupportsCondition::Declaration { property_id, value } => {
+            let len = conditions.len();
+            if let Entry::Vacant(entry) = seen_declarations.entry((property_id.clone(), value.clone())) {
+              entry.insert(len);
               conditions.push(SupportsCondition::Declaration { property_id, value });
             }
           }

@@ -16345,6 +16345,15 @@ mod tests {
       "@supports (not selector(::-webkit-scrollbar)) or (-moz-appearance: none) { .a { color: red } }",
       "@supports (not selector(::-webkit-scrollbar)) or (-moz-appearance:none){.a{color:red}}",
     );
+    // Exact duplicates inside `and` are dropped.
+    minify_test(
+      "@supports (-webkit-mask-image: none) and (-webkit-mask-image: none) { .a { color: red } }",
+      "@supports (-webkit-mask-image:none){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (display: grid) and (-webkit-mask-image: none) and (display: grid) and (mask-image: none) { .a { color: red } }",
+      "@supports (display:grid) and (-webkit-mask-image:none) and (mask-image:none){.a{color:red}}",
+    );
     // A single prefix needs no inner parentheses; several print as a parenthesized `or`.
     minify_test(
       "@supports (-moz-appearance: none) { .a { color: red } }",
