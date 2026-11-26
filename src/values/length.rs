@@ -489,8 +489,9 @@ impl ToCss for LengthValue {
     let (value, unit) = self.to_unit_value();
 
     // The unit can be omitted if the value is zero, except inside calc()
-    // expressions, where unitless numbers won't be parsed as dimensions.
-    if !dest.in_calc && value == 0.0 {
+    // expressions, where unitless numbers won't be parsed as dimensions, and in
+    // values that also accept a <number>, where a unitless zero would be parsed as one.
+    if !dest.preserve_zero_units && value == 0.0 {
       return dest.write_char('0');
     }
 
@@ -854,7 +855,7 @@ impl TrySign for Length {
 impl_try_from_angle!(Length);
 
 /// Either a [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) or a [`<number>`](https://www.w3.org/TR/css-values-4/#numbers).
-#[derive(Debug, Clone, PartialEq, ToCss)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -885,6 +886,20 @@ impl<'i> ParseNumeric<'i> for LengthOrNumber {
       return Ok(Self::Number(value));
     }
     Ok(Self::Length(Length::parse_with_range(input, range)?))
+  }
+}
+
+impl ToCss for LengthOrNumber {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      LengthOrNumber::Number(number) => number.to_css(dest),
+      // A unitless zero would be parsed as a <number>, which has a different meaning
+      // and cannot be interpolated with a <length>, so the unit must be preserved.
+      LengthOrNumber::Length(length) => dest.with_zero_units(|dest| length.to_css(dest)),
+    }
   }
 }
 

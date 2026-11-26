@@ -81,7 +81,11 @@ pub struct Printer<'a, 'c, W> {
   /// Vendor prefix override. When non-empty, it overrides
   /// the vendor prefix of whatever is being printed.
   pub(crate) vendor_prefix: VendorPrefix,
-  pub(crate) in_calc: bool,
+  /// Whether zero lengths should keep their unit when serialized (other dimensions, such as
+  /// angles and times, always keep it). This is required inside math functions, and in values
+  /// whose grammar also accepts a `<number>`, where a unitless `0` would be parsed as a number
+  /// rather than a length.
+  pub(crate) preserve_zero_units: bool,
   pub(crate) css_module: Option<CssModule<'a, 'c>>,
   pub(crate) dependencies: Option<Vec<Dependency>>,
   pub(crate) remove_imports: bool,
@@ -110,7 +114,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
       minify: options.minify,
       targets: TargetsWithSupportsScope::new(options.targets),
       vendor_prefix: VendorPrefix::empty(),
-      in_calc: false,
+      preserve_zero_units: false,
       css_module: None,
       dependencies: if options.analyze_dependencies.is_some() {
         Some(Vec::new())
@@ -121,6 +125,20 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
       pseudo_classes: options.pseudo_classes,
       context: None,
     }
+  }
+
+  /// Calls `f` with unit-preserving serialization of zero lengths enabled, so that e.g.
+  /// `0px` is not shortened to `0`. This applies to every length written by `f`, including
+  /// nested ones. The previous state is restored afterwards.
+  pub(crate) fn with_zero_units<F>(&mut self, f: F) -> Result<(), PrinterError>
+  where
+    F: FnOnce(&mut Self) -> Result<(), PrinterError>,
+  {
+    let was_preserving = self.preserve_zero_units;
+    self.preserve_zero_units = true;
+    let res = f(self);
+    self.preserve_zero_units = was_preserving;
+    res
   }
 
   /// Returns the current source filename that is being printed.

@@ -166,6 +166,17 @@ pub enum ParsedComponent<'i> {
 }
 
 impl<'i> SyntaxString {
+  /// Returns whether a unitless zero could be parsed as a `<number>` or `<integer>`
+  /// according to this syntax, in which case zero lengths must keep their unit.
+  pub(crate) fn accepts_unitless_zero_as_number(&self) -> bool {
+    match self {
+      SyntaxString::Components(components) => components
+        .iter()
+        .any(|c| matches!(c.kind, SyntaxComponentKind::Number | SyntaxComponentKind::Integer)),
+      SyntaxString::Universal => false,
+    }
+  }
+
   /// Parses a syntax string.
   pub fn parse_string(input: &'i str) -> Result<SyntaxString, ()> {
     // https://drafts.css-houdini.org/css-properties-values-api/#parsing-syntax
@@ -468,11 +479,32 @@ impl<'i> ToCss for ParsedComponent<'i> {
   where
     W: std::fmt::Write,
   {
+    self.to_css_internal(dest, false)
+  }
+}
+
+impl<'i> ParsedComponent<'i> {
+  /// Serializes the value, keeping the unit of zero lengths so that they are not re-parsed as a
+  /// `<number>` or `<integer>`. Only lengths matched directly by the syntax are affected: nested
+  /// values, e.g. function arguments such as `translate(0px)`, are not ambiguous and still omit it.
+  pub(crate) fn to_css_with_zero_length_units<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    self.to_css_internal(dest, true)
+  }
+
+  fn to_css_internal<W>(&self, dest: &mut Printer<W>, zero_length_units: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use ParsedComponent::*;
     match self {
+      Length(v) if zero_length_units => dest.with_zero_units(|dest| v.to_css(dest)),
       Length(v) => v.to_css(dest),
       Number(v) => v.to_css(dest),
       Percentage(v) => v.to_css(dest),
+      LengthPercentage(v) if zero_length_units => dest.with_zero_units(|dest| v.to_css(dest)),
       LengthPercentage(v) => v.to_css(dest),
       String(v) => v.to_css(dest),
       Color(v) => v.to_css(dest),
@@ -499,7 +531,7 @@ impl<'i> ToCss for ParsedComponent<'i> {
             }
           }
 
-          component.to_css(dest)?;
+          component.to_css_internal(dest, zero_length_units)?;
         }
         Ok(())
       }

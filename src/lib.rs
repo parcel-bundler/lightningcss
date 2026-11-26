@@ -2424,6 +2424,34 @@ mod tests {
       ".foo{border-image:url(border.png) 1}.foo.active{border-image:none}",
     );
 
+    // border-image-outset and border-image-width accept both <length> and <number>.
+    // A unitless zero is parsed as a <number>, which cannot be interpolated with a
+    // <length>, so zero lengths must keep their unit.
+    minify_test(".foo { border-image-outset: 0 0px }", ".foo{border-image-outset:0 0px}");
+    minify_test(".foo { border-image-outset: 0px }", ".foo{border-image-outset:0px}");
+    minify_test(".foo { border-image-outset: 0 }", ".foo{border-image-outset:0}");
+    minify_test(".foo { border-image-width: 0px 1 }", ".foo{border-image-width:0px 1}");
+    minify_test(".foo { border-image-width: 0% }", ".foo{border-image-width:0%}");
+    minify_test(".foo { mask-border-outset: 0 0em }", ".foo{mask-border-outset:0 0em}");
+    minify_test(
+      ".foo { border-image: url(border.png) 10 / 0px / 0px }",
+      ".foo{border-image:url(border.png) 10/0px/0px}",
+    );
+    minify_test(
+      "@keyframes foo { from { border-image-outset: 0 200px } to { border-image-outset: 0 0px } }",
+      "@keyframes foo{0%{border-image-outset:0 200px}to{border-image-outset:0 0px}}",
+    );
+    // The unit must also be kept outside of @keyframes: a transition may be declared in
+    // another rule (or stylesheet), so it is never safe to assume the value isn't interpolated.
+    minify_test(
+      r#"
+      .foo { transition: all 1s }
+      .bar { border-image-outset: 0px; line-height: 0px; tab-size: 0px }
+      .bar:hover { border-image-outset: 20px; line-height: 20px; tab-size: 20px }
+    "#,
+      ".foo{transition:all 1s}.bar{tab-size:0px;border-image-outset:0px;line-height:0px}.bar:hover{tab-size:20px;border-image-outset:20px;line-height:20px}",
+    );
+
     property_range_test(
       &[
         "border-image-outset",
@@ -2432,7 +2460,7 @@ mod tests {
       ],
       &[
         ("-1px", None),
-        ("calc(1px - 2px)", Some("0")),
+        ("calc(1px - 2px)", Some("0px")),
         ("calc(-1px + 2px)", Some("1px")),
         ("-1", None),
         ("calc(1 - 2)", Some("0")),
@@ -2443,7 +2471,7 @@ mod tests {
       &["border-image-width", "mask-border-width"],
       &[
         ("-1px", None),
-        ("calc(1px - 2px)", Some("0")),
+        ("calc(1px - 2px)", Some("0px")),
         ("calc(-1px + 2px)", Some("1px")),
         ("-1%", None),
         ("calc(1em - 2px)", Some("calc(1em - 2px)")),
@@ -3861,7 +3889,11 @@ mod tests {
     non_negative_test::<LengthOrNumber>("2", Some("2"));
     non_negative_test::<LengthOrNumber>("2px", Some("2px"));
     non_negative_test::<LengthOrNumber>("calc(-2)", Some("0"));
-    non_negative_test::<LengthOrNumber>("calc(-2px)", Some("0"));
+    non_negative_test::<LengthOrNumber>("calc(-2px)", Some("0px"));
+    // A zero length must keep its unit, otherwise it would be re-parsed as a <number>.
+    non_negative_test::<LengthOrNumber>("0px", Some("0px"));
+    non_negative_test::<LengthOrNumber>("0em", Some("0em"));
+    non_negative_test::<LengthOrNumber>("0", Some("0"));
 
     // Backtracking a rejected range must leave the input available to another parser.
     let mut input = cssparser::ParserInput::new("-1px");
@@ -6781,13 +6813,18 @@ mod tests {
       &["font-size", "line-height"],
       &[
         ("-1px", None),
-        ("calc(1px - 2px)", Some("0")),
         ("calc(-1px + 2px)", Some("1px")),
         ("-1%", None),
         ("calc(1em - 2px)", Some("calc(1em - 2px)")),
         ("calc(-1%)", Some("calc(-1%)")),
       ],
     );
+    property_range_test(&["font-size"], &[("calc(1px - 2px)", Some("0"))]);
+    // line-height also accepts a <number>, so a zero length must keep its unit.
+    property_range_test(&["line-height"], &[("calc(1px - 2px)", Some("0px"))]);
+    minify_test(".foo { line-height: 0px }", ".foo{line-height:0px}");
+    minify_test(".foo { line-height: 0 }", ".foo{line-height:0}");
+    minify_test(".foo { font: 12px/0px Helvetica }", ".foo{font:12px/0px Helvetica}");
     test(
       r#"
       .foo {
@@ -17293,7 +17330,7 @@ mod tests {
       &["tab-size"],
       &[
         ("-1px", None),
-        ("calc(1px - 2px)", Some("0")),
+        ("calc(1px - 2px)", Some("0px")),
         ("calc(-1px + 2px)", Some("1px")),
         ("-1", None),
         ("calc(1 - 2)", Some("0")),
@@ -17302,6 +17339,8 @@ mod tests {
     );
     minify_test(".foo { tab-size: 8 }", ".foo{tab-size:8}");
     minify_test(".foo { tab-size: 4px }", ".foo{tab-size:4px}");
+    minify_test(".foo { tab-size: 0px }", ".foo{tab-size:0px}");
+    minify_test(".foo { tab-size: 0 }", ".foo{tab-size:0}");
     minify_test(".foo { -moz-tab-size: 4px }", ".foo{-moz-tab-size:4px}");
     minify_test(".foo { -o-tab-size: 4px }", ".foo{-o-tab-size:4px}");
     prefix_test(
@@ -31797,6 +31836,133 @@ mod tests {
       }
     "#,
       "@property --property-name{syntax:\"<length>\";inherits:true;initial-value:25px}",
+    );
+
+    // Without a <number> or <integer> in the syntax, a unitless zero is always a length,
+    // so the unit can be omitted.
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<length>';
+        inherits: false;
+        initial-value: 0px;
+      }
+    "#,
+      "@property --property-name{syntax:\"<length>\";inherits:false;initial-value:0}",
+    );
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<length-percentage>+';
+        inherits: false;
+        initial-value: 0px 0em;
+      }
+    "#,
+      "@property --property-name{syntax:\"<length-percentage>+\";inherits:false;initial-value:0 0}",
+    );
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<angle> | <length>';
+        inherits: false;
+        initial-value: 0px;
+      }
+    "#,
+      "@property --property-name{syntax:\"<angle>|<length>\";inherits:false;initial-value:0}",
+    );
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<integer> | <length>';
+        inherits: false;
+        initial-value: 0px;
+      }
+    "#,
+      "@property --property-name{syntax:\"<integer>|<length>\";inherits:false;initial-value:0px}",
+    );
+    // Repeated lengths are matched directly by the syntax, so they keep their unit too.
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<number># | <length>#';
+        inherits: false;
+        initial-value: 0px, 0px;
+      }
+    "#,
+      "@property --property-name{syntax:\"<number>#|<length>#\";inherits:false;initial-value:0px,0px}",
+    );
+    // Lengths nested in other values are not ambiguous, so they still omit the unit.
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<number> | <transform-list>';
+        inherits: false;
+        initial-value: translate(0px, 0px);
+      }
+    "#,
+      "@property --property-name{syntax:\"<number>|<transform-list>\";inherits:false;initial-value:translate(0)}",
+    );
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<number> | <image>';
+        inherits: false;
+        initial-value: linear-gradient(red 0px, blue 0px);
+      }
+    "#,
+      "@property --property-name{syntax:\"<number>|<image>\";inherits:false;initial-value:linear-gradient(red 0,#00f 0)}",
+    );
+    // A zero length must keep its unit, otherwise it could be re-parsed as a <number>.
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<length> | <number>';
+        inherits: false;
+        initial-value: 0px;
+      }
+    "#,
+      "@property --property-name{syntax:\"<length>|<number>\";inherits:false;initial-value:0px}",
+    );
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<length-percentage> | <number>';
+        inherits: false;
+        initial-value: 0em;
+      }
+    "#,
+      "@property --property-name{syntax:\"<length-percentage>|<number>\";inherits:false;initial-value:0em}",
+    );
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<length> | <number>';
+        inherits: false;
+        initial-value: 0;
+      }
+    "#,
+      // Components are matched in order, so a unitless zero is parsed as a <length> here.
+      "@property --property-name{syntax:\"<length>|<number>\";inherits:false;initial-value:0px}",
+    );
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<number> | <length>';
+        inherits: false;
+        initial-value: 0;
+      }
+    "#,
+      "@property --property-name{syntax:\"<number>|<length>\";inherits:false;initial-value:0}",
+    );
+    minify_test(
+      r#"
+      @property --property-name {
+        syntax: '<number> | <length>';
+        inherits: false;
+        initial-value: 0px;
+      }
+    "#,
+      "@property --property-name{syntax:\"<number>|<length>\";inherits:false;initial-value:0px}",
     );
 
     minify_test(
