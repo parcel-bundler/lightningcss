@@ -6,6 +6,6 @@
   "Merge longhands into the `caret` shorthand when the targets support it (no engine ships the shorthand yet, so this needs a compat feature and stays longhand-only for current browsers)."
  ],
  "blockingForAuthor": [],
- "state": "approved",
- "followupPr": null
+ "state": "open",
+ "followupPr": 1435
 }
