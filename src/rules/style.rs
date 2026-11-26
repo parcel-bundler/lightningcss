@@ -94,7 +94,10 @@ impl<'i, T: Clone> StyleRule<'i, T> {
       let mut handler_context = context.handler_context.child(DeclarationContext::StyleRule);
       std::mem::swap(&mut context.handler_context, &mut handler_context);
       self.rules.minify(context, unused)?;
-      context.handler_context = handler_context;
+      // Merge any logical/conditional rules from nested declarations back into the parent context.
+      // These will be collected by the caller when generating additional rules for this style rule.
+      let child_context = std::mem::replace(&mut context.handler_context, handler_context);
+      context.handler_context.merge(child_context);
       if unused && self.rules.0.is_empty() {
         return Ok(true);
       }
