@@ -75,6 +75,69 @@ impl<'i> CustomIdent<'i> {
 /// A list of CSS [`<custom-ident>`](https://www.w3.org/TR/css-values-4/#custom-idents) values.
 pub type CustomIdentList<'i> = SmallVec<[CustomIdent<'i>; 1]>;
 
+/// The `none` keyword, or a space-separated list of custom idents.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum NoneOrCustomIdentList<'i> {
+  /// None.
+  #[default]
+  None,
+  /// A list of idents.
+  #[cfg_attr(feature = "serde", serde(borrow, untagged))]
+  Idents(SmallVec<[CustomIdent<'i>; 1]>),
+}
+
+impl<'i> Parse<'i> for NoneOrCustomIdentList<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut types = SmallVec::new();
+    loop {
+      if let Ok(ident) = input.try_parse(CustomIdent::parse) {
+        if ident == "none" {
+          if types.is_empty() {
+            return Ok(NoneOrCustomIdentList::None);
+          } else {
+            return Err(input.new_custom_error(ParserError::InvalidValue));
+          }
+        }
+
+        types.push(ident);
+      } else {
+        return Ok(NoneOrCustomIdentList::Idents(types));
+      }
+    }
+  }
+}
+
+impl<'i> ToCss for NoneOrCustomIdentList<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      NoneOrCustomIdentList::None => dest.write_str("none"),
+      NoneOrCustomIdentList::Idents(types) => {
+        let mut first = true;
+        for ident in types {
+          if !first {
+            dest.write_char(' ')?;
+          } else {
+            first = false;
+          }
+          ident.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  }
+}
+
 /// A CSS [`<dashed-ident>`](https://www.w3.org/TR/css-values-4/#dashed-idents) declaration.
 ///
 /// Dashed idents are used in cases where an identifier can be either author defined _or_ CSS-defined.

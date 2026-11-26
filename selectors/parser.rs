@@ -880,12 +880,12 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
   /// Returns an iterator over the entire sequence of simple selectors and
   /// combinators, in matching order (from right to left).
   #[inline]
-  pub fn iter_raw_match_order(&self) -> slice::Iter<Component<'i, Impl>> {
+  pub fn iter_raw_match_order(&self) -> slice::Iter<'_, Component<'i, Impl>> {
     self.1.iter()
   }
 
   #[inline]
-  pub fn iter_mut_raw_match_order(&mut self) -> slice::IterMut<Component<'i, Impl>> {
+  pub fn iter_mut_raw_match_order(&mut self) -> slice::IterMut<'_, Component<'i, Impl>> {
     self.1.iter_mut()
   }
 
@@ -903,7 +903,7 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
   /// combinators, in parse order (from left to right), starting from
   /// `offset`.
   #[inline]
-  pub fn iter_raw_parse_order_from(&self, offset: usize) -> Rev<slice::Iter<Component<'i, Impl>>> {
+  pub fn iter_raw_parse_order_from(&self, offset: usize) -> Rev<slice::Iter<'_, Component<'i, Impl>>> {
     self.1[..self.len() - offset].iter().rev()
   }
 
@@ -1302,7 +1302,7 @@ impl NthSelectorData {
 
   /// Writes the beginning of the selector.
   #[inline]
-  fn write_start<W: fmt::Write>(&self, dest: &mut W, is_function: bool) -> fmt::Result {
+  pub fn write_start<W: fmt::Write>(&self, dest: &mut W, is_function: bool) -> fmt::Result {
     dest.write_str(match self.ty {
       NthType::Child if is_function => ":nth-child(",
       NthType::Child => ":first-child",
@@ -1322,7 +1322,7 @@ impl NthSelectorData {
   /// Serialize <an+b> (part of the CSS Syntax spec, but currently only used here).
   /// <https://drafts.csswg.org/css-syntax-3/#serialize-an-anb-value>
   #[inline]
-  fn write_affine<W: fmt::Write>(&self, dest: &mut W) -> fmt::Result {
+  pub fn write_affine<W: fmt::Write>(&self, dest: &mut W) -> fmt::Result {
     match (self.a, self.b) {
       (0, 0) => dest.write_char('0'),
 
@@ -3394,7 +3394,7 @@ pub mod tests {
     }
   }
 
-  fn parse<'i>(input: &'i str) -> Result<SelectorList<DummySelectorImpl>, SelectorParseError<'i>> {
+  fn parse<'i>(input: &'i str) -> Result<SelectorList<'i, DummySelectorImpl>, SelectorParseError<'i>> {
     parse_ns(input, &DummyParser::default())
   }
 
@@ -3929,6 +3929,26 @@ pub mod tests {
     assert!(parse("foo:where()").is_err());
     assert!(parse("foo:where(div, foo, .bar baz)").is_ok());
     assert!(parse("foo:where(::before)").is_err());
+
+    assert!(parse("foo::details-content").is_ok());
+    assert!(parse("foo::target-text").is_ok());
+    assert!(parse("foo::search-text").is_ok());
+    assert!(parse(":current::search-text").is_ok());
+
+    assert!(parse("::highlight").is_err());
+    assert!(parse("::highlight()").is_err());
+    assert!(parse("::highlight(custom-highlight-name)").is_ok());
+
+    assert!(parse("select::picker").is_err());
+    assert!(parse("::picker()").is_err());
+    assert!(parse("::picker(select)").is_ok());
+    assert!(parse("select::picker-icon").is_ok());
+    assert!(parse("option::checkmark").is_ok());
+
+    assert!(parse("::grammar-error").is_ok());
+    assert!(parse("::spelling-error").is_ok());
+    assert!(parse("::part(mypart)::grammar-error").is_ok());
+    assert!(parse("::part(mypart)::spelling-error").is_ok());
   }
 
   #[test]

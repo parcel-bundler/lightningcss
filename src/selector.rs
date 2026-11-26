@@ -1,7 +1,7 @@
 //! CSS selectors.
 
 use crate::compat::Feature;
-use crate::error::{ParserError, PrinterError};
+use crate::error::{ParserError, PrinterError, SelectorError};
 use crate::parser::ParserFlags;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
@@ -21,6 +21,7 @@ use parcel_selectors::{
   attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity},
   parser::SelectorImpl,
 };
+use smallvec::SmallVec;
 use std::collections::HashSet;
 use std::fmt;
 
@@ -84,12 +85,12 @@ impl<'i> SelectorImpl<'i> for Selectors {
   }
 }
 
-pub(crate) struct SelectorParser<'a, 'o, 'i> {
+pub(crate) struct SelectorParser<'a, 'i> {
   pub is_nesting_allowed: bool,
-  pub options: &'a ParserOptions<'o, 'i>,
+  pub options: &'a ParserOptions<'i>,
 }
 
-impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o, 'i> {
+impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
   type Impl = Selectors;
   type Error = ParserError<'i>;
 
@@ -99,6 +100,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     name: CowRcStr<'i>,
   ) -> Result<PseudoClass<'i>, ParseError<'i, Self::Error>> {
     use PseudoClass::*;
+    let scroll_navigation_controls = self.options.flags.contains(ParserFlags::SCROLL_NAVIGATION_CONTROLS);
     let pseudo_class = match_ignore_ascii_case! { &name,
       // https://drafts.csswg.org/selectors-4/#useraction-pseudos
       "hover" => Hover,
@@ -147,6 +149,12 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "local-link" => LocalLink,
       "target" => Target,
       "target-within" => TargetWithin,
+
+      // https://drafts.csswg.org/css-overflow-5/#active-before-after-scroll-markers
+      "target-current" if scroll_navigation_controls => TargetCurrent,
+      "target-before" if scroll_navigation_controls => TargetBefore,
+      "target-after" if scroll_navigation_controls => TargetAfter,
+
       "visited" => Visited,
 
       // https://drafts.csswg.org/selectors-4/#input-pseudos
@@ -157,8 +165,6 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "read-write" => ReadWrite(VendorPrefix::None),
       "-moz-read-write" => ReadWrite(VendorPrefix::Moz),
       "placeholder-shown" => PlaceholderShown(VendorPrefix::None),
-      "-moz-placeholder-shown" => PlaceholderShown(VendorPrefix::Moz),
-      "-ms-placeholder-shown" => PlaceholderShown(VendorPrefix::Ms),
       "default" => Default,
       "checked" => Checked,
       "indeterminate" => Indeterminate,
@@ -176,6 +182,9 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "autofill" => Autofill(VendorPrefix::None),
       "-webkit-autofill" => Autofill(VendorPrefix::WebKit),
       "-o-autofill" => Autofill(VendorPrefix::O),
+
+      // https://drafts.csswg.org/css-view-transitions-2/#pseudo-classes-for-selective-vt
+      "active-view-transition" => ActiveViewTransition,
 
       // https://webkit.org/blog/363/styling-scrollbars/
       "horizontal" => WebKitScrollbar(WebKitScrollbarPseudoClass::Horizontal),
@@ -221,6 +230,15 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         Lang { languages }
       },
       "dir" => Dir { direction: Direction::parse(parser)? },
+      // https://drafts.csswg.org/css-view-transitions-2/#the-active-view-transition-type-pseudo
+      "active-view-transition-type" => {
+        let kind = Parse::parse(parser)?;
+        ActiveViewTransitionType { kind }
+      },
+      "state" => {
+        let state = CustomIdent::parse(parser)?;
+        State { state }
+      },
       "local" if self.options.css_modules.is_some() => Local { selector: Box::new(Selector::parse(self, parser)?) },
       "global" if self.options.css_modules.is_some() => Global { selector: Box::new(Selector::parse(self, parser)?) },
       _ => {
@@ -258,6 +276,9 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "after" => After,
       "first-line" => FirstLine,
       "first-letter" => FirstLetter,
+      "details-content" => DetailsContent,
+      "target-text" => TargetText,
+      "search-text" => SearchText,
       "cue" => Cue,
       "cue-region" => CueRegion,
       "selection" => Selection(VendorPrefix::None),
@@ -281,7 +302,13 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "-webkit-scrollbar-corner" => WebKitScrollbar(WebKitScrollbarPseudoElement::Corner),
       "-webkit-resizer" => WebKitScrollbar(WebKitScrollbarPseudoElement::Resizer),
 
+      "picker-icon" => PickerIcon,
+      "checkmark" => Checkmark,
+
       "view-transition" => ViewTransition,
+
+      "grammar-error" => GrammarError,
+      "spelling-error" => SpellingError,
 
       _ => {
         if !name.starts_with('-') {
@@ -303,10 +330,12 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     let pseudo_element = match_ignore_ascii_case! { &name,
       "cue" => CueFunction { selector: Box::new(Selector::parse(self, arguments)?) },
       "cue-region" => CueRegionFunction { selector: Box::new(Selector::parse(self, arguments)?) },
-      "view-transition-group" => ViewTransitionGroup { part_name: ViewTransitionPartName::parse(arguments)? },
-      "view-transition-image-pair" => ViewTransitionImagePair { part_name: ViewTransitionPartName::parse(arguments)? },
-      "view-transition-old" => ViewTransitionOld { part_name: ViewTransitionPartName::parse(arguments)? },
-      "view-transition-new" => ViewTransitionNew { part_name: ViewTransitionPartName::parse(arguments)? },
+      "highlight" => HighlightFunction { name: CustomIdent::parse(arguments)? },
+      "picker" => PickerFunction { identifier: Ident::parse(arguments)? },
+      "view-transition-group" => ViewTransitionGroup { part: ViewTransitionPartSelector::parse(arguments)? },
+      "view-transition-image-pair" => ViewTransitionImagePair { part: ViewTransitionPartSelector::parse(arguments)? },
+      "view-transition-old" => ViewTransitionOld { part: ViewTransitionPartSelector::parse(arguments)? },
+      "view-transition-new" => ViewTransitionNew { part: ViewTransitionPartSelector::parse(arguments)? },
       _ => {
         if !name.starts_with('-') {
           self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoElement(name.clone())));
@@ -459,6 +488,13 @@ pub enum PseudoClass<'i> {
   LocalLink,
   /// The [:target](https://drafts.csswg.org/selectors-4/#the-target-pseudo) pseudo class.
   Target,
+
+  /// The [:target-current](https://drafts.csswg.org/css-overflow-5/#selectordef-target-current) pseudo class.
+  TargetCurrent,
+  /// The [:target-before](https://drafts.csswg.org/css-overflow-5/#selectordef-target-before) pseudo class.
+  TargetBefore,
+  /// The [:target-after](https://drafts.csswg.org/css-overflow-5/#selectordef-target-after) pseudo class.
+  TargetAfter,
   /// The [:target-within](https://drafts.csswg.org/selectors-4/#the-target-within-pseudo) pseudo class.
   TargetWithin,
   /// The [:visited](https://drafts.csswg.org/selectors-4/#visited-pseudo) pseudo class.
@@ -506,6 +542,21 @@ pub enum PseudoClass<'i> {
   /// The [:autofill](https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill) pseudo class.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Autofill(VendorPrefix),
+
+  /// The [:active-view-transition](https://drafts.csswg.org/css-view-transitions-2/#the-active-view-transition-pseudo) pseudo class.
+  ActiveViewTransition,
+  /// The [:active-view-transition-type()](https://drafts.csswg.org/css-view-transitions-2/#the-active-view-transition-type-pseudo) pseudo class.
+  ActiveViewTransitionType {
+    /// A view transition type.
+    #[cfg_attr(feature = "serde", serde(rename = "type"))]
+    kind: SmallVec<[CustomIdent<'i>; 1]>,
+  },
+
+  /// The [:state()](https://developer.mozilla.org/en-US/docs/Web/CSS/:state) pseudo class for custom element states.
+  State {
+    /// The custom state identifier.
+    state: CustomIdent<'i>,
+  },
 
   // CSS modules
   /// The CSS modules :local() pseudo class.
@@ -649,6 +700,11 @@ where
       dir.to_css(dest)?;
       return dest.write_str(")");
     }
+    State { state } => {
+      dest.write_str(":state(")?;
+      state.to_css(dest)?;
+      return dest.write_str(")");
+    }
     _ => {}
   }
 
@@ -739,6 +795,12 @@ where
     LocalLink => dest.write_str(":local-link"),
     Target => dest.write_str(":target"),
     TargetWithin => dest.write_str(":target-within"),
+
+    // https://drafts.csswg.org/css-overflow-5/#active-before-after-scroll-markers
+    TargetCurrent => dest.write_str(":target-current"),
+    TargetBefore => dest.write_str(":target-before"),
+    TargetAfter => dest.write_str(":target-after"),
+
     Visited => dest.write_str(":visited"),
 
     // https://drafts.csswg.org/selectors-4/#input-pseudos
@@ -762,6 +824,13 @@ where
 
     // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
     Autofill(prefix) => write_prefixed!(prefix, "autofill"),
+
+    ActiveViewTransition => dest.write_str(":active-view-transition"),
+    ActiveViewTransitionType { kind } => {
+      dest.write_str(":active-view-transition-type(")?;
+      kind.to_css(dest)?;
+      dest.write_char(')')
+    }
 
     Local { selector } => serialize_selector(selector, dest, context, false),
     Global { selector } => {
@@ -789,7 +858,7 @@ where
       })
     }
 
-    Lang { languages: _ } | Dir { direction: _ } => unreachable!(),
+    Lang { languages: _ } | Dir { direction: _ } | State { .. } => unreachable!(),
     Custom { name } => {
       dest.write_char(':')?;
       return dest.write_str(&name);
@@ -862,12 +931,23 @@ pub enum PseudoElement<'i> {
   FirstLine,
   /// The [::first-letter](https://drafts.csswg.org/css-pseudo-4/#first-letter-pseudo) pseudo element.
   FirstLetter,
+  /// The [::details-content](https://drafts.csswg.org/css-pseudo-4/#details-content-pseudo)
+  DetailsContent,
+  /// The [::target-text](https://drafts.csswg.org/css-pseudo-4/#selectordef-target-text)
+  TargetText,
+  /// The [::search-text](https://drafts.csswg.org/css-pseudo-4/#selectordef-search-text) pseudo element.
+  SearchText,
   /// The [::selection](https://drafts.csswg.org/css-pseudo-4/#selectordef-selection) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Selection(VendorPrefix),
   /// The [::placeholder](https://drafts.csswg.org/css-pseudo-4/#placeholder-pseudo) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Placeholder(VendorPrefix),
+  /// The [::highlight()](https://drafts.csswg.org/css-highlight-api/#custom-highlight-pseudo) functional pseudo element.
+  HighlightFunction {
+    /// A custom highlight name.
+    name: CustomIdent<'i>,
+  },
   ///  The [::marker](https://drafts.csswg.org/css-pseudo-4/#marker-pseudo) pseudo element.
   Marker,
   /// The [::backdrop](https://fullscreen.spec.whatwg.org/#::backdrop-pseudo-element) pseudo element.
@@ -902,26 +982,39 @@ pub enum PseudoElement<'i> {
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   ViewTransitionGroup {
     /// A part name selector.
-    part_name: ViewTransitionPartName<'i>,
+    part: ViewTransitionPartSelector<'i>,
   },
   /// The [::view-transition-image-pair()](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#view-transition-image-pair-pt-name-selector) functional pseudo element.
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   ViewTransitionImagePair {
     /// A part name selector.
-    part_name: ViewTransitionPartName<'i>,
+    part: ViewTransitionPartSelector<'i>,
   },
   /// The [::view-transition-old()](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#view-transition-old-pt-name-selector) functional pseudo element.
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   ViewTransitionOld {
     /// A part name selector.
-    part_name: ViewTransitionPartName<'i>,
+    part: ViewTransitionPartSelector<'i>,
   },
   /// The [::view-transition-new()](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#view-transition-new-pt-name-selector) functional pseudo element.
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   ViewTransitionNew {
     /// A part name selector.
-    part_name: ViewTransitionPartName<'i>,
+    part: ViewTransitionPartSelector<'i>,
   },
+  /// The [::picker()](https://drafts.csswg.org/css-forms-1/#the-picker-pseudo-element) functional pseudo element.
+  PickerFunction {
+    /// A form control identifier.
+    identifier: Ident<'i>,
+  },
+  /// The [::picker-icon](https://drafts.csswg.org/css-forms-1/#picker-opener-icon-the-picker-icon-pseudo-element) pseudo element.
+  PickerIcon,
+  /// The [::checkmark](https://drafts.csswg.org/css-forms-1/#styling-checkmarks-the-checkmark-pseudo-element) pseudo element.
+  Checkmark,
+  /// The [::grammar-error](https://drafts.csswg.org/css-pseudo/#selectordef-grammar-error) pseudo element.
+  GrammarError,
+  /// The [::spelling-error](https://drafts.csswg.org/css-pseudo/#selectordef-spelling-error) pseudo element.
+  SpellingError,
   /// An unknown pseudo element.
   Custom {
     /// The name of the pseudo element.
@@ -965,42 +1058,15 @@ pub enum WebKitScrollbarPseudoElement {
 
 /// A [view transition part name](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#typedef-pt-name-selector).
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum ViewTransitionPartName<'i> {
   /// *
+  #[cfg_attr(feature = "serde", serde(rename = "*"))]
   All,
   /// <custom-ident>
+  #[cfg_attr(feature = "serde", serde(borrow, untagged))]
   Name(CustomIdent<'i>),
-}
-
-#[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-impl<'i> serde::Serialize for ViewTransitionPartName<'i> {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    match self {
-      ViewTransitionPartName::All => serializer.serialize_str("*"),
-      ViewTransitionPartName::Name(name) => serializer.serialize_str(&name.0),
-    }
-  }
-}
-
-#[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-impl<'i, 'de: 'i> serde::Deserialize<'de> for ViewTransitionPartName<'i> {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: serde::Deserializer<'de>,
-  {
-    let s = CowArcStr::deserialize(deserializer)?;
-    if s == "*" {
-      Ok(ViewTransitionPartName::All)
-    } else {
-      Ok(ViewTransitionPartName::Name(CustomIdent(s)))
-    }
-  }
 }
 
 #[cfg(feature = "jsonschema")]
@@ -1038,6 +1104,59 @@ impl<'i> ToCss for ViewTransitionPartName<'i> {
       ViewTransitionPartName::All => dest.write_char('*'),
       ViewTransitionPartName::Name(name) => name.to_css(dest),
     }
+  }
+}
+
+/// A [view transition part selector](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#typedef-pt-name-selector).
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct ViewTransitionPartSelector<'i> {
+  /// The view transition part name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  name: Option<ViewTransitionPartName<'i>>,
+  /// A list of view transition classes.
+  classes: Vec<CustomIdent<'i>>,
+}
+
+impl<'i> Parse<'i> for ViewTransitionPartSelector<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.skip_whitespace();
+    let name = input.try_parse(ViewTransitionPartName::parse).ok();
+    let mut classes = Vec::new();
+    while let Ok(token) = input.next_including_whitespace() {
+      if matches!(token, Token::Delim('.')) {
+        match input.next_including_whitespace() {
+          Ok(Token::Ident(id)) => classes.push(CustomIdent(id.into())),
+          _ => return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState))),
+        }
+      } else {
+        break;
+      }
+    }
+
+    if !input.is_exhausted() || (name.is_none() && classes.is_empty()) {
+      return Err(input.new_custom_error(ParserError::SelectorError(SelectorError::InvalidState)));
+    }
+
+    Ok(ViewTransitionPartSelector { name, classes })
+  }
+}
+
+impl<'i> ToCss for ViewTransitionPartSelector<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if let Some(name) = &self.name {
+      name.to_css(dest)?;
+    }
+    for class in &self.classes {
+      dest.write_char('.')?;
+      class.to_css(dest)?;
+    }
+    Ok(())
   }
 }
 
@@ -1092,6 +1211,14 @@ where
     Before => dest.write_str(":before"),
     FirstLine => dest.write_str(":first-line"),
     FirstLetter => dest.write_str(":first-letter"),
+    DetailsContent => dest.write_str("::details-content"),
+    TargetText => dest.write_str("::target-text"),
+    SearchText => dest.write_str("::search-text"),
+    HighlightFunction { name } => {
+      dest.write_str("::highlight(")?;
+      name.to_css(dest)?;
+      dest.write_char(')')
+    }
     Marker => dest.write_str("::marker"),
     Selection(prefix) => write_prefixed!(prefix, "selection"),
     Cue => dest.write_str("::cue"),
@@ -1138,26 +1265,35 @@ where
       })
     }
     ViewTransition => dest.write_str("::view-transition"),
-    ViewTransitionGroup { part_name } => {
+    ViewTransitionGroup { part } => {
       dest.write_str("::view-transition-group(")?;
-      part_name.to_css(dest)?;
+      part.to_css(dest)?;
       dest.write_char(')')
     }
-    ViewTransitionImagePair { part_name } => {
+    ViewTransitionImagePair { part } => {
       dest.write_str("::view-transition-image-pair(")?;
-      part_name.to_css(dest)?;
+      part.to_css(dest)?;
       dest.write_char(')')
     }
-    ViewTransitionOld { part_name } => {
+    ViewTransitionOld { part } => {
       dest.write_str("::view-transition-old(")?;
-      part_name.to_css(dest)?;
+      part.to_css(dest)?;
       dest.write_char(')')
     }
-    ViewTransitionNew { part_name } => {
+    ViewTransitionNew { part } => {
       dest.write_str("::view-transition-new(")?;
-      part_name.to_css(dest)?;
+      part.to_css(dest)?;
       dest.write_char(')')
     }
+    PickerFunction { identifier } => {
+      dest.write_str("::picker(")?;
+      identifier.to_css(dest)?;
+      dest.write_char(')')
+    }
+    PickerIcon => dest.write_str("::picker-icon"),
+    Checkmark => dest.write_str("::checkmark"),
+    GrammarError => dest.write_str("::grammar-error"),
+    SpellingError => dest.write_str("::spelling-error"),
     Custom { name: val } => {
       dest.write_str("::")?;
       return dest.write_str(val);
@@ -1316,7 +1452,7 @@ where
 
   let mut combinators = selector.iter_raw_match_order().rev().filter_map(|x| x.as_combinator());
   let compound_selectors = selector.iter_raw_match_order().as_slice().split(|x| x.is_combinator()).rev();
-  let should_compile_nesting = should_compile!(dest.targets, Nesting);
+  let should_compile_nesting = should_compile!(dest.targets.current, Nesting);
 
   let mut first = true;
   let mut combinators_exhausted = false;
@@ -1575,6 +1711,14 @@ where
       selector.to_css(dest)?;
       dest.write_char(')')
     }
+    Component::NthOf(ref nth_of_data) => {
+      let nth_data = nth_of_data.nth_data();
+      nth_data.write_start(dest, true)?;
+      nth_data.write_affine(dest)?;
+      dest.write_str(" of ")?;
+      serialize_selector_list(nth_of_data.selectors().iter(), dest, context, true)?;
+      dest.write_char(')')
+    }
     _ => {
       cssparser::ToCss::to_css(component, dest)?;
       Ok(())
@@ -1618,7 +1762,7 @@ where
   } else {
     // If there is no context, we are at the root if nesting is supported. This is equivalent to :scope.
     // Otherwise, if nesting is supported, serialize the nesting selector directly.
-    if should_compile!(dest.targets, Nesting) {
+    if should_compile!(dest.targets.current, Nesting) {
       dest.write_str(":scope")
     } else {
       dest.write_char('&')
@@ -1810,6 +1954,9 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
             PseudoClass::Optional => Feature::OptionalPseudo,
             PseudoClass::PlaceholderShown(prefix) if *prefix == VendorPrefix::None => Feature::PlaceholderShown,
 
+            PseudoClass::TargetCurrent => Feature::TargetCurrent,
+            PseudoClass::TargetBefore | PseudoClass::TargetAfter => Feature::TargetBeforeAfter,
+
             PseudoClass::ReadOnly(prefix) | PseudoClass::ReadWrite(prefix) if *prefix == VendorPrefix::None => {
               Feature::ReadOnlyWrite
             }
@@ -1819,6 +1966,8 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
             PseudoClass::InRange | PseudoClass::OutOfRange => Feature::InOutOfRange,
 
             PseudoClass::Autofill(prefix) if *prefix == VendorPrefix::None => Feature::Autofill,
+
+            PseudoClass::State { .. } => Feature::StatePseudoClass,
 
             // Experimental, no browser support.
             PseudoClass::Current
@@ -1836,7 +1985,9 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
             | PseudoClass::Blank
             | PseudoClass::UserInvalid
             | PseudoClass::UserValid
-            | PseudoClass::Defined => return false,
+            | PseudoClass::Defined
+            | PseudoClass::ActiveViewTransition
+            | PseudoClass::ActiveViewTransitionType { .. } => return false,
 
             PseudoClass::Custom { .. } | _ => return false,
           }
@@ -1846,12 +1997,26 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           PseudoElement::After | PseudoElement::Before => Feature::Gencontent,
           PseudoElement::FirstLine => Feature::FirstLine,
           PseudoElement::FirstLetter => Feature::FirstLetter,
+          PseudoElement::DetailsContent => Feature::DetailsContent,
+          PseudoElement::TargetText => Feature::TargetText,
+          PseudoElement::SearchText => Feature::SearchText,
           PseudoElement::Selection(prefix) if *prefix == VendorPrefix::None => Feature::Selection,
           PseudoElement::Placeholder(prefix) if *prefix == VendorPrefix::None => Feature::Placeholder,
+          PseudoElement::HighlightFunction { name: _ } => Feature::Highlight,
           PseudoElement::Marker => Feature::MarkerPseudo,
           PseudoElement::Backdrop(prefix) if *prefix == VendorPrefix::None => Feature::Dialog,
           PseudoElement::Cue => Feature::Cue,
           PseudoElement::CueFunction { selector: _ } => Feature::CueFunction,
+          PseudoElement::ViewTransition
+          | PseudoElement::ViewTransitionNew { .. }
+          | PseudoElement::ViewTransitionOld { .. }
+          | PseudoElement::ViewTransitionGroup { .. }
+          | PseudoElement::ViewTransitionImagePair { .. } => Feature::ViewTransition,
+          PseudoElement::PickerFunction { identifier: _ } => Feature::Picker,
+          PseudoElement::PickerIcon => Feature::PickerIcon,
+          PseudoElement::Checkmark => Feature::Checkmark,
+          PseudoElement::GrammarError => Feature::GrammarError,
+          PseudoElement::SpellingError => Feature::SpellingError,
           PseudoElement::Custom { name: _ } | _ => return false,
         },
 
@@ -2147,7 +2312,7 @@ impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>> Visit<'i, T, V> for Sel
 impl<'i> ParseWithOptions<'i> for Selector<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Selector::parse(
       &SelectorParser {
@@ -2162,7 +2327,7 @@ impl<'i> ParseWithOptions<'i> for Selector<'i> {
 impl<'i> ParseWithOptions<'i> for SelectorList<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     SelectorList::parse(
       &SelectorParser {

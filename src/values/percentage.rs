@@ -2,11 +2,13 @@
 
 use super::angle::{impl_try_from_angle, Angle};
 use super::calc::{Calc, MathFunction};
-use super::number::CSSNumber;
+use super::number::{CSSNumber, NumericRange};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
-use crate::traits::{impl_op, private::TryAdd, Op, Parse, Sign, ToCss, TryMap, TryOp, TrySign, Zero};
+use crate::traits::{
+  impl_op, private::TryAdd, Op, Parse, ParseNumeric, Sign, ToCss, TryMap, TryOp, TrySign, Zero,
+};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -24,15 +26,25 @@ pub struct Percentage(pub CSSNumber);
 
 impl<'i> Parse<'i> for Percentage {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    match input.try_parse(Calc::parse) {
-      Ok(Calc::Value(v)) => return Ok(*v),
-      // Percentages are always compatible, so they will always compute to a value.
-      Ok(_) => unreachable!(),
+    Self::parse_with_range(input, NumericRange::All)
+  }
+}
+
+impl<'i> ParseNumeric<'i> for Percentage {
+  fn parse_with_range<'t>(
+    input: &mut Parser<'i, 't>,
+    range: NumericRange,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    match input.try_parse(Calc::<Self>::parse) {
+      Ok(Calc::Value(v)) => return Ok(Percentage(range.clamp(v.0))),
+      // A percentage calculation must resolve to a percentage, not a number.
+      Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       _ => {}
     }
 
+    let location = input.current_source_location();
     let percent = input.expect_percentage()?;
-    Ok(Percentage(percent))
+    Ok(Percentage(range.check(percent, location)?))
   }
 }
 
@@ -42,11 +54,8 @@ impl ToCss for Percentage {
     W: std::fmt::Write,
   {
     use cssparser::ToCss;
-    let int_value = if (self.0 * 100.0).fract() == 0.0 {
-      Some(self.0 as i32)
-    } else {
-      None
-    };
+    let v = self.0 * 100.0;
+    let int_value = if (v).fract() == 0.0 { Some(v as i32) } else { None };
     let percent = Token::Percentage {
       has_sign: self.0 < 0.0,
       unit_value: self.0,
@@ -74,11 +83,13 @@ impl std::convert::Into<Calc<Percentage>> for Percentage {
   }
 }
 
-impl std::convert::From<Calc<Percentage>> for Percentage {
-  fn from(calc: Calc<Percentage>) -> Percentage {
+impl std::convert::TryFrom<Calc<Percentage>> for Percentage {
+  type Error = ();
+
+  fn try_from(calc: Calc<Percentage>) -> Result<Percentage, Self::Error> {
     match calc {
-      Calc::Value(v) => *v,
-      _ => unreachable!(),
+      Calc::Value(v) => Ok(*v),
+      _ => Err(()),
     }
   }
 }
@@ -144,7 +155,7 @@ impl_op!(Percentage, std::ops::Add, add);
 impl_try_from_angle!(Percentage);
 
 /// Either a `<number>` or `<percentage>`.
-#[derive(Debug, Clone, PartialEq, Parse, ToCss)]
+#[derive(Debug, Clone, PartialEq, ToCss)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
@@ -158,6 +169,24 @@ pub enum NumberOrPercentage {
   Number(CSSNumber),
   /// A percentage.
   Percentage(Percentage),
+}
+
+impl<'i> Parse<'i> for NumberOrPercentage {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_with_range(input, NumericRange::All)
+  }
+}
+
+impl<'i> ParseNumeric<'i> for NumberOrPercentage {
+  fn parse_with_range<'t>(
+    input: &mut Parser<'i, 't>,
+    range: NumericRange,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(value) = input.try_parse(|input| CSSNumber::parse_with_range(input, range)) {
+      return Ok(Self::Number(value));
+    }
+    Ok(Self::Percentage(Percentage::parse_with_range(input, range)?))
+  }
 }
 
 impl std::convert::Into<CSSNumber> for &NumberOrPercentage {
@@ -194,7 +223,7 @@ pub enum DimensionPercentage<D> {
 
 impl<
     'i,
-    D: Parse<'i>
+    D: ParseNumeric<'i>
       + std::ops::Mul<CSSNumber, Output = D>
       + TryAdd<D>
       + Clone
@@ -203,22 +232,63 @@ impl<
       + Zero
       + TrySign
       + TryFrom<Angle>
+      + TryInto<Angle>
       + PartialOrd<D>
       + std::fmt::Debug,
   > Parse<'i> for DimensionPercentage<D>
 {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_with_range(input, NumericRange::All)
+  }
+}
+
+impl<
+    'i,
+    D: ParseNumeric<'i>
+      + std::ops::Mul<CSSNumber, Output = D>
+      + TryAdd<D>
+      + Clone
+      + TryOp
+      + TryMap
+      + Zero
+      + TrySign
+      + TryFrom<Angle>
+      + TryInto<Angle>
+      + PartialOrd<D>
+      + std::fmt::Debug,
+  > ParseNumeric<'i> for DimensionPercentage<D>
+{
+  fn parse_with_range<'t>(
+    input: &mut Parser<'i, 't>,
+    range: NumericRange,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
-      Ok(Calc::Value(v)) => return Ok(*v),
+      Ok(Calc::Value(v)) => {
+        if range == NumericRange::All {
+          return Ok(*v);
+        }
+        if let Some(value) = v.try_map(|value| range.clamp(value)) {
+          return Ok(value);
+        }
+        if matches!(&*v, DimensionPercentage::Percentage(Percentage(value)) if *value >= 0.0) {
+          return Ok(*v);
+        }
+        // A negative percentage cannot be emitted as a literal in this range.
+        // Preserve the math boundary rather than clamp it before its basis is known.
+        return Ok(DimensionPercentage::Calc(Box::new(Calc::Function(Box::new(
+          MathFunction::Calc(Calc::Value(v)),
+        )))));
+      }
+      Ok(Calc::Number(_)) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       Ok(calc) => return Ok(DimensionPercentage::Calc(Box::new(calc))),
       _ => {}
     }
 
-    if let Ok(length) = input.try_parse(|input| D::parse(input)) {
+    if let Ok(length) = input.try_parse(|input| D::parse_with_range(input, range)) {
       return Ok(DimensionPercentage::Dimension(length));
     }
 
-    if let Ok(percent) = input.try_parse(|input| Percentage::parse(input)) {
+    if let Ok(percent) = input.try_parse(|input| Percentage::parse_with_range(input, range)) {
       return Ok(DimensionPercentage::Percentage(percent));
     }
 
@@ -349,7 +419,7 @@ impl<D: TryAdd<D> + Clone + Zero + TrySign + std::fmt::Debug> DimensionPercentag
 
     match (a, b) {
       (DimensionPercentage::Calc(a), DimensionPercentage::Calc(b)) => {
-        DimensionPercentage::Calc(Box::new(a.add(*b)))
+        DimensionPercentage::Calc(Box::new(a.add(*b).unwrap()))
       }
       (DimensionPercentage::Calc(calc), b) => {
         if let Calc::Value(a) = *calc {
@@ -431,6 +501,17 @@ impl<E, D: TryFrom<Angle, Error = E>> TryFrom<Angle> for DimensionPercentage<D> 
 
   fn try_from(value: Angle) -> Result<Self, Self::Error> {
     Ok(DimensionPercentage::Dimension(D::try_from(value)?))
+  }
+}
+
+impl<E, D: TryInto<Angle, Error = E>> TryInto<Angle> for DimensionPercentage<D> {
+  type Error = ();
+
+  fn try_into(self) -> Result<Angle, Self::Error> {
+    match self {
+      DimensionPercentage::Dimension(d) => d.try_into().map_err(|_| ()),
+      _ => Err(()),
+    }
   }
 }
 

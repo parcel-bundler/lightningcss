@@ -353,6 +353,61 @@ let res = transform({
 assert.equal(res.code.toString(), '.foo{color:red}.foo.bar{color:#ff0}');
 ```
 
+## Dependencies
+
+Visitors can emit dependencies so the caller (e.g. bundler) knows to re-run the transformation or invalidate a cache when those files change. These are returned as part of the result's `dependencies` property (along with other dependencies when the `analyzeDependencies` option is enabled).
+
+By passing a function to the `visitor` option instead of an object, you get access to the `addDependency` function. This accepts a dependency object with `type: 'file'` or `type: 'glob'`. File dependencies invalidate the transformation whenever the `filePath` changes (created, updated, or deleted). Glob dependencies invalidate whenever any file matched by the glob changes. `composeVisitors` also supports function visitors.
+
+By default, Lightning CSS does not do anything with these dependencies except return them to the caller. It's the caller's responsibility to implement file watching and cache invalidation accordingly.
+
+```js
+let res = transform({
+  filename: 'test.css',
+  code: Buffer.from(`
+    @dep "foo.js";
+    @glob "**/*.json";
+
+    .foo {
+      width: 32px;
+    }
+  `),
+  visitor: ({addDependency}) => ({
+    Rule: {
+      unknown: {
+        dep(rule) {
+          let file = rule.prelude[0].value.value;
+          addDependency({
+            type: 'file',
+            filePath: file
+          });
+          return [];
+        },
+        glob(rule) {
+          let glob = rule.prelude[0].value.value;
+          addDependency({
+            type: 'glob',
+            glob
+          });
+          return [];
+        }
+      }
+    }
+  })
+});
+
+assert.equal(res.dependencies, [
+  {
+    type: 'file',
+    filePath: 'foo.js'
+  },
+  {
+    type: 'glob',
+    filePath: '**/*.json'
+  }
+]);
+```
+
 ## Examples
 
 For examples of visitors that perform a variety of real world tasks, see the Lightning CSS [visitor tests](https://github.com/parcel-bundler/lightningcss/blob/master/node/test/visitor.test.mjs).

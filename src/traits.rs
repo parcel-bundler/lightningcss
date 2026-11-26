@@ -7,6 +7,7 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::{Browsers, Targets};
+use crate::values::number::NumericRange;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
@@ -32,6 +33,16 @@ pub trait Parse<'i>: Sized {
 
 pub(crate) use lightningcss_derive::Parse;
 
+/// Trait for numeric values whose grammar can restrict their allowed range.
+pub trait ParseNumeric<'i>: Parse<'i> {
+  /// Parses a numeric value, checking literals and clamping resolved calculations
+  /// to the given range. Intermediate calculation operands are unrestricted.
+  fn parse_with_range<'t>(
+    input: &mut Parser<'i, 't>,
+    range: NumericRange,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
+}
+
 impl<'i, T: Parse<'i>> Parse<'i> for Option<T> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Ok(input.try_parse(T::parse).ok())
@@ -49,13 +60,13 @@ pub trait ParseWithOptions<'i>: Sized {
   /// Parse a value of this type with the given options.
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
 
   /// Parse a value from a string with the given options.
   fn parse_string_with_options(
     input: &'i str,
-    options: ParserOptions<'_, 'i>,
+    options: ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
@@ -334,7 +345,7 @@ pub trait AtRuleParser<'i>: Sized {
     &mut self,
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     let _ = name;
     let _ = input;
@@ -354,7 +365,7 @@ pub trait AtRuleParser<'i>: Sized {
     &mut self,
     prelude: Self::Prelude,
     start: &ParserState,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     is_nested: bool,
   ) -> Result<Self::AtRule, ()> {
     let _ = prelude;
@@ -379,7 +390,7 @@ pub trait AtRuleParser<'i>: Sized {
     prelude: Self::Prelude,
     start: &ParserState,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &ParserOptions<'i>,
     is_nested: bool,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
     let _ = prelude;

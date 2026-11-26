@@ -101,7 +101,7 @@ impl<'i> AtRuleParser<'i> for TailwindAtRuleParser {
     &mut self,
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
-    _options: &ParserOptions<'_, 'i>,
+    _options: &ParserOptions<'i>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     match_ignore_ascii_case! {&*name,
       "tailwind" => {
@@ -138,7 +138,7 @@ impl<'i> AtRuleParser<'i> for TailwindAtRuleParser {
     &mut self,
     prelude: Self::Prelude,
     start: &ParserState,
-    _options: &ParserOptions<'_, 'i>,
+    _options: &ParserOptions<'i>,
     _is_nested: bool,
   ) -> Result<Self::AtRule, ()> {
     let loc = start.source_location();

@@ -4,13 +4,12 @@ use std::borrow::Cow;
 use std::ops::Range;
 
 use crate::context::{DeclarationContext, PropertyHandlerContext};
-use crate::error::{ParserError, PrinterError};
+use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
-use crate::properties::custom::{CustomProperty, CustomPropertyName};
+use crate::properties::custom::{CustomProperty, CustomPropertyName, UnparsedProperty};
 use crate::properties::masking::MaskHandler;
-use crate::properties::text::{Direction, UnicodeBidi};
 use crate::properties::{
   align::AlignHandler,
   animation::AnimationHandler,
@@ -34,6 +33,7 @@ use crate::properties::{
   ui::ColorSchemeHandler,
 };
 use crate::properties::{Property, PropertyId};
+use crate::selector::SelectorList;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::values::ident::DashedIdent;
 use crate::values::string::CowArcStr;
@@ -41,6 +41,7 @@ use crate::values::string::CowArcStr;
 use crate::visitor::Visit;
 use cssparser::*;
 use indexmap::IndexMap;
+use smallvec::SmallVec;
 
 /// A CSS declaration block.
 ///
@@ -67,9 +68,9 @@ pub struct DeclarationBlock<'i> {
 
 impl<'i> DeclarationBlock<'i> {
   /// Parses a declaration block from CSS syntax.
-  pub fn parse<'a, 'o, 't>(
+  pub fn parse<'a, 't>(
     input: &mut Parser<'i, 't>,
-    options: &'a ParserOptions<'o, 'i>,
+    options: &'a ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut important_declarations = DeclarationList::new();
     let mut declarations = DeclarationList::new();
@@ -98,7 +99,7 @@ impl<'i> DeclarationBlock<'i> {
   /// Parses a declaration block from a string.
   pub fn parse_string<'o>(
     input: &'i str,
-    options: ParserOptions<'o, 'i>,
+    options: ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
@@ -157,18 +158,70 @@ impl<'i> DeclarationBlock<'i> {
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();
+    dest.newline()?;
 
+    self.to_css_declarations(dest, false, &parcel_selectors::SelectorList(SmallVec::new()), 0)?;
+
+    dest.dedent();
+    dest.newline()?;
+    dest.write_char('}')
+  }
+
+  pub(crate) fn has_printable_declarations(&self) -> bool {
+    if self.len() > 1 {
+      return true;
+    }
+
+    if self.declarations.len() == 1 {
+      !matches!(self.declarations[0], crate::properties::Property::Composes(_))
+    } else if self.important_declarations.len() == 1 {
+      !matches!(self.important_declarations[0], crate::properties::Property::Composes(_))
+    } else {
+      false
+    }
+  }
+
+  /// Writes the declarations to a CSS declaration block.
+  pub fn to_css_declarations<W>(
+    &self,
+    dest: &mut Printer<W>,
+    has_nested_rules: bool,
+    selectors: &SelectorList,
+    source_index: u32,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut i = 0;
     let len = self.len();
 
     macro_rules! write {
       ($decls: expr, $important: literal) => {
         for decl in &$decls {
-          dest.newline()?;
+          // The CSS modules `composes` property is handled specially, and omitted during printing.
+          // We need to add the classes it references to the list for the selectors in this rule.
+          if let crate::properties::Property::Composes(composes) = &decl {
+            if dest.is_nested() && dest.css_module.is_some() {
+              return Err(dest.error(PrinterErrorKind::InvalidComposesNesting, composes.loc));
+            }
+
+            if let Some(css_module) = &mut dest.css_module {
+              css_module
+                .handle_composes(&selectors, &composes, source_index)
+                .map_err(|e| dest.error(e, composes.loc))?;
+              continue;
+            }
+          }
+
+          if i > 0 {
+            dest.newline()?;
+          }
+
           decl.to_css(dest, $important)?;
-          if i != len - 1 || !dest.minify {
+          if i != len - 1 || !dest.minify || has_nested_rules {
             dest.write_char(';')?;
           }
+
           i += 1;
         }
       };
@@ -176,10 +229,7 @@ impl<'i> DeclarationBlock<'i> {
 
     write!(self.declarations, false);
     write!(self.important_declarations, true);
-
-    dest.dedent();
-    dest.newline()?;
-    dest.write_char('}')
+    Ok(())
   }
 }
 
@@ -405,14 +455,14 @@ impl<'i> DeclarationBlock<'i> {
   }
 }
 
-struct PropertyDeclarationParser<'a, 'o, 'i> {
+struct PropertyDeclarationParser<'a, 'i> {
   important_declarations: &'a mut Vec<Property<'i>>,
   declarations: &'a mut Vec<Property<'i>>,
-  options: &'a ParserOptions<'o, 'i>,
+  options: &'a ParserOptions<'i>,
 }
 
 /// Parse a declaration within {} block: `color: blue`
-impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
+impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 'i> {
   type Declaration = ();
   type Error = ParserError<'i>;
 
@@ -420,6 +470,7 @@ impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<
     &mut self,
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
+    _declaration_start: &ParserState,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     parse_declaration(
       name,
@@ -432,19 +483,19 @@ impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<
 }
 
 /// Default methods reject all at rules.
-impl<'a, 'o, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
+impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'i> {
   type Prelude = ();
   type AtRule = ();
   type Error = ParserError<'i>;
 }
 
-impl<'a, 'o, 'i> QualifiedRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
+impl<'a, 'i> QualifiedRuleParser<'i> for PropertyDeclarationParser<'a, 'i> {
   type Prelude = ();
   type QualifiedRule = ();
   type Error = ParserError<'i>;
 }
 
-impl<'a, 'o, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for PropertyDeclarationParser<'a, 'o, 'i> {
+impl<'a, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for PropertyDeclarationParser<'a, 'i> {
   fn parse_qualified(&self) -> bool {
     false
   }
@@ -459,7 +510,7 @@ pub(crate) fn parse_declaration<'i, 't>(
   input: &mut cssparser::Parser<'i, 't>,
   declarations: &mut DeclarationList<'i>,
   important_declarations: &mut DeclarationList<'i>,
-  options: &ParserOptions<'_, 'i>,
+  options: &ParserOptions<'i>,
 ) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
   // Stop if we hit a `{` token in a non-custom property to
   // avoid ambiguity between nested rules and declarations.
@@ -516,8 +567,8 @@ pub(crate) struct DeclarationHandler<'i> {
   color_scheme: ColorSchemeHandler,
   fallback: FallbackHandler,
   prefix: PrefixHandler,
-  direction: Option<Direction>,
-  unicode_bidi: Option<UnicodeBidi>,
+  direction: DeclarationList<'i>,
+  unicode_bidi: DeclarationList<'i>,
   custom_properties: IndexMap<DashedIdent<'i>, usize>,
   decls: DeclarationList<'i>,
 }
@@ -594,13 +645,32 @@ impl<'i> DeclarationHandler<'i> {
   fn handle_all(&mut self, property: &Property<'i>) -> bool {
     // The `all` property resets all properies except `unicode-bidi`, `direction`, and custom properties.
     // https://drafts.csswg.org/css-cascade-5/#all-shorthand
+    // Their declarations are kept in source order, so an unparsed value (e.g. `var()`) stays after
+    // the earlier declarations it overrides. A parsed value overrides every earlier declaration of
+    // the property, including unparsed ones, so it replaces them all.
     match property {
-      Property::UnicodeBidi(bidi) => {
-        self.unicode_bidi = Some(*bidi);
+      Property::UnicodeBidi(_) => {
+        self.unicode_bidi.clear();
+        self.unicode_bidi.push(property.clone());
         true
       }
-      Property::Direction(direction) => {
-        self.direction = Some(*direction);
+      Property::Direction(_) => {
+        self.direction.clear();
+        self.direction.push(property.clone());
+        true
+      }
+      Property::Unparsed(UnparsedProperty {
+        property_id: PropertyId::UnicodeBidi,
+        ..
+      }) => {
+        self.unicode_bidi.push(property.clone());
+        true
+      }
+      Property::Unparsed(UnparsedProperty {
+        property_id: PropertyId::Direction,
+        ..
+      }) => {
+        self.direction.push(property.clone());
         true
       }
       Property::All(keyword) => {
@@ -641,12 +711,8 @@ impl<'i> DeclarationHandler<'i> {
   }
 
   pub fn finalize(&mut self, context: &mut PropertyHandlerContext<'i, '_>) {
-    if let Some(direction) = std::mem::take(&mut self.direction) {
-      self.decls.push(Property::Direction(direction));
-    }
-    if let Some(unicode_bidi) = std::mem::take(&mut self.unicode_bidi) {
-      self.decls.push(Property::UnicodeBidi(unicode_bidi));
-    }
+    self.decls.extend(std::mem::take(&mut self.direction));
+    self.decls.extend(std::mem::take(&mut self.unicode_bidi));
 
     self.background.finalize(&mut self.decls, context);
     self.border.finalize(&mut self.decls, context);

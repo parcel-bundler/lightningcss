@@ -14,10 +14,12 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::targets::{should_compile, Browsers, Targets};
 use crate::traits::{IsCompatible, Parse, ToCss, TrySign, Zero};
+use crate::values::number::NonNegative;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
+use std::f32::consts::PI;
 
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
@@ -83,14 +85,24 @@ impl Gradient {
   /// Returns a copy of the gradient with the given vendor prefix.
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> Gradient {
     match self {
-      Gradient::Linear(linear) => Gradient::Linear(LinearGradient {
-        vendor_prefix: prefix,
-        ..linear.clone()
-      }),
-      Gradient::RepeatingLinear(linear) => Gradient::RepeatingLinear(LinearGradient {
-        vendor_prefix: prefix,
-        ..linear.clone()
-      }),
+      Gradient::Linear(linear) => {
+        let mut new_linear = linear.clone();
+        let needs_legacy_direction = linear.vendor_prefix == VendorPrefix::None && prefix != VendorPrefix::None;
+        if needs_legacy_direction {
+          new_linear.direction = convert_to_legacy_direction(&new_linear.direction);
+        }
+        new_linear.vendor_prefix = prefix;
+        Gradient::Linear(new_linear)
+      }
+      Gradient::RepeatingLinear(linear) => {
+        let mut new_linear = linear.clone();
+        let needs_legacy_direction = linear.vendor_prefix == VendorPrefix::None && prefix != VendorPrefix::None;
+        if needs_legacy_direction {
+          new_linear.direction = convert_to_legacy_direction(&new_linear.direction);
+        }
+        new_linear.vendor_prefix = prefix;
+        Gradient::RepeatingLinear(new_linear)
+      }
       Gradient::Radial(radial) => Gradient::Radial(RadialGradient {
         vendor_prefix: prefix,
         ..radial.clone()
@@ -530,6 +542,65 @@ impl LineDirection {
   }
 }
 
+/// Converts a standard gradient direction to its legacy vendor-prefixed form.
+///
+/// Inverts keyword-based directions (e.g., `to bottom` → `top`) for compatibility
+/// with legacy prefixed syntaxes.
+///
+/// See: https://github.com/parcel-bundler/lightningcss/issues/918
+fn convert_to_legacy_direction(direction: &LineDirection) -> LineDirection {
+  match direction {
+    LineDirection::Horizontal(HorizontalPositionKeyword::Left) => {
+      LineDirection::Horizontal(HorizontalPositionKeyword::Right)
+    }
+    LineDirection::Horizontal(HorizontalPositionKeyword::Right) => {
+      LineDirection::Horizontal(HorizontalPositionKeyword::Left)
+    }
+    LineDirection::Vertical(VerticalPositionKeyword::Top) => {
+      LineDirection::Vertical(VerticalPositionKeyword::Bottom)
+    }
+    LineDirection::Vertical(VerticalPositionKeyword::Bottom) => {
+      LineDirection::Vertical(VerticalPositionKeyword::Top)
+    }
+    LineDirection::Corner { horizontal, vertical } => LineDirection::Corner {
+      horizontal: match horizontal {
+        HorizontalPositionKeyword::Left => HorizontalPositionKeyword::Right,
+        HorizontalPositionKeyword::Right => HorizontalPositionKeyword::Left,
+      },
+      vertical: match vertical {
+        VerticalPositionKeyword::Top => VerticalPositionKeyword::Bottom,
+        VerticalPositionKeyword::Bottom => VerticalPositionKeyword::Top,
+      },
+    },
+    LineDirection::Angle(angle) => {
+      let angle = angle.clone();
+      let deg = match angle {
+        Angle::Deg(n) => convert_to_legacy_degree(n),
+        Angle::Rad(n) => {
+          let n = n / (2.0 * PI) * 360.0;
+          convert_to_legacy_degree(n)
+        }
+        Angle::Grad(n) => {
+          let n = n / 400.0 * 360.0;
+          convert_to_legacy_degree(n)
+        }
+        Angle::Turn(n) => {
+          let n = n * 360.0;
+          convert_to_legacy_degree(n)
+        }
+      };
+      LineDirection::Angle(Angle::Deg(deg))
+    }
+  }
+}
+
+fn convert_to_legacy_degree(degree: f32) -> f32 {
+  // Add 90 degrees
+  let n = (450.0 - degree).abs() % 360.0;
+  // Round the number to 3 decimal places
+  (n * 1000.0).round() / 1000.0
+}
+
 /// A `radial-gradient()` [ending shape](https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape).
 ///
 /// See [RadialGradient](RadialGradient).
@@ -568,7 +639,7 @@ impl Default for EndingShape {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Circle {
   /// A circle with a specified radius.
-  Radius(Length),
+  Radius(NonNegative<Length>),
   /// A shape extent keyword.
   Extent(ShapeExtent),
 }
@@ -581,7 +652,7 @@ impl<'i> Parse<'i> for Circle {
       return Ok(Circle::Extent(extent));
     }
 
-    if let Ok(length) = input.try_parse(Length::parse) {
+    if let Ok(length) = input.try_parse(NonNegative::<Length>::parse) {
       // The `circle` keyword is optional if there is only a single length.
       // We are assuming here that Ellipse::parse ran first.
       let _ = input.try_parse(|input| input.expect_ident_matching("circle"));
@@ -593,7 +664,7 @@ impl<'i> Parse<'i> for Circle {
         return Ok(Circle::Extent(extent));
       }
 
-      if let Ok(length) = input.try_parse(Length::parse) {
+      if let Ok(length) = input.try_parse(NonNegative::<Length>::parse) {
         return Ok(Circle::Radius(length));
       }
 
@@ -639,9 +710,9 @@ pub enum Ellipse {
   /// An ellipse with a specified horizontal and vertical radius.
   Size {
     /// The x-radius of the ellipse.
-    x: LengthPercentage,
+    x: NonNegative<LengthPercentage>,
     /// The y-radius of the ellipse.
-    y: LengthPercentage,
+    y: NonNegative<LengthPercentage>,
   },
   /// A shape extent keyword.
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<ShapeExtent>"))]
@@ -660,8 +731,8 @@ impl<'i> Parse<'i> for Ellipse {
       return Ok(Ellipse::Extent(extent));
     }
 
-    if let Ok(x) = input.try_parse(LengthPercentage::parse) {
-      let y = LengthPercentage::parse(input)?;
+    if let Ok(x) = input.try_parse(NonNegative::<LengthPercentage>::parse) {
+      let y = NonNegative::<LengthPercentage>::parse(input)?;
       // The `ellipse` keyword is optional if there are two lengths.
       let _ = input.try_parse(|input| input.expect_ident_matching("ellipse"));
       return Ok(Ellipse::Size { x, y });
@@ -672,8 +743,8 @@ impl<'i> Parse<'i> for Ellipse {
         return Ok(Ellipse::Extent(extent));
       }
 
-      if let Ok(x) = input.try_parse(LengthPercentage::parse) {
-        let y = LengthPercentage::parse(input)?;
+      if let Ok(x) = input.try_parse(NonNegative::<LengthPercentage>::parse) {
+        let y = NonNegative::<LengthPercentage>::parse(input)?;
         return Ok(Ellipse::Size { x, y });
       }
 
@@ -971,7 +1042,7 @@ where
 
     // Use double position stop if the last stop is the same color and all targets support it.
     if let Some(prev) = last {
-      if !should_compile!(dest.targets, DoublePositionGradients) {
+      if !should_compile!(dest.targets.current, DoublePositionGradients) {
         match (prev, item) {
           (
             GradientItem::ColorStop(ColorStop {
@@ -1396,7 +1467,7 @@ impl WebKitGradient {
         // Webkit radial gradients are always circles, not ellipses, and must be specified in pixels.
         let radius = match &radial.shape {
           EndingShape::Circle(Circle::Radius(radius)) => {
-            if let Some(r) = radius.to_px() {
+            if let Some(r) = radius.0.to_px() {
               r
             } else {
               return Err(());

@@ -157,6 +157,10 @@ body { background: green }
 
 The `bundleAsync` API is an asynchronous version of `bundle`, which also accepts a custom `resolver` object. This allows you to provide custom JavaScript functions for resolving `@import` specifiers to file paths, and reading files from the file system (or another source). The `read` and `resolve` functions are both optional, and may either return a string synchronously, or a Promise for asynchronous resolution.
 
+`resolve` may also return a `{external: string}` object to mark an `@import` as external. This will preserve the `@import` in the output instead of bundling it. The string provided to the `external` property represents the target URL to import, which may be the original specifier or a different value.
+
+Note that using a custom resolver can slow down bundling significantly, especially when reading files asynchronously. Use `readFileSync` rather than `readFile` if possible for better performance, or omit either of the methods if you don't need to override the default behavior.
+
 ```js
 import { bundleAsync } from 'lightningcss';
 
@@ -168,10 +172,27 @@ let { code, map } = await bundleAsync({
       return fs.readFileSync(filePath, 'utf8');
     },
     resolve(specifier, from) {
+      if (/^https?:/.test(specifier)) {
+        return {external: specifier};
+      }
       return path.resolve(path.dirname(from), specifier);
     }
   }
 });
 ```
 
-Note that using a custom resolver can slow down bundling significantly, especially when reading files asynchronously. Use `readFileSync` rather than `readFile` if possible for better performance, or omit either of the methods if you don't need to override the default behavior.
+<div class="warning">
+
+**Note:** External imports must be placed before all bundled imports in the source code. CSS does not support interleaving `@import` rules with other rules, so this is required to preserve the behavior of the source code.
+
+```css
+@import "bundled.css";
+@import "https://example.com/external.css"; /* ❌ */
+```
+
+```css
+@import "https://example.com/external.css"; /* ✅ */
+@import "bundled.css";
+```
+
+</div>

@@ -161,7 +161,7 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
       }
       MathFunction::Clamp(a, b, c) => {
         // If clamp() is unsupported by targets, output min()/max()
-        if should_compile!(dest.targets, ClampFunction) {
+        if should_compile!(dest.targets.current, ClampFunction) {
           dest.write_str("max(")?;
           a.to_css(dest)?;
           dest.delim(',', false)?;
@@ -304,24 +304,59 @@ impl Into<f32> for Constant {
   }
 }
 
-impl<
-    'i,
-    V: Parse<'i>
-      + std::ops::Mul<f32, Output = V>
-      + AddInternal
-      + TryOp
-      + TryMap
-      + TrySign
-      + std::cmp::PartialOrd<V>
-      + Into<Calc<V>>
-      + From<Calc<V>>
-      + TryFrom<Angle>
-      + Clone
-      + std::fmt::Debug,
-  > Parse<'i> for Calc<V>
-{
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    Self::parse_with(input, |_| None)
+/// The math functions handled by `Calc::parse_with`.
+#[derive(Clone, Copy)]
+enum MathFunctionName {
+  Calc,
+  Min,
+  Max,
+  Clamp,
+  Round,
+  Rem,
+  Mod,
+  Sin,
+  Cos,
+  Tan,
+  Asin,
+  Acos,
+  Atan,
+  Atan2,
+  Pow,
+  Log,
+  Sqrt,
+  Exp,
+  Hypot,
+  Abs,
+  Sign,
+}
+
+impl MathFunctionName {
+  fn from_name(name: &str) -> Option<Self> {
+    use MathFunctionName::*;
+    Some(match_ignore_ascii_case! { name,
+      "calc" => Calc,
+      "min" => Min,
+      "max" => Max,
+      "clamp" => Clamp,
+      "round" => Round,
+      "rem" => Rem,
+      "mod" => Mod,
+      "sin" => Sin,
+      "cos" => Cos,
+      "tan" => Tan,
+      "asin" => Asin,
+      "acos" => Acos,
+      "atan" => Atan,
+      "atan2" => Atan2,
+      "pow" => Pow,
+      "log" => Log,
+      "sqrt" => Sqrt,
+      "exp" => Exp,
+      "hypot" => Hypot,
+      "abs" => Abs,
+      "sign" => Sign,
+      _ => return None,
+    })
   }
 }
 
@@ -335,43 +370,71 @@ impl<
       + TrySign
       + std::cmp::PartialOrd<V>
       + Into<Calc<V>>
-      + From<Calc<V>>
+      + TryFrom<Calc<V>>
       + TryFrom<Angle>
+      + TryInto<Angle>
+      + Clone
+      + std::fmt::Debug,
+  > Parse<'i> for Calc<V>
+{
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_with(input, &|_| None)
+  }
+}
+
+impl<
+    'i,
+    V: Parse<'i>
+      + std::ops::Mul<f32, Output = V>
+      + AddInternal
+      + TryOp
+      + TryMap
+      + TrySign
+      + std::cmp::PartialOrd<V>
+      + Into<Calc<V>>
+      + TryFrom<Calc<V>>
+      + TryFrom<Angle>
+      + TryInto<Angle>
       + Clone
       + std::fmt::Debug,
   > Calc<V>
 {
-  pub(crate) fn parse_with<'t, Parse: Copy + Fn(&str) -> Option<Calc<V>>>(
+  pub(crate) fn parse_with<'t>(
     input: &mut Parser<'i, 't>,
-    parse_ident: Parse,
+    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let f = input.expect_function()?;
-    match_ignore_ascii_case! { &f,
-      "calc" => {
+    let Some(name) = MathFunctionName::from_name(f) else {
+      return Err(location.new_unexpected_token_error(Token::Ident(f.clone())));
+    };
+    match name {
+      MathFunctionName::Calc => {
         let calc = input.parse_nested_block(|input| Calc::parse_sum(input, parse_ident))?;
         match calc {
           Calc::Value(_) | Calc::Number(_) => Ok(calc),
-          _ => Ok(Calc::Function(Box::new(MathFunction::Calc(calc))))
+          _ => Ok(Calc::Function(Box::new(MathFunction::Calc(calc)))),
         }
-      },
-      "min" => {
-        let mut args = input.parse_nested_block(|input| input.parse_comma_separated(|input| Calc::parse_sum(input, parse_ident)))?;
+      }
+      MathFunctionName::Min => {
+        let mut args = input
+          .parse_nested_block(|input| input.parse_comma_separated(|input| Calc::parse_sum(input, parse_ident)))?;
         let mut reduced = Calc::reduce_args(&mut args, std::cmp::Ordering::Less);
         if reduced.len() == 1 {
-          return Ok(reduced.remove(0))
+          return Ok(reduced.remove(0));
         }
         Ok(Calc::Function(Box::new(MathFunction::Min(reduced))))
-      },
-      "max" => {
-        let mut args = input.parse_nested_block(|input| input.parse_comma_separated(|input| Calc::parse_sum(input, parse_ident)))?;
+      }
+      MathFunctionName::Max => {
+        let mut args = input
+          .parse_nested_block(|input| input.parse_comma_separated(|input| Calc::parse_sum(input, parse_ident)))?;
         let mut reduced = Calc::reduce_args(&mut args, std::cmp::Ordering::Greater);
         if reduced.len() == 1 {
-          return Ok(reduced.remove(0))
+          return Ok(reduced.remove(0));
         }
         Ok(Calc::Function(Box::new(MathFunction::Max(reduced))))
-      },
-      "clamp" => {
+      }
+      MathFunctionName::Clamp => {
         let (mut min, mut center, mut max) = input.parse_nested_block(|input| {
           let min = Some(Calc::parse_sum(input, parse_ident)?);
           input.expect_comma()?;
@@ -382,10 +445,10 @@ impl<
         })?;
 
         // According to the spec, the minimum should "win" over the maximum if they are in the wrong order.
-        let cmp = if let (Some(Calc::Value(max_val)), Calc::Value(center_val)) = (&max, &center) {
-          center_val.partial_cmp(&max_val)
-        } else {
-          None
+        let cmp = match (&max, &center) {
+          (Some(Calc::Value(max_val)), Calc::Value(center_val)) => center_val.partial_cmp(&max_val),
+          (Some(Calc::Number(max_val)), Calc::Number(center_val)) => center_val.partial_cmp(max_val),
+          _ => None,
         };
 
         // If center is known to be greater than the maximum, replace it with maximum and remove the max argument.
@@ -401,10 +464,10 @@ impl<
         }
 
         if cmp.is_some() {
-          let cmp = if let (Some(Calc::Value(min_val)), Calc::Value(center_val)) = (&min, &center) {
-            center_val.partial_cmp(&min_val)
-          } else {
-            None
+          let cmp = match (&min, &center) {
+            (Some(Calc::Value(min_val)), Calc::Value(center_val)) => center_val.partial_cmp(&min_val),
+            (Some(Calc::Number(min_val)), Calc::Number(center_val)) => center_val.partial_cmp(min_val),
+            _ => None,
           };
 
           // If center is known to be less than the minimum, replace it with minimum and remove the min argument.
@@ -425,94 +488,71 @@ impl<
           (None, None) => Ok(center),
           (Some(min), None) => Ok(Calc::Function(Box::new(MathFunction::Max(vec![min, center])))),
           (None, Some(max)) => Ok(Calc::Function(Box::new(MathFunction::Min(vec![center, max])))),
-          (Some(min), Some(max)) => Ok(Calc::Function(Box::new(MathFunction::Clamp(min, center, max))))
+          (Some(min), Some(max)) => Ok(Calc::Function(Box::new(MathFunction::Clamp(min, center, max)))),
         }
-      },
-      "round" => {
-        input.parse_nested_block(|input| {
-          let strategy = if let Ok(s) = input.try_parse(RoundingStrategy::parse) {
-            input.expect_comma()?;
-            s
-          } else {
-            RoundingStrategy::default()
-          };
-
-          Self::parse_math_fn(
-            input,
-            |a, b| round(a, b, strategy),
-            |a, b| MathFunction::Round(strategy, a, b),
-            parse_ident
-          )
-        })
-      },
-      "rem" => {
-        input.parse_nested_block(|input| {
-          Self::parse_math_fn(input, std::ops::Rem::rem, MathFunction::Rem, parse_ident)
-        })
-      },
-      "mod" => {
-        input.parse_nested_block(|input| {
-          Self::parse_math_fn(input, modulo, MathFunction::Mod, parse_ident)
-        })
-      },
-      "sin" => Self::parse_trig(input, f32::sin, false, parse_ident),
-      "cos" => Self::parse_trig(input, f32::cos, false, parse_ident),
-      "tan" => Self::parse_trig(input, f32::tan, false, parse_ident),
-      "asin" => Self::parse_trig(input, f32::asin, true, parse_ident),
-      "acos" => Self::parse_trig(input, f32::acos, true, parse_ident),
-      "atan" => Self::parse_trig(input, f32::atan, true, parse_ident),
-      "atan2" => {
-        input.parse_nested_block(|input| {
-          let res = Self::parse_atan2(input, parse_ident)?;
-          if let Ok(v) = V::try_from(res) {
-            return Ok(Calc::Value(Box::new(v)))
-          }
-
-          Err(input.new_custom_error(ParserError::InvalidValue))
-        })
-      },
-      "pow" => {
-        input.parse_nested_block(|input| {
-          let a = Self::parse_numeric(input, parse_ident)?;
+      }
+      MathFunctionName::Round => input.parse_nested_block(|input| {
+        let strategy = if let Ok(s) = input.try_parse(RoundingStrategy::parse) {
           input.expect_comma()?;
-          let b = Self::parse_numeric(input, parse_ident)?;
-          Ok(Calc::Number(a.powf(b)))
-        })
-      },
-      "log" => {
-        input.parse_nested_block(|input| {
-          let value = Self::parse_numeric(input, parse_ident)?;
-          if input.try_parse(|input| input.expect_comma()).is_ok() {
-            let base = Self::parse_numeric(input, parse_ident)?;
-            Ok(Calc::Number(value.log(base)))
-          } else {
-            Ok(Calc::Number(value.ln()))
-          }
-        })
-      },
-      "sqrt" => Self::parse_numeric_fn(input, f32::sqrt, parse_ident),
-      "exp" => Self::parse_numeric_fn(input, f32::exp, parse_ident),
-      "hypot" => {
-        input.parse_nested_block(|input| {
-          let args: Vec<Self> = input.parse_comma_separated(|input| Calc::parse_sum(input, parse_ident))?;
-          Self::parse_hypot(&args)?
-            .map_or_else(
-              || Ok(Calc::Function(Box::new(MathFunction::Hypot(args)))),
-              |v| Ok(v)
-            )
-        })
-      },
-      "abs" => {
-        input.parse_nested_block(|input| {
-          let v: Calc<V> = Self::parse_sum(input, parse_ident)?;
-          Self::apply_map(&v, f32::abs)
-            .map_or_else(
-              || Ok(Calc::Function(Box::new(MathFunction::Abs(v)))),
-              |v| Ok(v)
-            )
-        })
-      },
-      "sign" => {
+          s
+        } else {
+          RoundingStrategy::default()
+        };
+
+        Self::parse_math_fn(
+          input,
+          |a, b| round(a, b, strategy),
+          |a, b| MathFunction::Round(strategy, a, b),
+          parse_ident,
+        )
+      }),
+      MathFunctionName::Rem => input.parse_nested_block(|input| {
+        Self::parse_math_fn(input, std::ops::Rem::rem, MathFunction::Rem, parse_ident)
+      }),
+      MathFunctionName::Mod => {
+        input.parse_nested_block(|input| Self::parse_math_fn(input, modulo, MathFunction::Mod, parse_ident))
+      }
+      MathFunctionName::Sin => Self::parse_trig(input, f32::sin, false, parse_ident),
+      MathFunctionName::Cos => Self::parse_trig(input, f32::cos, false, parse_ident),
+      MathFunctionName::Tan => Self::parse_trig(input, f32::tan, false, parse_ident),
+      MathFunctionName::Asin => Self::parse_trig(input, f32::asin, true, parse_ident),
+      MathFunctionName::Acos => Self::parse_trig(input, f32::acos, true, parse_ident),
+      MathFunctionName::Atan => Self::parse_trig(input, f32::atan, true, parse_ident),
+      MathFunctionName::Atan2 => input.parse_nested_block(|input| {
+        let res = Self::parse_atan2(input, parse_ident)?;
+        if let Ok(v) = V::try_from(res) {
+          return Ok(Calc::Value(Box::new(v)));
+        }
+
+        Err(input.new_custom_error(ParserError::InvalidValue))
+      }),
+      MathFunctionName::Pow => input.parse_nested_block(|input| {
+        let a = Self::parse_numeric(input, parse_ident)?;
+        input.expect_comma()?;
+        let b = Self::parse_numeric(input, parse_ident)?;
+        Ok(Calc::Number(a.powf(b)))
+      }),
+      MathFunctionName::Log => input.parse_nested_block(|input| {
+        let value = Self::parse_numeric(input, parse_ident)?;
+        if input.try_parse(|input| input.expect_comma()).is_ok() {
+          let base = Self::parse_numeric(input, parse_ident)?;
+          Ok(Calc::Number(value.log(base)))
+        } else {
+          Ok(Calc::Number(value.ln()))
+        }
+      }),
+      MathFunctionName::Sqrt => Self::parse_numeric_fn(input, f32::sqrt, parse_ident),
+      MathFunctionName::Exp => Self::parse_numeric_fn(input, f32::exp, parse_ident),
+      MathFunctionName::Hypot => input.parse_nested_block(|input| {
+        let args: Vec<Self> = input.parse_comma_separated(|input| Calc::parse_sum(input, parse_ident))?;
+        Self::parse_hypot(&args)?
+          .map_or_else(|| Ok(Calc::Function(Box::new(MathFunction::Hypot(args)))), |v| Ok(v))
+      }),
+      MathFunctionName::Abs => input.parse_nested_block(|input| {
+        let v: Calc<V> = Self::parse_sum(input, parse_ident)?;
+        Self::apply_map(&v, f32::abs).map_or_else(|| Ok(Calc::Function(Box::new(MathFunction::Abs(v)))), |v| Ok(v))
+      }),
+      MathFunctionName::Sign => {
         input.parse_nested_block(|input| {
           let v: Calc<V> = Self::parse_sum(input, parse_ident)?;
           match &v {
@@ -530,14 +570,13 @@ impl<
 
           Ok(Calc::Function(Box::new(MathFunction::Sign(v))))
         })
-      },
-       _ => Err(location.new_unexpected_token_error(Token::Ident(f.clone()))),
+      }
     }
   }
 
-  fn parse_sum<'t, Parse: Copy + Fn(&str) -> Option<Calc<V>>>(
+  fn parse_sum<'t>(
     input: &mut Parser<'i, 't>,
-    parse_ident: Parse,
+    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut cur: Calc<V> = Calc::parse_product(input, parse_ident)?;
     loop {
@@ -550,12 +589,12 @@ impl<
           match *input.next()? {
             Token::Delim('+') => {
               let next = Calc::parse_product(input, parse_ident)?;
-              cur = cur.add(next);
+              cur = cur.add(next).map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
             }
             Token::Delim('-') => {
               let mut rhs = Calc::parse_product(input, parse_ident)?;
               rhs = rhs * -1.0;
-              cur = cur.add(rhs);
+              cur = cur.add(rhs).map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
             }
             ref t => {
               let t = t.clone();
@@ -572,9 +611,9 @@ impl<
     Ok(cur)
   }
 
-  fn parse_product<'t, Parse: Copy + Fn(&str) -> Option<Calc<V>>>(
+  fn parse_product<'t>(
     input: &mut Parser<'i, 't>,
-    parse_ident: Parse,
+    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut node = Calc::parse_value(input, parse_ident)?;
     loop {
@@ -611,21 +650,28 @@ impl<
     Ok(node)
   }
 
-  fn parse_value<'t, Parse: Copy + Fn(&str) -> Option<Calc<V>>>(
+  fn parse_value<'t>(
     input: &mut Parser<'i, 't>,
-    parse_ident: Parse,
+    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Parse nested calc() and other math functions.
-    if let Ok(calc) = input.try_parse(Self::parse) {
-      match calc {
-        Calc::Function(f) => {
-          return Ok(match *f {
-            MathFunction::Calc(c) => c,
-            _ => Calc::Function(f),
-          })
-        }
-        c => return Ok(c),
+    let state = input.state();
+    let is_math_function =
+      matches!(input.next(), Ok(Token::Function(f)) if MathFunctionName::from_name(f).is_some());
+    input.reset(&state);
+    match input.try_parse(Self::parse) {
+      Ok(Calc::Function(f)) => {
+        return Ok(match *f {
+          MathFunction::Calc(c) => c,
+          _ => Calc::Function(f),
+        })
       }
+      Ok(c) => return Ok(c),
+      // V::parse below would parse the same math function again as a Calc<V>
+      // and fail the same way. Return early so that each nesting level is only
+      // parsed once, otherwise parsing time doubles with every level.
+      Err(e) if is_math_function => return Err(e),
+      Err(_) => {}
     }
 
     if input.try_parse(|input| input.expect_parenthesis_block()).is_ok() {
@@ -656,6 +702,7 @@ impl<
   fn reduce_args(args: &mut Vec<Calc<V>>, cmp: std::cmp::Ordering) -> Vec<Calc<V>> {
     // Reduces the arguments of a min() or max() expression, combining compatible values.
     // e.g. min(1px, 1em, 2px, 3in) => min(1px, 1em)
+    // Also handles plain numbers: min(1, 2, 3) => min(1, 2)
     let mut reduced: Vec<Calc<V>> = vec![];
     for arg in args.drain(..) {
       let mut found = None;
@@ -663,6 +710,23 @@ impl<
         Calc::Value(val) => {
           for b in reduced.iter_mut() {
             if let Calc::Value(v) = b {
+              match val.partial_cmp(v) {
+                Some(ord) if ord == cmp => {
+                  found = Some(Some(b));
+                  break;
+                }
+                Some(_) => {
+                  found = Some(None);
+                  break;
+                }
+                None => {}
+              }
+            }
+          }
+        }
+        Calc::Number(val) => {
+          for b in reduced.iter_mut() {
+            if let Calc::Number(v) = b {
               match val.partial_cmp(v) {
                 Some(ord) if ord == cmp => {
                   found = Some(Some(b));
@@ -690,16 +754,11 @@ impl<
     reduced
   }
 
-  fn parse_math_fn<
-    't,
-    O: FnOnce(f32, f32) -> f32,
-    F: FnOnce(Calc<V>, Calc<V>) -> MathFunction<V>,
-    Parse: Copy + Fn(&str) -> Option<Calc<V>>,
-  >(
+  fn parse_math_fn<'t, O: FnOnce(f32, f32) -> f32, F: FnOnce(Calc<V>, Calc<V>) -> MathFunction<V>>(
     input: &mut Parser<'i, 't>,
     op: O,
     fallback: F,
-    parse_ident: Parse,
+    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let a: Calc<V> = Calc::parse_sum(input, parse_ident)?;
     input.expect_comma()?;
@@ -736,17 +795,20 @@ impl<
     None
   }
 
-  fn parse_trig<'t, F: FnOnce(f32) -> f32, Parse: Copy + Fn(&str) -> Option<Calc<V>>>(
+  fn parse_trig<'t, F: FnOnce(f32) -> f32>(
     input: &mut Parser<'i, 't>,
     f: F,
     to_angle: bool,
-    parse_ident: Parse,
+    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
-      let v: Calc<Angle> = Calc::parse_sum(input, |v| {
-        parse_ident(v).and_then(|v| match v {
-          Calc::Number(v) => Some(Calc::Number(v)),
-          _ => None,
+      let v: Calc<Angle> = Calc::parse_sum(input, &|v| {
+        parse_ident(v).and_then(|v| -> Option<Calc<Angle>> {
+          match v {
+            Calc::Number(v) => Some(Calc::Number(v)),
+            Calc::Value(v) => (*v).try_into().ok().map(|v| Calc::Value(Box::new(v))),
+            _ => None,
+          }
         })
       })?;
       let rad = match v {
@@ -767,11 +829,11 @@ impl<
     })
   }
 
-  fn parse_numeric<'t, Parse: Copy + Fn(&str) -> Option<Calc<V>>>(
+  fn parse_numeric<'t>(
     input: &mut Parser<'i, 't>,
-    parse_ident: Parse,
+    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<f32, ParseError<'i, ParserError<'i>>> {
-    let v: Calc<CSSNumber> = Calc::parse_sum(input, |v| {
+    let v: Calc<CSSNumber> = Calc::parse_sum(input, &|v| {
       parse_ident(v).and_then(|v| match v {
         Calc::Number(v) => Some(Calc::Number(v)),
         _ => None,
@@ -784,10 +846,10 @@ impl<
     }
   }
 
-  fn parse_numeric_fn<'t, F: FnOnce(f32) -> f32, Parse: Copy + Fn(&str) -> Option<Calc<V>>>(
+  fn parse_numeric_fn<'t, F: FnOnce(f32) -> f32>(
     input: &mut Parser<'i, 't>,
     f: F,
-    parse_ident: Parse,
+    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
       let v = Self::parse_numeric(input, parse_ident)?;
@@ -795,30 +857,30 @@ impl<
     })
   }
 
-  fn parse_atan2<'t, Parse: Copy + Fn(&str) -> Option<Calc<V>>>(
+  fn parse_atan2<'t>(
     input: &mut Parser<'i, 't>,
-    parse_ident: Parse,
+    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<Angle, ParseError<'i, ParserError<'i>>> {
     // atan2 supports arguments of any <number>, <dimension>, or <percentage>, even ones that wouldn't
     // normally be supported by V. The only requirement is that the arguments be of the same type.
     // Try parsing with each type, and return the first one that parses successfully.
-    if let Ok(v) = input.try_parse(|input| Calc::<Length>::parse_atan2_args(input, |_| None)) {
+    if let Ok(v) = input.try_parse(|input| Calc::<Length>::parse_atan2_args(input, &|_| None)) {
       return Ok(v);
     }
 
-    if let Ok(v) = input.try_parse(|input| Calc::<Percentage>::parse_atan2_args(input, |_| None)) {
+    if let Ok(v) = input.try_parse(|input| Calc::<Percentage>::parse_atan2_args(input, &|_| None)) {
       return Ok(v);
     }
 
-    if let Ok(v) = input.try_parse(|input| Calc::<Angle>::parse_atan2_args(input, |_| None)) {
+    if let Ok(v) = input.try_parse(|input| Calc::<Angle>::parse_atan2_args(input, &|_| None)) {
       return Ok(v);
     }
 
-    if let Ok(v) = input.try_parse(|input| Calc::<Time>::parse_atan2_args(input, |_| None)) {
+    if let Ok(v) = input.try_parse(|input| Calc::<Time>::parse_atan2_args(input, &|_| None)) {
       return Ok(v);
     }
 
-    Calc::<CSSNumber>::parse_atan2_args(input, |v| {
+    Calc::<CSSNumber>::parse_atan2_args(input, &|v| {
       parse_ident(v).and_then(|v| match v {
         Calc::Number(v) => Some(Calc::Number(v)),
         _ => None,
@@ -826,9 +888,9 @@ impl<
     })
   }
 
-  fn parse_atan2_args<'t, Parse: Copy + Fn(&str) -> Option<Calc<V>>>(
+  fn parse_atan2_args<'t>(
     input: &mut Parser<'i, 't>,
-    parse_ident: Parse,
+    parse_ident: &dyn Fn(&str) -> Option<Calc<V>>,
   ) -> Result<Angle, ParseError<'i, ParserError<'i>>> {
     let a = Calc::<V>::parse_sum(input, parse_ident)?;
     input.expect_comma()?;
@@ -903,11 +965,9 @@ impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
   }
 }
 
-impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> AddInternal
-  for Calc<V>
-{
-  fn add(self, other: Calc<V>) -> Calc<V> {
-    match (self, other) {
+impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V>> + std::fmt::Debug> Calc<V> {
+  pub(crate) fn add(self, other: Calc<V>) -> Result<Calc<V>, <V as TryFrom<Calc<V>>>::Error> {
+    Ok(match (self, other) {
       (Calc::Value(a), Calc::Value(b)) => (a.add(*b)).into(),
       (Calc::Number(a), Calc::Number(b)) => Calc::Number(a + b),
       (Calc::Sum(a, b), Calc::Number(c)) => {
@@ -934,10 +994,10 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> 
       | (a, b @ Calc::Product(..)) => Calc::Sum(Box::new(a), Box::new(b)),
       (Calc::Function(a), b) => Calc::Sum(Box::new(Calc::Function(a)), Box::new(b)),
       (a, Calc::Function(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Function(b))),
-      (Calc::Value(a), b) => (a.add(V::from(b))).into(),
-      (a, Calc::Value(b)) => (V::from(a).add(*b)).into(),
-      (a @ Calc::Sum(..), b @ Calc::Sum(..)) => V::from(a).add(V::from(b)).into(),
-    }
+      (Calc::Value(a), b) => (a.add(V::try_from(b)?)).into(),
+      (a, Calc::Value(b)) => (V::try_from(a)?.add(*b)).into(),
+      (a @ Calc::Sum(..), b @ Calc::Sum(..)) => V::try_from(a)?.add(V::try_from(b)?).into(),
+    })
   }
 }
 

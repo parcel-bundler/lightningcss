@@ -12,7 +12,7 @@ use crate::printer::Printer;
 use crate::targets::should_compile;
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthValue;
-use crate::values::number::CSSNumber;
+use crate::values::number::{CSSNumber, NonNegative};
 use crate::values::string::CowArcStr;
 use crate::values::{angle::Angle, length::LengthPercentage, percentage::Percentage};
 #[cfg(feature = "visitor")]
@@ -158,7 +158,7 @@ enum_property! {
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum FontSize {
   /// An explicit size.
-  Length(LengthPercentage),
+  Length(NonNegative<LengthPercentage>),
   /// An absolute font size keyword.
   Absolute(AbsoluteFontSize),
   /// A relative font size keyword.
@@ -168,7 +168,7 @@ pub enum FontSize {
 impl IsCompatible for FontSize {
   fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
     match self {
-      FontSize::Length(LengthPercentage::Dimension(LengthValue::Rem(..))) => {
+      FontSize::Length(NonNegative(LengthPercentage::Dimension(LengthValue::Rem(..)))) => {
         Feature::FontSizeRem.is_compatible(browsers)
       }
       FontSize::Length(l) => l.is_compatible(browsers),
@@ -243,7 +243,7 @@ pub enum FontStretch {
   /// A font stretch keyword.
   Keyword(FontStretchKeyword),
   /// A percentage.
-  Percentage(Percentage),
+  Percentage(NonNegative<Percentage>),
 }
 
 impl Default for FontStretch {
@@ -255,7 +255,7 @@ impl Default for FontStretch {
 impl Into<Percentage> for &FontStretch {
   fn into(self) -> Percentage {
     match self {
-      FontStretch::Percentage(val) => val.clone(),
+      FontStretch::Percentage(val) => val.0.clone(),
       FontStretch::Keyword(keyword) => keyword.into(),
     }
   }
@@ -348,17 +348,44 @@ pub enum FontFamily<'i> {
   Generic(GenericFontFamily),
   /// A custom family name.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  FamilyName(CowArcStr<'i>),
+  FamilyName(FamilyName<'i>),
 }
 
 impl<'i> Parse<'i> for FontFamily<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(value) = input.try_parse(|i| i.expect_string_cloned()) {
-      return Ok(FontFamily::FamilyName(value.into()));
-    }
-
     if let Ok(value) = input.try_parse(GenericFontFamily::parse) {
       return Ok(FontFamily::Generic(value));
+    }
+
+    let family = FamilyName::parse(input)?;
+    Ok(FontFamily::FamilyName(family))
+  }
+}
+
+impl<'i> ToCss for FontFamily<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      FontFamily::Generic(val) => val.to_css(dest),
+      FontFamily::FamilyName(val) => val.to_css(dest),
+    }
+  }
+}
+
+/// A font [family name](https://drafts.csswg.org/css-fonts/#family-name-syntax).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct FamilyName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'i>);
+
+impl<'i> Parse<'i> for FamilyName<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(value) = input.try_parse(|i| i.expect_string_cloned()) {
+      return Ok(FamilyName(value.into()));
     }
 
     let value: CowArcStr<'i> = input.expect_ident()?.into();
@@ -380,40 +407,43 @@ impl<'i> Parse<'i> for FontFamily<'i> {
       value
     };
 
-    Ok(FontFamily::FamilyName(value))
+    Ok(FamilyName(value))
   }
 }
 
-impl<'i> ToCss for FontFamily<'i> {
+impl<'i> ToCss for FamilyName<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
-    match self {
-      FontFamily::Generic(val) => val.to_css(dest),
-      FontFamily::FamilyName(val) => {
-        // Generic family names such as sans-serif must be quoted if parsed as a string.
-        // CSS wide keywords, as well as "default", must also be quoted.
-        // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
-        if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() {
-          let mut id = String::new();
-          let mut first = true;
-          for slice in val.split(' ') {
-            if first {
-              first = false;
-            } else {
-              id.push(' ');
-            }
-            serialize_identifier(slice, &mut id)?;
-          }
-          if id.len() < val.len() + 2 {
-            return dest.write_str(&id);
-          }
-        }
+    // Generic family names such as sans-serif must be quoted if parsed as a string.
+    // CSS wide keywords, as well as "default", must also be quoted.
+    // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
+    let val = &self.0;
+    if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() {
+      // Family names with two or more consecutive spaces must be quoted to preserve the spaces.
+      let needs_quotes = val.contains("  ");
+      if needs_quotes {
         serialize_string(&val, dest)?;
-        Ok(())
+        return Ok(());
+      }
+
+      let mut id = String::new();
+      let mut first = true;
+      for slice in val.split(' ') {
+        if first {
+          first = false;
+        } else {
+          id.push(' ');
+        }
+        serialize_identifier(slice, &mut id)?;
+      }
+      if id.len() < val.len() + 2 {
+        return dest.write_str(&id);
       }
     }
+    serialize_string(&val, dest)?;
+    Ok(())
   }
 }
 
@@ -567,9 +597,9 @@ pub enum LineHeight {
   /// The UA sets the line height based on the font.
   Normal,
   /// A multiple of the element's font size.
-  Number(CSSNumber),
+  Number(NonNegative<CSSNumber>),
   /// An explicit height.
-  Length(LengthPercentage),
+  Length(NonNegative<LengthPercentage>),
 }
 
 impl Default for LineHeight {
@@ -894,7 +924,17 @@ impl<'i> FontHandler<'i> {
     let variant_caps = std::mem::take(&mut self.variant_caps);
 
     if let Some(family) = &mut family {
-      if family.len() > 1 {
+      if family
+        .iter()
+        .all(|f| matches!(f, FontFamily::Generic(GenericFontFamily::Monospace)))
+      {
+        // Browsers have a different default size for monospace, typically 13px instead of 16px.
+        // This is often undesired. You can avoid it by including another name in the stack,
+        // so `font-family: monospace, monospace` is a common workaround.
+        // (You can also avoid it with a font-size declaration in absolute units like px or rem.)
+        // So, don’t completely deduplicate it, we’d risk making the text 18.75% smaller.
+        family.truncate(2);
+      } else if family.len() > 1 {
         // Dedupe.
         let mut seen = HashSet::new();
         family.retain(|f| seen.insert(f.clone()));
@@ -994,7 +1034,7 @@ fn compatible_font_family(mut family: Option<Vec<FontFamily>>, is_supported: boo
         (position + 1)..(position + 1),
         DEFAULT_SYSTEM_FONTS
           .iter()
-          .map(|name| FontFamily::FamilyName(CowArcStr::from(*name))),
+          .map(|name| FontFamily::FamilyName(FamilyName(CowArcStr::from(*name)))),
       );
     }
   }

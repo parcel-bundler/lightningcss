@@ -1,4 +1,3 @@
-use atty::Stream;
 use clap::{ArgGroup, Parser};
 use lightningcss::bundler::{Bundler, FileProvider};
 use lightningcss::stylesheet::{MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, StyleSheet};
@@ -6,6 +5,7 @@ use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 use serde::Serialize;
 use std::borrow::Cow;
+use std::io::IsTerminal;
 use std::sync::{Arc, RwLock};
 use std::{ffi, fs, io, path::Path};
 
@@ -39,6 +39,10 @@ struct CliArgs {
   /// Enable parsing custom media queries
   #[clap(long, value_parser)]
   custom_media: bool,
+  /// Enable parsing scroll navigation controls.
+  /// https://drafts.csswg.org/css-overflow-5/#scroll-navigation
+  #[clap(long, value_parser)]
+  scroll_navigation_controls: bool,
   /// Enable CSS modules in output.
   /// If no filename is provided, <output_file>.json will be used.
   /// If no --output-file is specified, code and exports will be printed to stdout as JSON.
@@ -105,14 +109,15 @@ pub fn main() -> Result<(), std::io::Error> {
       .collect::<Result<_, _>>()?
   } else {
     // Don't silently wait for input if stdin was not redirected.
-    if atty::is(Stream::Stdin) {
+    let stdin = io::stdin();
+    if stdin.is_terminal() {
       return Err(io::Error::new(
         io::ErrorKind::Other,
         "Not reading from stdin as it was not redirected",
       ));
     }
     let filename = format!("stdin-{}", std::process::id());
-    let contents = io::read_to_string(io::stdin())?;
+    let contents = io::read_to_string(stdin)?;
     vec![(filename, contents)]
   };
 
@@ -166,6 +171,10 @@ pub fn main() -> Result<(), std::io::Error> {
     let res = {
       let mut flags = ParserFlags::empty();
       flags.set(ParserFlags::CUSTOM_MEDIA, cli_args.custom_media);
+      flags.set(
+        ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+        cli_args.scroll_navigation_controls,
+      );
 
       let mut options = ParserOptions {
         flags,

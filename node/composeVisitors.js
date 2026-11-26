@@ -1,20 +1,30 @@
 // @ts-check
 /** @typedef {import('./index').Visitor} Visitor */
+/** @typedef {import('./index').VisitorFunction} VisitorFunction */
 
 /**
  * Composes multiple visitor objects into a single one.
- * @param {Visitor[]} visitors 
- * @return {Visitor}
+ * @param {(Visitor | VisitorFunction)[]} visitors 
+ * @return {Visitor | VisitorFunction}
  */
 function composeVisitors(visitors) {
   if (visitors.length === 1) {
     return visitors[0];
   }
+  
+  if (visitors.some(v => typeof v === 'function')) {
+    return (opts) => {
+      let v = visitors.map(v => typeof v === 'function' ? v(opts) : v);
+      return composeVisitors(v);
+    };
+  }
 
   /** @type Visitor */
   let res = {};
-  composeObjectVisitors(res, visitors, 'Rule', ruleVisitor, wrapUnknownAtRule);
-  composeObjectVisitors(res, visitors, 'RuleExit', ruleVisitor, wrapUnknownAtRule);
+  composeSimpleVisitors(res, visitors, 'StyleSheet');
+  composeSimpleVisitors(res, visitors, 'StyleSheetExit');
+  composeObjectVisitors(res, visitors, 'Rule', ruleVisitor, wrapCustomAndUnknownAtRule);
+  composeObjectVisitors(res, visitors, 'RuleExit', ruleVisitor, wrapCustomAndUnknownAtRule);
   composeObjectVisitors(res, visitors, 'Declaration', declarationVisitor, wrapCustomProperty);
   composeObjectVisitors(res, visitors, 'DeclarationExit', declarationVisitor, wrapCustomProperty);
   composeSimpleVisitors(res, visitors, 'Url');
@@ -45,8 +55,14 @@ function composeVisitors(visitors) {
 
 module.exports = composeVisitors;
 
-function wrapUnknownAtRule(k, f) {
-  return k === 'unknown' ? (value => f({ type: 'unknown', value })) : f;
+function wrapCustomAndUnknownAtRule(k, f) {
+  if (k === 'unknown') {
+    return (value => f({ type: 'unknown', value }));
+  }
+  if (k === 'custom') {
+    return (value => f({ type: 'custom', value }));
+  }
+  return f;
 }
 
 function wrapCustomProperty(k, f) {
@@ -61,6 +77,13 @@ function ruleVisitor(f, item) {
   if (typeof f === 'object') {
     if (item.type === 'unknown') {
       let v = f.unknown;
+      if (typeof v === 'object') {
+        v = v[item.value.name];
+      }
+      return v?.(item.value);
+    }
+    if (item.type === 'custom') {
+      let v = f.custom;
       if (typeof v === 'object') {
         v = v[item.value.name];
       }
@@ -351,7 +374,7 @@ function createArrayVisitor(visitors, apply) {
       // For each value, call all visitors. If a visitor returns a new value,
       // we start over, but skip the visitor that generated the value or saw
       // it before (to avoid cycles). This way, visitors can be composed in any order. 
-      for (let v = 0; v < visitors.length;) {
+      for (let v = 0; v < visitors.length && i < arr.length;) {
         if (seen.get(v)) {
           v++;
           continue;

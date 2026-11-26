@@ -478,9 +478,9 @@ impl<'i> ImageSetOption<'i> {
     // Safari only supports the x resolution unit in image-set().
     // In other places, x was added as an alias later.
     // Temporarily ignore the targets while printing here.
-    let targets = std::mem::take(&mut dest.targets);
+    let targets = std::mem::take(&mut dest.targets.current);
     self.resolution.to_css(dest)?;
-    dest.targets = targets;
+    dest.targets.current = targets;
 
     if let Some(file_type) = &self.file_type {
       dest.write_str(" type(")?;

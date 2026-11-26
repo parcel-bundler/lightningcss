@@ -71,6 +71,10 @@ prefixes['any-pseudo'] = {
     })
 }
 
+// Safari 4-13 supports background-clip: text with a prefix.
+prefixes['background-clip'].browsers.push('safari 13');
+prefixes['background-clip'].browsers.push('ios_saf 4', 'ios_saf 13');
+
 let flexSpec = {};
 let oldGradient = {};
 let p = new Map();
@@ -185,7 +189,6 @@ let cssFeatures = [
   'css-autofill',
   'css-namespaces',
   'shadowdomv1',
-  'css-rrggbbaa',
   'css-nesting',
   'css-not-sel-list',
   'css-has',
@@ -196,7 +199,6 @@ let cssFeatures = [
 
 let cssFeatureMappings = {
   'css-dir-pseudo': 'DirSelector',
-  'css-rrggbbaa': 'HexAlphaColors',
   'css-not-sel-list': 'NotSelectorList',
   'css-has': 'HasSelector',
   'css-matches-pseudo': 'IsSelector',
@@ -246,12 +248,36 @@ for (let feature of cssFeatures) {
     }
   }
 
+  // caniuse lists Android WebView 2.1-4.4.4 and then only the current version,
+  // so any feature added after 4.4 appears to need the latest WebView, and that
+  // threshold moves up with every data update (#568). WebView 37+ shares
+  // Chrome's engine and version numbers, so derive it from Chrome instead.
+  if (browserMap.android != null && browserMap.android > parseVersion('4.4.4') && browserMap.chrome != null) {
+    browserMap.android = Math.max(browserMap.chrome, parseVersion('37'));
+  }
+
   let name = (cssFeatureMappings[feature] || feature).replace(/^css-/, '');
   addValue(compat, browserMap, name);
 }
 
 // No browser supports custom media queries yet.
 addValue(compat, {}, 'custom-media-queries');
+
+// Drops BCD `partial_implementation` entries from a support map, for features where
+// partial support must not count as support. A browser whose only entry is partial
+// becomes `{ version_added: false }` (unsupported), which the loop below skips.
+function withoutPartial(support) {
+  return Object.fromEntries(
+    Object.entries(support).map(([browser, value]) => {
+      if (Array.isArray(value)) {
+        value = value.filter(v => !v.partial_implementation);
+      } else if (value.partial_implementation) {
+        value = { version_added: false };
+      }
+      return [browser, value];
+    })
+  );
+}
 
 let mdnFeatures = {
   doublePositionGradients: mdn.css.types.gradient['radial-gradient'].doubleposition.__compat.support,
@@ -261,19 +287,8 @@ let mdnFeatures = {
   placeItems: mdn.css.properties['place-items'].__compat.support,
   overflowShorthand: mdn.css.properties['overflow'].multiple_keywords.__compat.support,
   mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
-  mediaIntervalSyntax: Object.fromEntries(
-    Object.entries(mdn.css['at-rules'].media.range_syntax.__compat.support)
-      .map(([browser, value]) => {
-        // Firefox supported only ranges and not intervals for a while.
-        if (Array.isArray(value)) {
-          value = value.filter(v => !v.partial_implementation)
-        } else if (value.partial_implementation) {
-          value = undefined;
-        }
-
-        return [browser, value];
-      })
-  ),
+  // Firefox supported only ranges and not intervals for a while.
+  mediaIntervalSyntax: withoutPartial(mdn.css['at-rules'].media.range_syntax.__compat.support),
   logicalBorders: mdn.css.properties['border-inline-start'].__compat.support,
   logicalBorderShorthand: mdn.css.properties['border-inline'].__compat.support,
   logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support,
@@ -284,10 +299,12 @@ let mdnFeatures = {
   logicalInset: mdn.css.properties['inset-inline-start'].__compat.support,
   logicalSize: mdn.css.properties['inline-size'].__compat.support,
   logicalTextAlign: mdn.css.properties['text-align'].start.__compat.support,
+  hexAlphaColors: mdn.css.types.color.rgb_hexadecimal_notation.alpha_hexadecimal_notation.__compat.support,
   labColors: mdn.css.types.color.lab.__compat.support,
   oklabColors: mdn.css.types.color.oklab.__compat.support,
   colorFunction: mdn.css.types.color.color.__compat.support,
   spaceSeparatedColorNotation: mdn.css.types.color.rgb.space_separated_parameters.__compat.support,
+  highlight: mdn.css.selectors.highlight.__compat.support,
   textDecorationThicknessPercent: mdn.css.properties['text-decoration-thickness'].percentage.__compat.support,
   textDecorationThicknessShorthand: mdn.css.properties['text-decoration'].includes_thickness.__compat.support,
   cue: mdn.css.selectors.cue.__compat.support,
@@ -329,8 +346,25 @@ let mdnFeatures = {
   fontWeightNumber: mdn.css.properties['font-weight'].number.__compat.support,
   fontStretchPercentage: mdn.css.properties['font-stretch'].percentage.__compat.support,
   lightDark: mdn.css.types.color['light-dark'].__compat.support,
-  accentSystemColor: mdn.css.types.color['system-color'].accentcolor_accentcolortext.__compat.support,
-  animationTimelineShorthand: mdn.css.properties.animation['animation-timeline_included'].__compat.support,
+  // @mdn/browser-compat-data 8.1 split `accentcolor_accentcolortext` into
+  // separate keys; the two keywords shipped together.
+  accentSystemColor: (mdn.css.types.color['system-color'].accentcolor_accentcolortext ??
+    mdn.css.types.color['system-color'].accentcolor).__compat.support,
+  // Chrome/Edge 115+ only support animation-timeline as a reset-only sub-property
+  // of the animation shorthand, so it cannot be set via the shorthand yet.
+  animationTimelineShorthand: withoutPartial(mdn.css.properties.animation['animation-timeline_included'].__compat.support),
+  viewTransition: mdn.css.selectors['view-transition'].__compat.support,
+  detailsContent: mdn.css.selectors['details-content'].__compat.support,
+  targetText: mdn.css.selectors['target-text'].__compat.support,
+  searchText: mdn.css.selectors['search-text'].__compat.support,
+  picker: mdn.css.selectors.picker.__compat.support,
+  pickerIcon: mdn.css.selectors['picker-icon'].__compat.support,
+  checkmark: mdn.css.selectors.checkmark.__compat.support,
+  grammarError: mdn.css.selectors['grammar-error'].__compat.support,
+  spellingError: mdn.css.selectors['spelling-error'].__compat.support,
+  // Chrome/Edge 90-124 supported old :--foo syntax which was removed.
+  // Only include full :state(foo) support from 125+.
+  statePseudoClass: withoutPartial(mdn.css.selectors.state.__compat.support),
 };
 
 for (let key in mdn.css.types.length) {
@@ -378,7 +412,7 @@ for (let key in mdn.css.properties['list-style-type']) {
 }
 
 for (let key in mdn.css.properties['width']) {
-  if (key === '__compat' || key === 'animatable') {
+  if (key === '__compat' || key === 'is_animatable') {
     continue;
   }
 
@@ -436,6 +470,18 @@ addValue(compat, {
   safari: parseVersion('10.1'),
   ios_saf: parseVersion('10.3')
 }, 'LangSelectorList');
+
+addValue(compat, {
+  chrome: parseVersion('135'),
+  edge: parseVersion('135'),
+  android: parseVersion('135')
+}, 'TargetCurrent');
+
+addValue(compat, {
+  chrome: parseVersion('142'),
+  edge: parseVersion('142'),
+  android: parseVersion('142')
+}, 'TargetBeforeAfter');
 
 let prefixMapping = {
   webkit: 'WebKit',
@@ -639,7 +685,10 @@ impl Feature {
       if self.is_compatible(browsers) {
         return true
       }
-      browsers.${browser} = None;
+      #[allow(unused_assignments)]
+      {
+        browsers.${browser} = None;
+      }
     }\n`).join('    ')}
     false
   }

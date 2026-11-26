@@ -12,6 +12,7 @@ use crate::error::PrinterErrorKind;
 use crate::properties::css_modules::{Composes, Specifier};
 use crate::selector::SelectorList;
 use data_encoding::{Encoding, Specification};
+use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use pathdiff::diff_paths;
 #[cfg(any(feature = "serde", feature = "nodejs"))]
@@ -19,17 +20,17 @@ use serde::Serialize;
 use smallvec::{smallvec, SmallVec};
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 /// Configuration for CSS modules.
-#[derive(Clone, Debug)]
-pub struct Config<'i> {
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
+pub struct Config {
   /// The name pattern to use when renaming class names and other identifiers.
   /// Default is `[hash]_[local]`.
-  pub pattern: Pattern<'i>,
+  pub pattern: Pattern,
   /// Whether to rename dashed identifiers, e.g. custom properties.
   pub dashed_idents: bool,
   /// Whether to scope animation names.
@@ -48,7 +49,7 @@ pub struct Config<'i> {
   pub pure: bool,
 }
 
-impl<'i> Default for Config<'i> {
+impl Default for Config {
   fn default() -> Self {
     Config {
       pattern: Default::default(),
@@ -63,16 +64,16 @@ impl<'i> Default for Config<'i> {
 }
 
 /// A CSS modules class name pattern.
-#[derive(Clone, Debug)]
-pub struct Pattern<'i> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct Pattern {
   /// The list of segments in the pattern.
-  pub segments: SmallVec<[Segment<'i>; 2]>,
+  pub segments: SmallVec<[Segment; 2]>,
 }
 
-impl<'i> Default for Pattern<'i> {
+impl Default for Pattern {
   fn default() -> Self {
     Pattern {
-      segments: smallvec![Segment::Hash, Segment::Literal("_"), Segment::Local],
+      segments: smallvec![Segment::Hash, Segment::Literal(Cow::Borrowed("_")), Segment::Local],
     }
   }
 }
@@ -102,9 +103,9 @@ impl std::fmt::Display for PatternParseError {
 
 impl std::error::Error for PatternParseError {}
 
-impl<'i> Pattern<'i> {
+impl Pattern {
   /// Parse a pattern from a string.
-  pub fn parse(mut input: &'i str) -> Result<Self, PatternParseError> {
+  pub fn parse(mut input: &str) -> Result<Self, PatternParseError> {
     let mut segments = SmallVec::new();
     let mut start_idx: usize = 0;
     while !input.is_empty() {
@@ -125,7 +126,7 @@ impl<'i> Pattern<'i> {
         }
       } else {
         let end_idx = input.find('[').unwrap_or_else(|| input.len());
-        segments.push(Segment::Literal(&input[0..end_idx]));
+        segments.push(Segment::Literal(Cow::Owned(input[0..end_idx].to_owned())));
         start_idx += end_idx;
         input = &input[end_idx..];
       }
@@ -195,10 +196,10 @@ impl<'i> Pattern<'i> {
 /// A segment in a CSS modules class name pattern.
 ///
 /// See [Pattern](Pattern).
-#[derive(Clone, Debug)]
-pub enum Segment<'i> {
+#[derive(Clone, Debug, PartialEq)]
+pub enum Segment {
   /// A literal string segment.
-  Literal(&'i str),
+  Literal(Cow<'static, str>),
   /// The base file name.
   Name,
   /// The original class name.
@@ -251,11 +252,11 @@ pub struct CssModuleExport {
   pub is_referenced: bool,
 }
 
-/// A map of exported names to values.
-pub type CssModuleExports = HashMap<String, CssModuleExport>;
+/// A map of exported names to values, in the order they appear in the source.
+pub type CssModuleExports = IndexMap<String, CssModuleExport>;
 
-/// A map of placeholders to references.
-pub type CssModuleReferences = HashMap<String, CssModuleReference>;
+/// A map of placeholders to references, in the order they appear in the source.
+pub type CssModuleReferences = IndexMap<String, CssModuleReference>;
 
 lazy_static! {
   static ref ENCODER: Encoding = {
@@ -267,21 +268,21 @@ lazy_static! {
   };
 }
 
-pub(crate) struct CssModule<'a, 'b, 'c> {
-  pub config: &'a Config<'b>,
+pub(crate) struct CssModule<'a, 'c> {
+  pub config: &'a Config,
   pub sources: Vec<&'c Path>,
   pub hashes: Vec<String>,
   pub content_hashes: &'a Option<Vec<String>>,
   pub exports_by_source_index: Vec<CssModuleExports>,
-  pub references: &'a mut HashMap<String, CssModuleReference>,
+  pub references: &'a mut CssModuleReferences,
 }
 
-impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
+impl<'a, 'c> CssModule<'a, 'c> {
   pub fn new(
-    config: &'a Config<'b>,
+    config: &'a Config,
     sources: &'c Vec<String>,
     project_root: Option<&'c str>,
-    references: &'a mut HashMap<String, CssModuleReference>,
+    references: &'a mut CssModuleReferences,
     content_hashes: &'a Option<Vec<String>>,
   ) -> Self {
     let project_root = project_root.map(|p| Path::new(p));
@@ -304,7 +305,7 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
       .collect();
     Self {
       config,
-      exports_by_source_index: sources.iter().map(|_| HashMap::new()).collect(),
+      exports_by_source_index: sources.iter().map(|_| IndexMap::new()).collect(),
       sources,
       hashes,
       content_hashes,
@@ -362,10 +363,10 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
 
   pub fn reference(&mut self, name: &str, source_index: u32) {
     match self.exports_by_source_index[source_index as usize].entry(name.into()) {
-      std::collections::hash_map::Entry::Occupied(mut entry) => {
+      indexmap::map::Entry::Occupied(mut entry) => {
         entry.get_mut().is_referenced = true;
       }
-      std::collections::hash_map::Entry::Vacant(entry) => {
+      indexmap::map::Entry::Vacant(entry) => {
         entry.insert(CssModuleExport {
           name: self
             .config
@@ -421,10 +422,10 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
       None => {
         // Local export. Mark as used.
         match self.exports_by_source_index[source_index as usize].entry(name.into()) {
-          std::collections::hash_map::Entry::Occupied(mut entry) => {
+          indexmap::map::Entry::Occupied(mut entry) => {
             entry.get_mut().is_referenced = true;
           }
-          std::collections::hash_map::Entry::Vacant(entry) => {
+          indexmap::map::Entry::Vacant(entry) => {
             entry.insert(CssModuleExport {
               name: self
                 .config

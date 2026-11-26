@@ -238,7 +238,7 @@ This example lightens `slateblue` by 10% in the LCH color space.
 
 ```css
 .foo {
-  color: lch(from slateblue calc(l + 10%) c h);
+  color: lch(from slateblue calc(l * 1.1) c h);
 }
 ```
 
@@ -246,7 +246,7 @@ compiles to:
 
 ```css
 .foo {
-  color: lch(54.5711% 65.7776 296.794);
+  color: lch(49.0282% 65.7776 296.794);
 }
 ```
 
@@ -286,8 +286,8 @@ compiles to:
 
 ```css
 .foo {
-  background-color: #6a805d;
-  background-color: color(a98-rgb .44091 .49971 .37408);
+  color: #6a805d;
+  color: color(a98-rgb .44091 .49971 .37408);
 }
 ```
 

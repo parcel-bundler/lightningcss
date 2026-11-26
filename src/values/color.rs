@@ -12,7 +12,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
-use crate::targets::{should_compile, Browsers, Targets};
+use crate::targets::{should_compile, Browsers, Features, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
@@ -101,7 +101,7 @@ impl CurrentColor {
 #[serde(tag = "type", rename_all = "lowercase")]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 enum RGBColor {
-  RGB(SRGB),
+  RGB(RGB),
 }
 
 #[cfg(feature = "serde")]
@@ -222,7 +222,7 @@ pub enum PredefinedColor {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FloatColor {
   /// An RGB color.
-  RGB(SRGB),
+  RGB(RGB),
   /// An HSL color.
   HSL(HSL),
   /// An HWB color.
@@ -326,6 +326,82 @@ impl CssColor {
   /// Returns the `transparent` keyword.
   pub fn transparent() -> CssColor {
     CssColor::RGBA(RGBA::transparent())
+  }
+
+  fn alpha(&self) -> Result<f32, ()> {
+    Ok(match self {
+      CssColor::RGBA(rgba) => rgba.alpha_f32(),
+      CssColor::LAB(lab) => match &**lab {
+        LABColor::LAB(lab) => lab.alpha,
+        LABColor::LCH(lch) => lch.alpha,
+        LABColor::OKLAB(lab) => lab.alpha,
+        LABColor::OKLCH(lch) => lch.alpha,
+      },
+      CssColor::Predefined(predefined) => match &**predefined {
+        PredefinedColor::SRGB(rgb) => rgb.alpha,
+        PredefinedColor::SRGBLinear(rgb) => rgb.alpha,
+        PredefinedColor::DisplayP3(rgb) => rgb.alpha,
+        PredefinedColor::A98(rgb) => rgb.alpha,
+        PredefinedColor::ProPhoto(rgb) => rgb.alpha,
+        PredefinedColor::Rec2020(rgb) => rgb.alpha,
+        PredefinedColor::XYZd50(xyz) => xyz.alpha,
+        PredefinedColor::XYZd65(xyz) => xyz.alpha,
+      },
+      CssColor::Float(float) => match &**float {
+        FloatColor::RGB(rgb) => rgb.alpha,
+        FloatColor::HSL(hsl) => hsl.alpha,
+        FloatColor::HWB(hwb) => hwb.alpha,
+      },
+      CssColor::LightDark(..) | CssColor::CurrentColor | CssColor::System(..) => return Err(()),
+    })
+  }
+
+  fn with_alpha(self, alpha: f32) -> CssColor {
+    match self {
+      CssColor::RGBA(rgba) => {
+        // Store as Float to preserve the exact f32 alpha value through subsequent
+        // relative color computations. Going through u8 here would quantize 0.5 to
+        // 128/255 ≈ 0.50196 and accumulate error in nested alpha()/color-mix() calls.
+        let mut rgb = RGB::from(rgba);
+        rgb.alpha = alpha;
+        CssColor::Float(Box::new(FloatColor::RGB(rgb)))
+      }
+      CssColor::LAB(mut lab) => {
+        match &mut *lab {
+          LABColor::LAB(lab) => lab.alpha = alpha,
+          LABColor::LCH(lch) => lch.alpha = alpha,
+          LABColor::OKLAB(lab) => lab.alpha = alpha,
+          LABColor::OKLCH(lch) => lch.alpha = alpha,
+        }
+        CssColor::LAB(lab)
+      }
+      CssColor::Predefined(mut predefined) => {
+        match &mut *predefined {
+          PredefinedColor::SRGB(rgb) => rgb.alpha = alpha,
+          PredefinedColor::SRGBLinear(rgb) => rgb.alpha = alpha,
+          PredefinedColor::DisplayP3(rgb) => rgb.alpha = alpha,
+          PredefinedColor::A98(rgb) => rgb.alpha = alpha,
+          PredefinedColor::ProPhoto(rgb) => rgb.alpha = alpha,
+          PredefinedColor::Rec2020(rgb) => rgb.alpha = alpha,
+          PredefinedColor::XYZd50(xyz) => xyz.alpha = alpha,
+          PredefinedColor::XYZd65(xyz) => xyz.alpha = alpha,
+        }
+        CssColor::Predefined(predefined)
+      }
+      CssColor::Float(mut float) => {
+        match &mut *float {
+          FloatColor::RGB(rgb) => rgb.alpha = alpha,
+          FloatColor::HSL(hsl) => hsl.alpha = alpha,
+          FloatColor::HWB(hwb) => hwb.alpha = alpha,
+        }
+        CssColor::Float(float)
+      }
+      CssColor::LightDark(light, dark) => CssColor::LightDark(
+        Box::new((*light).with_alpha(alpha)),
+        Box::new((*dark).with_alpha(alpha)),
+      ),
+      color => color,
+    }
   }
 
   /// Converts the color to RGBA.
@@ -433,16 +509,52 @@ impl CssColor {
 
   /// Returns a fallback color for the given fallback type.
   pub fn get_fallback(&self, kind: ColorFallbackKind) -> CssColor {
-    if matches!(self, CssColor::RGBA(_)) {
-      return self.clone();
+    match self {
+      CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::Float(_) | CssColor::System(_) => self.clone(),
+      CssColor::LightDark(light, dark) => {
+        CssColor::LightDark(Box::new(light.get_fallback(kind)), Box::new(dark.get_fallback(kind)))
+      }
+      _ => match kind {
+        ColorFallbackKind::RGB => self.to_rgb().unwrap(),
+        ColorFallbackKind::P3 => self.to_p3().unwrap(),
+        ColorFallbackKind::LAB => self.to_lab().unwrap(),
+        _ => unreachable!(),
+      },
+    }
+  }
+
+  pub(crate) fn get_features(&self) -> Features {
+    let mut features = Features::empty();
+    match self {
+      CssColor::LAB(labcolor) => match &**labcolor {
+        LABColor::LAB(_) | LABColor::LCH(_) => {
+          features |= Features::LabColors;
+        }
+        LABColor::OKLAB(_) | LABColor::OKLCH(_) => {
+          features |= Features::OklabColors;
+        }
+      },
+      CssColor::Predefined(predefined_color) => {
+        features |= Features::ColorFunction;
+        match &**predefined_color {
+          PredefinedColor::DisplayP3(_) => {
+            features |= Features::P3Colors;
+          }
+          _ => {}
+        }
+      }
+      CssColor::Float(_) => {
+        features |= Features::SpaceSeparatedColorNotation;
+      }
+      CssColor::LightDark(light, dark) => {
+        features |= Features::LightDark;
+        features |= light.get_features();
+        features |= dark.get_features();
+      }
+      _ => {}
     }
 
-    match kind {
-      ColorFallbackKind::RGB => self.to_rgb().unwrap(),
-      ColorFallbackKind::P3 => self.to_p3().unwrap(),
-      ColorFallbackKind::LAB => self.to_lab().unwrap(),
-      _ => unreachable!(),
-    }
+    features
   }
 }
 
@@ -472,15 +584,15 @@ impl FallbackValues for CssColor {
 
     let mut res = Vec::new();
     if fallbacks.contains(ColorFallbackKind::RGB) {
-      res.push(self.to_rgb().unwrap());
+      res.push(self.get_fallback(ColorFallbackKind::RGB));
     }
 
     if fallbacks.contains(ColorFallbackKind::P3) {
-      res.push(self.to_p3().unwrap());
+      res.push(self.get_fallback(ColorFallbackKind::P3));
     }
 
     if fallbacks.contains(ColorFallbackKind::LAB) {
-      *self = self.to_lab().unwrap();
+      *self = self.get_fallback(ColorFallbackKind::LAB);
     }
 
     res
@@ -542,7 +654,7 @@ impl ToCss for CssColor {
           }
         } else {
           // If the #rrggbbaa syntax is not supported by the browser targets, output rgba()
-          if should_compile!(dest.targets, HexAlphaColors) {
+          if should_compile!(dest.targets.current, HexAlphaColors) {
             // If the browser doesn't support `#rrggbbaa` color syntax, it is converted to `transparent` when compressed(minify = true).
             // https://www.w3.org/TR/css-color-4/#transparent-black
             if dest.minify && color.red == 0 && color.green == 0 && color.blue == 0 && color.alpha == 0 {
@@ -583,19 +695,19 @@ impl ToCss for CssColor {
         Ok(())
       }
       CssColor::LAB(lab) => match &**lab {
-        LABColor::LAB(lab) => write_components("lab", lab.l, lab.a, lab.b, lab.alpha, dest),
-        LABColor::LCH(lch) => write_components("lch", lch.l, lch.c, lch.h, lch.alpha, dest),
+        LABColor::LAB(lab) => write_components("lab", lab.l / 100.0, lab.a, lab.b, lab.alpha, dest),
+        LABColor::LCH(lch) => write_components("lch", lch.l / 100.0, lch.c, lch.h, lch.alpha, dest),
         LABColor::OKLAB(lab) => write_components("oklab", lab.l, lab.a, lab.b, lab.alpha, dest),
         LABColor::OKLCH(lch) => write_components("oklch", lch.l, lch.c, lch.h, lch.alpha, dest),
       },
       CssColor::Predefined(predefined) => write_predefined(predefined, dest),
       CssColor::Float(float) => {
         // Serialize as hex.
-        let srgb = SRGB::from(**float);
-        CssColor::from(srgb).to_css(dest)
+        let rgb = RGB::from(**float);
+        CssColor::from(rgb).to_css(dest)
       }
       CssColor::LightDark(light, dark) => {
-        if should_compile!(dest.targets, LightDark) {
+        if should_compile!(dest.targets.current, LightDark) {
           dest.write_str("var(--lightningcss-light")?;
           dest.delim(',', false)?;
           light.to_css(dest)?;
@@ -684,21 +796,31 @@ impl RelativeComponentParser {
     }
   }
 
-  fn get_ident(&self, ident: &str, allowed_types: ChannelType) -> Option<f32> {
+  fn alpha_only(alpha: f32) -> Self {
+    Self {
+      names: ("", "", ""),
+      components: (0.0, 0.0, 0.0, alpha),
+      types: (ChannelType::empty(), ChannelType::empty(), ChannelType::empty()),
+    }
+  }
+
+  fn get_ident(&self, ident: &str, allowed_types: ChannelType) -> Option<(f32, ChannelType)> {
     if ident.eq_ignore_ascii_case(self.names.0) && allowed_types.intersects(self.types.0) {
-      return Some(self.components.0);
+      return Some((self.components.0, self.types.0));
     }
 
     if ident.eq_ignore_ascii_case(self.names.1) && allowed_types.intersects(self.types.1) {
-      return Some(self.components.1);
+      return Some((self.components.1, self.types.1));
     }
 
     if ident.eq_ignore_ascii_case(self.names.2) && allowed_types.intersects(self.types.2) {
-      return Some(self.components.2);
+      return Some((self.components.2, self.types.2));
     }
 
-    if ident.eq_ignore_ascii_case("alpha") && allowed_types.intersects(ChannelType::Percentage) {
-      return Some(self.components.3);
+    if ident.eq_ignore_ascii_case("alpha")
+      && allowed_types.intersects(ChannelType::Number | ChannelType::Percentage)
+    {
+      return Some((self.components.3, ChannelType::Number));
     }
 
     None
@@ -708,22 +830,10 @@ impl RelativeComponentParser {
     &self,
     input: &mut Parser<'i, 't>,
     allowed_types: ChannelType,
-  ) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  ) -> Result<(f32, ChannelType), ParseError<'i, ParserError<'i>>> {
     match self.get_ident(input.expect_ident()?.as_ref(), allowed_types) {
       Some(v) => Ok(v),
       None => Err(input.new_error_for_next_token()),
-    }
-  }
-
-  fn parse_calc<'i, 't>(
-    &self,
-    input: &mut Parser<'i, 't>,
-    allowed_types: ChannelType,
-  ) -> Result<f32, ParseError<'i, ParserError<'i>>> {
-    match Calc::parse_with(input, |ident| self.get_ident(ident, allowed_types).map(Calc::Number)) {
-      Ok(Calc::Value(v)) => Ok(*v),
-      Ok(Calc::Number(n)) => Ok(n),
-      _ => Err(input.new_custom_error(ParserError::InvalidValue)),
     }
   }
 }
@@ -736,54 +846,63 @@ impl<'i> ColorParser<'i> for RelativeComponentParser {
     &self,
     input: &mut Parser<'i, 't>,
   ) -> Result<AngleOrNumber, ParseError<'i, Self::Error>> {
-    if let Ok(value) = input.try_parse(|input| self.parse_ident(input, ChannelType::Angle | ChannelType::Number)) {
-      return Ok(AngleOrNumber::Number { value });
+    if let Ok((value, ty)) =
+      input.try_parse(|input| self.parse_ident(input, ChannelType::Angle | ChannelType::Number))
+    {
+      return Ok(match ty {
+        ChannelType::Angle => AngleOrNumber::Angle { degrees: value },
+        ChannelType::Number => AngleOrNumber::Number { value },
+        _ => unreachable!(),
+      });
     }
 
-    if let Ok(value) = input.try_parse(|input| self.parse_calc(input, ChannelType::Angle | ChannelType::Number)) {
-      return Ok(AngleOrNumber::Number { value });
-    }
-
-    if let Ok(value) = input.try_parse(|input| -> Result<Angle, ParseError<'i, ParserError<'i>>> {
-      match Calc::parse_with(input, |ident| {
+    if let Ok(value) = input.try_parse(|input| -> Result<AngleOrNumber, ParseError<'i, ParserError<'i>>> {
+      match Calc::parse_with(input, &|ident| {
         self
           .get_ident(ident, ChannelType::Angle | ChannelType::Number)
-          .map(|v| Calc::Value(Box::new(Angle::Deg(v))))
+          .map(|(value, ty)| match ty {
+            ChannelType::Angle => Calc::Value(Box::new(Angle::Deg(value))),
+            ChannelType::Number => Calc::Number(value),
+            _ => unreachable!(),
+          })
       }) {
-        Ok(Calc::Value(v)) => Ok(*v),
+        Ok(Calc::Value(v)) => Ok(AngleOrNumber::Angle {
+          degrees: v.to_degrees(),
+        }),
+        Ok(Calc::Number(v)) => Ok(AngleOrNumber::Number { value: v }),
         _ => Err(input.new_custom_error(ParserError::InvalidValue)),
       }
     }) {
-      return Ok(AngleOrNumber::Angle {
-        degrees: value.to_degrees(),
-      });
+      return Ok(value);
     }
 
     Err(input.new_error_for_next_token())
   }
 
   fn parse_number<'t>(&self, input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, Self::Error>> {
-    if let Ok(value) = input.try_parse(|input| self.parse_ident(input, ChannelType::Number)) {
+    if let Ok((value, _)) = input.try_parse(|input| self.parse_ident(input, ChannelType::Number)) {
       return Ok(value);
     }
 
-    if let Ok(value) = input.try_parse(|input| self.parse_calc(input, ChannelType::Number)) {
-      return Ok(value);
+    match Calc::parse_with(input, &|ident| {
+      self.get_ident(ident, ChannelType::Number).map(|(v, _)| Calc::Number(v))
+    }) {
+      Ok(Calc::Value(v)) => Ok(*v),
+      Ok(Calc::Number(n)) => Ok(n),
+      _ => Err(input.new_error_for_next_token()),
     }
-
-    Err(input.new_error_for_next_token())
   }
 
   fn parse_percentage<'t>(&self, input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, Self::Error>> {
-    if let Ok(value) = input.try_parse(|input| self.parse_ident(input, ChannelType::Percentage)) {
+    if let Ok((value, _)) = input.try_parse(|input| self.parse_ident(input, ChannelType::Percentage)) {
       return Ok(value);
     }
 
     if let Ok(value) = input.try_parse(|input| -> Result<Percentage, ParseError<'i, ParserError<'i>>> {
-      match Calc::parse_with(input, |ident| {
+      match Calc::parse_with(input, &|ident| {
         self
           .get_ident(ident, ChannelType::Percentage)
-          .map(|v| Calc::Value(Box::new(Percentage(v))))
+          .map(|(v, _)| Calc::Value(Box::new(Percentage(v))))
       }) {
         Ok(Calc::Value(v)) => Ok(*v),
         _ => Err(input.new_custom_error(ParserError::InvalidValue)),
@@ -799,29 +918,32 @@ impl<'i> ColorParser<'i> for RelativeComponentParser {
     &self,
     input: &mut Parser<'i, 't>,
   ) -> Result<NumberOrPercentage, ParseError<'i, Self::Error>> {
-    if let Ok(value) =
+    if let Ok((value, ty)) =
       input.try_parse(|input| self.parse_ident(input, ChannelType::Percentage | ChannelType::Number))
     {
-      return Ok(NumberOrPercentage::Percentage { unit_value: value });
+      return Ok(match ty {
+        ChannelType::Percentage => NumberOrPercentage::Percentage { unit_value: value },
+        ChannelType::Number => NumberOrPercentage::Number { value },
+        _ => unreachable!(),
+      });
     }
 
-    if let Ok(value) =
-      input.try_parse(|input| self.parse_calc(input, ChannelType::Percentage | ChannelType::Number))
-    {
-      return Ok(NumberOrPercentage::Percentage { unit_value: value });
-    }
-
-    if let Ok(value) = input.try_parse(|input| -> Result<Percentage, ParseError<'i, ParserError<'i>>> {
-      match Calc::parse_with(input, |ident| {
+    if let Ok(value) = input.try_parse(|input| -> Result<NumberOrPercentage, ParseError<'i, ParserError<'i>>> {
+      match Calc::parse_with(input, &|ident| {
         self
           .get_ident(ident, ChannelType::Percentage | ChannelType::Number)
-          .map(|v| Calc::Value(Box::new(Percentage(v))))
+          .map(|(value, ty)| match ty {
+            ChannelType::Percentage => Calc::Value(Box::new(Percentage(value))),
+            ChannelType::Number => Calc::Number(value),
+            _ => unreachable!(),
+          })
       }) {
-        Ok(Calc::Value(v)) => Ok(*v),
+        Ok(Calc::Value(v)) => Ok(NumberOrPercentage::Percentage { unit_value: v.0 }),
+        Ok(Calc::Number(v)) => Ok(NumberOrPercentage::Number { value: v }),
         _ => Err(input.new_custom_error(ParserError::InvalidValue)),
       }
     }) {
-      return Ok(NumberOrPercentage::Percentage { unit_value: value.0 });
+      return Ok(value);
     }
 
     Err(input.new_error_for_next_token())
@@ -992,22 +1114,22 @@ fn parse_color_function<'i, 't>(
 
   match_ignore_ascii_case! {&*function,
     "lab" => {
-      parse_lab::<LAB, _>(input, &mut parser, |l, a, b, alpha| {
+      parse_lab::<LAB, _>(input, &mut parser, 100.0, 125.0, |l, a, b, alpha| {
         LABColor::LAB(LAB { l, a, b, alpha })
       })
     },
     "oklab" => {
-      parse_lab::<OKLAB, _>(input, &mut parser, |l, a, b, alpha| {
+      parse_lab::<OKLAB, _>(input, &mut parser, 1.0, 0.4, |l, a, b, alpha| {
         LABColor::OKLAB(OKLAB { l, a, b, alpha })
       })
     },
     "lch" => {
-      parse_lch::<LCH, _>(input, &mut parser, |l, c, h, alpha| {
+      parse_lch::<LCH, _>(input, &mut parser, 100.0, 150.0, |l, c, h, alpha| {
         LABColor::LCH(LCH { l, c, h, alpha })
       })
     },
     "oklch" => {
-      parse_lch::<OKLCH, _>(input, &mut parser, |l, c, h, alpha| {
+      parse_lch::<OKLCH, _>(input, &mut parser, 1.0, 0.4, |l, c, h, alpha| {
         LABColor::OKLCH(OKLCH { l, c, h, alpha })
       })
     },
@@ -1038,6 +1160,9 @@ fn parse_color_function<'i, 't>(
     "rgb" | "rgba" => {
        parse_rgb(input, &mut parser)
     },
+    "alpha" => {
+      parse_relative_alpha(input)
+    },
     "color-mix" => {
       input.parse_nested_block(parse_color_mix)
     },
@@ -1052,6 +1177,11 @@ fn parse_color_function<'i, 't>(
           CssColor::LightDark(_, dark) => dark,
           dark => Box::new(dark)
         };
+
+        if light==dark {
+            return Ok(*light);
+        }
+
         Ok(CssColor::LightDark(light, dark))
       })
     },
@@ -1066,15 +1196,17 @@ fn parse_color_function<'i, 't>(
 fn parse_lab<'i, 't, T: TryFrom<CssColor> + ColorSpace, F: Fn(f32, f32, f32, f32) -> LABColor>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
+  l_basis: f32,
+  ab_basis: f32,
   f: F,
 ) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lab
   input.parse_nested_block(|input| {
     parser.parse_relative::<T, _, _>(input, |input, parser| {
       // f32::max() does not propagate NaN, so use clamp for now until f32::maximum() is stable.
-      let l = parser.parse_percentage(input)?.clamp(0.0, f32::MAX);
-      let a = parser.parse_number(input)?;
-      let b = parser.parse_number(input)?;
+      let l = parse_number_or_percentage(input, parser, l_basis)?.clamp(0.0, f32::MAX);
+      let a = parse_number_or_percentage(input, parser, ab_basis)?;
+      let b = parse_number_or_percentage(input, parser, ab_basis)?;
       let alpha = parse_alpha(input, parser)?;
       let lab = f(l, a, b, alpha);
 
@@ -1088,6 +1220,8 @@ fn parse_lab<'i, 't, T: TryFrom<CssColor> + ColorSpace, F: Fn(f32, f32, f32, f32
 fn parse_lch<'i, 't, T: TryFrom<CssColor> + ColorSpace, F: Fn(f32, f32, f32, f32) -> LABColor>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
+  l_basis: f32,
+  c_basis: f32,
   f: F,
 ) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lch
@@ -1102,8 +1236,8 @@ fn parse_lch<'i, 't, T: TryFrom<CssColor> + ColorSpace, F: Fn(f32, f32, f32, f32
         }
       }
 
-      let l = parser.parse_percentage(input)?.clamp(0.0, f32::MAX);
-      let c = parser.parse_number(input)?.clamp(0.0, f32::MAX);
+      let l = parse_number_or_percentage(input, parser, l_basis)?.clamp(0.0, f32::MAX);
+      let c = parse_number_or_percentage(input, parser, c_basis)?.clamp(0.0, f32::MAX);
       let h = parse_angle_or_number(input, parser)?;
       let alpha = parse_alpha(input, parser)?;
       let lab = f(l, c, h, alpha);
@@ -1111,6 +1245,47 @@ fn parse_lch<'i, 't, T: TryFrom<CssColor> + ColorSpace, F: Fn(f32, f32, f32, f32
       Ok(CssColor::LAB(Box::new(lab)))
     })
   })
+}
+
+/// Parses the alpha() function.
+/// alpha() = alpha([from <color>] [ / [<alpha-value> | none] ]? )
+#[inline]
+fn parse_relative_alpha<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
+  // https://drafts.csswg.org/css-color-5/#relative-alpha
+  input.parse_nested_block(|input| {
+    input.expect_ident_matching("from")?;
+    let from = CssColor::parse(input)?;
+    let res = parse_relative_alpha_from(from, input)?;
+    input.expect_exhausted()?;
+    Ok(res)
+  })
+}
+
+#[inline]
+fn parse_relative_alpha_from<'i, 't>(
+  from: CssColor,
+  input: &mut Parser<'i, 't>,
+) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
+  if let CssColor::LightDark(light, dark) = from {
+    let state = input.state();
+    let light = parse_relative_alpha_from(*light, input)?;
+    input.reset(&state);
+    let dark = parse_relative_alpha_from(*dark, input)?;
+    return Ok(CssColor::LightDark(Box::new(light), Box::new(dark)));
+  }
+
+  let from_alpha = from.alpha().map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
+  let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+    let parser = ComponentParser {
+      allow_none: true,
+      from: Some(RelativeComponentParser::alpha_only(from_alpha)),
+    };
+    parse_number_or_percentage(input, &parser, 1.0)?.clamp(0.0, 1.0)
+  } else {
+    from_alpha
+  };
+
+  Ok(from.with_alpha(alpha))
 }
 
 #[inline]
@@ -1169,9 +1344,9 @@ fn parse_predefined_relative<'i, 't>(
 
   // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
   // The browser will gamut-map the color for the target device that it is rendered on.
-  let a = input.try_parse(|input| parse_number_or_percentage(input, parser))?;
-  let b = input.try_parse(|input| parse_number_or_percentage(input, parser))?;
-  let c = input.try_parse(|input| parse_number_or_percentage(input, parser))?;
+  let a = input.try_parse(|input| parse_number_or_percentage(input, parser, 1.0))?;
+  let b = input.try_parse(|input| parse_number_or_percentage(input, parser, 1.0))?;
+  let c = input.try_parse(|input| parse_number_or_percentage(input, parser, 1.0))?;
   let alpha = parse_alpha(input, parser)?;
 
   let res = match_ignore_ascii_case! { &*&colorspace,
@@ -1224,11 +1399,11 @@ pub(crate) fn parse_hsl_hwb_components<'i, 't, T: TryFrom<CssColor> + ColorSpace
   let h = parse_angle_or_number(input, parser)?;
   let is_legacy_syntax =
     allows_legacy && parser.from.is_none() && !h.is_nan() && input.try_parse(|p| p.expect_comma()).is_ok();
-  let a = parser.parse_percentage(input)?.clamp(0.0, 1.0);
+  let a = parse_number_or_percentage(input, parser, 100.0)?.clamp(0.0, 100.0);
   if is_legacy_syntax {
     input.expect_comma()?;
   }
-  let b = parser.parse_percentage(input)?.clamp(0.0, 1.0);
+  let b = parse_number_or_percentage(input, parser, 100.0)?.clamp(0.0, 100.0);
   if is_legacy_syntax && (a.is_nan() || b.is_nan()) {
     return Err(input.new_custom_error(ParserError::InvalidValue));
   }
@@ -1242,7 +1417,7 @@ fn parse_rgb<'i, 't>(
 ) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#rgb-functions
   input.parse_nested_block(|input| {
-    parser.parse_relative::<SRGB, _, _>(input, |input, parser| {
+    parser.parse_relative::<RGB, _, _>(input, |input, parser| {
       let (r, g, b, is_legacy) = parse_rgb_components(input, parser)?;
       let alpha = if is_legacy {
         parse_legacy_alpha(input, parser)?
@@ -1254,10 +1429,15 @@ fn parse_rgb<'i, 't>(
         if is_legacy {
           Ok(CssColor::RGBA(RGBA::new(r as u8, g as u8, b as u8, alpha)))
         } else {
-          Ok(CssColor::RGBA(RGBA::from_floats(r, g, b, alpha)))
+          Ok(CssColor::RGBA(RGBA::from_floats(
+            r / 255.0,
+            g / 255.0,
+            b / 255.0,
+            alpha,
+          )))
         }
       } else {
-        Ok(CssColor::Float(Box::new(FloatColor::RGB(SRGB { r, g, b, alpha }))))
+        Ok(CssColor::Float(Box::new(FloatColor::RGB(RGB { r, g, b, alpha }))))
       }
     })
   })
@@ -1293,8 +1473,8 @@ pub(crate) fn parse_rgb_components<'i, 't>(
     fn get_component<'i, 't>(value: NumberOrPercentage) -> f32 {
       match value {
         NumberOrPercentage::Number { value } if value.is_nan() => value,
-        NumberOrPercentage::Number { value } => value.round().clamp(0.0, 255.0) / 255.0,
-        NumberOrPercentage::Percentage { unit_value } => unit_value.clamp(0.0, 1.0),
+        NumberOrPercentage::Number { value } => value.round().clamp(0.0, 255.0),
+        NumberOrPercentage::Percentage { unit_value } => (unit_value * 255.0).round().clamp(0.0, 255.0),
       }
     }
 
@@ -1325,10 +1505,11 @@ fn parse_angle_or_number<'i, 't>(
 fn parse_number_or_percentage<'i, 't>(
   input: &mut Parser<'i, 't>,
   parser: &ComponentParser,
+  percent_basis: f32,
 ) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   Ok(match parser.parse_number_or_percentage(input)? {
     NumberOrPercentage::Number { value } => value,
-    NumberOrPercentage::Percentage { unit_value } => unit_value,
+    NumberOrPercentage::Percentage { unit_value } => unit_value * percent_basis,
   })
 }
 
@@ -1338,7 +1519,9 @@ fn parse_alpha<'i, 't>(
   parser: &ComponentParser,
 ) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   let res = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-    parse_number_or_percentage(input, parser)?.clamp(0.0, 1.0)
+    parse_number_or_percentage(input, parser, 1.0)?.clamp(0.0, 1.0)
+  } else if let Some(from) = &parser.from {
+    from.components.3
   } else {
     1.0
   };
@@ -1352,7 +1535,7 @@ fn parse_legacy_alpha<'i, 't>(
 ) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   Ok(if !input.is_exhausted() {
     input.expect_comma()?;
-    parse_number_or_percentage(input, parser)?.clamp(0.0, 1.0)
+    parse_number_or_percentage(input, parser, 1.0)?.clamp(0.0, 1.0)
   } else {
     1.0
   })
@@ -1532,39 +1715,12 @@ define_colorspace! {
   /// A color in the [`sRGB`](https://www.w3.org/TR/css-color-4/#predefined-sRGB) color space.
   pub struct SRGB {
     /// The red component.
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_rgb_component", deserialize_with = "deserialize_rgb_component"))]
-    r: Percentage,
+    r: Number,
     /// The green component.
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_rgb_component", deserialize_with = "deserialize_rgb_component"))]
-    g: Percentage,
+    g: Number,
     /// The blue component.
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_rgb_component", deserialize_with = "deserialize_rgb_component"))]
-    b: Percentage
+    b: Number
   }
-}
-
-// serialize RGB components in the 0-255 range as it is more common.
-#[cfg(feature = "serde")]
-fn serialize_rgb_component<S>(v: &f32, serializer: S) -> Result<S::Ok, S::Error>
-where
-  S: serde::Serializer,
-{
-  let v = if !v.is_nan() {
-    (v * 255.0).round().max(0.0).min(255.0)
-  } else {
-    *v
-  };
-
-  serializer.serialize_f32(v)
-}
-
-#[cfg(feature = "serde")]
-fn deserialize_rgb_component<'de, D>(deserializer: D) -> Result<f32, D::Error>
-where
-  D: serde::Deserializer<'de>,
-{
-  let v: f32 = serde::Deserialize::deserialize(deserializer)?;
-  Ok(v / 255.0)
 }
 
 // Copied from an older version of cssparser.
@@ -1655,14 +1811,27 @@ fn clamp_floor_256_f32(val: f32) -> u8 {
 }
 
 define_colorspace! {
+  /// A color in the [`RGB`](https://w3c.github.io/csswg-drafts/css-color-4/#rgb-functions) color space.
+  /// Components are in the 0-255 range.
+  pub struct RGB {
+    /// The red component.
+    r: Number,
+    /// The green component.
+    g: Number,
+    /// The blue component.
+    b: Number
+  }
+}
+
+define_colorspace! {
   /// A color in the [`sRGB-linear`](https://www.w3.org/TR/css-color-4/#predefined-sRGB-linear) color space.
   pub struct SRGBLinear {
     /// The red component.
-    r: Percentage,
+    r: Number,
     /// The green component.
-    g: Percentage,
+    g: Number,
     /// The blue component.
-    b: Percentage
+    b: Number
   }
 }
 
@@ -1670,11 +1839,11 @@ define_colorspace! {
   /// A color in the [`display-p3`](https://www.w3.org/TR/css-color-4/#predefined-display-p3) color space.
   pub struct P3 {
     /// The red component.
-    r: Percentage,
+    r: Number,
     /// The green component.
-    g: Percentage,
+    g: Number,
     /// The blue component.
-    b: Percentage
+    b: Number
   }
 }
 
@@ -1682,11 +1851,11 @@ define_colorspace! {
   /// A color in the [`a98-rgb`](https://www.w3.org/TR/css-color-4/#predefined-a98-rgb) color space.
   pub struct A98 {
     /// The red component.
-    r: Percentage,
+    r: Number,
     /// The green component.
-    g: Percentage,
+    g: Number,
     /// The blue component.
-    b: Percentage
+    b: Number
   }
 }
 
@@ -1694,11 +1863,11 @@ define_colorspace! {
   /// A color in the [`prophoto-rgb`](https://www.w3.org/TR/css-color-4/#predefined-prophoto-rgb) color space.
   pub struct ProPhoto {
     /// The red component.
-    r: Percentage,
+    r: Number,
     /// The green component.
-    g: Percentage,
+    g: Number,
     /// The blue component.
-    b: Percentage
+    b: Number
   }
 }
 
@@ -1706,11 +1875,11 @@ define_colorspace! {
   /// A color in the [`rec2020`](https://www.w3.org/TR/css-color-4/#predefined-rec2020) color space.
   pub struct Rec2020 {
     /// The red component.
-    r: Percentage,
+    r: Number,
     /// The green component.
-    g: Percentage,
+    g: Number,
     /// The blue component.
-    b: Percentage
+    b: Number
   }
 }
 
@@ -1718,7 +1887,7 @@ define_colorspace! {
   /// A color in the [CIE Lab](https://www.w3.org/TR/css-color-4/#cie-lab) color space.
   pub struct LAB {
     /// The lightness component.
-    l: Percentage,
+    l: Number,
     /// The a component.
     a: Number,
     /// The b component.
@@ -1730,7 +1899,7 @@ define_colorspace! {
   /// A color in the [CIE LCH](https://www.w3.org/TR/css-color-4/#cie-lab) color space.
   pub struct LCH {
     /// The lightness component.
-    l: Percentage,
+    l: Number,
     /// The chroma component.
     c: Number,
     /// The hue component.
@@ -1742,7 +1911,7 @@ define_colorspace! {
   /// A color in the [OKLab](https://www.w3.org/TR/css-color-4/#ok-lab) color space.
   pub struct OKLAB {
     /// The lightness component.
-    l: Percentage,
+    l: Number,
     /// The a component.
     a: Number,
     /// The b component.
@@ -1754,7 +1923,7 @@ define_colorspace! {
   /// A color in the [OKLCH](https://www.w3.org/TR/css-color-4/#ok-lab) color space.
   pub struct OKLCH {
     /// The lightness component.
-    l: Percentage,
+    l: Number,
     /// The chroma component.
     c: Number,
     /// The hue component.
@@ -1766,11 +1935,11 @@ define_colorspace! {
   /// A color in the [`xyz-d50`](https://www.w3.org/TR/css-color-4/#predefined-xyz) color space.
   pub struct XYZd50 {
     /// The x component.
-    x: Percentage,
+    x: Number,
     /// The y component.
-    y: Percentage,
+    y: Number,
     /// The z component.
-    z: Percentage
+    z: Number
   }
 }
 
@@ -1778,11 +1947,11 @@ define_colorspace! {
   /// A color in the [`xyz-d65`](https://www.w3.org/TR/css-color-4/#predefined-xyz) color space.
   pub struct XYZd65 {
     /// The x component.
-    x: Percentage,
+    x: Number,
     /// The y component.
-    y: Percentage,
+    y: Number,
     /// The z component.
-    z: Percentage
+    z: Number
   }
 }
 
@@ -1792,9 +1961,9 @@ define_colorspace! {
     /// The hue component.
     h: Angle,
     /// The saturation component.
-    s: Percentage,
+    s: Number,
     /// The lightness component.
-    l: Percentage
+    l: Number
   }
 }
 
@@ -1804,9 +1973,9 @@ define_colorspace! {
     /// The hue component.
     h: Angle,
     /// The whiteness component.
-    w: Percentage,
+    w: Number,
     /// The blackness component.
-    b: Percentage
+    b: Number
   }
 }
 
@@ -1911,7 +2080,7 @@ impl From<LAB> for XYZd50 {
     const E: f32 = 216.0 / 24389.0; // 6^3/29^3
 
     let lab = lab.resolve_missing();
-    let l = lab.l * 100.0;
+    let l = lab.l;
     let a = lab.a;
     let b = lab.b;
 
@@ -2170,7 +2339,7 @@ impl From<XYZd50> for LAB {
 
     let f2 = if z > E { z.cbrt() } else { (K * z + 16.0) / 116.0 };
 
-    let l = ((116.0 * f1) - 16.0) / 100.0;
+    let l = (116.0 * f1) - 16.0;
     let a = 500.0 * (f0 - f1);
     let b = 200.0 * (f1 - f2);
     LAB {
@@ -2623,8 +2792,8 @@ impl From<SRGB> for HSL {
 
     HSL {
       h,
-      s,
-      l,
+      s: s * 100.0,
+      l: l * 100.0,
       alpha: rgb.alpha,
     }
   }
@@ -2635,7 +2804,7 @@ impl From<HSL> for SRGB {
     // https://drafts.csswg.org/css-color/#hsl-to-rgb
     let hsl = hsl.resolve_missing();
     let h = (hsl.h - 360.0 * (hsl.h / 360.0).floor()) / 360.0;
-    let (r, g, b) = hsl_to_rgb(h, hsl.s, hsl.l);
+    let (r, g, b) = hsl_to_rgb(h, hsl.s / 100.0, hsl.l / 100.0);
     SRGB {
       r,
       g,
@@ -2656,8 +2825,8 @@ impl From<SRGB> for HWB {
     let b = 1.0 - r.max(g).max(b);
     HWB {
       h: hsl.h,
-      w,
-      b,
+      w: w * 100.0,
+      b: b * 100.0,
       alpha: rgb.alpha,
     }
   }
@@ -2668,8 +2837,8 @@ impl From<HWB> for SRGB {
     // https://drafts.csswg.org/css-color/#hwb-to-rgb
     let hwb = hwb.resolve_missing();
     let h = hwb.h;
-    let w = hwb.w;
-    let b = hwb.b;
+    let w = hwb.w / 100.0;
+    let b = hwb.b / 100.0;
 
     if w + b >= 1.0 {
       let gray = w / (w + b);
@@ -2683,8 +2852,8 @@ impl From<HWB> for SRGB {
 
     let mut rgba = SRGB::from(HSL {
       h,
-      s: 1.0,
-      l: 0.5,
+      s: 100.0,
+      l: 50.0,
       alpha: hwb.alpha,
     });
     let x = 1.0 - w - b;
@@ -2696,13 +2865,7 @@ impl From<HWB> for SRGB {
 }
 
 impl From<RGBA> for SRGB {
-  fn from(rgb: RGBA) -> Self {
-    Self::from(&rgb)
-  }
-}
-
-impl From<&RGBA> for SRGB {
-  fn from(rgb: &RGBA) -> SRGB {
+  fn from(rgb: RGBA) -> SRGB {
     SRGB {
       r: rgb.red_f32(),
       g: rgb.green_f32(),
@@ -2716,6 +2879,57 @@ impl From<SRGB> for RGBA {
   fn from(rgb: SRGB) -> RGBA {
     let rgb = rgb.resolve();
     RGBA::from_floats(rgb.r, rgb.g, rgb.b, rgb.alpha)
+  }
+}
+
+impl From<SRGB> for RGB {
+  fn from(rgb: SRGB) -> Self {
+    RGB {
+      r: rgb.r * 255.0,
+      g: rgb.g * 255.0,
+      b: rgb.b * 255.0,
+      alpha: rgb.alpha,
+    }
+  }
+}
+
+impl From<RGB> for SRGB {
+  fn from(rgb: RGB) -> Self {
+    SRGB {
+      r: rgb.r / 255.0,
+      g: rgb.g / 255.0,
+      b: rgb.b / 255.0,
+      alpha: rgb.alpha,
+    }
+  }
+}
+
+impl From<RGBA> for RGB {
+  fn from(rgb: RGBA) -> Self {
+    RGB::from(&rgb)
+  }
+}
+
+impl From<&RGBA> for RGB {
+  fn from(rgb: &RGBA) -> Self {
+    RGB {
+      r: rgb.red as f32,
+      g: rgb.green as f32,
+      b: rgb.blue as f32,
+      alpha: rgb.alpha_f32(),
+    }
+  }
+}
+
+impl From<RGB> for RGBA {
+  fn from(rgb: RGB) -> Self {
+    let rgb = rgb.resolve();
+    RGBA::new(
+      clamp_floor_256_f32(rgb.r),
+      clamp_floor_256_f32(rgb.g),
+      clamp_floor_256_f32(rgb.b),
+      rgb.alpha,
+    )
   }
 }
 
@@ -2809,6 +3023,20 @@ via!(HSL -> SRGB -> HWB);
 via!(HWB -> SRGB -> XYZd65);
 via!(HWB -> XYZd65 -> OKLAB);
 via!(HWB -> XYZd65 -> OKLCH);
+
+via!(RGB -> SRGB -> LAB);
+via!(RGB -> SRGB -> LCH);
+via!(RGB -> SRGB -> OKLAB);
+via!(RGB -> SRGB -> OKLCH);
+via!(RGB -> SRGB -> P3);
+via!(RGB -> SRGB -> SRGBLinear);
+via!(RGB -> SRGB -> A98);
+via!(RGB -> SRGB -> ProPhoto);
+via!(RGB -> SRGB -> XYZd50);
+via!(RGB -> SRGB -> XYZd65);
+via!(RGB -> SRGB -> Rec2020);
+via!(RGB -> SRGB -> HSL);
+via!(RGB -> SRGB -> HWB);
 
 // RGBA is an 8-bit version. Convert to SRGB, which is a
 // more accurate floating point representation for all operations.
@@ -2916,6 +3144,7 @@ color_space!(ProPhoto);
 color_space!(Rec2020);
 color_space!(HSL);
 color_space!(HWB);
+color_space!(RGB);
 color_space!(RGBA);
 
 macro_rules! predefined {
@@ -2978,6 +3207,7 @@ macro_rules! rgb {
 rgb!(SRGB);
 rgb!(HSL);
 rgb!(HWB);
+rgb!(RGB);
 
 impl From<RGBA> for CssColor {
   fn from(color: RGBA) -> CssColor {
@@ -3035,15 +3265,15 @@ macro_rules! hsl_hwb_color_gamut {
     impl ColorGamut for $t {
       #[inline]
       fn in_gamut(&self) -> bool {
-        self.$a >= 0.0 && self.$a <= 1.0 && self.$b >= 0.0 && self.$b <= 1.0
+        self.$a >= 0.0 && self.$a <= 100.0 && self.$b >= 0.0 && self.$b <= 100.0
       }
 
       #[inline]
       fn clip(&self) -> Self {
         Self {
           h: self.h % 360.0,
-          $a: self.$a.clamp(0.0, 1.0),
-          $b: self.$b.clamp(0.0, 1.0),
+          $a: self.$a.clamp(0.0, 100.0),
+          $b: self.$b.clamp(0.0, 100.0),
           alpha: self.alpha.clamp(0.0, 1.0),
         }
       }
@@ -3066,6 +3296,23 @@ unbounded_color_gamut!(OKLCH, l, c, h);
 hsl_hwb_color_gamut!(HSL, s, l);
 hsl_hwb_color_gamut!(HWB, w, b);
 
+impl ColorGamut for RGB {
+  #[inline]
+  fn in_gamut(&self) -> bool {
+    self.r >= 0.0 && self.r <= 255.0 && self.g >= 0.0 && self.g <= 255.0 && self.b >= 0.0 && self.b <= 255.0
+  }
+
+  #[inline]
+  fn clip(&self) -> Self {
+    Self {
+      r: self.r.clamp(0.0, 255.0),
+      g: self.g.clamp(0.0, 255.0),
+      b: self.b.clamp(0.0, 255.0),
+      alpha: self.alpha.clamp(0.0, 1.0),
+    }
+  }
+}
+
 fn delta_eok<T: Into<OKLAB>>(a: T, b: OKLCH) -> f32 {
   // https://www.w3.org/TR/css-color-4/#color-difference-OK
   let a: OKLAB = a.into();
@@ -3082,13 +3329,14 @@ where
   T: Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy,
 {
   const JND: f32 = 0.02;
-  const EPSILON: f32 = 0.00001;
+  const EPSILON: f32 = 0.0001;
+  const LIGHTNESS_EPSILON: f32 = 0.00001;
 
-  // https://www.w3.org/TR/css-color-4/#binsearch
+  // https://www.w3.org/TR/css-color-4/#pseudo-binsearch
   let mut current: OKLCH = color.into();
 
   // If lightness is >= 100%, return pure white.
-  if (current.l - 1.0).abs() < EPSILON || current.l > 1.0 {
+  if (current.l - 1.0).abs() < LIGHTNESS_EPSILON || current.l > 1.0 {
     return OKLCH {
       l: 1.0,
       c: 0.0,
@@ -3099,7 +3347,7 @@ where
   }
 
   // If lightness <= 0%, return pure black.
-  if current.l < EPSILON {
+  if current.l < LIGHTNESS_EPSILON {
     return OKLCH {
       l: 0.0,
       c: 0.0,
@@ -3111,27 +3359,37 @@ where
 
   let mut min = 0.0;
   let mut max = current.c;
+  let mut min_in_gamut = true;
+  let mut clipped = color.clip();
+  let mut delta_e = delta_eok(clipped, current);
+  if delta_e < JND {
+    return clipped;
+  }
 
   while (max - min) > EPSILON {
     let chroma = (min + max) / 2.0;
     current.c = chroma;
 
     let converted = T::from(current);
-    if converted.in_gamut() {
+    if min_in_gamut && converted.in_gamut() {
       min = chroma;
       continue;
     }
 
-    let clipped = converted.clip();
-    let delta_e = delta_eok(clipped, current);
+    clipped = converted.clip();
+    delta_e = delta_eok(clipped, current);
     if delta_e < JND {
-      return clipped;
+      if JND - delta_e < EPSILON {
+        break;
+      }
+      min_in_gamut = false;
+      min = chroma;
+    } else {
+      max = chroma;
     }
-
-    max = chroma;
   }
 
-  current.into()
+  clipped
 }
 
 fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
@@ -3498,7 +3756,7 @@ impl Interpolate for HSL {
       self.h = f32::NAN;
     }
 
-    if self.l.abs() < f32::EPSILON || (self.l - 1.0).abs() < f32::EPSILON {
+    if self.l.abs() < f32::EPSILON || (self.l - 100.0).abs() < f32::EPSILON {
       self.h = f32::NAN;
       self.s = f32::NAN;
     }
@@ -3517,7 +3775,7 @@ impl Interpolate for HWB {
   fn adjust_powerless_components(&mut self) {
     // If white+black is equal to 100% (after normalization), it defines an achromatic color,
     // i.e. some shade of gray, without any hint of the chosen hue. In this case, the hue component is powerless.
-    if (self.w + self.b - 1.0).abs() < f32::EPSILON {
+    if (self.w + self.b - 100.0).abs() < f32::EPSILON {
       self.h = f32::NAN;
     }
   }

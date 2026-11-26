@@ -7,8 +7,9 @@ use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
+use crate::properties::custom::TokenList;
 use crate::properties::PropertyId;
-use crate::targets::Targets;
+use crate::targets::{Features, FeaturesIterator, Targets};
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
@@ -42,8 +43,19 @@ impl<'i, T: Clone> SupportsRule<'i, T> {
     context: &mut MinifyContext<'_, 'i>,
     parent_is_unused: bool,
   ) -> Result<(), MinifyError> {
-    self.condition.set_prefixes_for_targets(&context.targets);
-    self.rules.minify(context, parent_is_unused)
+    let inserted = context.targets.enter_supports(self.condition.get_supported_features());
+    if inserted {
+      context.handler_context.targets = context.targets.current;
+    }
+
+    self.condition.set_prefixes_for_targets(&context.targets.current);
+    let result = self.rules.minify(context, parent_is_unused);
+
+    if inserted {
+      context.targets.exit_supports();
+      context.handler_context.targets = context.targets.current;
+    }
+    result
   }
 }
 
@@ -60,7 +72,13 @@ impl<'a, 'i, T: ToCss> ToCss for SupportsRule<'i, T> {
     dest.write_char('{')?;
     dest.indent();
     dest.newline()?;
+
+    let inserted = dest.targets.enter_supports(self.condition.get_supported_features());
     self.rules.to_css(dest)?;
+    if inserted {
+      dest.targets.exit_supports();
+    }
+
     dest.dedent();
     dest.newline()?;
     dest.write_char('}')
@@ -149,6 +167,28 @@ impl<'i> SupportsCondition<'i> {
       _ => {}
     }
   }
+
+  fn get_supported_features(&self) -> Features {
+    fn get_supported_features_internal(value: &SupportsCondition) -> Option<Features> {
+      match value {
+        SupportsCondition::And(list) => list.iter().map(|c| get_supported_features_internal(c)).try_union_all(),
+        SupportsCondition::Declaration { value, .. } => {
+          let mut input = ParserInput::new(&value);
+          let mut parser = Parser::new(&mut input);
+          if let Ok(tokens) = TokenList::parse(&mut parser, &Default::default(), 0) {
+            Some(tokens.get_features())
+          } else {
+            Some(Features::empty())
+          }
+        }
+        // bail out if "not" or "or" exists for now
+        SupportsCondition::Not(_) | SupportsCondition::Or(_) => None,
+        SupportsCondition::Selector(_) | SupportsCondition::Unknown(_) => Some(Features::empty()),
+      }
+    }
+
+    get_supported_features_internal(self).unwrap_or(Features::empty())
+  }
 }
 
 impl<'i> Parse<'i> for SupportsCondition<'i> {
@@ -194,24 +234,31 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
           }
         }
 
-        if let SupportsCondition::Declaration { property_id, value } = condition {
+        match condition {
           // Merge multiple declarations with the same property id (minus prefix) and value together.
-          let property_id = property_id.with_prefix(VendorPrefix::None);
-          let key = (property_id.clone(), value.clone());
-          if let Some(index) = seen_declarations.get(&key) {
-            if let SupportsCondition::Declaration {
-              property_id: cur_property,
-              ..
-            } = &mut conditions[*index]
-            {
-              cur_property.add_prefix(property_id.prefix());
+          // Only inside `or`: a merged declaration prints as an `or` of its prefixes, so merging
+          // inside `and` would turn `(-webkit-x: a) and (-moz-x: a)` into an `or`.
+          SupportsCondition::Declaration { property_id, value } if expected_type == Some(2) => {
+            // The unprefixed id is the MATCH KEY only. Binding it over `property_id` also changed
+            // what got stored and what prefix got merged in, so a condition that matched nothing was
+            // pushed with its prefix stripped -- turning `(-webkit-box-orient: vertical)` into
+            // `(box-orient: vertical)`, which no browser implements.
+            let unprefixed = property_id.with_prefix(VendorPrefix::None);
+            let key = (unprefixed, value.clone());
+            if let Some(index) = seen_declarations.get(&key) {
+              if let SupportsCondition::Declaration {
+                property_id: cur_property,
+                ..
+              } = &mut conditions[*index]
+              {
+                cur_property.add_prefix(property_id.prefix());
+              }
+            } else {
+              seen_declarations.insert(key, conditions.len());
+              conditions.push(SupportsCondition::Declaration { property_id, value });
             }
-          } else {
-            seen_declarations.insert(key, conditions.len());
-            conditions.push(SupportsCondition::Declaration { property_id, value });
           }
-        } else {
-          conditions.push(condition);
+          condition => conditions.push(condition),
         }
       } else {
         break;

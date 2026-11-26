@@ -258,7 +258,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
     self.types
   }
 
-  fn visit_stylesheet<'o>(&mut self, stylesheet: &mut StyleSheet<'i, 'o, AtRule<'i>>) -> Result<(), Self::Error> {
+  fn visit_stylesheet<'o>(&mut self, stylesheet: &mut StyleSheet<'i, AtRule<'i>>) -> Result<(), Self::Error> {
     if self.types.contains(VisitTypes::RULES) {
       let env = self.env;
       let visit_stylesheet = self.visit_stylesheet.get::<JsFunction>(&env);
@@ -298,6 +298,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
             CssRule::Keyframes(..) => "keyframes",
             CssRule::FontFace(..) => "font-face",
             CssRule::FontPaletteValues(..) => "font-palette-values",
+            CssRule::FontFeatureValues(..) => "font-feature-values",
             CssRule::Page(..) => "page",
             CssRule::Supports(..) => "supports",
             CssRule::CounterStyle(..) => "counter-style",
@@ -310,8 +311,11 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
             CssRule::Scope(..) => "scope",
             CssRule::MozDocument(..) => "moz-document",
             CssRule::Nesting(..) => "nesting",
+            CssRule::NestedDeclarations(..) => "nested-declarations",
             CssRule::Viewport(..) => "viewport",
             CssRule::StartingStyle(..) => "starting-style",
+            CssRule::ViewTransition(..) => "view-transition",
+            CssRule::PositionTry(..) => "position-try",
             CssRule::Unknown(v) => {
               let name = v.name.as_ref();
               if let Some(visit) = rule_map.custom(stage, "unknown", name) {
@@ -752,9 +756,8 @@ impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de
     D: serde::Deserializer<'de>,
   {
     use serde::Deserializer;
-    let content = serde::__private::de::Content::deserialize(deserializer)?;
-    let de: serde::__private::de::ContentRefDeserializer<D::Error> =
-      serde::__private::de::ContentRefDeserializer::new(&content);
+    let content = null_to_none(serde_content::Value::deserialize(deserializer)?);
+    let de = serde_content::Deserializer::new(content.clone()).coerce_numbers();
 
     // Try to deserialize as a sequence first.
     let mut was_seq = false;
@@ -766,13 +769,15 @@ impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de
     if was_seq {
       // Allow fallback if we know the value is also a list (e.g. selector).
       if res.is_ok() || !IS_VEC {
-        return res.map(ValueOrVec::Vec);
+        return res.map_err(|e| serde::de::Error::custom(e.to_string())).map(ValueOrVec::Vec);
       }
     }
 
     // If it wasn't a sequence, try a value.
-    let de = serde::__private::de::ContentRefDeserializer::new(&content);
-    return V::deserialize(de).map(ValueOrVec::Value);
+    let de = serde_content::Deserializer::new(content).coerce_numbers();
+    return V::deserialize(de)
+      .map_err(|e| serde::de::Error::custom(e.to_string()))
+      .map(ValueOrVec::Value);
 
     struct SeqVisitor<'a, V> {
       was_seq: &'a mut bool,
@@ -801,6 +806,25 @@ impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de
   }
 }
 
+/// serde-content deserializes a unit (`null` from JS) as `Some` where an `Option` is expected,
+/// unlike serde's private `Content` it replaced, so turn units into `None` before deserializing.
+///
+/// This turns *every* unit into `None`, not only those in `Option` position, so a `null` for a
+/// unit-typed value (`()`, a unit struct) would no longer deserialize. That is fine because the
+/// serialized AST has no unit-typed values today. The proper fix is upstream in serde-content's
+/// `deserialize_option` (`Value::Unit => visitor.visit_unit()`, as serde does), after which this
+/// pass can be removed.
+fn null_to_none(value: serde_content::Value<'_>) -> serde_content::Value<'_> {
+  use serde_content::Value;
+  match value {
+    Value::Unit => Value::Option(None),
+    Value::Option(Some(value)) => Value::Option(Some(Box::new(null_to_none(*value)))),
+    Value::Seq(values) => Value::Seq(values.into_iter().map(null_to_none).collect()),
+    Value::Map(entries) => Value::Map(entries.into_iter().map(|(k, v)| (k, null_to_none(v))).collect()),
+    value => value,
+  }
+}
+
 struct TokensOrRaw<'i>(ValueOrVec<TokenOrValue<'i>>);
 
 impl<'i, 'de: 'i> serde::Deserialize<'de> for TokensOrRaw<'i> {
@@ -808,16 +832,14 @@ impl<'i, 'de: 'i> serde::Deserialize<'de> for TokensOrRaw<'i> {
   where
     D: serde::Deserializer<'de>,
   {
-    use serde::__private::de::ContentRefDeserializer;
-
     #[derive(serde::Deserialize)]
     struct Raw<'i> {
       #[serde(borrow)]
       raw: CowArcStr<'i>,
     }
 
-    let content = serde::__private::de::Content::deserialize(deserializer)?;
-    let de: ContentRefDeserializer<D::Error> = ContentRefDeserializer::new(&content);
+    let content = serde_content::Value::deserialize(deserializer)?;
+    let de = serde_content::Deserializer::new(content.clone()).coerce_numbers();
 
     if let Ok(res) = Raw::deserialize(de) {
       let res = TokenList::parse_string_with_options(res.raw.as_ref(), ParserOptions::default())
@@ -825,8 +847,10 @@ impl<'i, 'de: 'i> serde::Deserialize<'de> for TokensOrRaw<'i> {
       return Ok(TokensOrRaw(ValueOrVec::Vec(res.into_owned().0)));
     }
 
-    let de = ContentRefDeserializer::new(&content);
-    Ok(TokensOrRaw(ValueOrVec::deserialize(de)?))
+    let de = serde_content::Deserializer::new(content).coerce_numbers();
+    Ok(TokensOrRaw(
+      ValueOrVec::deserialize(de).map_err(|e| serde::de::Error::custom(e.to_string()))?,
+    ))
   }
 }
 
