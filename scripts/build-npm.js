@@ -41,6 +41,10 @@ const triples = [
   },
   {
     name: 'aarch64-linux-android'
+  },
+  {
+    name: 'riscv64gc-unknown-linux-gnu',
+    libc: 'glibc',
   }
 ];
 const cpuToNodeArch = {
@@ -48,6 +52,7 @@ const cpuToNodeArch = {
   aarch64: 'arm64',
   i686: 'ia32',
   armv7: 'arm',
+  riscv64gc: 'riscv64',
 };
 const sysToNodePlatform = {
   linux: 'linux',

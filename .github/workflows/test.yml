@@ -42,6 +42,34 @@ jobs:
       - run: yarn test
       - run: yarn tsc
 
+  test-riscv64:
+    # Cross-builds the linux-riscv64-gnu binding the same way release.yml does,
+    # then runs the JS test suite against it under QEMU.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - uses: bahmutov/npm-install@v1.8.32
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Setup rust target
+        run: rustup target add riscv64gc-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cross linker
+        run: sudo apt-get update && sudo apt-get install -y gcc-riscv64-linux-gnu
+      - run: yarn build
+        env:
+          RUST_TARGET: riscv64gc-unknown-linux-gnu
+          CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: riscv64
+      - name: Run tests under QEMU
+        run: |
+          docker run --rm --platform linux/riscv64 -v "$PWD":/src -w /src debian:trixie sh -c \
+            'apt-get update -qq && apt-get install -y -qq nodejs > /dev/null && node --version && node node_modules/uvu/bin.js node/test'
+
   test-wasm:
     runs-on: ubuntu-latest
     steps:
