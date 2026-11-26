@@ -16322,28 +16322,45 @@ mod tests {
     // which is why the bug survived the tests that shipped with the feature.
     minify_test(
       "@supports (display: flex) and (-webkit-box-orient: vertical) { .a { color: red } }",
-      "@supports (display:flex) and ((-webkit-box-orient:vertical)){.a{color:red}}",
+      "@supports (display:flex) and (-webkit-box-orient:vertical){.a{color:red}}",
     );
     minify_test(
       "@supports (display: flex) or (-moz-appearance: none) { .a { color: red } }",
-      "@supports (display:flex) or ((-moz-appearance:none)){.a{color:red}}",
+      "@supports (display:flex) or (-moz-appearance:none){.a{color:red}}",
     );
     minify_test(
       "@supports (display: -webkit-box) and (-webkit-box-orient: vertical) and (-webkit-line-clamp: 3) { .a { color: red } }",
-      "@supports (display:-webkit-box) and ((-webkit-box-orient:vertical)) and (-webkit-line-clamp:3){.a{color:red}}",
+      "@supports (display:-webkit-box) and (-webkit-box-orient:vertical) and (-webkit-line-clamp:3){.a{color:red}}",
     );
     // Prefixed declarations only merge inside `or`. Inside `and` the merge would print an `or`.
     minify_test(
       "@supports (-webkit-appearance: none) and (-moz-appearance: none) { .a { color: red } }",
-      "@supports ((-webkit-appearance:none)) and ((-moz-appearance:none)){.a{color:red}}",
+      "@supports (-webkit-appearance:none) and (-moz-appearance:none){.a{color:red}}",
     );
     minify_test(
       "@supports (backdrop-filter: blur(1px)) and (-webkit-backdrop-filter: blur(1px)) { .a { color: red } }",
-      "@supports (backdrop-filter:blur(1px)) and ((-webkit-backdrop-filter:blur(1px))){.a{color:red}}",
+      "@supports (backdrop-filter:blur(1px)) and (-webkit-backdrop-filter:blur(1px)){.a{color:red}}",
     );
     minify_test(
       "@supports (not selector(::-webkit-scrollbar)) or (-moz-appearance: none) { .a { color: red } }",
-      "@supports (not selector(::-webkit-scrollbar)) or ((-moz-appearance:none)){.a{color:red}}",
+      "@supports (not selector(::-webkit-scrollbar)) or (-moz-appearance:none){.a{color:red}}",
+    );
+    // A single prefix needs no inner parentheses; several print as a parenthesized `or`.
+    minify_test(
+      "@supports (-moz-appearance: none) { .a { color: red } }",
+      "@supports (-moz-appearance:none){.a{color:red}}",
+    );
+    minify_test(
+      "@supports not (-webkit-backdrop-filter: blur(1px)) { .a { color: red } }",
+      "@supports not (-webkit-backdrop-filter:blur(1px)){.a{color:red}}",
+    );
+    minify_test(
+      "@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .a { color: red } }",
+      "@supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (display: grid) and ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .a { color: red } }",
+      "@supports (display:grid) and ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){.a{color:red}}",
     );
     test(
       r#"
@@ -16588,7 +16605,7 @@ mod tests {
       }
     "#,
       indoc! { r#"
-      @supports ((-webkit-backdrop-filter: blur(20px))) or ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+      @supports (-webkit-backdrop-filter: blur(20px)) or ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
         div {
           -webkit-backdrop-filter: blur(10px);
           backdrop-filter: blur(10px);

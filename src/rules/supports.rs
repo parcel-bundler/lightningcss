@@ -396,8 +396,10 @@ impl<'i> ToCss for SupportsCondition<'i> {
       SupportsCondition::Declaration { property_id, value } => {
         dest.write_char('(')?;
 
+        // More than one prefix prints as an `or` of declarations, which needs its own parentheses.
         let prefix = property_id.prefix().or_none();
-        if prefix != VendorPrefix::None {
+        let multiple = prefix.bits().count_ones() > 1;
+        if multiple {
           dest.write_char('(')?;
         }
 
@@ -416,7 +418,7 @@ impl<'i> ToCss for SupportsCondition<'i> {
           dest.write_str(value)?;
         }
 
-        if prefix != VendorPrefix::None {
+        if multiple {
           dest.write_char(')')?;
         }
 
