@@ -27898,7 +27898,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
@@ -27927,7 +27927,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
