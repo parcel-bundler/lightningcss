@@ -174,6 +174,61 @@ jobs:
             *.node
             lightningcss
 
+  build-cross-ppc64le-s390x:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: powerpc64le-unknown-linux-gnu
+            strip: powerpc64le-linux-gnu-strip
+            setup: |
+              sudo apt update
+              sudo apt install -y gcc-powerpc64le-linux-gnu libc6-dev-ppc64el-cross
+          - target: s390x-unknown-linux-gnu
+            strip: s390x-linux-gnu-strip
+            setup: |
+              sudo apt update
+              sudo apt install -y gcc-s390x-linux-gnu libc6-dev-s390x-cross
+
+    name: build-${{ matrix.target }}
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TARGET_POWERPC64LE_UNKNOWN_LINUX_GNU_LINKER: powerpc64le-linux-gnu-gcc
+      CARGO_TARGET_S390X_UNKNOWN_LINUX_GNU_LINKER: s390x-linux-gnu-gcc
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Node.JS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup cross compile toolchain
+        run: ${{ matrix.setup }}
+
+      - name: Setup rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - uses: bahmutov/npm-install@v1.8.32
+      - name: Build release
+        run: yarn build-release
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+      - name: Build CLI
+        run: |
+          cargo build --release --features cli --target ${{ matrix.target }}
+          mv target/${{ matrix.target }}/release/lightningcss lightningcss
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        run: ${{ matrix.strip }} *.node lightningcss
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-${{ matrix.target }}
+          path: |
+            *.node
+            lightningcss
+
   build-freebsd:
     runs-on: ubuntu-latest
     steps:
@@ -257,6 +312,7 @@ jobs:
     needs:
       - build
       - build-linux
+      - build-cross-ppc64le-s390x
       - build-apple-silicon
       - build-freebsd
       - build-wasm
