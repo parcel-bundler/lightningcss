@@ -9,8 +9,9 @@ use crate::media_query::{
 use crate::properties::custom::UnparsedProperty;
 use crate::properties::Property;
 use crate::rules::media::MediaRule;
+use crate::rules::nesting::NestedDeclarationsRule;
 use crate::rules::supports::{SupportsCondition, SupportsRule};
-use crate::rules::{style::StyleRule, CssRule, CssRuleList};
+use crate::rules::{style::StyleRule, CssRule, CssRuleList, Location};
 use crate::selector::{Direction, PseudoClass};
 use crate::targets::Targets;
 use crate::values::ident::Ident;
@@ -223,6 +224,29 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     }
 
     dest
+  }
+
+  /// Returns `@supports` fallback rules for a nested declarations rule (i.e. declarations
+  /// that appear after a nested rule), and clears the collected entries so they are not
+  /// applied to a following sibling rule.
+  pub fn take_nested_supports_rules<T>(&mut self, loc: &Location) -> Vec<CssRule<'i, T>> {
+    self
+      .supports
+      .drain(..)
+      .map(|entry| {
+        CssRule::Supports(SupportsRule {
+          condition: entry.condition,
+          rules: CssRuleList(vec![CssRule::NestedDeclarations(NestedDeclarationsRule {
+            declarations: DeclarationBlock {
+              declarations: entry.declarations,
+              important_declarations: entry.important_declarations,
+            },
+            loc: loc.clone(),
+          })]),
+          loc: loc.clone(),
+        })
+      })
+      .collect()
   }
 
   pub fn reset(&mut self) {
