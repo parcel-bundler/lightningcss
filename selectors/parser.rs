@@ -2958,13 +2958,32 @@ where
   // https://github.com/w3c/csswg-drafts/issues/8285
   let mut child_state =
     state | SelectorParsingState::SKIP_DEFAULT_NAMESPACE | SelectorParsingState::DISALLOW_PSEUDOS;
-  let selectors = SelectorList::parse_with_state(
+  let start = input.state();
+  let selectors = match SelectorList::parse_with_state(
     parser,
     input,
     &mut child_state,
-    ParseErrorRecovery::IgnoreInvalidSelector,
+    ParseErrorRecovery::DiscardList,
     NestingRequirement::None,
-  )?;
+  ) {
+    Ok(selectors) => selectors,
+    Err(err) => {
+      // Invalid selectors are dropped from the list, but an empty list is
+      // invalid: `:nth-child(2 of )` is not a valid selector.
+      input.reset(&start);
+      let selectors = SelectorList::parse_with_state(
+        parser,
+        input,
+        &mut child_state,
+        ParseErrorRecovery::IgnoreInvalidSelector,
+        NestingRequirement::None,
+      )?;
+      if selectors.0.is_empty() {
+        return Err(err);
+      }
+      selectors
+    }
+  };
   Ok(Component::NthOf(NthOfSelectorData::new(
     nth_data,
     selectors.0.into_vec().into_boxed_slice(),
@@ -3974,6 +3993,14 @@ pub mod tests {
     assert!(parse("foo:has(:is(:has(baz)))").is_err());
     assert!(parse("foo::before:has(bar)").is_err());
     assert!(parse("foo:has(bar) baz:has(qux)").is_ok());
+    assert!(parse("li:nth-child(2 of ::before)").is_err());
+    assert!(parse("li:nth-child(2 of )").is_err());
+    assert!(parse_ns_expected(
+      "li:nth-child(2 of .a, ::before)",
+      &DummyParser::default(),
+      Some("li:nth-child(2 of .a)")
+    )
+    .is_ok());
 
     assert!(parse("foo::details-content").is_ok());
     assert!(parse("foo::target-text").is_ok());

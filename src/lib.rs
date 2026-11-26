@@ -7303,6 +7303,24 @@ mod tests {
       ":nth-child(1 of li.important) {width: 20px}",
       ":nth-child(1 of li.important){width:20px}",
     );
+    // An `of` list where every selector is invalid is an error, rather than
+    // the invalid `:nth-child(2 of )`.
+    error_test(
+      "li:nth-child(2 of ::before) {width: 20px}",
+      ParserError::SelectorError(SelectorError::InvalidState),
+    );
+    error_test(
+      "li:nth-child(2 of ) {width: 20px}",
+      ParserError::SelectorError(SelectorError::EmptySelector),
+    );
+    assert_eq!(
+      error_recovery_test("li:nth-child(2 of ::before) {width: 20px}").len(),
+      1
+    );
+    minify_test(
+      "li:nth-child(2 of .a, ::before) {width: 20px}",
+      "li:nth-child(2 of .a){width:20px}",
+    );
     minify_test(
       ":nth-last-child(even of li.important) {width: 20px}",
       ":nth-last-child(2n of li.important){width:20px}",
