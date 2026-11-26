@@ -8826,6 +8826,10 @@ mod tests {
       ".foo { width: calc(100vw / 2 - 6px + 0px) }",
       ".foo{width:calc(50vw - 6px)}",
     );
+    minify_test(
+      ".foo { width: calc((2px + max(1em, 2vw)) - (2px + min(1px, 1vw))) }",
+      ".foo{width:calc(max(1em,2vw) - min(1px,1vw))}",
+    );
     minify_test(".foo { width: calc(1px + 1) }", ".foo{width:calc(1px + 1)}");
     minify_test(".foo { width: calc( (1em - calc( 10px + 1em)) / 2) }", ".foo{width:0}");
     minify_test(
@@ -9093,6 +9097,38 @@ mod tests {
     minify_test(
       ".foo { width: calc(2 * min(1px, 1vmin) - min(1px, 1vmin)); }",
       ".foo{width:calc(2*min(1px,1vmin) - min(1px,1vmin))}",
+    );
+    minify_test(
+      ".foo { right: calc(32px + ((min(100vw, 1724px) - 464px) / 12) + ((100vw - min(100vw - 112px, 1612px)) / 2)); }",
+      ".foo{right:calc(min(100vw,1724px)/12 - 6.66667px + 50vw + min(100vw - 112px,1612px)/-2)}",
+    );
+    minify_test(
+      ".foo { width: calc((1em + 2px) + (3px + 4em)); }",
+      ".foo{width:calc(5em + 5px)}",
+    );
+    minify_test(
+      ".foo { width: calc((1em + 2px) + (3% + 4em)); }",
+      ".foo{width:calc(5em + 2px + 3%)}",
+    );
+    minify_test(
+      ".foo { width: calc((1 + 2px) + (3 + 4px)); }",
+      ".foo{width:calc(4 + 6px)}",
+    );
+    minify_test(
+      ".foo { width: calc((1em - 2px) + (3px - 4em)); }",
+      ".foo{width:calc(1px - 3em)}",
+    );
+    minify_test(
+      ".foo { height: calc((100dvh - 10.5rem) + (4vh + 230px)); }",
+      ".foo{height:calc(100dvh - 10.5rem + 4vh + 230px)}",
+    );
+    minify_test(
+      ".foo { width: calc((1 + 2px) + (-1 + 3px)); }",
+      ".foo{width:calc(0 + 5px)}",
+    );
+    minify_test(
+      ".foo { width: calc((1px + 1%) - (2em + 3vw)); }",
+      ".foo{width:calc(1px + 1% - 2em - 3vw)}",
     );
     minify_test(
       ".foo { width: calc(100% - clamp(1.125rem, 1.25vw, 1.2375rem) - clamp(1.125rem, 1.25vw, 1.2375rem)); }",
@@ -31835,6 +31871,17 @@ mod tests {
       }
     "#,
       ParserError::UnexpectedToken(crate::properties::custom::Token::Function("var".into())),
+    );
+
+    error_test(
+      r#"
+      @property --property-name {
+        syntax: '<percentage>';
+        inherits: false;
+        initial-value: calc((1% + 2) + (3% + 4));
+      }
+    "#,
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Function("calc".into())),
     );
 
     error_test(

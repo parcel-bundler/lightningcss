@@ -996,7 +996,7 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::TryFrom<Calc<V
       (a, Calc::Function(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Function(b))),
       (Calc::Value(a), b) => (a.add(V::try_from(b)?)).into(),
       (a, Calc::Value(b)) => (V::try_from(a)?.add(*b)).into(),
-      (a @ Calc::Sum(..), b @ Calc::Sum(..)) => V::try_from(a)?.add(V::try_from(b)?).into(),
+      (a @ Calc::Sum(..), Calc::Sum(b1, b2)) => a.add(*b1)?.add(*b2)?,
     })
   }
 }
