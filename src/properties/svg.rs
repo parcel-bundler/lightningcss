@@ -6,6 +6,7 @@ use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 use crate::values::length::LengthPercentage;
+use crate::values::number::NonNegative;
 use crate::values::{color::CssColor, url::Url};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -140,7 +141,7 @@ pub enum StrokeDasharray {
   /// No dashing is used.
   None,
   /// Specifies a dashing pattern to use.
-  Values(Vec<LengthPercentage>),
+  Values(Vec<NonNegative<LengthPercentage>>),
 }
 
 impl<'i> Parse<'i> for StrokeDasharray {
@@ -150,12 +151,12 @@ impl<'i> Parse<'i> for StrokeDasharray {
     }
 
     input.skip_whitespace();
-    let mut results = vec![LengthPercentage::parse(input)?];
+    let mut results = vec![NonNegative::<LengthPercentage>::parse(input)?];
     loop {
       input.skip_whitespace();
       let comma_location = input.current_source_location();
       let comma = input.try_parse(|i| i.expect_comma()).is_ok();
-      if let Ok(item) = input.try_parse(LengthPercentage::parse) {
+      if let Ok(item) = input.try_parse(NonNegative::<LengthPercentage>::parse) {
         results.push(item);
       } else if comma {
         return Err(comma_location.new_unexpected_token_error(Token::Comma));
@@ -183,7 +184,7 @@ impl ToCss for StrokeDasharray {
           } else {
             dest.write_char(' ')?;
           }
-          value.to_css_unitless(dest)?;
+          value.0.to_css_unitless(dest)?;
         }
         Ok(())
       }

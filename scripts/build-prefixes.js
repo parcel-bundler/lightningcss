@@ -248,12 +248,36 @@ for (let feature of cssFeatures) {
     }
   }
 
+  // caniuse lists Android WebView 2.1-4.4.4 and then only the current version,
+  // so any feature added after 4.4 appears to need the latest WebView, and that
+  // threshold moves up with every data update (#568). WebView 37+ shares
+  // Chrome's engine and version numbers, so derive it from Chrome instead.
+  if (browserMap.android != null && browserMap.android > parseVersion('4.4.4') && browserMap.chrome != null) {
+    browserMap.android = Math.max(browserMap.chrome, parseVersion('37'));
+  }
+
   let name = (cssFeatureMappings[feature] || feature).replace(/^css-/, '');
   addValue(compat, browserMap, name);
 }
 
 // No browser supports custom media queries yet.
 addValue(compat, {}, 'custom-media-queries');
+
+// Drops BCD `partial_implementation` entries from a support map, for features where
+// partial support must not count as support. A browser whose only entry is partial
+// becomes `{ version_added: false }` (unsupported), which the loop below skips.
+function withoutPartial(support) {
+  return Object.fromEntries(
+    Object.entries(support).map(([browser, value]) => {
+      if (Array.isArray(value)) {
+        value = value.filter(v => !v.partial_implementation);
+      } else if (value.partial_implementation) {
+        value = { version_added: false };
+      }
+      return [browser, value];
+    })
+  );
+}
 
 let mdnFeatures = {
   doublePositionGradients: mdn.css.types.gradient['radial-gradient'].doubleposition.__compat.support,
@@ -263,19 +287,8 @@ let mdnFeatures = {
   placeItems: mdn.css.properties['place-items'].__compat.support,
   overflowShorthand: mdn.css.properties['overflow'].multiple_keywords.__compat.support,
   mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
-  mediaIntervalSyntax: Object.fromEntries(
-    Object.entries(mdn.css['at-rules'].media.range_syntax.__compat.support)
-      .map(([browser, value]) => {
-        // Firefox supported only ranges and not intervals for a while.
-        if (Array.isArray(value)) {
-          value = value.filter(v => !v.partial_implementation)
-        } else if (value.partial_implementation) {
-          value = undefined;
-        }
-
-        return [browser, value];
-      })
-  ),
+  // Firefox supported only ranges and not intervals for a while.
+  mediaIntervalSyntax: withoutPartial(mdn.css['at-rules'].media.range_syntax.__compat.support),
   logicalBorders: mdn.css.properties['border-inline-start'].__compat.support,
   logicalBorderShorthand: mdn.css.properties['border-inline'].__compat.support,
   logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support,
@@ -333,8 +346,13 @@ let mdnFeatures = {
   fontWeightNumber: mdn.css.properties['font-weight'].number.__compat.support,
   fontStretchPercentage: mdn.css.properties['font-stretch'].percentage.__compat.support,
   lightDark: mdn.css.types.color['light-dark'].__compat.support,
-  accentSystemColor: mdn.css.types.color['system-color'].accentcolor_accentcolortext.__compat.support,
-  animationTimelineShorthand: mdn.css.properties.animation['animation-timeline_included'].__compat.support,
+  // @mdn/browser-compat-data 8.1 split `accentcolor_accentcolortext` into
+  // separate keys; the two keywords shipped together.
+  accentSystemColor: (mdn.css.types.color['system-color'].accentcolor_accentcolortext ??
+    mdn.css.types.color['system-color'].accentcolor).__compat.support,
+  // Chrome/Edge 115+ only support animation-timeline as a reset-only sub-property
+  // of the animation shorthand, so it cannot be set via the shorthand yet.
+  animationTimelineShorthand: withoutPartial(mdn.css.properties.animation['animation-timeline_included'].__compat.support),
   viewTransition: mdn.css.selectors['view-transition'].__compat.support,
   detailsContent: mdn.css.selectors['details-content'].__compat.support,
   targetText: mdn.css.selectors['target-text'].__compat.support,
@@ -344,20 +362,9 @@ let mdnFeatures = {
   checkmark: mdn.css.selectors.checkmark.__compat.support,
   grammarError: mdn.css.selectors['grammar-error'].__compat.support,
   spellingError: mdn.css.selectors['spelling-error'].__compat.support,
-  statePseudoClass: Object.fromEntries(
-    Object.entries(mdn.css.selectors.state.__compat.support)
-      .map(([browser, value]) => {
-        // Chrome/Edge 90-124 supported old :--foo syntax which was removed.
-        // Only include full :state(foo) support from 125+.
-        if (Array.isArray(value)) {
-          value = value.filter(v => !v.partial_implementation)
-        } else if (value.partial_implementation) {
-          value = undefined;
-        }
-
-        return [browser, value];
-      })
-  ),
+  // Chrome/Edge 90-124 supported old :--foo syntax which was removed.
+  // Only include full :state(foo) support from 125+.
+  statePseudoClass: withoutPartial(mdn.css.selectors.state.__compat.support),
 };
 
 for (let key in mdn.css.types.length) {
