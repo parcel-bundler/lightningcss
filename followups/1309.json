@@ -1,0 +1,8 @@
+{
+ "pr": 1309,
+ "title": "Follow-up for #1309: reject nested :has() and :has() after pseudo-elements",
+ "items": [],
+ "blockingForAuthor": [],
+ "state": "open",
+ "followupPr": 1436
+}
