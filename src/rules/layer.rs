@@ -73,7 +73,7 @@ impl<'i> ToCss for LayerName<'i> {
         dest.write_char('.')?;
       }
 
-      serialize_identifier(name, dest)?;
+      crate::serialize::identifier(name, dest)?;
     }
 
     Ok(())

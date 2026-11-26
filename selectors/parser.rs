@@ -3142,7 +3142,7 @@ pub mod tests {
   use super::*;
   use crate::builder::SelectorFlags;
   use crate::parser;
-  use cssparser::{serialize_identifier, serialize_string, Parser as CssParser, ParserInput, ToCss};
+  use cssparser::{Parser as CssParser, ParserInput, ToCss};
   use std::collections::HashMap;
   use std::fmt;
 
@@ -3195,7 +3195,7 @@ pub mod tests {
         PseudoClass::Active => dest.write_str(":active"),
         PseudoClass::Lang(ref lang) => {
           dest.write_str(":lang(")?;
-          serialize_identifier(lang, dest)?;
+          crate::serialize::identifier(lang, dest)?;
           dest.write_char(')')
         }
       }
@@ -3254,7 +3254,7 @@ pub mod tests {
     where
       W: fmt::Write,
     {
-      serialize_string(&self.0, dest)
+      crate::serialize::string(&self.0, dest)
     }
   }
 
@@ -3290,7 +3290,7 @@ pub mod tests {
     where
       W: fmt::Write,
     {
-      serialize_identifier(&self.0, dest)
+      crate::serialize::identifier(&self.0, dest)
     }
   }
 

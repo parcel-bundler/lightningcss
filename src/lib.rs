@@ -35,6 +35,7 @@ pub mod printer;
 pub mod properties;
 pub mod rules;
 pub mod selector;
+mod serialize;
 pub mod stylesheet;
 pub mod targets;
 pub mod traits;
@@ -70,7 +71,6 @@ mod tests {
   use indexmap::IndexMap;
   use indoc::indoc;
   use pretty_assertions::assert_eq;
-  use std::collections::HashMap;
   use std::sync::{Arc, RwLock};
 
   #[track_caller]
@@ -31541,6 +31541,7 @@ mod tests {
   fn test_substitute_vars() {
     use crate::properties::custom::TokenList;
     use crate::traits::ParseWithOptions;
+    use std::collections::HashMap;
 
     fn test(property: Property, vars: HashMap<&str, &str>, expected: &str) {
       if let Property::Unparsed(unparsed) = property {
@@ -32046,7 +32047,91 @@ mod tests {
   }
 
   #[test]
+  fn test_string_escaping() {
+    minify_test(
+      r#"[title="\1  b"][href="\a a"] {
+        background: url('x\1  y.png'), url('x y\a\az.png');
+        font-family: 'x y\1  z', 'x y\a  z';
+      }"#,
+      "[title=\\1 \\ b][href=\\a a]{\
+        background:url(\"x\\1  y.png\"),url(\"x y\\a\\az.png\");\
+        font-family:\"x y\\1  z\",\"x y\\a  z\"\
+      }",
+    );
+  }
+
+  #[test]
   fn test_quoting_unquoting_urls() {
+    // Single quotes avoid escaping the double quotes in SVG attributes.
+    minify_test(
+      r#"
+      .foo {
+        background-image: url('data:image/svg+xml,<svg width="1" height="1"></svg>');
+      }
+      "#,
+      r#".foo{background-image:url('data:image/svg+xml,<svg width="1" height="1"></svg>')}"#,
+    );
+
+    // Keep double quotes when they are shorter or tied with single quotes.
+    minify_test(
+      r#"
+      .foo {
+        background-image: url("a 'b' c"), url('a "b" \'c\''), url('a "b" \'c');
+      }
+      "#,
+      r#".foo{background-image:url("a 'b' c"),url("a \"b\" 'c'"),url('a "b" \'c')}"#,
+    );
+
+    // Unquoted output still wins ties, including an empty URL.
+    minify_test(
+      r#"
+      .foo {
+        background-image: url('"'), url('""'), url('"""'), url('');
+      }
+      "#,
+      r#".foo{background-image:url(\"),url(\"\"),url('"""'),url()}"#,
+    );
+
+    // Escaped quotes and backslashes are parsed before choosing the quote style.
+    minify_test(
+      r#"
+      .foo {
+        background-image: url("a \\\"b\\\" \\c"), url('a "b" \\\'c');
+      }
+      "#,
+      r#".foo{background-image:url('a \\"b\\" \\c'),url('a "b" \\\'c')}"#,
+    );
+
+    // Expand control characters which don’t map to newline.
+    minify_test(
+      r#"
+      .foo {
+        background-image: url('"a"\a f\d  \c a\1 b\7f c\9 "é😀"');
+      }
+      "#,
+      ".foo{background-image:url('\"a\"\\a f\\d  \\c a\\1 b\\7f c\\9\"é😀\"')}",
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        background-image: url('"a" \
+b\0 c');
+      }
+      "#,
+      r#".foo{background-image:url('"a" b�c')}"#,
+    );
+
+    // Quotes are chosen even if not minifying.
+    test(
+      r#"
+      .foo {
+        background-image: url('a "b" c');
+      }
+      "#,
+      ".foo {\n  background-image: url('a \"b\" c');\n}\n",
+    );
+
     // Quotes remain double quotes when not minifying
     test(
       r#".foo {
@@ -32084,6 +32169,110 @@ mod tests {
     }"#,
       r#".foo{background-image:url(0123abcd)}"#,
     );
+  }
+
+  fn do_test_each_string(test: fn(&str)) {
+    // Exercise escape boundaries on both sides of quotes, including a literal
+    // backslash followed by a hex digit and non-ASCII text.
+    let parts = [
+      "\"", "'", "\\", "\n", "\r", "\x0c", "\x01", "\x7f", "\t", " ", "f", "é😀", "(", ")",
+    ];
+    for a in parts {
+      for b in parts {
+        for c in parts {
+          let value = [a, b, c].concat();
+          test(&value);
+        }
+      }
+    }
+  }
+
+  #[test]
+  fn test_url_quote_roundtrip() {
+    use crate::values::url::Url;
+    do_test_each_string(|value| {
+      let url = Url {
+        url: format!("\"\"{value}\"\"").into(),
+        loc: crate::dependencies::Location { line: 1, column: 1 },
+      };
+      let serialized = url
+        .to_css_string(PrinterOptions {
+          minify: true,
+          ..Default::default()
+        })
+        .unwrap();
+      assert_eq!(Url::parse_string(&serialized).unwrap(), url, "input: {value:?}");
+    });
+  }
+
+  #[test]
+  fn test_string_roundtrip() {
+    do_test_each_string(|value| {
+      let mut css = String::new();
+      crate::serialize::string(value, &mut css).unwrap();
+      let mut input = cssparser::ParserInput::new(&css);
+      let got = cssparser::Parser::new(&mut input).expect_string_cloned().unwrap();
+      assert_eq!(got, value, "input: {value:?}");
+    });
+  }
+
+  #[test]
+  fn test_url_quoting_dependencies() {
+    let stylesheet = StyleSheet::parse(
+      r#"
+      .foo {
+        background-image: url('a "b" c');
+      }
+      "#,
+      ParserOptions::default(),
+    )
+    .unwrap();
+    let result = stylesheet
+      .to_css(PrinterOptions {
+        minify: true,
+        analyze_dependencies: Some(Default::default()),
+        ..Default::default()
+      })
+      .unwrap();
+    let dependencies = result.dependencies.unwrap();
+    assert_eq!(dependencies.len(), 1);
+    let Dependency::Url(dep) = &dependencies[0] else {
+      panic!("expected URL dependency")
+    };
+    assert_eq!(dep.url, r#"a "b" c"#);
+    assert_eq!(
+      result.code,
+      format!(".foo{{background-image:url(\"{}\")}}", dep.placeholder)
+    );
+  }
+
+  #[test]
+  #[cfg(feature = "sourcemap")]
+  fn test_url_quoting_source_map() {
+    let stylesheet = StyleSheet::parse(
+      r#"
+      .foo {
+        background-image: url('"a" \a b');
+      }
+      .bar {
+        color: red;
+      }
+      "#,
+      ParserOptions::default(),
+    )
+    .unwrap();
+    let mut sm = parcel_sourcemap::SourceMap::new("/");
+    let result = stylesheet
+      .to_css(PrinterOptions {
+        minify: true,
+        source_map: Some(&mut sm),
+        ..Default::default()
+      })
+      .unwrap();
+    let column = result.code.find(".bar").unwrap() as u32;
+    let mapping = sm.find_closest_mapping(0, column).unwrap();
+    assert_eq!(mapping.generated_column, column);
+    assert_eq!(mapping.original.unwrap().original_line, 4);
   }
 
   #[test]

@@ -7,7 +7,6 @@ use crate::rules::{Location, StyleContext};
 use crate::selector::SelectorList;
 use crate::targets::{Targets, TargetsWithSupportsScope};
 use crate::vendor_prefix::VendorPrefix;
-use cssparser::{serialize_identifier, serialize_name};
 #[cfg(feature = "sourcemap")]
 use parcel_sourcemap::{OriginalLocation, SourceMap};
 
@@ -307,9 +306,9 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
           |s| {
             if first {
               first = false;
-              serialize_identifier(s, &mut dest)
+              crate::serialize::identifier(s, &mut dest)
             } else {
-              serialize_name(s, &mut dest)
+              crate::serialize::name(s, &mut dest)
             }
           },
         )?;
@@ -319,7 +318,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
       }
     }
 
-    serialize_identifier(ident, self)?;
+    crate::serialize::identifier(ident, self)?;
     Ok(())
   }
 
@@ -341,7 +340,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
           } else {
             ""
           },
-          |s| serialize_name(s, &mut dest),
+          |s| crate::serialize::name(s, &mut dest),
         )?;
 
         if is_declaration {
@@ -349,7 +348,7 @@ impl<'a, 'c, W: std::fmt::Write + Sized> Printer<'a, 'c, W> {
         }
       }
       _ => {
-        serialize_name(&ident[2..], self)?;
+        crate::serialize::name(&ident[2..], self)?;
       }
     }
 

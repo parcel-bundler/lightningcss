@@ -419,15 +419,10 @@ impl<'i> ToCss for FamilyName<'i> {
     // Generic family names such as sans-serif must be quoted if parsed as a string.
     // CSS wide keywords, as well as "default", must also be quoted.
     // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
+    //
+    // Family names with two or more consecutive spaces must be quoted to preserve the spaces.
     let val = &self.0;
-    if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() {
-      // Family names with two or more consecutive spaces must be quoted to preserve the spaces.
-      let needs_quotes = val.contains("  ");
-      if needs_quotes {
-        serialize_string(&val, dest)?;
-        return Ok(());
-      }
-
+    if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() && !val.contains("  ") {
       let mut id = String::new();
       let mut first = true;
       for slice in val.split(' ') {
@@ -436,13 +431,13 @@ impl<'i> ToCss for FamilyName<'i> {
         } else {
           id.push(' ');
         }
-        serialize_identifier(slice, &mut id)?;
+        crate::serialize::identifier(slice, &mut id)?;
       }
       if id.len() < val.len() + 2 {
         return dest.write_str(&id);
       }
     }
-    serialize_string(&val, dest)?;
+    crate::serialize::string(&val, dest)?;
     Ok(())
   }
 }
