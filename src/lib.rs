@@ -9074,13 +9074,10 @@ mod tests {
     for _ in 0..depth {
       value = format!("calc({} - 1px)", value);
     }
-    let mut expected = "var(--x)".to_string();
-    for _ in 0..depth {
-      expected = format!("calc({} - 1px)", expected);
-    }
+    // The value can't be simplified, so it is output unchanged.
     minify_test(
       &format!(".foo {{ width: {} }}", value),
-      &format!(".foo{{width:{}}}", expected),
+      &format!(".foo{{width:{}}}", value),
     );
     minify_test(
       ".foo { width: max(calc(min(var(--x), 1px) * 2), 1px) }",
@@ -15506,6 +15503,76 @@ mod tests {
       },
     );
 
+    prefix_test(
+      ".foo { background-image: linear-gradient(oklch(0% 0 0), oklch(100% 0 0)), linear-gradient(currentcolor, currentcolor); }",
+      indoc! { r#"
+        .foo {
+          background-image: linear-gradient(#000, #fff), linear-gradient(currentColor, currentColor);
+          background-image: linear-gradient(lab(0% 0 0), lab(100% 0 0)), linear-gradient(currentColor, currentColor);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { background-image: linear-gradient(oklch(0% 0 0), light-dark(currentcolor, red)); }",
+      indoc! { r#"
+        .foo {
+          background-image: linear-gradient(#000, var(--lightningcss-light, currentColor) var(--lightningcss-dark, red));
+          background-image: linear-gradient(lab(0% 0 0), var(--lightningcss-light, currentColor) var(--lightningcss-dark, red));
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { color: light-dark(currentcolor, oklch(0% 0 0)); }",
+      indoc! { r#"
+        .foo {
+          color: var(--lightningcss-light, currentColor) var(--lightningcss-dark, #000);
+          color: var(--lightningcss-light, currentColor) var(--lightningcss-dark, lab(0% 0 0));
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { text-shadow: 1px 1px oklch(0% 0 0), 1px 1px currentcolor; }",
+      indoc! { r#"
+        .foo {
+          text-shadow: 1px 1px #000, 1px 1px;
+          text-shadow: 1px 1px lab(0% 0 0), 1px 1px;
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { box-shadow: 1px 1px light-dark(currentcolor, oklch(0% 0 0)); }",
+      indoc! { r#"
+        .foo {
+          box-shadow: 1px 1px var(--lightningcss-light, currentColor) var(--lightningcss-dark, #000);
+          box-shadow: 1px 1px var(--lightningcss-light, currentColor) var(--lightningcss-dark, lab(0% 0 0));
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
     // Test cases from https://github.com/postcss/autoprefixer/blob/541295c0e6dd348db2d3f52772b59cd403c59d29/test/cases/gradient.css
     prefix_test(
       r#"
@@ -16373,6 +16440,41 @@ mod tests {
 
   #[test]
   fn test_supports_rule() {
+    // A vendor-prefixed feature query must keep its prefix when it is an OPERAND
+    // of `and` / `or`, not only when it stands alone. The merge pass bound the
+    // unprefixed id over `property_id` and then stored THAT, so a condition
+    // matching nothing already seen was pushed stripped: `-webkit-box-orient`
+    // became `box-orient`, which no browser implements, silently disabling the
+    // whole block. Regression test for #710.
+    //
+    // These carry no `Browsers` targets on purpose. Every existing assertion for
+    // this merge sets them, and the prefixing pass then re-adds what was lost,
+    // which is why the bug survived the tests that shipped with the feature.
+    minify_test(
+      "@supports (display: flex) and (-webkit-box-orient: vertical) { .a { color: red } }",
+      "@supports (display:flex) and ((-webkit-box-orient:vertical)){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (display: flex) or (-moz-appearance: none) { .a { color: red } }",
+      "@supports (display:flex) or ((-moz-appearance:none)){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (display: -webkit-box) and (-webkit-box-orient: vertical) and (-webkit-line-clamp: 3) { .a { color: red } }",
+      "@supports (display:-webkit-box) and ((-webkit-box-orient:vertical)) and (-webkit-line-clamp:3){.a{color:red}}",
+    );
+    // Prefixed declarations only merge inside `or`. Inside `and` the merge would print an `or`.
+    minify_test(
+      "@supports (-webkit-appearance: none) and (-moz-appearance: none) { .a { color: red } }",
+      "@supports ((-webkit-appearance:none)) and ((-moz-appearance:none)){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (backdrop-filter: blur(1px)) and (-webkit-backdrop-filter: blur(1px)) { .a { color: red } }",
+      "@supports (backdrop-filter:blur(1px)) and ((-webkit-backdrop-filter:blur(1px))){.a{color:red}}",
+    );
+    minify_test(
+      "@supports (not selector(::-webkit-scrollbar)) or (-moz-appearance: none) { .a { color: red } }",
+      "@supports (not selector(::-webkit-scrollbar)) or ((-moz-appearance:none)){.a{color:red}}",
+    );
     test(
       r#"
       @supports (foo: bar) {
@@ -19025,6 +19127,10 @@ mod tests {
     minify_test(".foo { caret-color: auto }", ".foo{caret-color:auto}");
     minify_test(".foo { caret-color: yellow }", ".foo{caret-color:#ff0}");
     minify_test(".foo { caret-shape: block }", ".foo{caret-shape:block}");
+    minify_test(".foo { caret-animation: manual }", ".foo{caret-animation:manual}");
+    minify_test(".foo { caret: red manual }", ".foo{caret:red manual}");
+    minify_test(".foo { caret: manual block red }", ".foo{caret:red manual block}");
+    minify_test(".foo { caret: auto manual }", ".foo{caret:manual}");
     minify_test(".foo { caret: yellow block }", ".foo{caret:#ff0 block}");
     minify_test(".foo { caret: block yellow }", ".foo{caret:#ff0 block}");
     minify_test(".foo { caret: block }", ".foo{caret:block}");
@@ -19033,6 +19139,28 @@ mod tests {
     minify_test(".foo { caret: auto }", ".foo{caret:auto}");
     minify_test(".foo { caret: yellow auto }", ".foo{caret:#ff0}");
     minify_test(".foo { caret: auto block }", ".foo{caret:block}");
+    // `caret` sets `caret-color`, `caret-animation` and `caret-shape`, so interleaved declarations
+    // keep their order.
+    minify_test(
+      ".foo { caret-color: red; caret: auto; caret-color: blue }",
+      ".foo{caret-color:red;caret:auto;caret-color:#00f}",
+    );
+    minify_test(
+      ".foo { caret: red; caret-color: blue; caret: green }",
+      ".foo{caret:red;caret-color:#00f;caret:green}",
+    );
+    minify_test(
+      ".foo { caret: red; caret-shape: bar; caret: green }",
+      ".foo{caret:red;caret-shape:bar;caret:green}",
+    );
+    minify_test(
+      ".foo { caret-color: red; caret: var(--c); caret-color: blue }",
+      ".foo{caret-color:red;caret:var(--c);caret-color:#00f}",
+    );
+    minify_test(
+      ".foo { caret: red; caret-animation: manual; caret: green }",
+      ".foo{caret:red;caret-animation:manual;caret:green}",
+    );
     minify_test(".foo { user-select: none }", ".foo{user-select:none}");
     minify_test(".foo { -webkit-user-select: none }", ".foo{-webkit-user-select:none}");
     minify_test(".foo { accent-color: auto }", ".foo{accent-color:auto}");
@@ -27791,6 +27919,64 @@ mod tests {
 
     css_modules_test(
       r#"
+      .a {
+        composes: default;
+        color: red;
+      }
+
+      .default {
+        color: blue;
+      }
+      "#,
+      indoc! {r#"
+        .EgL3uq_a {
+          color: red;
+        }
+
+        .EgL3uq_default {
+          color: #00f;
+        }
+      "#},
+      map! {
+        "a" => "EgL3uq_a" "EgL3uq_default",
+        "default" => "EgL3uq_default"
+      },
+      IndexMap::new(),
+      Default::default(),
+      false
+    );
+
+    css_modules_test(
+      r#"
+      .a {
+        composes: inherit;
+        color: red;
+      }
+
+      .inherit {
+        color: blue;
+      }
+      "#,
+      indoc! {r#"
+        .EgL3uq_a {
+          color: red;
+        }
+
+        .EgL3uq_inherit {
+          color: #00f;
+        }
+      "#},
+      map! {
+        "a" => "EgL3uq_a" "EgL3uq_inherit",
+        "inherit" => "EgL3uq_inherit"
+      },
+      IndexMap::new(),
+      Default::default(),
+      false
+    );
+
+    css_modules_test(
+      r#"
       .foo {
         color: red;
       }
@@ -30101,6 +30287,24 @@ mod tests {
         ..Browsers::default()
       },
     );
+    minify_test(
+      r#"
+        .foo {
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+      "#,
+      ".foo{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}",
+    );
+    minify_test(
+      r#"
+        .foo {
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(20px);
+        }
+      "#,
+      ".foo{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(20px)}",
+    );
     prefix_test(
       r#"
       .foo {
@@ -30130,6 +30334,36 @@ mod tests {
       "#},
       Browsers {
         chrome: Some(20 << 16),
+        ..Browsers::default()
+      },
+    );
+    minify_test(
+      ".foo { backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur) }",
+      ".foo{backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}",
+    );
+    minify_test(
+      ".foo { -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur) }",
+      ".foo{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}",
+    );
+    minify_test(
+      ".foo { filter: var(--filter); -webkit-filter: blur(5px) }",
+      ".foo{filter:var(--filter);-webkit-filter:blur(5px)}",
+    );
+    minify_test(
+      ".foo { backdrop-filter: blur(5px); -webkit-backdrop-filter: var(--first); -webkit-backdrop-filter: var(--blur) }",
+      ".foo{backdrop-filter:blur(5px);-webkit-backdrop-filter:var(--blur)}",
+    );
+    prefix_test(
+      ".foo { backdrop-filter: var(--standard); -webkit-backdrop-filter: var(--webkit) }",
+      indoc! { r#"
+        .foo {
+          backdrop-filter: var(--standard);
+          -webkit-backdrop-filter: var(--webkit);
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        chrome: Some(120 << 16),
         ..Browsers::default()
       },
     );
@@ -33106,6 +33340,78 @@ mod tests {
         exclude: Features::LightDark,
       },
     );
+  }
+
+  #[test]
+  fn test_light_dark_custom_property() {
+    minify_test(
+      ".foo { --x: light-dark(var(--light), var(--dark)) }",
+      ".foo{--x:light-dark(var(--light),var(--dark))}",
+    );
+    minify_test(
+      ".foo { --x: light-dark(var(--light)) }",
+      ".foo{--x:light-dark(var(--light))}",
+    );
+    minify_test(
+      ".foo { --x: light-dark(light-dark(var(--a))) }",
+      ".foo{--x:light-dark(light-dark(var(--a)))}",
+    );
+
+    // Each nested light-dark() without a comma must not parse its arguments again.
+    let depth = 40;
+    let source = format!(
+      ".foo {{ --x: {}var(--a){} }}",
+      "light-dark(".repeat(depth),
+      ")".repeat(depth)
+    );
+    let expected = format!(
+      ".foo{{--x:{}var(--a){}}}",
+      "light-dark(".repeat(depth),
+      ")".repeat(depth)
+    );
+    minify_test(&source, &expected);
+
+    let source = format!(".foo{{--x:{};}}", "((((light-dark(".repeat(depth));
+    assert!(StyleSheet::parse(&source, ParserOptions::default()).is_err());
+  }
+
+  #[test]
+  fn test_unresolved_color_alpha_custom_property() {
+    minify_test(
+      ".foo { --x: rgb(0 0 0 / rgb(0 0 0 / var(--a))) }",
+      ".foo{--x:rgb(0 0 0/rgb(0 0 0/var(--a)))}",
+    );
+    minify_test(
+      ".foo { --x: hsl(0 0% 0% / hsl(0 0% 0% / var(--a))) }",
+      ".foo{--x:hsl(0 0% 0%/hsl(0 0% 0%/var(--a)))}",
+    );
+
+    // An error in the alpha token list must not parse the arguments again as a
+    // generic function. Each nesting level would double the parse time.
+    let depth = 40;
+    for prefix in ["rgb(0 0 0 / ", "hsl(0 0% 0% / "] {
+      let source = format!(".foo{{--x:{}var(--a) ]{}}}", prefix.repeat(depth), ")".repeat(depth));
+      assert!(StyleSheet::parse(&source, ParserOptions::default()).is_err());
+    }
+
+    // The alpha token list counts toward the nesting limit. The parser stops at the
+    // limit, but a debug build needs more than the default test stack to reach it.
+    let source = format!(".foo{{--x:{}0{}}}", "rgb(0 0 0 / ".repeat(600), ")".repeat(600));
+    let is_depth_error = std::thread::Builder::new()
+      .stack_size(64 * 1024 * 1024)
+      .spawn(move || {
+        matches!(
+          StyleSheet::parse(&source, ParserOptions::default()),
+          Err(Error {
+            kind: ParserError::MaximumNestingDepth,
+            ..
+          })
+        )
+      })
+      .unwrap()
+      .join()
+      .unwrap();
+    assert!(is_depth_error);
   }
 
   #[test]

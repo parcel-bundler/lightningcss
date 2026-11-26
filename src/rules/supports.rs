@@ -234,24 +234,31 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
           }
         }
 
-        if let SupportsCondition::Declaration { property_id, value } = condition {
+        match condition {
           // Merge multiple declarations with the same property id (minus prefix) and value together.
-          let property_id = property_id.with_prefix(VendorPrefix::None);
-          let key = (property_id.clone(), value.clone());
-          if let Some(index) = seen_declarations.get(&key) {
-            if let SupportsCondition::Declaration {
-              property_id: cur_property,
-              ..
-            } = &mut conditions[*index]
-            {
-              cur_property.add_prefix(property_id.prefix());
+          // Only inside `or`: a merged declaration prints as an `or` of its prefixes, so merging
+          // inside `and` would turn `(-webkit-x: a) and (-moz-x: a)` into an `or`.
+          SupportsCondition::Declaration { property_id, value } if expected_type == Some(2) => {
+            // The unprefixed id is the MATCH KEY only. Binding it over `property_id` also changed
+            // what got stored and what prefix got merged in, so a condition that matched nothing was
+            // pushed with its prefix stripped -- turning `(-webkit-box-orient: vertical)` into
+            // `(box-orient: vertical)`, which no browser implements.
+            let unprefixed = property_id.with_prefix(VendorPrefix::None);
+            let key = (unprefixed, value.clone());
+            if let Some(index) = seen_declarations.get(&key) {
+              if let SupportsCondition::Declaration {
+                property_id: cur_property,
+                ..
+              } = &mut conditions[*index]
+              {
+                cur_property.add_prefix(property_id.prefix());
+              }
+            } else {
+              seen_declarations.insert(key, conditions.len());
+              conditions.push(SupportsCondition::Declaration { property_id, value });
             }
-          } else {
-            seen_declarations.insert(key, conditions.len());
-            conditions.push(SupportsCondition::Declaration { property_id, value });
           }
-        } else {
-          conditions.push(condition);
+          condition => conditions.push(condition),
         }
       } else {
         break;

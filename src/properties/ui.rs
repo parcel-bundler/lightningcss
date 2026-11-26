@@ -242,11 +242,29 @@ impl Default for CaretShape {
   }
 }
 
+enum_property! {
+  /// A value for the [caret-animation](https://drafts.csswg.org/css-ui-4/#caret-animation) property.
+  pub enum CaretAnimation {
+    /// The caret blinks.
+    Auto,
+    /// The caret does not blink.
+    Manual,
+  }
+}
+
+impl Default for CaretAnimation {
+  fn default() -> CaretAnimation {
+    CaretAnimation::Auto
+  }
+}
+
 shorthand_property! {
   /// A value for the [caret](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret) shorthand property.
   pub struct Caret {
     /// The caret color.
     color: CaretColor(ColorOrAuto),
+    /// The caret animation.
+    animation: CaretAnimation(CaretAnimation),
     /// The caret shape.
     shape: CaretShape(CaretShape),
   }
@@ -260,6 +278,7 @@ impl FallbackValues for Caret {
       .into_iter()
       .map(|color| Caret {
         color,
+        animation: self.animation.clone(),
         shape: self.shape.clone(),
       })
       .collect()

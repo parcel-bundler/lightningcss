@@ -263,6 +263,22 @@ for (let feature of cssFeatures) {
 // No browser supports custom media queries yet.
 addValue(compat, {}, 'custom-media-queries');
 
+// Drops BCD `partial_implementation` entries from a support map, for features where
+// partial support must not count as support. A browser whose only entry is partial
+// becomes `{ version_added: false }` (unsupported), which the loop below skips.
+function withoutPartial(support) {
+  return Object.fromEntries(
+    Object.entries(support).map(([browser, value]) => {
+      if (Array.isArray(value)) {
+        value = value.filter(v => !v.partial_implementation);
+      } else if (value.partial_implementation) {
+        value = { version_added: false };
+      }
+      return [browser, value];
+    })
+  );
+}
+
 let mdnFeatures = {
   doublePositionGradients: mdn.css.types.gradient['radial-gradient'].doubleposition.__compat.support,
   clampFunction: mdn.css.types.clamp.__compat.support,
@@ -271,19 +287,8 @@ let mdnFeatures = {
   placeItems: mdn.css.properties['place-items'].__compat.support,
   overflowShorthand: mdn.css.properties['overflow'].multiple_keywords.__compat.support,
   mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
-  mediaIntervalSyntax: Object.fromEntries(
-    Object.entries(mdn.css['at-rules'].media.range_syntax.__compat.support)
-      .map(([browser, value]) => {
-        // Firefox supported only ranges and not intervals for a while.
-        if (Array.isArray(value)) {
-          value = value.filter(v => !v.partial_implementation)
-        } else if (value.partial_implementation) {
-          value = undefined;
-        }
-
-        return [browser, value];
-      })
-  ),
+  // Firefox supported only ranges and not intervals for a while.
+  mediaIntervalSyntax: withoutPartial(mdn.css['at-rules'].media.range_syntax.__compat.support),
   logicalBorders: mdn.css.properties['border-inline-start'].__compat.support,
   logicalBorderShorthand: mdn.css.properties['border-inline'].__compat.support,
   logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support,
@@ -345,20 +350,9 @@ let mdnFeatures = {
   // separate keys; the two keywords shipped together.
   accentSystemColor: (mdn.css.types.color['system-color'].accentcolor_accentcolortext ??
     mdn.css.types.color['system-color'].accentcolor).__compat.support,
-  animationTimelineShorthand: Object.fromEntries(
-    Object.entries(mdn.css.properties.animation['animation-timeline_included'].__compat.support)
-      .map(([browser, value]) => {
-        // Chrome/Edge 115+ only support animation-timeline as a reset-only sub-property
-        // of the animation shorthand, so it cannot be set via the shorthand yet.
-        if (Array.isArray(value)) {
-          value = value.filter(v => !v.partial_implementation)
-        } else if (value.partial_implementation) {
-          value = { version_added: false };
-        }
-
-        return [browser, value];
-      })
-  ),
+  // Chrome/Edge 115+ only support animation-timeline as a reset-only sub-property
+  // of the animation shorthand, so it cannot be set via the shorthand yet.
+  animationTimelineShorthand: withoutPartial(mdn.css.properties.animation['animation-timeline_included'].__compat.support),
   transitionBehaviorShorthand: mdn.css.properties.transition['transition-behavior'].__compat.support,
   viewTransition: mdn.css.selectors['view-transition'].__compat.support,
   detailsContent: mdn.css.selectors['details-content'].__compat.support,
@@ -369,20 +363,9 @@ let mdnFeatures = {
   checkmark: mdn.css.selectors.checkmark.__compat.support,
   grammarError: mdn.css.selectors['grammar-error'].__compat.support,
   spellingError: mdn.css.selectors['spelling-error'].__compat.support,
-  statePseudoClass: Object.fromEntries(
-    Object.entries(mdn.css.selectors.state.__compat.support)
-      .map(([browser, value]) => {
-        // Chrome/Edge 90-124 supported old :--foo syntax which was removed.
-        // Only include full :state(foo) support from 125+.
-        if (Array.isArray(value)) {
-          value = value.filter(v => !v.partial_implementation)
-        } else if (value.partial_implementation) {
-          value = undefined;
-        }
-
-        return [browser, value];
-      })
-  ),
+  // Chrome/Edge 90-124 supported old :--foo syntax which was removed.
+  // Only include full :state(foo) support from 125+.
+  statePseudoClass: withoutPartial(mdn.css.selectors.state.__compat.support),
 };
 
 for (let key in mdn.css.types.length) {

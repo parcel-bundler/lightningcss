@@ -2143,6 +2143,9 @@ export type PropertyId =
       property: "caret-color";
     }
   | {
+      property: "caret-animation";
+    }
+  | {
       property: "caret-shape";
     }
   | {
@@ -3569,6 +3572,10 @@ export type Declaration =
   | {
       property: "caret-color";
       value: ColorOrAuto;
+    }
+  | {
+      property: "caret-animation";
+      value: CaretAnimation;
     }
   | {
       property: "caret-shape";
@@ -6048,6 +6055,10 @@ export type ColorOrAuto =
       type: "color";
       value: CssColor;
     };
+/**
+ * A value for the [caret-animation](https://drafts.csswg.org/css-ui-4/#caret-animation) property.
+ */
+export type CaretAnimation = "auto" | "manual";
 /**
  * A value for the [caret-shape](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-shape) property.
  */
@@ -9192,6 +9203,10 @@ export interface CursorImage {
  * A value for the [caret](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret) shorthand property.
  */
 export interface Caret {
+  /**
+   * The caret animation.
+   */
+  animation: CaretAnimation;
   /**
    * The caret color.
    */

@@ -1525,6 +1525,7 @@ define_properties! {
   "resize": Resize(Resize),
   "cursor": Cursor(Cursor<'i>),
   "caret-color": CaretColor(ColorOrAuto),
+  "caret-animation": CaretAnimation(CaretAnimation),
   "caret-shape": CaretShape(CaretShape),
   "caret": Caret(Caret) shorthand: true,
   "user-select": UserSelect(UserSelect, VendorPrefix) / WebKit / Moz / Ms,
