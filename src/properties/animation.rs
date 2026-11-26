@@ -733,6 +733,7 @@ pub(crate) struct AnimationHandler<'i> {
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   fill_modes: Option<(SmallVec<[AnimationFillMode; 1]>, VendorPrefix)>,
   timelines: Option<SmallVec<[AnimationTimeline<'i>; 1]>>,
+  compositions: Option<SmallVec<[AnimationComposition; 1]>>,
   range_starts: Option<SmallVec<[AnimationRangeStart; 1]>>,
   range_ends: Option<SmallVec<[AnimationRangeEnd; 1]>>,
   has_any: bool,
@@ -781,6 +782,10 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
       Property::AnimationPlayState(val, vp) => property!(play_states, val, vp),
       Property::AnimationDelay(val, vp) => property!(delays, val, vp),
       Property::AnimationFillMode(val, vp) => property!(fill_modes, val, vp),
+      Property::AnimationComposition(val) => {
+        self.compositions = Some(val.clone());
+        self.has_any = true;
+      }
       Property::AnimationTimeline(val) => {
         self.timelines = Some(val.clone());
         self.has_any = true;
@@ -799,6 +804,12 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         self.has_any = true;
       }
       Property::Animation(val, vp) => {
+        // Chrome doesn't reset animation-composition from the shorthand, so write a buffered
+        // one out first, in source order, instead of dropping it as a reset would.
+        if self.compositions.is_some() {
+          self.flush(dest, context);
+        }
+
         let names = val.iter().map(|b| b.name.clone()).collect();
         maybe_flush!(names, &names, vp);
 
@@ -903,6 +914,7 @@ impl<'i> AnimationHandler<'i> {
     let mut delays = std::mem::take(&mut self.delays);
     let mut fill_modes = std::mem::take(&mut self.fill_modes);
     let mut timelines_value = std::mem::take(&mut self.timelines);
+    let compositions = std::mem::take(&mut self.compositions);
     let range_starts = std::mem::take(&mut self.range_starts);
     let range_ends = std::mem::take(&mut self.range_ends);
 
@@ -1047,6 +1059,10 @@ impl<'i> AnimationHandler<'i> {
 
     if let Some(val) = timelines_value {
       dest.push(Property::AnimationTimeline(val));
+    }
+
+    if let Some(val) = compositions {
+      dest.push(Property::AnimationComposition(val));
     }
 
     match (range_starts, range_ends) {

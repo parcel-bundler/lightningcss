@@ -353,6 +353,7 @@ let mdnFeatures = {
   // Chrome/Edge 115+ only support animation-timeline as a reset-only sub-property
   // of the animation shorthand, so it cannot be set via the shorthand yet.
   animationTimelineShorthand: withoutPartial(mdn.css.properties.animation['animation-timeline_included'].__compat.support),
+  transitionBehaviorShorthand: mdn.css.properties.transition['transition-behavior'].__compat.support,
   viewTransition: mdn.css.selectors['view-transition'].__compat.support,
   detailsContent: mdn.css.selectors['details-content'].__compat.support,
   targetText: mdn.css.selectors['target-text'].__compat.support,

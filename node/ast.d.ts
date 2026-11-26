@@ -1939,6 +1939,9 @@ export type PropertyId =
       vendorPrefix: VendorPrefix;
     }
   | {
+      property: "transition-behavior";
+    }
+  | {
       property: "transition";
       vendorPrefix: VendorPrefix;
     }
@@ -3307,6 +3310,10 @@ export type Declaration =
       property: "transition-timing-function";
       value: EasingFunction[];
       vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "transition-behavior";
+      value: TransitionBehavior[];
     }
   | {
       property: "transition";
@@ -5553,6 +5560,10 @@ export type StepPosition =
   | {
       type: "jump-both";
     };
+/**
+ * A value for the [transition-behavior](https://drafts.csswg.org/css-transitions-2/#transition-behavior-property) property.
+ */
+export type TransitionBehavior = "normal" | "allow-discrete";
 /**
  * A value for the [animation-iteration-count](https://drafts.csswg.org/css-animations/#animation-iteration-count) property.
  */
@@ -8918,6 +8929,10 @@ export interface Font {
  * A value for the [transition](https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property) property.
  */
 export interface Transition {
+  /**
+   * Whether the transition applies to discretely animatable properties.
+   */
+  behavior: TransitionBehavior;
   /**
    * The delay before the transition starts.
    */

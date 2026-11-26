@@ -1452,6 +1452,7 @@ define_properties! {
   "transition-duration": TransitionDuration(SmallVec<[NonNegative<Time>; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-delay": TransitionDelay(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-timing-function": TransitionTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / WebKit / Moz / Ms,
+  "transition-behavior": TransitionBehavior(SmallVec<[TransitionBehavior; 1]>),
   "transition": Transition(SmallVec<[Transition<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms shorthand: true,
 
   "animation-name": AnimationName(AnimationNameList<'i>, VendorPrefix) / WebKit / Moz / O,
