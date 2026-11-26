@@ -7452,6 +7452,34 @@ mod tests {
       "foo:has(slot=\"selection\") {color:red}",
       ParserError::UnexpectedToken(Token::Delim('=')),
     );
+    // :has() is not valid within :has(), even through :is()/:where()/:not().
+    for source in [
+      ".a:has(.x:has(i)) {color:red}",
+      ".a:has(> .x, .y:has(i)) {color:red}",
+      ".a:has(:not(:has(i))) {color:red}",
+    ] {
+      error_test(source, ParserError::SelectorError(SelectorError::InvalidState));
+      assert_eq!(error_recovery_test(source).len(), 1);
+    }
+    // :is() and :where() are forgiving, so only the nested :has() is dropped.
+    minify_test(".a:has(:is(:has(c))) {color:red}", ".a:has(:is()){color:red}");
+    minify_test(
+      ".a:has(:where(.b, :has(c))) {color:red}",
+      ".a:has(:where(.b)){color:red}",
+    );
+    minify_test(".a:is(:has(.b:has(c)), .d) {color:red}", ".a.d{color:red}");
+    minify_test(".a:has(.b) .c:has(.d) {color:red}", ".a:has(.b) .c:has(.d){color:red}");
+    minify_test(":is(.a:has(.b)) :has(.c) {color:red}", ".a:has(.b) :has(.c){color:red}");
+    // :has() is not valid after a pseudo-element.
+    for source in [
+      ".a::before:has(:hover) {color:red}",
+      ".a::before:has(.x) {color:red}",
+      "x-a::part(foo):has(div) {color:red}",
+      "::slotted(x):has(a) {color:red}",
+    ] {
+      error_test(source, ParserError::SelectorError(SelectorError::InvalidState));
+      assert_eq!(error_recovery_test(source).len(), 1);
+    }
     for element in [
       "-webkit-scrollbar",
       "-webkit-scrollbar-button",

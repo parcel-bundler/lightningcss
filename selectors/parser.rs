@@ -137,6 +137,9 @@ bitflags! {
         const AFTER_WEBKIT_SCROLLBAR = 1 << 8;
         const AFTER_VIEW_TRANSITION = 1 << 9;
         const AFTER_UNKNOWN_PSEUDO_ELEMENT = 1 << 10;
+
+        /// Whether we explicitly disallow relative selectors (i.e. `:has()`).
+        const DISALLOW_RELATIVE_SELECTOR = 1 << 11;
     }
 }
 
@@ -2838,7 +2841,19 @@ where
   P: Parser<'i, Impl = Impl>,
   Impl: SelectorImpl<'i>,
 {
-  let mut child_state = *state | SelectorParsingState::DISALLOW_PSEUDOS;
+  // https://drafts.csswg.org/selectors-4/#relational:
+  //
+  //     The :has() pseudo-class cannot be nested; :has() is not valid within
+  //     :has(). Also, unless explicitly defined as a :has-allowed
+  //     pseudo-element, pseudo-elements are not valid selectors within :has().
+  //
+  // :has() is also not valid after a pseudo-element (it is not a user action
+  // pseudo-class).
+  if state.intersects(SelectorParsingState::DISALLOW_RELATIVE_SELECTOR | SelectorParsingState::AFTER_PSEUDO) {
+    return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+  }
+  let mut child_state =
+    *state | SelectorParsingState::DISALLOW_PSEUDOS | SelectorParsingState::DISALLOW_RELATIVE_SELECTOR;
   let inner = SelectorList::parse_relative_with_state(
     parser,
     input,
@@ -3937,6 +3952,12 @@ pub mod tests {
     assert!(parse("foo:has()").is_err());
     assert!(parse("foo:has(slot=\"selection\")").is_err());
     assert!(parse(":has(slot=\"selection\")").is_err());
+    assert!(parse("foo:has(bar:has(baz))").is_err());
+    assert!(parse("foo:has(:not(:has(baz)))").is_err());
+    // The test parser uses unforgiving :is(), so the nested :has() fails the whole list.
+    assert!(parse("foo:has(:is(:has(baz)))").is_err());
+    assert!(parse("foo::before:has(bar)").is_err());
+    assert!(parse("foo:has(bar) baz:has(qux)").is_ok());
 
     assert!(parse("foo::details-content").is_ok());
     assert!(parse("foo::target-text").is_ok());
