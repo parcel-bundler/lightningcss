@@ -269,9 +269,9 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
       }
       Unparsed(val) if is_transition_property(&val.property_id) => {
         self.flush(dest, context);
-        dest.push(Property::Unparsed(
-          val.get_prefixed(context.targets, Feature::Transition),
-        ));
+        val
+          .get_prefixed(context.targets, Feature::Transition)
+          .push_merging_prefixes(dest);
       }
       _ => return false,
     }

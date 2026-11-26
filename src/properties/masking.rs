@@ -706,9 +706,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
           .insert(MaskProperty::try_from(&val.property_id).unwrap());
 
         // Merge adjacent authored prefix variants, e.g. `-webkit-mask` + `mask` pairs.
-        if !unparsed.merge_prefixes_into_last(dest) {
-          dest.push(Property::Unparsed(unparsed));
-        }
+        unparsed.push_merging_prefixes(dest);
       }
       Property::MaskBorderSource(val) => property!(border_source, val, &VendorPrefix::None),
       Property::WebKitMaskBoxImageSource(val, _) => property!(border_source, val, &VendorPrefix::WebKit),
@@ -740,7 +738,9 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
             let mut clone = val.clone();
             clone.property_id = property_id;
             context.add_unparsed_fallbacks(&mut clone);
-            dest.push(Property::Unparsed(clone));
+            // The generated `-webkit-mask-box-image` is absorbed if it exactly duplicates an
+            // authored one, e.g. `-webkit-mask-box-image: var(--b); mask-border: var(--b)`.
+            clone.push_merging_prefixes(dest);
           }
         }
 

@@ -1197,13 +1197,13 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         self.finalize(dest, context);
         let mut unparsed = val.get_prefixed(context.targets, Feature::TextDecoration);
         context.add_unparsed_fallbacks(&mut unparsed);
-        dest.push(Property::Unparsed(unparsed))
+        unparsed.push_merging_prefixes(dest);
       }
       Unparsed(val) if is_text_emphasis_property(&val.property_id) => {
         self.finalize(dest, context);
         let mut unparsed = val.get_prefixed(context.targets, Feature::TextEmphasis);
         context.add_unparsed_fallbacks(&mut unparsed);
-        dest.push(Property::Unparsed(unparsed))
+        unparsed.push_merging_prefixes(dest);
       }
       _ => return false,
     }

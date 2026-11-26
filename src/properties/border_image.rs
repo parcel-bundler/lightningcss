@@ -464,7 +464,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
         self
           .flushed_properties
           .insert(BorderImageProperty::try_from(&unparsed.property_id).unwrap());
-        dest.push(Property::Unparsed(unparsed));
+        unparsed.push_merging_prefixes(dest);
       }
       _ => return false,
     }

@@ -882,9 +882,9 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         }
 
         self.flush(dest, context);
-        dest.push(Property::Unparsed(
-          val.get_prefixed(context.targets, Feature::Animation),
-        ));
+        val
+          .get_prefixed(context.targets, Feature::Animation)
+          .push_merging_prefixes(dest);
       }
       _ => return false,
     }
