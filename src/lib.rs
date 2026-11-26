@@ -30237,6 +30237,49 @@ mod tests {
         ..Browsers::default()
       },
     );
+    // Equal var() values with another prefix merge like parsed values, when the targets
+    // need no prefix.
+    for (a, b) in [("-webkit-", ""), ("", "-webkit-")] {
+      for property in ["filter", "backdrop-filter"] {
+        prefix_test(
+          &format!(".foo {{ {a}{property}: var(--x); {b}{property}: var(--x) }}"),
+          &format!(".foo {{\n  {property}: var(--x);\n}}\n"),
+          Browsers {
+            chrome: Some(120 << 16),
+            safari: Some(18 << 16),
+            ..Browsers::default()
+          },
+        );
+      }
+    }
+    prefix_test(
+      ".foo { -webkit-backdrop-filter: var(--x); backdrop-filter: var(--x) }",
+      indoc! { r#"
+        .foo {
+          -webkit-backdrop-filter: var(--x);
+          backdrop-filter: var(--x);
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        chrome: Some(120 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { -webkit-backdrop-filter: var(--x); backdrop-filter: var(--x); -webkit-backdrop-filter: var(--y) }",
+      indoc! { r#"
+        .foo {
+          backdrop-filter: var(--x);
+          -webkit-backdrop-filter: var(--y);
+        }
+      "#},
+      Browsers {
+        chrome: Some(120 << 16),
+        ..Browsers::default()
+      },
+    );
+
     prefix_test(
       ".foo { filter: drop-shadow(16px 16px 20px lab(40% 56.6 39)) }",
       indoc! { r#"

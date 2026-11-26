@@ -196,7 +196,37 @@ macro_rules! define_fallbacks {
                   }
 
                   let val = get_prefixed!($($p)?);
-                  (val, pastey::paste! { &mut self.[<$name:snake>] })
+                  let index = pastey::paste! { &mut self.[<$name:snake>] };
+
+                  macro_rules! merge_prefixed {
+                    ($vp: ident) => {
+                      // Like parsed values above, an equal value with another prefix merges into
+                      // the previous declaration, e.g. `-webkit-filter: var(--f); filter: var(--f)`.
+                      // Only when the targets need no prefix, so a single unprefixed declaration
+                      // is printed, and only without color fallbacks, which were added to the
+                      // previous declaration's @supports rules with its own prefix.
+                      if let (Some(_), Some(i)) = (context.targets.browsers, *index) {
+                        if let Some(Property::Unparsed(cur)) = dest.get_mut(i) {
+                          if cur.value == val.value {
+                            let merged = context.targets.prefixes(
+                              cur.property_id.prefix() | val.property_id.prefix(),
+                              Feature::$name,
+                            );
+                            if merged == VendorPrefix::None
+                              && val.value.get_necessary_fallbacks(context.targets).is_empty()
+                            {
+                              cur.property_id = cur.property_id.with_prefix(merged);
+                              return true;
+                            }
+                          }
+                        }
+                      }
+                    };
+                    () => {};
+                  }
+
+                  merge_prefixed!($($p)?);
+                  (val, index)
                 }
               )+
               _ => return false
