@@ -183,6 +183,17 @@ impl SelectorParsingState {
   fn allows_combinators(self) -> bool {
     !self.intersects(Self::DISALLOW_COMBINATORS)
   }
+
+  /// The error for a pseudo-element that is not allowed in this state.
+  fn disallowed_pseudo_error<'i>(self) -> SelectorParseErrorKind<'i> {
+    // DISALLOW_PSEUDOS is always set within :has(), so any pseudo-element
+    // there is invalid because of the :has().
+    if self.intersects(Self::DISALLOW_RELATIVE_SELECTOR) {
+      SelectorParseErrorKind::PseudoElementInHas
+    } else {
+      SelectorParseErrorKind::InvalidState
+    }
+  }
 }
 
 pub type SelectorParseError<'i> = ParseError<'i, SelectorParseErrorKind<'i>>;
@@ -211,6 +222,8 @@ pub enum SelectorParseErrorKind<'i> {
   ExplicitNamespaceUnexpectedToken(Token<'i>),
   ClassNeedsIdent(Token<'i>),
   UnexpectedSelectorAfterPseudoElement(Token<'i>),
+  NestedHas,
+  PseudoElementInHas,
 }
 
 macro_rules! with_all_bounds {
@@ -2849,7 +2862,10 @@ where
   //
   // :has() is also not valid after a pseudo-element (it is not a user action
   // pseudo-class).
-  if state.intersects(SelectorParsingState::DISALLOW_RELATIVE_SELECTOR | SelectorParsingState::AFTER_PSEUDO) {
+  if state.intersects(SelectorParsingState::DISALLOW_RELATIVE_SELECTOR) {
+    return Err(input.new_custom_error(SelectorParseErrorKind::NestedHas));
+  }
+  if state.intersects(SelectorParsingState::AFTER_PSEUDO) {
     return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
   }
   let mut child_state =
@@ -3043,12 +3059,12 @@ where
       let is_pseudo_element = !is_single_colon || is_css2_pseudo_element(&name);
       if is_pseudo_element {
         if !state.allows_pseudos() {
-          return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+          return Err(input.new_custom_error(state.disallowed_pseudo_error()));
         }
         let pseudo_element = if is_functional {
           if P::parse_part(parser) && name.eq_ignore_ascii_case("part") {
             if !state.allows_part() {
-              return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+              return Err(input.new_custom_error(state.disallowed_pseudo_error()));
             }
             let names = input.parse_nested_block(|input| {
               let mut result = Vec::with_capacity(1);
@@ -3062,7 +3078,7 @@ where
           }
           if P::parse_slotted(parser) && name.eq_ignore_ascii_case("slotted") {
             if !state.allows_slotted() {
-              return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
+              return Err(input.new_custom_error(state.disallowed_pseudo_error()));
             }
             let selector =
               input.parse_nested_block(|input| parse_inner_compound_selector(parser, input, state))?;

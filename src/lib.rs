@@ -7441,10 +7441,22 @@ mod tests {
     minify_test("a:has(:visited) {color:red}", "a:has(:visited){color:red}");
     error_test(
       "a:has(::before) {color:red}",
-      ParserError::SelectorError(SelectorError::InvalidState),
+      ParserError::SelectorError(SelectorError::PseudoElementInHas),
     );
     error_test(
       "video:not(:has(::backdrop)) {color:red}",
+      ParserError::SelectorError(SelectorError::PseudoElementInHas),
+    );
+    error_test(
+      "a:has(.x::part(y)) {color:red}",
+      ParserError::SelectorError(SelectorError::PseudoElementInHas),
+    );
+    error_test(
+      "a:has(::slotted(y)) {color:red}",
+      ParserError::SelectorError(SelectorError::PseudoElementInHas),
+    );
+    error_test(
+      "a:not(::before) {color:red}",
       ParserError::SelectorError(SelectorError::InvalidState),
     );
     error_test("foo:has() {color:red}", ParserError::EndOfInput);
@@ -7458,7 +7470,7 @@ mod tests {
       ".a:has(> .x, .y:has(i)) {color:red}",
       ".a:has(:not(:has(i))) {color:red}",
     ] {
-      error_test(source, ParserError::SelectorError(SelectorError::InvalidState));
+      error_test(source, ParserError::SelectorError(SelectorError::NestedHas));
       assert_eq!(error_recovery_test(source).len(), 1);
     }
     // :is() and :where() are forgiving, so only the nested :has() is dropped.
