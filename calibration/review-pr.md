@@ -47,3 +47,8 @@ Approved as drafted (request changes): #1025, #1123 (minor edit), #1227, #1245, 
 ## Re-review batch 2026-11-25
 All 7 re-review verdicts approved as drafted (6 approve, #1025 request changes).
 - #1363: approved, with a note: caret should get a dedicated property handler instead of the macro-generated fallback handler, which could also merge longhands into the shorthand when supported. Lesson: when a fix piles special cases onto the generic fallback handler (prefix_handler.rs), suggest a dedicated handler like the other shorthands. Filed as a follow-up for us.
+
+## Batch 2026-11-26
+- #1209 rejected the "type all font longhands first" request: "I'd be ok with a stopgap here with a follow up ticket to track replacing it given the size." Rule: when the principled fix is much larger than the PR (here ~1000+ lines vs 10), accept the small fix as a stopgap and file a tracking issue (#1433). The fully-parse principle sets direction, not a gate for every bug fix.
+- #1308: changed verdict from merge to request changes because of the `::slotted()::details-content` gap: "I think number 2 makes this a request changes." A missed valid-syntax case that Chrome accepts (strict mode errors on valid CSS) is blocking, not optional. Also trimmed the "unrelated to the selector fix" justification.
+- #1063, #1295, #696 approved as drafted.
