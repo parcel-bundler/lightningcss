@@ -609,8 +609,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
     let mut has_layers = false;
     let mut property_rules = HashMap::new();
     let mut font_feature_values_rules = Vec::new();
-    let mut style_rules =
-      HashMap::with_capacity_and_hasher(self.0.len(), BuildHasherDefault::<PrecomputedHasher>::default());
+    let mut style_rules = StyleRulesTracker::with_capacity(self.0.len(), context.css_modules);
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
       match &mut rule {
@@ -779,8 +778,9 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
 
           // Attempt to merge the new rule with the last rule we added.
           let mut merged = false;
-          if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
+          if let Some((last_idx, CssRule::Style(last_style_rule))) = rules.iter_mut().enumerate().next_back() {
             if merge_style_rules(style, last_style_rule, context) {
+              style_rules.mutated(last_idx);
               // If that was successful, then the last rule has been updated to include the
               // selectors/declarations of the new rule. This might mean that we can merge it
               // with the previous rule, so continue trying while we have style rules available.
@@ -788,8 +788,12 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
                 let len = rules.len();
                 let (a, b) = rules.split_at_mut(len - 1);
                 if let (CssRule::Style(last), CssRule::Style(prev)) = (&mut b[0], &mut a[len - 2]) {
+                  let popped_idx = len - 1;
+                  let prev_idx = len - 2;
                   if merge_style_rules(last, prev, context) {
-                    // If we were able to merge the last rule into the previous one, remove the last.
+                    // prev was mutated; last is about to be popped.
+                    style_rules.remove(popped_idx);
+                    style_rules.mutated(prev_idx);
                     rules.pop();
                     continue;
                   }
@@ -847,28 +851,39 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           if !merged && !style.is_empty() {
             let source_index = style.loc.source_index;
             let has_no_rules = style.rules.0.is_empty();
+            // Compute the dedup hash before pushing `rule`, which moves it.
+            let hash = if has_no_rules {
+              Some(style_rules.key(style))
+            } else {
+              None
+            };
             let idx = rules.len();
             rules.push(rule);
 
             // Check if this rule is a duplicate of an earlier rule, meaning it has
             // the same selectors and defines the same properties. If so, remove the
             // earlier rule because this one completely overrides it.
-            if has_no_rules {
-              // SAFETY: StyleRuleKeys never live beyond this method.
-              let key = StyleRuleKey::new(unsafe { &*(&rules as *const _) }, idx);
+            if let Some(hash) = hash {
+              // The previous rule can no longer be merged into, so index it first.
+              style_rules.settle(&rules);
               if idx > 0 {
-                if let Some(i) = style_rules.remove(&key) {
-                  if let CssRule::Style(other) = &rules[i] {
-                    // Don't remove the rule if this is a CSS module and the other rule came from a different file.
-                    if !context.css_modules || source_index == other.loc.source_index {
-                      // Only mark the rule as ignored so we don't need to change all of the indices.
-                      rules[i] = CssRule::Ignored;
-                    }
-                  }
+                let new_rule = match &rules[idx] {
+                  CssRule::Style(s) => s,
+                  _ => unreachable!(),
+                };
+                // Don't dedup against a CSS-module rule from a different source file.
+                // Such rules are keyed into separate buckets, so this only filters
+                // out hash collisions.
+                let css_modules = context.css_modules;
+                if let Some(i) = style_rules.find_duplicate(&rules[..idx], hash, new_rule, |other| {
+                  !css_modules || source_index == other.loc.source_index
+                }) {
+                  // Only mark the rule as ignored so we don't need to change all of the indices.
+                  rules[i] = CssRule::Ignored;
+                  style_rules.remove(i);
                 }
               }
-
-              style_rules.insert(key, idx);
+              style_rules.push(idx, hash);
             }
           }
 
@@ -1192,51 +1207,118 @@ impl Hasher for PrecomputedHasher {
   }
 }
 
-/// A key to a StyleRule meant for use in a HashMap for quickly detecting duplicates.
-/// It stores a reference to a list and an index so it can access items without cloning
-/// even when the list is reallocated. A hash is also pre-computed for fast lookups.
-#[derive(Clone)]
-pub(crate) struct StyleRuleKey<'a, 'i, R> {
-  list: &'a Vec<CssRule<'i, R>>,
-  index: usize,
-  hash: u64,
+/// Index of style rules for deduplication.
+///
+/// Invariant: every rule in `buckets` is immutable. `merge_style_rules` only
+/// mutates the tail of `rules` (or, in the cascade loop, the rule that becomes
+/// the tail after a pop), so the most recently pushed rule is kept `pending`
+/// and only keyed once the next dedup-eligible rule is pushed. A keyed rule that
+/// becomes the tail again via a cascade pop is un-keyed and made pending.
+struct StyleRulesTracker {
+  buckets: HashMap<u64, SmallVec<[usize; 1]>, BuildHasherDefault<PrecomputedHasher>>,
+  keyed: HashMap<usize, u64>,
+  /// (index, key at push time, mutated since push)
+  pending: Option<(usize, u64, bool)>,
+  css_modules: bool,
 }
 
-impl<'a, 'i, R> StyleRuleKey<'a, 'i, R> {
-  fn new(list: &'a Vec<CssRule<'i, R>>, index: usize) -> Self {
-    let rule = match &list[index] {
-      CssRule::Style(style) => style,
-      _ => unreachable!(),
-    };
-
+impl StyleRulesTracker {
+  fn with_capacity(cap: usize, css_modules: bool) -> Self {
     Self {
-      list,
-      index,
-      hash: rule.hash_key(),
+      buckets: HashMap::with_capacity_and_hasher(cap, BuildHasherDefault::default()),
+      keyed: HashMap::with_capacity(cap),
+      pending: None,
+      css_modules,
     }
   }
-}
 
-impl<'a, 'i, R> PartialEq for StyleRuleKey<'a, 'i, R> {
-  fn eq(&self, other: &Self) -> bool {
-    let rule = match self.list.get(self.index) {
-      Some(CssRule::Style(style)) => style,
-      _ => return false,
-    };
-
-    let other_rule = match other.list.get(other.index) {
-      Some(CssRule::Style(style)) => style,
-      _ => return false,
-    };
-
-    rule.is_duplicate(other_rule)
+  /// With CSS modules, rules from different files never dedup against each
+  /// other, so keep them in separate buckets.
+  fn key<T>(&self, rule: &StyleRule<'_, T>) -> u64 {
+    let h = rule.hash_key();
+    if self.css_modules {
+      h ^ (rule.loc.source_index as u64 + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15)
+    } else {
+      h
+    }
   }
-}
 
-impl<'a, 'i, R> Eq for StyleRuleKey<'a, 'i, R> {}
+  /// A new dedup-eligible rule was pushed at `idx`.
+  fn push(&mut self, idx: usize, key: u64) {
+    debug_assert!(self.pending.is_none());
+    self.pending = Some((idx, key, false));
+  }
 
-impl<'a, 'i, R> std::hash::Hash for StyleRuleKey<'a, 'i, R> {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    state.write_u64(self.hash);
+  /// Key the pending rule. Must be called before any lookup.
+  fn settle<T>(&mut self, rules: &[CssRule<'_, T>]) {
+    if let Some((idx, key, dirty)) = self.pending.take() {
+      let key = if dirty {
+        match &rules[idx] {
+          CssRule::Style(style) => self.key(style),
+          _ => return,
+        }
+      } else {
+        key
+      };
+      self.buckets.entry(key).or_default().push(idx);
+      self.keyed.insert(idx, key);
+    }
+  }
+
+  /// `merge_style_rules` mutated `rules[idx]`.
+  fn mutated(&mut self, idx: usize) {
+    match &mut self.pending {
+      Some((p, _, dirty)) if *p == idx => *dirty = true,
+      _ => {
+        if let Some(key) = self.keyed.remove(&idx) {
+          // A keyed rule was exposed as the tail by a cascade pop.
+          Self::remove_from_bucket(&mut self.buckets, key, idx);
+          debug_assert!(self.pending.is_none());
+          self.pending = Some((idx, key, true));
+        }
+      }
+    }
+  }
+
+  /// `rules[idx]` was popped or replaced with `Ignored`.
+  fn remove(&mut self, idx: usize) {
+    if matches!(self.pending, Some((p, _, _)) if p == idx) {
+      self.pending = None;
+    } else if let Some(key) = self.keyed.remove(&idx) {
+      Self::remove_from_bucket(&mut self.buckets, key, idx);
+    }
+  }
+
+  /// Find an indexed rule that duplicates `rule` (just pushed at the top of
+  /// `rules`) and is accepted by `is_removable`. The caller marks the match
+  /// `Ignored` and calls [`Self::remove`] on the returned index.
+  fn find_duplicate<'i, T: Clone>(
+    &self,
+    rules: &[CssRule<'i, T>],
+    key: u64,
+    rule: &StyleRule<'i, T>,
+    is_removable: impl Fn(&StyleRule<'i, T>) -> bool,
+  ) -> Option<usize> {
+    debug_assert!(self.pending.is_none());
+    let bucket = self.buckets.get(&key)?;
+    bucket.iter().copied().find(|&i| match &rules[i] {
+      CssRule::Style(other) => rule.is_duplicate(other) && is_removable(other),
+      _ => false,
+    })
+  }
+
+  fn remove_from_bucket(
+    buckets: &mut HashMap<u64, SmallVec<[usize; 1]>, BuildHasherDefault<PrecomputedHasher>>,
+    key: u64,
+    idx: usize,
+  ) {
+    if let Some(bucket) = buckets.get_mut(&key) {
+      if let Some(pos) = bucket.iter().position(|&i| i == idx) {
+        bucket.swap_remove(pos);
+        if bucket.is_empty() {
+          buckets.remove(&key);
+        }
+      }
+    }
   }
 }
