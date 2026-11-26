@@ -11,7 +11,7 @@ use crate::properties::{Property, PropertyId};
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::ident::CustomIdent;
 use crate::values::length::serialize_dimension;
-use crate::values::number::{CSSInteger, CSSNumber};
+use crate::values::number::{CSSInteger, CSSNumber, NonNegative};
 use crate::values::{ident::CustomIdentList, length::LengthPercentage};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -107,8 +107,8 @@ pub enum TrackSize {
     max: TrackBreadth,
   },
   /// The `fit-content()` function.
-  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LengthPercentage>"))]
-  FitContent(LengthPercentage),
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<NonNegative<LengthPercentage>>"))]
+  FitContent(NonNegative<LengthPercentage>),
 }
 
 impl Default for TrackSize {
@@ -140,9 +140,9 @@ pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum TrackBreadth {
   /// An explicit length.
-  Length(LengthPercentage),
+  Length(NonNegative<LengthPercentage>),
   /// A flex factor.
-  Flex(CSSNumber),
+  Flex(NonNegative<CSSNumber>),
   /// The `min-content` keyword.
   MinContent,
   /// The `max-content` keyword.
@@ -214,7 +214,7 @@ impl<'i> Parse<'i> for TrackSize {
     }
 
     input.expect_function_matching("fit-content")?;
-    let len = input.parse_nested_block(LengthPercentage::parse)?;
+    let len = input.parse_nested_block(NonNegative::<LengthPercentage>::parse)?;
     Ok(TrackSize::FitContent(len))
   }
 }
@@ -253,7 +253,7 @@ impl TrackBreadth {
     input: &mut Parser<'i, 't>,
     allow_flex: bool,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(len) = input.try_parse(LengthPercentage::parse) {
+    if let Ok(len) = input.try_parse(NonNegative::<LengthPercentage>::parse) {
       return Ok(TrackBreadth::Length(len));
     }
 
@@ -275,11 +275,13 @@ impl TrackBreadth {
     }
   }
 
-  fn parse_flex<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CSSNumber, ParseError<'i, ParserError<'i>>> {
+  fn parse_flex<'i, 't>(
+    input: &mut Parser<'i, 't>,
+  ) -> Result<NonNegative<CSSNumber>, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     match *input.next()? {
-      Token::Dimension { value, ref unit, .. } if unit.eq_ignore_ascii_case("fr") && value.is_sign_positive() => {
-        Ok(value)
+      Token::Dimension { value, ref unit, .. } if unit.eq_ignore_ascii_case("fr") && value >= 0.0 => {
+        Ok(NonNegative(value))
       }
       ref t => Err(location.new_unexpected_token_error(t.clone())),
     }
@@ -296,7 +298,7 @@ impl ToCss for TrackBreadth {
       TrackBreadth::MinContent => dest.write_str("min-content"),
       TrackBreadth::MaxContent => dest.write_str("max-content"),
       TrackBreadth::Length(len) => len.to_css(dest),
-      TrackBreadth::Flex(flex) => serialize_dimension(*flex, "fr", dest),
+      TrackBreadth::Flex(flex) => serialize_dimension(flex.0, "fr", dest),
     }
   }
 }
