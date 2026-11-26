@@ -26,6 +26,7 @@ pub enum Feature {
   CalcFunction,
   CambodianListStyleType,
   CapUnit,
+  CaretShorthand,
   CaseInsensitive,
   ChUnit,
   Checkmark,
@@ -1597,9 +1598,10 @@ impl Feature {
           return false;
         }
       }
-      Feature::CustomMediaQueries | Feature::AnimationTimelineShorthand | Feature::FitContentFunctionSize => {
-        return false
-      }
+      Feature::CustomMediaQueries
+      | Feature::AnimationTimelineShorthand
+      | Feature::CaretShorthand
+      | Feature::FitContentFunctionSize => return false,
       Feature::DoublePositionGradients => {
         if let Some(version) = browsers.chrome {
           if version < 4653056 {

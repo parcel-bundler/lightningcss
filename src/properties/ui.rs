@@ -1,9 +1,10 @@
 //! CSS properties related to user interface.
 
+use crate::compat;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::{define_shorthand, enum_property, shorthand_property};
+use crate::macros::{define_shorthand, enum_property, property_bitflags, shorthand_property};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::targets::{should_compile, Browsers, Targets};
@@ -288,6 +289,164 @@ impl FallbackValues for Caret {
 impl IsCompatible for Caret {
   fn is_compatible(&self, browsers: Browsers) -> bool {
     self.color.is_compatible(browsers)
+  }
+}
+
+property_bitflags! {
+  #[derive(Default, Debug)]
+  struct CaretProperty: u8 {
+    const CaretColor = 1 << 0;
+    const CaretAnimation = 1 << 1;
+    const CaretShape = 1 << 2;
+    const Caret = 1 << 3;
+  }
+}
+
+#[derive(Default)]
+pub(crate) struct CaretHandler {
+  color: Option<ColorOrAuto>,
+  animation: Option<CaretAnimation>,
+  shape: Option<CaretShape>,
+  /// A `caret` shorthand kept as written, because targets do not support it.
+  shorthand: Option<Caret>,
+  flushed_properties: CaretProperty,
+  has_any: bool,
+}
+
+/// Whether the `caret` shorthand can stand in for its longhands. No browser supports it yet,
+/// so without targets the longhands and the shorthand are kept as written.
+fn supports_caret_shorthand(context: &PropertyHandlerContext) -> bool {
+  context.targets.browsers.map_or(false, |browsers| {
+    compat::Feature::CaretShorthand.is_compatible(browsers)
+  })
+}
+
+fn is_compatible<T: IsCompatible>(val: &T, context: &PropertyHandlerContext) -> bool {
+  context.targets.browsers.map_or(true, |browsers| val.is_compatible(browsers))
+}
+
+impl<'i> PropertyHandler<'i> for CaretHandler {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
+  ) -> bool {
+    macro_rules! property {
+      ($key: ident, $val: expr, $compatible: expr) => {{
+        // Keep a previous value as a fallback if targets don't support the new one, and keep a
+        // shorthand that was not expanded before the longhands that follow it.
+        if self.shorthand.is_some() || (self.$key.is_some() && !$compatible) {
+          self.flush(dest, context);
+        }
+        self.$key = Some($val.clone());
+        self.has_any = true;
+      }};
+    }
+
+    match property {
+      Property::CaretColor(val) => property!(color, val, is_compatible(val, context)),
+      Property::CaretAnimation(val) => property!(animation, val, true),
+      Property::CaretShape(val) => property!(shape, val, true),
+      Property::Caret(val) => {
+        if supports_caret_shorthand(context) {
+          property!(color, &val.color, is_compatible(&val.color, context));
+          property!(animation, &val.animation, true);
+          property!(shape, &val.shape, true);
+        } else {
+          // The shorthand is not expanded, so it must stay after the longhands before it.
+          if self.color.is_some()
+            || self.animation.is_some()
+            || self.shape.is_some()
+            || (self.shorthand.is_some() && !is_compatible(val, context))
+          {
+            self.flush(dest, context);
+          }
+          self.shorthand = Some(val.clone());
+          self.has_any = true;
+        }
+      }
+      Property::Unparsed(val)
+        if matches!(
+          val.property_id,
+          PropertyId::CaretColor | PropertyId::CaretAnimation | PropertyId::CaretShape | PropertyId::Caret
+        ) =>
+      {
+        self.flush(dest, context);
+        let mut unparsed = val.clone();
+        context.add_unparsed_fallbacks(&mut unparsed);
+        self
+          .flushed_properties
+          .insert(CaretProperty::try_from(&unparsed.property_id).unwrap());
+        dest.push(Property::Unparsed(unparsed));
+      }
+      _ => return false,
+    }
+
+    true
+  }
+
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+    self.flush(dest, context);
+    self.flushed_properties = CaretProperty::empty();
+  }
+}
+
+impl CaretHandler {
+  fn flush<'i>(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+    if !self.has_any {
+      return;
+    }
+
+    self.has_any = false;
+
+    let color = std::mem::take(&mut self.color);
+    let animation = std::mem::take(&mut self.animation);
+    let shape = std::mem::take(&mut self.shape);
+    let shorthand = std::mem::take(&mut self.shorthand);
+
+    macro_rules! push {
+      ($prop: ident, $val: expr, $flushed: expr) => {{
+        let mut val = $val;
+        // An earlier declaration of the property already serves as the fallback.
+        if !self.flushed_properties.intersects($flushed) {
+          for fallback in val.get_fallbacks(context.targets) {
+            dest.push(Property::$prop(fallback));
+          }
+        }
+        dest.push(Property::$prop(val));
+        self.flushed_properties.insert($flushed);
+      }};
+    }
+
+    if let Some(caret) = shorthand {
+      push!(Caret, caret, CaretProperty::Caret);
+    }
+
+    match (color, animation, shape) {
+      (Some(color), Some(animation), Some(shape)) if supports_caret_shorthand(context) => {
+        push!(
+          Caret,
+          Caret {
+            color,
+            animation,
+            shape
+          },
+          CaretProperty::all()
+        );
+      }
+      (color, animation, shape) => {
+        if let Some(color) = color {
+          push!(CaretColor, color, CaretProperty::CaretColor);
+        }
+        if let Some(animation) = animation {
+          dest.push(Property::CaretAnimation(animation));
+        }
+        if let Some(shape) = shape {
+          dest.push(Property::CaretShape(shape));
+        }
+      }
+    }
   }
 }
 
