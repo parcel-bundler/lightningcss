@@ -115,9 +115,15 @@ macro_rules! define_fallbacks {
                 if let Some(i) = *index {
                   if let Some(Property::$name(cur, prefixes)) = dest.get_mut(i) {
                     if *cur == val {
-                      *prefixes |= $p;
-                      *prefixes = context.targets.prefixes(*prefixes, Feature::$name);
-                      return true;
+                      // Prefixes added to the previous declaration don't get its fallbacks, so
+                      // only merge if the value needs none (it is handled below otherwise).
+                      let merged = context.targets.prefixes(*prefixes | $p, Feature::$name);
+                      if (merged - *prefixes).is_empty()
+                        || !matches!(context.targets.browsers, Some(targets) if !val.is_compatible(targets))
+                      {
+                        *prefixes = merged;
+                        return true;
+                      }
                     }
                   }
                 }
@@ -137,6 +143,36 @@ macro_rules! define_fallbacks {
                 )?
               } else if matches!(context.targets.browsers, Some(targets) if !val.is_compatible(targets)) {
                 // Keep the previous declaration as a fallback.
+                $(
+                  // It is only a fallback for its own prefixes. Generate fallbacks for the other
+                  // prefixes the targets use, e.g. for the unprefixed declaration in
+                  // `-webkit-backdrop-filter: …oklch(…); backdrop-filter: …oklch(…)`.
+                  if let Some(i) = *index {
+                    let needed = context.targets.prefixes(VendorPrefix::None, Feature::$name);
+                    let previous = dest[i].property_id().prefix();
+                    let uncovered = ($p & needed) - previous;
+                    if !uncovered.is_empty() {
+                      let fallbacks = val.get_fallbacks(context.targets);
+                      if let Some(Property::$name(cur, prefixes)) = dest.get_mut(i) {
+                        // Converting the value (e.g. oklch to lab) can make it equal to the
+                        // previous one, which was converted the same way. Merge the prefixes if
+                        // there are no fallbacks, or if the previous declaration's fallbacks were
+                        // added for every prefix the targets use (it was then left unprefixed).
+                        if *cur == val {
+                          if fallbacks.is_empty() || prefixes.contains(VendorPrefix::None) {
+                            *prefixes = context.targets.prefixes(*prefixes | $p, Feature::$name);
+                            return true;
+                          }
+                          // The previous declaration already has this value for its prefixes.
+                          $p -= previous;
+                        }
+                      }
+                      for fallback in fallbacks {
+                        dest.push(Property::$name(fallback, uncovered));
+                      }
+                    }
+                  }
+                )?
                 *index = None;
               }
               (Property::$name(val $(, $p)?), index)

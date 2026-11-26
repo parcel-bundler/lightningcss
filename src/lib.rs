@@ -27813,7 +27813,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
@@ -27842,7 +27842,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
@@ -30237,7 +30237,6 @@ mod tests {
         ..Browsers::default()
       },
     );
-
     prefix_test(
       ".foo { filter: drop-shadow(16px 16px 20px lab(40% 56.6 39)) }",
       indoc! { r#"
@@ -30312,6 +30311,101 @@ mod tests {
         },
       );
     }
+
+    // An earlier declaration with another prefix is only a fallback for the prefixes they share,
+    // so the later one gets color fallbacks for the other prefixes the targets use.
+    prefix_test(
+      ".foo { -webkit-backdrop-filter: drop-shadow(0 0 2px oklch(50% .2 30)); backdrop-filter: drop-shadow(0 0 2px oklch(60% .2 30)) }",
+      indoc! { r#"
+        .foo {
+          -webkit-backdrop-filter: drop-shadow(0 0 2px #ba0d01);
+          -webkit-backdrop-filter: drop-shadow(0 0 2px lab(40.0416% 62.4616 55.0184));
+          backdrop-filter: drop-shadow(0 0 2px #de3e2d);
+          backdrop-filter: drop-shadow(0 0 2px lab(51.6908% 61.9679 48.0969));
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { -webkit-filter: blur(2px); filter: drop-shadow(0 0 2px lab(60% 20 30)) }",
+      indoc! { r#"
+        .foo {
+          -webkit-filter: blur(2px);
+          filter: drop-shadow(0 0 2px color(display-p3 .707018 .521798 .386657));
+          filter: drop-shadow(0 0 2px lab(60% 20 30));
+        }
+      "#},
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+    // Both values convert to the same lab() color, so they merge.
+    prefix_test(
+      ".foo { -webkit-backdrop-filter: drop-shadow(0 0 2px oklch(50% .2 30)); backdrop-filter: drop-shadow(0 0 2px oklch(50% .2 30)) }",
+      indoc! { r#"
+        .foo {
+          -webkit-backdrop-filter: drop-shadow(0 0 2px lab(40.0416% 62.4616 55.0184));
+          backdrop-filter: drop-shadow(0 0 2px lab(40.0416% 62.4616 55.0184));
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+    // An equal value only merges into the previous declaration when the prefixes it adds need no
+    // fallbacks, or the previous declaration's fallbacks already have them.
+    prefix_test(
+      ".foo { -webkit-backdrop-filter: drop-shadow(0 0 2px color(display-p3 1 0 0)); backdrop-filter: drop-shadow(0 0 2px color(display-p3 1 0 0)) }",
+      indoc! { r#"
+        .foo {
+          -webkit-backdrop-filter: drop-shadow(0 0 2px #ff0b0c);
+          -webkit-backdrop-filter: drop-shadow(0 0 2px color(display-p3 1 0 0));
+          backdrop-filter: drop-shadow(0 0 2px #ff0b0c);
+          backdrop-filter: drop-shadow(0 0 2px color(display-p3 1 0 0));
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      ".foo { backdrop-filter: drop-shadow(0 0 2px oklch(50% .2 30)); -webkit-backdrop-filter: drop-shadow(0 0 2px oklch(50% .2 30)) }",
+      indoc! { r#"
+        .foo {
+          -webkit-backdrop-filter: drop-shadow(0 0 2px #ba0d01);
+          backdrop-filter: drop-shadow(0 0 2px #ba0d01);
+          -webkit-backdrop-filter: drop-shadow(0 0 2px color(display-p3 .670054 .153367 .0926961));
+          backdrop-filter: drop-shadow(0 0 2px color(display-p3 .670054 .153367 .0926961));
+          -webkit-backdrop-filter: drop-shadow(0 0 2px lab(40.0416% 62.4616 55.0184));
+          backdrop-filter: drop-shadow(0 0 2px lab(40.0416% 62.4616 55.0184));
+        }
+      "#},
+      Browsers {
+        safari: Some(13 << 16),
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+    // Chrome does not use the -webkit- prefix, so it gets no fallbacks.
+    prefix_test(
+      ".foo { backdrop-filter: blur(2px); -webkit-backdrop-filter: drop-shadow(0 0 2px oklch(60% .2 30)) }",
+      indoc! { r#"
+        .foo {
+          backdrop-filter: blur(2px);
+          -webkit-backdrop-filter: drop-shadow(0 0 2px oklch(60% .2 30));
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
 
     // Chrome 90 supports neither `cqw` units nor `oklch()`, so the earlier filter is kept.
     prefix_test(
