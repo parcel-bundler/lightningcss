@@ -11,7 +11,7 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, TokenOrValue, VendorPrefix};
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::ident::DashedIdent;
-use crate::values::number::CSSNumber;
+use crate::values::number::{CSSNumber, NonNegative};
 use crate::values::percentage::Percentage;
 use crate::values::size::Size2D;
 use crate::values::string::CSSString;
@@ -100,14 +100,14 @@ pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum AnimationIterationCount {
   /// The animation will repeat the specified number of times.
-  Number(CSSNumber),
+  Number(NonNegative<CSSNumber>),
   /// The animation will repeat forever.
   Infinite,
 }
 
 impl Default for AnimationIterationCount {
   fn default() -> Self {
-    AnimationIterationCount::Number(1.0)
+    AnimationIterationCount::Number(NonNegative(1.0))
   }
 }
 
@@ -588,7 +588,7 @@ define_list_shorthand! {
     #[cfg_attr(feature = "serde", serde(borrow))]
     name: AnimationName(AnimationName<'i>, VendorPrefix),
     /// The animation duration.
-    duration: AnimationDuration(Time, VendorPrefix),
+    duration: AnimationDuration(NonNegative<Time>, VendorPrefix),
     /// The easing function for the animation.
     timing_function: AnimationTimingFunction(EasingFunction, VendorPrefix),
     /// The number of times the animation will run.
@@ -619,9 +619,9 @@ impl<'i> Parse<'i> for Animation<'i> {
     let mut timeline = None;
 
     macro_rules! parse_prop {
-      ($var: ident, $type: ident) => {
+      ($var: ident, $type: ty) => {
         if $var.is_none() {
-          if let Ok(value) = input.try_parse($type::parse) {
+          if let Ok(value) = input.try_parse(<$type>::parse) {
             $var = Some(value);
             continue;
           }
@@ -630,9 +630,12 @@ impl<'i> Parse<'i> for Animation<'i> {
     }
 
     loop {
-      parse_prop!(duration, Time);
+      parse_prop!(duration, NonNegative<Time>);
       parse_prop!(timing_function, EasingFunction);
-      parse_prop!(delay, Time);
+      // The first time must be a duration, even if it is invalid.
+      if duration.is_some() {
+        parse_prop!(delay, Time);
+      }
       parse_prop!(iteration_count, AnimationIterationCount);
       parse_prop!(direction, AnimationDirection);
       parse_prop!(fill_mode, AnimationFillMode);
@@ -644,9 +647,9 @@ impl<'i> Parse<'i> for Animation<'i> {
 
     Ok(Animation {
       name: name.unwrap_or(AnimationName::None),
-      duration: duration.unwrap_or(Time::Seconds(0.0)),
+      duration: duration.unwrap_or(NonNegative(Time::Seconds(0.0))),
       timing_function: timing_function.unwrap_or(EasingFunction::Ease),
-      iteration_count: iteration_count.unwrap_or(AnimationIterationCount::Number(1.0)),
+      iteration_count: iteration_count.unwrap_or(AnimationIterationCount::Number(NonNegative(1.0))),
       direction: direction.unwrap_or(AnimationDirection::Normal),
       play_state: play_state.unwrap_or(AnimationPlayState::Running),
       delay: delay.unwrap_or(Time::Seconds(0.0)),
@@ -722,7 +725,7 @@ pub type AnimationList<'i> = SmallVec<[Animation<'i>; 1]>;
 #[derive(Default)]
 pub(crate) struct AnimationHandler<'i> {
   names: Option<(SmallVec<[AnimationName<'i>; 1]>, VendorPrefix)>,
-  durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
+  durations: Option<(SmallVec<[NonNegative<Time>; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
   iteration_counts: Option<(SmallVec<[AnimationIterationCount; 1]>, VendorPrefix)>,
   directions: Option<(SmallVec<[AnimationDirection; 1]>, VendorPrefix)>,
@@ -730,6 +733,7 @@ pub(crate) struct AnimationHandler<'i> {
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   fill_modes: Option<(SmallVec<[AnimationFillMode; 1]>, VendorPrefix)>,
   timelines: Option<SmallVec<[AnimationTimeline<'i>; 1]>>,
+  compositions: Option<SmallVec<[AnimationComposition; 1]>>,
   range_starts: Option<SmallVec<[AnimationRangeStart; 1]>>,
   range_ends: Option<SmallVec<[AnimationRangeEnd; 1]>>,
   has_any: bool,
@@ -778,6 +782,10 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
       Property::AnimationPlayState(val, vp) => property!(play_states, val, vp),
       Property::AnimationDelay(val, vp) => property!(delays, val, vp),
       Property::AnimationFillMode(val, vp) => property!(fill_modes, val, vp),
+      Property::AnimationComposition(val) => {
+        self.compositions = Some(val.clone());
+        self.has_any = true;
+      }
       Property::AnimationTimeline(val) => {
         self.timelines = Some(val.clone());
         self.has_any = true;
@@ -796,6 +804,12 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         self.has_any = true;
       }
       Property::Animation(val, vp) => {
+        // Chrome doesn't reset animation-composition from the shorthand, so write a buffered
+        // one out first, in source order, instead of dropping it as a reset would.
+        if self.compositions.is_some() {
+          self.flush(dest, context);
+        }
+
         let names = val.iter().map(|b| b.name.clone()).collect();
         maybe_flush!(names, &names, vp);
 
@@ -900,6 +914,7 @@ impl<'i> AnimationHandler<'i> {
     let mut delays = std::mem::take(&mut self.delays);
     let mut fill_modes = std::mem::take(&mut self.fill_modes);
     let mut timelines_value = std::mem::take(&mut self.timelines);
+    let compositions = std::mem::take(&mut self.compositions);
     let range_starts = std::mem::take(&mut self.range_starts);
     let range_ends = std::mem::take(&mut self.range_ends);
 
@@ -953,10 +968,11 @@ impl<'i> AnimationHandler<'i> {
       {
         let timeline_property = if timelines.iter().any(|t| *t != AnimationTimeline::Auto)
           && (intersection != VendorPrefix::None
-            || !context
-              .targets
-              .is_compatible(crate::compat::Feature::AnimationTimelineShorthand))
-        {
+            // No browser can set animation-timeline via the shorthand yet, so only
+            // fold it in when targets are known to support it.
+            || context.targets.browsers.map_or(true, |browsers| {
+              !crate::compat::Feature::AnimationTimelineShorthand.is_compatible(browsers)
+            })) {
           Some(Property::AnimationTimeline(timelines.clone().into_owned()))
         } else {
           None
@@ -1043,6 +1059,10 @@ impl<'i> AnimationHandler<'i> {
 
     if let Some(val) = timelines_value {
       dest.push(Property::AnimationTimeline(val));
+    }
+
+    if let Some(val) = compositions {
+      dest.push(Property::AnimationComposition(val));
     }
 
     match (range_starts, range_ends) {

@@ -5,12 +5,13 @@ use crate::compat;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::define_list_shorthand;
+use crate::macros::{define_list_shorthand, enum_property};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::masking::get_webkit_mask_property;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::ident::CustomIdent;
+use crate::values::number::NonNegative;
 use crate::values::{easing::EasingFunction, time::Time};
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -26,11 +27,13 @@ define_list_shorthand! {
     #[cfg_attr(feature = "serde", serde(borrow))]
     property: TransitionProperty(PropertyId<'i>, VendorPrefix),
     /// The duration of the transition.
-    duration: TransitionDuration(Time, VendorPrefix),
+    duration: TransitionDuration(NonNegative<Time>, VendorPrefix),
     /// The delay before the transition starts.
     delay: TransitionDelay(Time, VendorPrefix),
     /// The easing function for the transition.
     timing_function: TransitionTimingFunction(EasingFunction, VendorPrefix),
+    /// Whether the transition applies to discretely animatable properties.
+    behavior: TransitionBehavior(TransitionBehavior),
   }
 }
 
@@ -40,10 +43,11 @@ impl<'i> Parse<'i> for Transition<'i> {
     let mut duration = None;
     let mut delay = None;
     let mut timing_function = None;
+    let mut behavior = None;
 
     loop {
       if duration.is_none() {
-        if let Ok(value) = input.try_parse(Time::parse) {
+        if let Ok(value) = input.try_parse(NonNegative::<Time>::parse) {
           duration = Some(value);
           continue;
         }
@@ -56,9 +60,17 @@ impl<'i> Parse<'i> for Transition<'i> {
         }
       }
 
-      if delay.is_none() {
+      // The first time must be a duration, even if it is invalid.
+      if duration.is_some() && delay.is_none() {
         if let Ok(value) = input.try_parse(Time::parse) {
           delay = Some(value);
+          continue;
+        }
+      }
+
+      if behavior.is_none() {
+        if let Ok(value) = input.try_parse(TransitionBehavior::parse) {
+          behavior = Some(value);
           continue;
         }
       }
@@ -75,9 +87,10 @@ impl<'i> Parse<'i> for Transition<'i> {
 
     Ok(Transition {
       property: property.unwrap_or(PropertyId::All),
-      duration: duration.unwrap_or(Time::Seconds(0.0)),
+      duration: duration.unwrap_or(NonNegative(Time::Seconds(0.0))),
       delay: delay.unwrap_or(Time::Seconds(0.0)),
       timing_function: timing_function.unwrap_or(EasingFunction::Ease),
+      behavior: behavior.unwrap_or(TransitionBehavior::Normal),
     })
   }
 }
@@ -103,7 +116,28 @@ impl<'i> ToCss for Transition<'i> {
       self.delay.to_css(dest)?;
     }
 
+    if self.behavior != TransitionBehavior::Normal {
+      dest.write_char(' ')?;
+      self.behavior.to_css(dest)?;
+    }
+
     Ok(())
+  }
+}
+
+enum_property! {
+  /// A value for the [transition-behavior](https://drafts.csswg.org/css-transitions-2/#transition-behavior-property) property.
+  pub enum TransitionBehavior {
+    /// Transitions are not started for discretely animated properties.
+    Normal,
+    /// Transitions are started for discretely animated properties.
+    AllowDiscrete,
+  }
+}
+
+impl Default for TransitionBehavior {
+  fn default() -> Self {
+    TransitionBehavior::Normal
   }
 }
 
@@ -123,6 +157,8 @@ pub enum ViewTransitionName<'i> {
   None,
   /// The `auto` keyword.
   Auto,
+  /// The `match-element` keyword. The element's view-transition-name is derived from its identity.
+  MatchElement,
   /// A custom name.
   #[cfg_attr(feature = "serde", serde(borrow, untagged))]
   Custom(CustomIdent<'i>),
@@ -154,9 +190,10 @@ pub enum ViewTransitionGroup<'i> {
 #[derive(Default)]
 pub(crate) struct TransitionHandler<'i> {
   properties: Option<(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix)>,
-  durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
+  durations: Option<(SmallVec<[NonNegative<Time>; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
+  behaviors: Option<SmallVec<[TransitionBehavior; 1]>>,
   has_any: bool,
 }
 
@@ -206,11 +243,15 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
       TransitionDuration(val, vp) => property!(TransitionDuration, durations, val, vp),
       TransitionDelay(val, vp) => property!(TransitionDelay, delays, val, vp),
       TransitionTimingFunction(val, vp) => property!(TransitionTimingFunction, timing_functions, val, vp),
+      TransitionBehavior(val) => {
+        self.behaviors = Some(val.clone());
+        self.has_any = true;
+      }
       Transition(val, vp) => {
         let properties: SmallVec<[PropertyId; 1]> = merge_properties(val.iter().map(|b| &b.property));
         maybe_flush!(properties, &properties, vp);
 
-        let durations: SmallVec<[Time; 1]> = val.iter().map(|b| b.duration.clone()).collect();
+        let durations: SmallVec<[NonNegative<Time>; 1]> = val.iter().map(|b| b.duration.clone()).collect();
         maybe_flush!(durations, &durations, vp);
 
         let delays: SmallVec<[Time; 1]> = val.iter().map(|b| b.delay.clone()).collect();
@@ -224,6 +265,7 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
         property!(TransitionDuration, durations, &durations, vp);
         property!(TransitionDelay, delays, &delays, vp);
         property!(TransitionTimingFunction, timing_functions, &timing_functions, vp);
+        self.behaviors = Some(val.iter().map(|b| b.behavior.clone()).collect());
       }
       Unparsed(val) if is_transition_property(&val.property_id) => {
         self.flush(dest, context);
@@ -254,6 +296,7 @@ impl<'i> TransitionHandler<'i> {
     let mut durations = std::mem::take(&mut self.durations);
     let mut delays = std::mem::take(&mut self.delays);
     let mut timing_functions = std::mem::take(&mut self.timing_functions);
+    let mut behaviors = std::mem::take(&mut self.behaviors);
 
     let rtl_properties = if let Some((properties, _)) = &mut properties {
       expand_properties(properties, context)
@@ -281,15 +324,18 @@ impl<'i> TransitionHandler<'i> {
             let mut durations_iter = durations.iter().cycle().cloned();
             let mut delays_iter = delays.iter().cycle().cloned();
             let mut timing_iter = timing_functions.iter().cycle().cloned();
+            let mut behaviors_iter = behaviors.iter().flatten().cycle().cloned();
             for property_id in $properties {
-              let duration = durations_iter.next().unwrap_or(Time::Seconds(0.0));
+              let duration = durations_iter.next().unwrap_or(NonNegative(Time::Seconds(0.0)));
               let delay = delays_iter.next().unwrap_or(Time::Seconds(0.0));
               let timing_function = timing_iter.next().unwrap_or(EasingFunction::Ease);
+              let behavior = behaviors_iter.next().unwrap_or(TransitionBehavior::Normal);
               let transition = Transition {
                 property: property_id.clone(),
                 duration,
                 delay,
                 timing_function,
+                behavior,
               };
 
               // Expand vendor prefixes into multiple transitions.
@@ -303,17 +349,48 @@ impl<'i> TransitionHandler<'i> {
           }};
         }
 
-        let transitions: SmallVec<[Transition; 1]> = get_transitions!(properties);
+        let mut transitions: SmallVec<[Transition; 1]> = get_transitions!(properties);
+
+        // Browsers without `transition-behavior` drop a whole `transition` declaration that
+        // contains `allow-discrete`, and prefixed shorthands don't accept it, so those get it
+        // as a separate longhand after the shorthand instead.
+        let behavior_longhand = transitions.iter().any(|t| t.behavior != TransitionBehavior::Normal)
+          && (intersection != VendorPrefix::None
+            || !context.targets.is_compatible(compat::Feature::TransitionBehaviorShorthand));
+        let take_behaviors = |transitions: &mut SmallVec<[Transition; 1]>| {
+          let behaviors = transitions.iter().map(|t| t.behavior.clone()).collect();
+          for t in transitions.iter_mut() {
+            t.behavior = TransitionBehavior::Normal;
+          }
+          Property::TransitionBehavior(behaviors)
+        };
 
         if let Some(rtl_properties) = &rtl_properties {
-          let rtl_transitions = get_transitions!(rtl_properties);
+          let mut rtl_transitions = get_transitions!(rtl_properties);
+          let behavior_properties = if behavior_longhand {
+            Some((take_behaviors(&mut transitions), take_behaviors(&mut rtl_transitions)))
+          } else {
+            None
+          };
           context.add_logical_rule(
             Property::Transition(transitions, intersection),
             Property::Transition(rtl_transitions, intersection),
           );
+          if let Some((ltr, rtl)) = behavior_properties {
+            context.add_logical_rule(ltr, rtl);
+          }
         } else {
+          let behavior_property = if behavior_longhand {
+            Some(take_behaviors(&mut transitions))
+          } else {
+            None
+          };
           dest.push(Property::Transition(transitions.clone(), intersection));
+          if let Some(p) = behavior_property {
+            dest.push(p);
+          }
         }
+        behaviors = None;
 
         property_prefixes.remove(intersection);
         duration_prefixes.remove(intersection);
@@ -353,6 +430,10 @@ impl<'i> TransitionHandler<'i> {
       }
     }
 
+    if let Some(behaviors) = behaviors {
+      dest.push(Property::TransitionBehavior(behaviors));
+    }
+
     self.reset();
   }
 
@@ -361,6 +442,7 @@ impl<'i> TransitionHandler<'i> {
     self.durations = None;
     self.delays = None;
     self.timing_functions = None;
+    self.behaviors = None;
   }
 }
 
@@ -371,6 +453,7 @@ fn is_transition_property(property_id: &PropertyId) -> bool {
     | PropertyId::TransitionDuration(_)
     | PropertyId::TransitionDelay(_)
     | PropertyId::TransitionTimingFunction(_)
+    | PropertyId::TransitionBehavior
     | PropertyId::Transition(_) => true,
     _ => false,
   }

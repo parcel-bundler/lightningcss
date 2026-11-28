@@ -34,7 +34,7 @@ jobs:
         run: cargo codspeed build -p ${{ matrix.package }} --bench ${{ matrix.bench }}
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@v5
         with:
           mode: simulation
           run: cargo codspeed run -p ${{ matrix.package }} --bench ${{ matrix.bench }}

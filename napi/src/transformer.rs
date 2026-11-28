@@ -756,7 +756,7 @@ impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de
     D: serde::Deserializer<'de>,
   {
     use serde::Deserializer;
-    let content = serde_content::Value::deserialize(deserializer)?;
+    let content = null_to_none(serde_content::Value::deserialize(deserializer)?);
     let de = serde_content::Deserializer::new(content.clone()).coerce_numbers();
 
     // Try to deserialize as a sequence first.
@@ -803,6 +803,25 @@ impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de
         Ok(vec)
       }
     }
+  }
+}
+
+/// serde-content deserializes a unit (`null` from JS) as `Some` where an `Option` is expected,
+/// unlike serde's private `Content` it replaced, so turn units into `None` before deserializing.
+///
+/// This turns *every* unit into `None`, not only those in `Option` position, so a `null` for a
+/// unit-typed value (`()`, a unit struct) would no longer deserialize. That is fine because the
+/// serialized AST has no unit-typed values today. The proper fix is upstream in serde-content's
+/// `deserialize_option` (`Value::Unit => visitor.visit_unit()`, as serde does), after which this
+/// pass can be removed.
+fn null_to_none(value: serde_content::Value<'_>) -> serde_content::Value<'_> {
+  use serde_content::Value;
+  match value {
+    Value::Unit => Value::Option(None),
+    Value::Option(Some(value)) => Value::Option(Some(Box::new(null_to_none(*value)))),
+    Value::Seq(values) => Value::Seq(values.into_iter().map(null_to_none).collect()),
+    Value::Map(entries) => Value::Map(entries.into_iter().map(|(k, v)| (k, null_to_none(v))).collect()),
+    value => value,
   }
 }
 

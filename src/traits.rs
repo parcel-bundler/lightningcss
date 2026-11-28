@@ -7,6 +7,7 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::{Browsers, Targets};
+use crate::values::number::NumericRange;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
@@ -31,6 +32,16 @@ pub trait Parse<'i>: Sized {
 }
 
 pub(crate) use lightningcss_derive::Parse;
+
+/// Trait for numeric values whose grammar can restrict their allowed range.
+pub trait ParseNumeric<'i>: Parse<'i> {
+  /// Parses a numeric value, checking literals and clamping resolved calculations
+  /// to the given range. Intermediate calculation operands are unrestricted.
+  fn parse_with_range<'t>(
+    input: &mut Parser<'i, 't>,
+    range: NumericRange,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
+}
 
 impl<'i, T: Parse<'i>> Parse<'i> for Option<T> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
