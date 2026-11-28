@@ -43,6 +43,11 @@ struct CliArgs {
   /// https://drafts.csswg.org/css-overflow-5/#scroll-navigation
   #[clap(long, value_parser)]
   scroll_navigation_controls: bool,
+  /// Enable parsing container queries for anchor positioning,
+  /// i.e. `container-type: anchored` and `@container anchored(...)`.
+  /// https://drafts.csswg.org/css-anchor-position-2/#anchored-container-queries
+  #[clap(long, value_parser)]
+  anchored_container_queries: bool,
   /// Enable CSS modules in output.
   /// If no filename is provided, <output_file>.json will be used.
   /// If no --output-file is specified, code and exports will be printed to stdout as JSON.
@@ -174,6 +179,10 @@ pub fn main() -> Result<(), std::io::Error> {
       flags.set(
         ParserFlags::SCROLL_NAVIGATION_CONTROLS,
         cli_args.scroll_navigation_controls,
+      );
+      flags.set(
+        ParserFlags::ANCHORED_CONTAINER_QUERIES,
+        cli_args.anchored_container_queries,
       );
 
       let mut options = ParserOptions {

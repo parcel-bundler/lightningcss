@@ -6510,10 +6510,9 @@ export type ZIndex =
       type: "integer";
       value: number;
     };
-/**
- * A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property. Establishes the element as a query container for the purpose of container queries.
- */
-export type ContainerType = "normal" | "inline-size" | "size" | "scroll-state";
+export type ContainerType = NormalKeyword | ContainerTypeFlag[];
+export type NormalKeyword = "normal";
+export type ContainerTypeFlag = "inline-size" | "size" | "scroll-state" | "anchored";
 /**
  * A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
  */
@@ -7545,6 +7544,10 @@ export type ContainerCondition<D = Declaration> = | {
     value: ScrollStateQuery;
   }
 | {
+    type: "anchored";
+    value: AnchoredQuery;
+  }
+| {
     type: "unknown";
     value: TokenOrValue[];
   };
@@ -7733,6 +7736,53 @@ export type MediaFeatureNameFor_ScrollStateFeatureId = ScrollStateFeatureId | St
  * A container query scroll state feature identifier.
  */
 export type ScrollStateFeatureId = "stuck" | "snapped" | "scrollable" | "scrolled";
+/**
+ * Represents an anchored query within a container condition.
+ */
+export type AnchoredQuery =
+  | {
+      type: "feature";
+      value: AnchoredFeature;
+    }
+  | {
+      type: "not";
+      value: AnchoredQuery;
+    }
+  | {
+      /**
+       * The conditions for the operator.
+       */
+      conditions: AnchoredQuery[];
+      /**
+       * The operator for the conditions.
+       */
+      operator: Operator;
+      type: "operation";
+    };
+/**
+ * An anchored container feature.
+ */
+export type AnchoredFeature = {
+  name: "fallback";
+  value: AnchoredFallbackValue;
+};
+/**
+ * The value of the [`anchored(fallback: ...)`](https://drafts.csswg.org/css-anchor-position-2/#fallback-feature) container query feature.
+ *
+ * Note: the `<position-area>` form is not yet supported.
+ */
+export type AnchoredFallbackValue =
+  | {
+      type: "none";
+    }
+  | {
+      type: "fallback";
+      value: PositionTryFallback;
+    };
+/**
+ * A single keyword within a [`<try-tactic>`](https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic) value.
+ */
+export type TryTacticKeyword = "flip-block" | "flip-inline" | "flip-start" | "flip-x" | "flip-y";
 /**
  * A property within a `@view-transition` rule.
  *
@@ -9905,6 +9955,21 @@ export interface ContainerRule<D = Declaration, M = MediaQuery> {
    * The rules within the `@container` rule.
    */
   rules: Rule<D, M>[];
+}
+/**
+ * A `[<dashed-ident> || <try-tactic>]` fallback, as used in the [position-try-fallbacks](https://drafts.csswg.org/css-anchor-position-1/#position-try-fallbacks) property and the [`anchored(fallback: ...)`](https://drafts.csswg.org/css-anchor-position-2/#fallback-feature) container query feature.
+ *
+ * At least one of `name` and `tactic` is present. Note: the `<position-area>` form is not yet supported.
+ */
+export interface PositionTryFallback {
+  /**
+   * A `<dashed-ident>` referencing a `@position-try` rule name.
+   */
+  name?: String | null;
+  /**
+   * The `<try-tactic>` keywords, in source order. Empty if only a name is given.
+   */
+  tactic: TryTacticKeyword[];
 }
 /**
  * A [@scope](https://drafts.csswg.org/css-cascade-6/#scope-atrule) rule.

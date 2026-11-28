@@ -617,6 +617,32 @@ let { code, map } = transform({
 });
 ```
 
+### Anchored container queries
+
+Support for [container queries for anchor positioning](https://drafts.csswg.org/css-anchor-position-2/#anchored-container-queries) is included in the CSS Anchor Positioning Level 2 draft spec. This adds the `anchored` keyword to the `container-type` property, and the `anchored()` function to the `@container` rule, which allows descendants of an anchor positioned element to be styled based on which position fallback was applied.
+
+```css
+.popover {
+  position-try-fallbacks: flip-block;
+  container-type: anchored;
+}
+
+@container anchored(fallback: flip-block) {
+  .arrow { rotate: 180deg; }
+}
+```
+
+Because this is a draft, it is not enabled by default. To use it, enable the `anchoredContainerQueries` option under `drafts` when calling the Lightning CSS API. When using the CLI, enable the `--anchored-container-queries` flag.
+
+```js
+let { code, map } = transform({
+  // ...
+  drafts: {
+    anchoredContainerQueries: true
+  }
+});
+```
+
 ## Pseudo class replacement
 
 Lightning CSS supports replacing CSS pseudo classes such as `:focus-visible` with normal CSS classes that can be applied using JavaScript. This makes it possible to polyfill these pseudo classes for older browsers.

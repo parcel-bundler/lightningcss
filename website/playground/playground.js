@@ -109,6 +109,10 @@ function reflectPlaygroundState(playgroundState) {
     scrollNavigationControls.checked = playgroundState.scrollNavigationControls;
   }
 
+  if (typeof playgroundState.anchoredContainerQueries !== 'undefined') {
+    anchoredContainerQueries.checked = playgroundState.anchoredContainerQueries;
+  }
+
   if (typeof playgroundState.visitorEnabled !== 'undefined') {
     visitorEnabled.checked = playgroundState.visitorEnabled;
   }
@@ -145,6 +149,7 @@ function savePlaygroundState() {
     minify: minify.checked,
     customMedia: customMedia.checked,
     scrollNavigationControls: scrollNavigationControls.checked,
+    anchoredContainerQueries: anchoredContainerQueries.checked,
     cssModules: cssModules.checked,
     analyzeDependencies: analyzeDependencies.checked,
     targets: getTargets(),
@@ -216,7 +221,8 @@ function update() {
       exclude,
       drafts: {
         customMedia: customMedia.checked,
-        scrollNavigationControls: scrollNavigationControls.checked
+        scrollNavigationControls: scrollNavigationControls.checked,
+        anchoredContainerQueries: anchoredContainerQueries.checked
       },
       cssModules: cssModules.checked,
       analyzeDependencies: analyzeDependencies.checked,
