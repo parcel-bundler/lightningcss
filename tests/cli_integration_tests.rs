@@ -792,6 +792,42 @@ fn browserslist_environment_from_browserslist_env() -> Result<(), Box<dyn std::e
 }
 
 #[test]
+/// A syntax error in the input should print a readable error and exit with a
+/// non-zero code, not panic with a backtrace. See #578.
+fn syntax_error_input_file() -> Result<(), Box<dyn std::error::Error>> {
+  let file = assert_fs::NamedTempFile::new("test.css")?;
+  file.write_str(
+    r#"
+      .cls {
+        asd
+      }
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(file.path());
+  cmd
+    .assert()
+    .failure()
+    .stderr(predicate::str::contains("panicked").not())
+    .stderr(predicate::str::contains("end of input"));
+
+  Ok(())
+}
+
+#[test]
+/// An invalid `--targets` value should also fail cleanly rather than panic.
+fn invalid_targets_option() -> Result<(), Box<dyn std::error::Error>> {
+  let file = test_file()?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg(file.path());
+  cmd.arg("--targets").arg("not a real query");
+  cmd.assert().failure().stderr(predicate::str::contains("panicked").not());
+
+  Ok(())
+}
+
+#[test]
 fn next_66191() -> Result<(), Box<dyn std::error::Error>> {
   let infile = assert_fs::NamedTempFile::new("test.css")?;
   infile.write_str(
