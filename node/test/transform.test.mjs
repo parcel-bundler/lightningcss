@@ -43,6 +43,20 @@ test('can enable scroll navigation controls draft syntax', () => {
   assert.equal(res.warnings, []);
 });
 
+test('can enable anchored container queries draft syntax', () => {
+  let res = transform({
+    filename: 'test.css',
+    code: Buffer.from('.foo { container-type: anchored } @container anchored(fallback: flip-start flip-block) { .bar { color: red } }'),
+    drafts: {
+      anchoredContainerQueries: true
+    },
+    minify: true
+  });
+
+  assert.equal(res.code.toString(), '.foo{container-type:anchored}@container anchored(fallback:flip-start flip-block){.bar{color:red}}');
+  assert.equal(res.warnings, []);
+});
+
 test('can enable features without targets', () => {
   let res = transform({
     filename: 'test.css',

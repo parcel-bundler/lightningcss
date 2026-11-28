@@ -58,6 +58,9 @@ bitflags! {
     const DEEP_SELECTOR_COMBINATOR = 1 << 2;
     /// Whether to enable the [scroll navigation controls](https://drafts.csswg.org/css-overflow-5/#scroll-navigation-controls) draft syntax.
     const SCROLL_NAVIGATION_CONTROLS = 1 << 3;
+    /// Whether to enable the [container queries for anchor positioning](https://drafts.csswg.org/css-anchor-position-2/#anchored-container-queries)
+    /// draft syntax, i.e. `container-type: anchored` and `@container anchored(...)`.
+    const ANCHORED_CONTAINER_QUERIES = 1 << 4;
   }
 }
 

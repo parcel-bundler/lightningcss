@@ -27997,7 +27997,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
@@ -28026,7 +28026,7 @@ mod tests {
       },
       IndexMap::new(),
       Default::default(),
-      false
+      false,
     );
 
     css_modules_test(
@@ -32529,10 +32529,9 @@ mod tests {
       ".foo{ container-type: inline-size }",
       ".foo{container-type:inline-size}",
     );
-    minify_test(".foo{ container-type: anchored }", ".foo{container-type:anchored}");
     minify_test(
-      ".foo{ container-type: anchored inline-size }",
-      ".foo{container-type:inline-size anchored}",
+      ".foo{ container-type: scroll-state inline-size }",
+      ".foo{container-type:inline-size scroll-state}",
     );
     minify_test(".foo{ container-name: none; }", ".foo{container-name:none}");
     minify_test(".foo{ container-name: foo; }", ".foo{container-name:foo}");
@@ -32541,7 +32540,6 @@ mod tests {
       ".foo{ container: foo / inline-size; }",
       ".foo{container:foo/inline-size}",
     );
-    minify_test(".foo{ container: foo / anchored; }", ".foo{container:foo/anchored}");
     minify_test(".foo { width: calc(1cqw + 2cqw) }", ".foo{width:3cqw}");
     minify_test(".foo { width: calc(1cqh + 2cqh) }", ".foo{width:3cqh}");
     minify_test(".foo { width: calc(1cqi + 2cqi) }", ".foo{width:3cqi}");
@@ -32758,125 +32756,6 @@ mod tests {
     "#,
       "@container not scroll-state(scrollable:top){.foo{color:red}}",
     );
-    minify_test(
-      r#"
-      @container anchored(fallback: flip-block) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container anchored(fallback:flip-block){.foo{color:red}}",
-    );
-    minify_test(
-      r#"
-      @container popover anchored(fallback: flip-block) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container popover anchored(fallback:flip-block){.foo{color:red}}",
-    );
-    minify_test(
-      r#"
-      @container not anchored(fallback: flip-block) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container not anchored(fallback:flip-block){.foo{color:red}}",
-    );
-    minify_test(
-      r#"
-      @container (inline-size > 45em) and anchored(fallback: flip-block) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container (inline-size>45em) and anchored(fallback:flip-block){.foo{color:red}}",
-    );
-    minify_test(
-      r#"
-      @container anchored(fallback: flip-block flip-inline) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container anchored(fallback:flip-block flip-inline){.foo{color:red}}",
-    );
-    minify_test(
-      r#"
-      @container anchored(fallback: --my-fallback) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container anchored(fallback:--my-fallback){.foo{color:red}}",
-    );
-    minify_test(
-      r#"
-      @container anchored(fallback: none) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container anchored(fallback:none){.foo{color:red}}",
-    );
-    minify_test(
-      r#"
-      @container anchored(fallback: flip-start flip-block) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container anchored(fallback:flip-block flip-start){.foo{color:red}}",
-    );
-    minify_test(
-      r#"
-      @container anchored(fallback: --my-fallback flip-block) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container anchored(fallback:--my-fallback flip-block){.foo{color:red}}",
-    );
-    minify_test(
-      r#"
-      @container anchored(fallback: flip-block --my-fallback flip-inline) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container anchored(fallback:--my-fallback flip-block flip-inline){.foo{color:red}}",
-    );
-    minify_test(
-      r#"
-      @container anchored(fallback: flip-y flip-x) {
-        .foo {
-          color: red;
-        }
-      }
-    "#,
-      "@container anchored(fallback:flip-x flip-y){.foo{color:red}}",
-    );
-    error_test(
-      "@container anchored(fallback: --a --b) { .foo { color: red } }",
-      ParserError::UnexpectedToken(Token::Ident("--b".into())),
-    );
-    error_test(
-      "@container anchored(fallback: flip-block flip-block) { .foo { color: red } }",
-      ParserError::UnexpectedToken(Token::Ident("flip-block".into())),
-    );
-
     // size and inline-size are mutually exclusive; invalid combinations fall through to unparsed
     // (round-trip preserves verbatim instead of normalizing through bitflags).
     minify_test(
@@ -32885,8 +32764,200 @@ mod tests {
     );
     // duplicate keywords are not allowed
     minify_test(
+      ".foo { container-type: scroll-state scroll-state }",
+      ".foo{container-type:scroll-state scroll-state}",
+    );
+
+    // Container queries for anchor positioning are a draft, and must be enabled explicitly.
+    // https://drafts.csswg.org/css-anchor-position-2/#anchored-container-queries
+    let anchored_options = ParserOptions {
+      flags: ParserFlags::ANCHORED_CONTAINER_QUERIES,
+      ..ParserOptions::default()
+    };
+    minify_test_with_options(
+      ".foo{ container-type: anchored }",
+      ".foo{container-type:anchored}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      ".foo{ container-type: anchored inline-size }",
+      ".foo{container-type:inline-size anchored}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      ".foo{ container-type: anchored scroll-state size }",
+      ".foo{container-type:size scroll-state anchored}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      ".foo{ container: foo / anchored; }",
+      ".foo{container:foo/anchored}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      ".foo{ container: foo / anchored inline-size; }",
+      ".foo{container:foo/inline-size anchored}",
+      anchored_options.clone(),
+    );
+    // duplicate keywords are not allowed
+    minify_test_with_options(
       ".foo { container-type: anchored anchored }",
       ".foo{container-type:anchored anchored}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: flip-block) { .foo { color: red } }",
+      "@container anchored(fallback:flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container popover anchored(fallback: flip-block) { .foo { color: red } }",
+      "@container popover anchored(fallback:flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container not anchored(fallback: flip-block) { .foo { color: red } }",
+      "@container not anchored(fallback:flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container (inline-size > 45em) and anchored(fallback: flip-block) { .foo { color: red } }",
+      "@container (inline-size>45em) and anchored(fallback:flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored((fallback: flip-block) or (fallback: --my-fallback)) { .foo { color: red } }",
+      "@container anchored((fallback:flip-block) or (fallback:--my-fallback)){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(not (fallback: none)) { .foo { color: red } }",
+      "@container anchored(not (fallback:none)){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: none) { .foo { color: red } }",
+      "@container anchored(fallback:none){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: --my-fallback) { .foo { color: red } }",
+      "@container anchored(fallback:--my-fallback){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: flip-block flip-inline) { .foo { color: red } }",
+      "@container anchored(fallback:flip-block flip-inline){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    // The order of the <try-tactic> keywords is significant, and must be preserved.
+    minify_test_with_options(
+      "@container anchored(fallback: flip-inline flip-block) { .foo { color: red } }",
+      "@container anchored(fallback:flip-inline flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: flip-start flip-block) { .foo { color: red } }",
+      "@container anchored(fallback:flip-start flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: flip-block flip-start) { .foo { color: red } }",
+      "@container anchored(fallback:flip-block flip-start){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: flip-y flip-x) { .foo { color: red } }",
+      "@container anchored(fallback:flip-y flip-x){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: flip-y flip-start flip-x flip-inline flip-block) { .foo { color: red } }",
+      "@container anchored(fallback:flip-y flip-start flip-x flip-inline flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: FLIP-START Flip-Block) { .foo { color: red } }",
+      "@container anchored(fallback:flip-start flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    // The name may come before or after the <try-tactic>.
+    minify_test_with_options(
+      "@container anchored(fallback: --my-fallback flip-block) { .foo { color: red } }",
+      "@container anchored(fallback:--my-fallback flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: flip-block --my-fallback) { .foo { color: red } }",
+      "@container anchored(fallback:--my-fallback flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    minify_test_with_options(
+      "@container anchored(fallback: flip-start flip-block --my-fallback) { .foo { color: red } }",
+      "@container anchored(fallback:--my-fallback flip-start flip-block){.foo{color:red}}",
+      anchored_options.clone(),
+    );
+    // ...but it cannot split the <try-tactic> keywords.
+    error_test_with_options(
+      "@container anchored(fallback: flip-block --my-fallback flip-inline) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Ident("flip-inline".into())),
+      anchored_options.clone(),
+    );
+    error_test_with_options(
+      "@container anchored(fallback: --a --b) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Ident("--b".into())),
+      anchored_options.clone(),
+    );
+    error_test_with_options(
+      "@container anchored(fallback: flip-block --a --b) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Ident("--b".into())),
+      anchored_options.clone(),
+    );
+    error_test_with_options(
+      "@container anchored(fallback: flip-block flip-block) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Ident("flip-block".into())),
+      anchored_options.clone(),
+    );
+    error_test_with_options(
+      "@container anchored(fallback: --a flip-block flip-inline flip-block) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Ident("flip-block".into())),
+      anchored_options.clone(),
+    );
+    error_test_with_options(
+      "@container anchored(fallback: flip-block none) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Ident("none".into())),
+      anchored_options.clone(),
+    );
+
+    // Without the draft flag, `anchored` is not recognized.
+    minify_test(
+      ".foo{ container-type: anchored inline-size }",
+      ".foo{container-type:anchored inline-size}",
+    );
+    minify_test(
+      ".foo{ container: foo / anchored inline-size; }",
+      ".foo{container:foo / anchored inline-size}",
+    );
+    error_test(
+      "@container anchored(fallback: flip-block) { .foo { color: red } }",
+      ParserError::UnexpectedToken(Token::Function("anchored".into())),
+    );
+    // With error recovery, the query is passed through unchanged with a warning.
+    let warnings = Arc::new(RwLock::new(Vec::new()));
+    minify_test_with_options(
+      "@container anchored(fallback: flip-start flip-block) { .foo { color: red } }",
+      "@container anchored(fallback: flip-start flip-block){.foo{color:red}}",
+      ParserOptions {
+        error_recovery: true,
+        warnings: Some(warnings.clone()),
+        ..ParserOptions::default()
+      },
+    );
+    let warnings = warnings.read().unwrap();
+    assert_eq!(warnings.len(), 1);
+    assert_eq!(
+      warnings[0].kind,
+      ParserError::UnexpectedToken(Token::Function("anchored".into()))
     );
 
     // Disallow 'none', 'not', 'and', 'or' as a `<container-name>`

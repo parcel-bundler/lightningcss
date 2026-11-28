@@ -277,6 +277,12 @@ export interface Drafts {
    * https://drafts.csswg.org/css-overflow-5/#scroll-navigation
    */
   scrollNavigationControls?: boolean
+  /**
+   * Whether to enable container queries for anchor positioning,
+   * i.e. `container-type: anchored` and `@container anchored(...)`.
+   * https://drafts.csswg.org/css-anchor-position-2/#anchored-container-queries
+   */
+  anchoredContainerQueries?: boolean
 }
 
 export interface NonStandard {

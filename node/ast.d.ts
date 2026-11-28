@@ -7779,8 +7779,10 @@ export type AnchoredFallbackValue =
       type: "fallback";
       value: PositionTryFallback;
     };
-export type TryTacticFlag = "flip-block" | "flip-inline" | "flip-start" | "flip-x" | "flip-y";
-export type TryTactic = TryTacticFlag[];
+/**
+ * A single keyword within a [`<try-tactic>`](https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic) value.
+ */
+export type TryTacticKeyword = "flip-block" | "flip-inline" | "flip-start" | "flip-x" | "flip-y";
 /**
  * A property within a `@view-transition` rule.
  *
@@ -9965,9 +9967,9 @@ export interface PositionTryFallback {
    */
   name?: String | null;
   /**
-   * A `<try-tactic>` keyword combination. Empty if only a name is given.
+   * The `<try-tactic>` keywords, in source order. Empty if only a name is given.
    */
-  tactic: TryTactic;
+  tactic: TryTacticKeyword[];
 }
 /**
  * A [@scope](https://drafts.csswg.org/css-cascade-6/#scope-atrule) rule.

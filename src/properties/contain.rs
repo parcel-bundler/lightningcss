@@ -13,11 +13,12 @@ use crate::{
   declaration::{DeclarationBlock, DeclarationList},
   error::{ParserError, PrinterError},
   macros::{define_shorthand, shorthand_handler},
+  parser::{ParserFlags, ParserOptions},
   printer::Printer,
   properties::{Property, PropertyId},
   rules::container::ContainerName as ContainerIdent,
   targets::Browsers,
-  traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss},
+  traits::{IsCompatible, Parse, ParseWithOptions, PropertyHandler, Shorthand, ToCss},
 };
 
 bitflags! {
@@ -47,14 +48,19 @@ impl Default for ContainerType {
   }
 }
 
-impl<'i> Parse<'i> for ContainerType {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> ParseWithOptions<'i> for ContainerType {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(ContainerType::empty());
     }
 
     let mut value = ContainerType::empty();
     let size = ContainerType::InlineSize | ContainerType::Size;
+    // `anchored` is defined by the css-anchor-position-2 draft, and must be enabled explicitly.
+    let anchored = options.flags.contains(ParserFlags::ANCHORED_CONTAINER_QUERIES);
 
     loop {
       let flag = input.try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
@@ -64,7 +70,7 @@ impl<'i> Parse<'i> for ContainerType {
           "inline-size" if !value.intersects(size) => Ok(ContainerType::InlineSize),
           "size" if !value.intersects(size) => Ok(ContainerType::Size),
           "scroll-state" if !value.contains(ContainerType::ScrollState) => Ok(ContainerType::ScrollState),
-          "anchored" if !value.contains(ContainerType::Anchored) => Ok(ContainerType::Anchored),
+          "anchored" if anchored && !value.contains(ContainerType::Anchored) => Ok(ContainerType::Anchored),
           _ => Err(location.new_unexpected_token_error(cssparser::Token::Ident(ident.clone()))),
         }
       });
@@ -127,13 +133,21 @@ enum SerializedContainerType {
   Flags(Vec<ContainerTypeFlag>),
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "kebab-case"))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 enum NormalKeyword {
   Normal,
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "kebab-case"))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 enum ContainerTypeFlag {
   InlineSize,
@@ -283,11 +297,14 @@ define_shorthand! {
   }
 }
 
-impl<'i> Parse<'i> for Container<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> ParseWithOptions<'i> for Container<'i> {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = ContainerNameList::parse(input)?;
     let container_type = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-      ContainerType::parse(input)?
+      ContainerType::parse_with_options(input, options)?
     } else {
       ContainerType::default()
     };

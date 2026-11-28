@@ -10,7 +10,7 @@ use crate::media_query::{
   define_query_features, operation_to_css, parse_query_condition, to_css_with_parens_if_needed, FeatureToCss,
   MediaFeatureType, Operator, QueryCondition, QueryConditionFlags, QueryFeature, ValueType,
 };
-use crate::parser::{DefaultAtRule, ParserOptions};
+use crate::parser::{DefaultAtRule, ParserFlags, ParserOptions};
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::properties::{Property, PropertyId};
@@ -492,17 +492,15 @@ impl<'i> ParseWithOptions<'i> for ContainerCondition<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut flags =
+      QueryConditionFlags::ALLOW_OR | QueryConditionFlags::ALLOW_STYLE | QueryConditionFlags::ALLOW_SCROLL_STATE;
+    flags.set(
+      QueryConditionFlags::ALLOW_ANCHORED,
+      options.flags.contains(ParserFlags::ANCHORED_CONTAINER_QUERIES),
+    );
+
     input
-      .try_parse(|input| {
-        parse_query_condition(
-          input,
-          QueryConditionFlags::ALLOW_OR
-            | QueryConditionFlags::ALLOW_STYLE
-            | QueryConditionFlags::ALLOW_SCROLL_STATE
-            | QueryConditionFlags::ALLOW_ANCHORED,
-          options,
-        )
-      })
+      .try_parse(|input| parse_query_condition(input, flags, options))
       .or_else(|e| {
         if options.error_recovery {
           options.warn(e);
